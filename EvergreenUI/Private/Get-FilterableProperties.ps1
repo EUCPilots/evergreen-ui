@@ -45,7 +45,9 @@ function Get-FilterableProperties {
         [PSObject[]]$AppResults
     )
 
-    if ($null -eq $AppResults -or $AppResults.Count -eq 0) {
+    $appResultsArray = @($AppResults)
+
+    if ($appResultsArray.Count -eq 0) {
         return @()
     }
 
@@ -68,14 +70,16 @@ function Get-FilterableProperties {
         Product      = 'Product variant'
     }
 
-    $filterableProps = $AppResults[0].PSObject.Properties.Name |
+    $filterableProps = $appResultsArray[0].PSObject.Properties.Name |
     Where-Object { $_ -notin $displayOnly }
 
     $output = foreach ($propName in $filterableProps) {
-        $allValues = $AppResults.$propName |
-        Where-Object { $null -ne $_ } |
-        ForEach-Object { [string]$_ } |
-        Sort-Object -Unique
+        $allValues = @(
+            $appResultsArray.$propName |
+            Where-Object { $null -ne $_ } |
+            ForEach-Object { [string]$_ } |
+            Sort-Object -Unique
+        )
 
         $controlType = if ($allValues.Count -le 6) { 'CheckBoxStrip' }
         elseif ($allValues.Count -le 20) { 'MultiListBox' }
@@ -92,15 +96,17 @@ function Get-FilterableProperties {
     }
 
     # URI-based Type derivation - add synthetic 'File type' if Type is absent
-    $hasTypeProperty = ($AppResults[0].PSObject.Properties.Name) -contains 'Type'
-    $hasUriProperty = ($AppResults[0].PSObject.Properties.Name) -contains 'URI'
+    $hasTypeProperty = ($appResultsArray[0].PSObject.Properties.Name) -contains 'Type'
+    $hasUriProperty = ($appResultsArray[0].PSObject.Properties.Name) -contains 'URI'
 
     if (-not $hasTypeProperty -and $hasUriProperty) {
-        $derivedTypes = $AppResults.URI |
-        Where-Object { $null -ne $_ } |
-        ForEach-Object { [System.IO.Path]::GetExtension($_).TrimStart('.').ToLower() } |
-        Where-Object { $_ -ne '' } |
-        Sort-Object -Unique
+        $derivedTypes = @(
+            $appResultsArray.URI |
+            Where-Object { $null -ne $_ } |
+            ForEach-Object { [System.IO.Path]::GetExtension($_).TrimStart('.').ToLower() } |
+            Where-Object { $_ -ne '' } |
+            Sort-Object -Unique
+        )
 
         if ($derivedTypes.Count -gt 0) {
             $output = @($output) + [PSCustomObject]@{
@@ -114,5 +120,5 @@ function Get-FilterableProperties {
         }
     }
 
-    return $output
+    return @($output)
 }
