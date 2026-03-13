@@ -60,7 +60,8 @@ function New-FilterPanel {
     if ($FilterProperties.Count -eq 0) {
         $emptyText = [System.Windows.Controls.TextBlock]::new()
         $emptyText.Text = 'No filterable properties for this app result set.'
-        $emptyText.Foreground = $SyncHash.Window.Resources['TextSecondaryBrush']
+        $emptyText.SetResourceReference(
+            [System.Windows.Controls.TextBlock]::ForegroundProperty, 'TextSecondaryBrush')
         $emptyText.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
         [void]$WrapPanel.Children.Add($emptyText)
         return
@@ -80,8 +81,10 @@ function New-FilterPanel {
 
         $groupBorder = [System.Windows.Controls.Border]::new()
         $groupBorder.BorderThickness = [System.Windows.Thickness]::new(1)
-        $groupBorder.BorderBrush = $SyncHash.Window.Resources['ControlBorderBrush']
-        $groupBorder.Background = $SyncHash.Window.Resources['ControlBackgroundBrush']
+        $groupBorder.SetResourceReference(
+            [System.Windows.Controls.Border]::BorderBrushProperty, 'ControlBorderBrush')
+        $groupBorder.SetResourceReference(
+            [System.Windows.Controls.Border]::BackgroundProperty, 'ControlBackgroundBrush')
         $groupBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
         $groupBorder.Margin = [System.Windows.Thickness]::new(0, 0, 10, 10)
         $groupBorder.Padding = [System.Windows.Thickness]::new(10, 8, 10, 10)
@@ -92,7 +95,8 @@ function New-FilterPanel {
         $label = [System.Windows.Controls.TextBlock]::new()
         $label.Text = $displayName
         $label.FontWeight = [System.Windows.FontWeights]::SemiBold
-        $label.Foreground = $SyncHash.Window.Resources['TextPrimaryBrush']
+        $label.SetResourceReference(
+            [System.Windows.Controls.TextBlock]::ForegroundProperty, 'TextPrimaryBrush')
         $label.Margin = [System.Windows.Thickness]::new(0, 0, 0, 6)
         [void]$groupPanel.Children.Add($label)
 
@@ -130,9 +134,12 @@ function New-FilterPanel {
                 $listBox.SelectionMode = [System.Windows.Controls.SelectionMode]::Multiple
                 $listBox.MinWidth = 220
                 $listBox.MaxHeight = 120
-                $listBox.BorderBrush = $SyncHash.Window.Resources['ControlBorderBrush']
-                $listBox.Background = $SyncHash.Window.Resources['ControlBackgroundBrush']
-                $listBox.Foreground = $SyncHash.Window.Resources['TextPrimaryBrush']
+                $listBox.SetResourceReference(
+                    [System.Windows.Controls.ListBox]::BorderBrushProperty, 'ControlBorderBrush')
+                $listBox.SetResourceReference(
+                    [System.Windows.Controls.ListBox]::BackgroundProperty, 'ControlBackgroundBrush')
+                $listBox.SetResourceReference(
+                    [System.Windows.Controls.ListBox]::ForegroundProperty, 'TextPrimaryBrush')
 
                 foreach ($value in $uniqueValues) {
                     [void]$listBox.Items.Add([string]$value)

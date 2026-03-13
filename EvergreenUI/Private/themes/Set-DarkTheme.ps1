@@ -46,6 +46,8 @@ function Set-DarkTheme {
     $res['ControlBorderBrush'] = NewBrush  46  63  60   # #2E3F3C
     $res['ButtonForegroundBrush'] = NewBrush   0   0   0   # #000000
     $res['ToggleThumbBrush'] = NewBrush   0   0   0   # #000000
+    $res['SecondaryButtonBackgroundBrush'] = NewBrush  45  68  64   # #2D4440 - visible above window bg
+    $res['SecondaryButtonBorderBrush']     = NewBrush  90 123 119   # #5A7B77 - visible mid-tone border
 
     $Window.Background = $res['WindowBackgroundBrush']
     $ThemeLabelTextBlock.Text = 'Dark theme'

@@ -117,6 +117,8 @@ $syncHash = [hashtable]::Synchronized(@{
         <SolidColorBrush x:Key="ControlBorderBrush"     Color="Transparent"/>
         <SolidColorBrush x:Key="ButtonForegroundBrush"  Color="Transparent"/>
         <SolidColorBrush x:Key="ToggleThumbBrush"       Color="Transparent"/>
+        <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="Transparent"/>
+        <SolidColorBrush x:Key="SecondaryButtonBorderBrush"     Color="Transparent"/>
 
         <!-- ── FluentButton ── -->
         <Style x:Key="FluentButton" TargetType="Button">
@@ -155,10 +157,10 @@ $syncHash = [hashtable]::Synchronized(@{
 
         <!-- ── FluentSecondaryButton ── -->
         <Style x:Key="FluentSecondaryButton" TargetType="Button" BasedOn="{StaticResource FluentButton}">
-            <Setter Property="Background"      Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="Background"      Value="{DynamicResource SecondaryButtonBackgroundBrush}"/>
             <Setter Property="Foreground"      Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush"     Value="{DynamicResource ControlBorderBrush}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource SecondaryButtonBorderBrush}"/>
         </Style>
 
         <!-- ── FluentTextBox ── -->
@@ -335,14 +337,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                     BorderThickness="0,0,0,1"
                                     Padding="8,8"
                                     Background="{DynamicResource WindowBackgroundBrush}">
-                                <DockPanel LastChildFill="True">
-                                    <Button x:Name="RefreshAppsButton"
-                                            Content="Refresh"
-                                            DockPanel.Dock="Right"
-                                            Style="{StaticResource FluentSecondaryButton}"
-                                            Margin="6,0,0,0"
-                                            Padding="10,5"/>
-                                    <Grid>
+                                <Grid>
                                         <TextBox x:Name="AppSearchBox"
                                                  Style="{StaticResource FluentTextBox}"/>
                                         <TextBlock Text="Search applications…"
@@ -362,8 +357,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
-                                    </Grid>
-                                </DockPanel>
+                                </Grid>
                             </Border>
                             <!-- APPLICATIONS header -->
                             <Border DockPanel.Dock="Top"
@@ -385,6 +379,18 @@ $syncHash = [hashtable]::Synchronized(@{
                                                VerticalAlignment="Center"
                                                DockPanel.Dock="Right"/>
                                 </DockPanel>
+                            </Border>
+                            <!-- Refresh apps list button pinned to bottom of sidebar -->
+                            <Border DockPanel.Dock="Bottom"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="0,1,0,0"
+                                    Padding="8,8"
+                                    Background="{DynamicResource WindowBackgroundBrush}">
+                                <Button x:Name="RefreshAppsButton"
+                                        Content="Refresh apps list"
+                                        Style="{StaticResource FluentSecondaryButton}"
+                                        HorizontalAlignment="Stretch"
+                                        Padding="10,5"/>
                             </Border>
                             <ListBox x:Name="AppsComboBox"
                                      BorderThickness="0"
@@ -498,26 +504,26 @@ $syncHash = [hashtable]::Synchronized(@{
                                 Visibility="Collapsed">
                             <DockPanel>
 
-                                <!-- Header: APPNAME  VERSION DETAILS + Refresh -->
+                                <!-- Header: Refresh + APPNAME VERSION DETAILS -->
                                 <Border DockPanel.Dock="Top"
                                         BorderBrush="{DynamicResource ControlBorderBrush}"
                                         BorderThickness="0,0,0,1"
                                         Padding="14,8"
                                         Background="{DynamicResource ControlBackgroundBrush}">
-                                    <DockPanel LastChildFill="False">
+                                    <DockPanel LastChildFill="True">
+                                        <Button x:Name="LoadAppVersionsButton"
+                                                Content="Refresh"
+                                                DockPanel.Dock="Left"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="15,4"
+                                                FontSize="12"
+                                                Margin="0,0,12,0"/>
                                         <TextBlock x:Name="AppDetailTitle"
                                                    Text=""
                                                    FontSize="11"
                                                    FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   VerticalAlignment="Center"
-                                                   DockPanel.Dock="Left"/>
-                                        <Button x:Name="LoadAppVersionsButton"
-                                                Content="Refresh"
-                                                DockPanel.Dock="Right"
-                                                Style="{StaticResource FluentSecondaryButton}"
-                                                Padding="10,4"
-                                                FontSize="12"/>
+                                                   VerticalAlignment="Center"/>
                                     </DockPanel>
                                 </Border>
 
@@ -1870,7 +1876,7 @@ $appsComboBox.add_SelectionChanged({
 
         $selectedApp = $appsComboBox.SelectedItem
         if ($null -ne $selectedApp) {
-            $appDetailTitle.Text = "$($selectedApp.Name.ToUpper())  VERSION DETAILS"
+            $appDetailTitle.Text = "$($selectedApp.Name.ToUpper()) VERSION DETAILS"
 
             # Load from cache if available; otherwise show the panel empty (user clicks Refresh)
             $cachePath = & $getAppCacheFile -AppName $selectedApp.Name

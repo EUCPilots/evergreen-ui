@@ -47,6 +47,8 @@ function Set-LightTheme {
     $res['ControlBorderBrush'] = NewBrush 221 226 225   # #DDE2E1
     $res['ButtonForegroundBrush'] = NewBrush 255 255 255   # #FFFFFF
     $res['ToggleThumbBrush'] = NewBrush 255 255 255   # #FFFFFF
+    $res['SecondaryButtonBackgroundBrush'] = NewBrush 228 232 231   # #E4E8E7 - clearly above window bg
+    $res['SecondaryButtonBorderBrush']     = NewBrush 154 173 170   # #9AADAA - visible mid-tone border
 
     $Window.Background = $res['WindowBackgroundBrush']
     $ThemeLabelTextBlock.Text = 'Light theme'
