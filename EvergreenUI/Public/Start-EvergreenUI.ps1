@@ -358,7 +358,7 @@ $syncHash = [hashtable]::Synchronized(@{
             <RowDefinition Height="48"/>                        <!-- 0  Title bar    -->
             <RowDefinition Height="*" MinHeight="200"/>         <!-- 1  Main area     -->
             <RowDefinition Height="5"/>                         <!-- 2  GridSplitter  -->
-            <RowDefinition Height="182" MinHeight="32"/>        <!-- 3  Status + Log  -->
+            <RowDefinition Height="182" MinHeight="40"/>        <!-- 3  Status + Log  -->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="140"/>     <!-- Nav rail -->
@@ -854,10 +854,10 @@ $syncHash = [hashtable]::Synchronized(@{
                                       SelectionMode="Single">
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="App"            DisplayMemberBinding="{Binding Name}"     Width="240"/>
-                                        <GridViewColumn Header="Count"          DisplayMemberBinding="{Binding Count}"    Width="70"/>
-                                        <GridViewColumn Header="Latest version" DisplayMemberBinding="{Binding Version}"  Width="140"/>
-                                        <GridViewColumn Header="Path"           DisplayMemberBinding="{Binding Path}"     Width="620"/>
+                                        <GridViewColumn Header="App"          DisplayMemberBinding="{Binding Name}"         Width="220"/>
+                                        <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="140"/>
+                                        <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="100"/>
+                                        <GridViewColumn Header="Path"         DisplayMemberBinding="{Binding Path}"          Width="590"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
@@ -898,7 +898,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                 <ListView.View>
                                     <GridView>
                                         <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="130"/>
-                                        <GridViewColumn Header="Platform"     DisplayMemberBinding="{Binding Platform}"      Width="90"/>
+                                        <GridViewColumn Header="Type"         DisplayMemberBinding="{Binding Type}"          Width="90"/>
                                         <GridViewColumn Header="Channel"      DisplayMemberBinding="{Binding Channel}"       Width="110"/>
                                         <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
                                         <GridViewColumn Header="URI"          DisplayMemberBinding="{Binding URI}"           Width="630"/>
@@ -1105,7 +1105,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                 FontSize="12"
                                 Margin="0,0,6,0"/>
                         <ToggleButton x:Name="LogToggleButton"
-                                      Content="&#x25BE; Progress log"
+                                      Content="Hide progress log"
                                       IsChecked="True"
                                       Padding="10,3"
                                       FontSize="12"
@@ -1634,20 +1634,36 @@ $refreshLibraryView = {
         Set-UIConfig -Config $syncHash.Config
 
         $items = @()
-        $raw = @(Get-EvergreenLibrary -Path $path -ErrorAction Stop)
+        $libraryObj = Get-EvergreenLibrary -Path $path -ErrorAction Stop
+        $inventory = if ($libraryObj.PSObject.Properties.Name -contains 'Inventory') {
+            @($libraryObj.Inventory)
+        } else {
+            @($libraryObj)
+        }
 
-        foreach ($entry in $raw) {
-            $name = & $getLibraryItemName -Item $entry
-            $count = if ($entry.PSObject.Properties.Name -contains 'Count') { [int]$entry.Count } else { 0 }
-            $version = if ($entry.PSObject.Properties.Name -contains 'Version') { [string]$entry.Version } else { '' }
-            $itemPath = if ($entry.PSObject.Properties.Name -contains 'Path') { [string]$entry.Path } else { '' }
+        foreach ($entry in $inventory) {
+            $appName = if ($entry.PSObject.Properties.Name -contains 'ApplicationName') {
+                [string]$entry.ApplicationName
+            } else {
+                & $getLibraryItemName -Item $entry
+            }
+            $versions = if ($entry.PSObject.Properties.Name -contains 'Versions') { $entry.Versions } else { $null }
+            $version  = if ($null -ne $versions -and $versions.PSObject.Properties.Name -contains 'Version') {
+                [string]$versions.Version
+            } else { '' }
+            $arch = if ($null -ne $versions -and $versions.PSObject.Properties.Name -contains 'Architecture') {
+                [string]$versions.Architecture
+            } else { '' }
+            $itemPath = if ($null -ne $versions -and $versions.PSObject.Properties.Name -contains 'Path') {
+                [string]$versions.Path
+            } else { '' }
 
             $items += [PSCustomObject]@{
-                Name       = $name
-                Count      = $count
-                Version    = $version
-                Path       = $itemPath
-                SourceItem = $entry
+                Name         = $appName
+                Version      = $version
+                Architecture = $arch
+                Path         = $itemPath
+                SourceItem   = $entry
             }
         }
 
@@ -1675,22 +1691,22 @@ $loadLibraryAppDetails = {
         return
     }
 
-    $path = $libraryPathViewBox.Text
     $appName = [string]$SelectedLibraryItem.Name
-    if ([string]::IsNullOrWhiteSpace($appName) -or [string]::IsNullOrWhiteSpace($path)) {
+    $versions = $null
+    if ($SelectedLibraryItem.PSObject.Properties.Name -contains 'SourceItem' -and
+        $null -ne $SelectedLibraryItem.SourceItem -and
+        $SelectedLibraryItem.SourceItem.PSObject.Properties.Name -contains 'Versions') {
+        $versions = $SelectedLibraryItem.SourceItem.Versions
+    }
+
+    if ($null -eq $versions) {
+        $syncHash.LibraryDetailsListView.ItemsSource = @()
+        $syncHash.LibraryStatusLabel.Text = "No version details found for $appName."
         return
     }
 
-    try {
-        $details = @(Get-EvergreenAppFromLibrary -Name $appName -Path $path -ErrorAction Stop)
-        $syncHash.LibraryDetailsListView.ItemsSource = $details
-        $syncHash.LibraryStatusLabel.Text = "Loaded details for $appName ($($details.Count) entries)."
-    }
-    catch {
-        $syncHash.LibraryDetailsListView.ItemsSource = @()
-        $syncHash.LibraryStatusLabel.Text = "Failed to load details for $appName."
-        Write-UILog -SyncHash $syncHash -Message "Failed to load app details from library: $_" -Level Error
-    }
+    $syncHash.LibraryDetailsListView.ItemsSource = @($versions)
+    $syncHash.LibraryStatusLabel.Text = "Details loaded for $appName."
 }
 
 $startLibraryUpdate = {
@@ -1756,7 +1772,7 @@ $startLibraryUpdate = {
 }
 
 # ── Apply initial log height from config ──────────────────────────────────────
-$initialLogHeight = [Math]::Max(32, 32 + $config.LogHeight)
+$initialLogHeight = [Math]::Max(40, 40 + $config.LogHeight)
 $logRowDef.Height = [System.Windows.GridLength]::new($initialLogHeight)
 
 # ── Event: Window.Loaded ─────────────────────────────────────────────────────
@@ -1826,7 +1842,7 @@ $window.add_Loaded({
 # ── Event: Window.Closing - persist config ────────────────────────────────────
 $window.add_Closing({
         try {
-            $currentLogHeight = [int]$logRowDef.Height.Value - 32
+            $currentLogHeight = [int]$logRowDef.Height.Value - 40
             if ($currentLogHeight -gt 0) {
                 $syncHash.Config.LogHeight = $currentLogHeight
             }
@@ -2244,15 +2260,15 @@ $themeToggle.add_Click({
 $logToggleButton.add_Click({
         if ($logToggleButton.IsChecked) {
             $restoreHeight = [Math]::Max(80, $syncHash.Config.LogHeight)
-            $logRowDef.Height = [System.Windows.GridLength]::new(32 + $restoreHeight)
-            $logToggleButton.Content = [char]0x25BE + ' Progress log'
+            $logRowDef.Height = [System.Windows.GridLength]::new(40 + $restoreHeight)
+            $logToggleButton.Content = 'Hide progress log'
         }
         else {
             # Save current displayed log height before collapsing
-            $currentHeight = [int]$logRowDef.Height.Value - 32
+            $currentHeight = [int]$logRowDef.Height.Value - 40
             if ($currentHeight -gt 0) { $syncHash.Config.LogHeight = $currentHeight }
-            $logRowDef.Height = [System.Windows.GridLength]::new(32)
-            $logToggleButton.Content = [char]0x25B8 + ' Progress log'
+            $logRowDef.Height = [System.Windows.GridLength]::new(40)
+            $logToggleButton.Content = 'Show progress log'
         }
     })
 
