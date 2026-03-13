@@ -64,9 +64,9 @@ evergreen-ui/
 │       ├── New-FilterPanel.ps1      ⚠️  stub — filter state init only, no WPF controls yet
 │       ├── Get-UIConfig.ps1         ✅ implemented
 │       ├── Set-UIConfig.ps1         ✅ implemented
-│       ├── Get-EvergreenAppList.ps1 ❌ missing — needs creating
-│       ├── Invoke-AppDownload.ps1   ❌ missing — needs creating
-│       └── Invoke-LibraryUpdate.ps1 ❌ missing — needs creating
+│       ├── Get-EvergreenAppList.ps1 ✅ implemented
+│       ├── Invoke-AppDownload.ps1   ✅ implemented
+│       └── Invoke-LibraryUpdate.ps1 ✅ implemented
 └── tests/
     └── EvergreenUI.tests.ps1        ✅ Pester scaffold exists
 ```
@@ -79,7 +79,7 @@ evergreen-ui/
 |---|---|---|
 | 1 | Module scaffold — `psd1`, `psm1`, folder structure | ✅ Done (see known issues below) |
 | 2 | Shared helpers — runspace factory, log, theme, config, filter helpers | ✅ Done |
-| 3 | Shell window — nav rail, log panel, theme toggle, Evergreen status | ❌ Not started |
+| 3 | Shell window — nav rail, log panel, theme toggle, Evergreen status | ✅ Done |
 | 4 | Apps view — `Find-EvergreenApp` list + `Get-EvergreenApp` detail + filter panel | ❌ Not started |
 | 5 | Download view — `Save-EvergreenApp` with sequential queue | ❌ Not started |
 | 6 | Library view — library CRUD + `Start-EvergreenLibraryUpdate` | ❌ Not started |
@@ -88,31 +88,13 @@ evergreen-ui/
 
 ---
 
-## Known Issues / TODOs Before Phase 3
+## Known Issues / TODOs Before Phase 4
 
-### Phase 1 gaps (finish before starting Phase 3)
+1. **`New-FilterPanel.ps1` — Phase 4 work** — the stub initialises `$syncHash.FilterState`
+   correctly but does not yet build any WPF controls. This is intentional (Phase 4 work).
 
-1. **Three missing private stubs** — create as proper implemented functions, not stubs:
-   - `Private/Get-EvergreenAppList.ps1` — thin wrapper around `Find-EvergreenApp`, returns
-     sorted list of `[PSCustomObject]@{ Name; FriendlyName }` suitable for binding to a ComboBox.
-   - `Private/Invoke-AppDownload.ps1` — wraps `Get-EvergreenApp` + `Save-EvergreenApp`;
-     accepts a queue item from `$syncHash.DownloadQueue`, updates `Status` in-place via
-     `Dispatcher.Invoke`, calls `Write-UILog` per file.
-   - `Private/Invoke-LibraryUpdate.ps1` — wraps `Start-EvergreenLibraryUpdate -Path`; logs
-     progress via `Write-UILog`; runs in a `New-WpfRunspace`.
-
-2. **`psd1` — remove `RequiredAssemblies`** — listing WPF assemblies in the manifest causes
-   PowerShell to attempt loading them at `Import-Module` time, which fails in some non-GUI
-   sessions. The `Add-Type -AssemblyName` calls in `Start-EvergreenUI.ps1` are sufficient.
-   Remove the entire `RequiredAssemblies` key from `EvergreenUI.psd1`.
-
-3. **`psd1` — replace placeholder GUID** — current GUID `a3f8c2d1-4b7e-4f9a-8c3d-1e2f5a6b7c8d`
-   is a placeholder. Replace with output of `[guid]::NewGuid()` before first real release.
-
-4. **`New-FilterPanel.ps1` — Phase 4 work** — the stub initialises `$syncHash.FilterState`
-   correctly but does not yet build any WPF controls. This is intentional (Phase 4 work),
-   but ensure it does not regress — the `foreach` loop and `HashSet` initialisation must
-   remain as-is.
+2. **Phase 3 shell — content panels are placeholder stubs** — `AppsPanel`, `DownloadPanel`,
+   and `LibraryPanel` show "coming in Phase X" TextBlocks. These are replaced in Phases 4–6.
 
 ---
 
@@ -298,12 +280,17 @@ Raw data: https://github.com/aaronparker/apptracker
 
 ## Next Actions (in order)
 
-1. Create `Private/Get-EvergreenAppList.ps1`, `Private/Invoke-AppDownload.ps1`, `Private/Invoke-LibraryUpdate.ps1`
-2. Fix `EvergreenUI.psd1` — remove `RequiredAssemblies`, replace placeholder GUID
-3. **Phase 3** — implement the shell window in `Public/Start-EvergreenUI.ps1`:
-   - Window XAML: title bar, nav rail, content host `Grid`, log panel with `GridSplitter`
-   - Wire `ThemeToggle` → `Set-LightTheme` / `Set-DarkTheme`
-   - Wire nav `RadioButton` group → view visibility swap
-   - On `Window.Loaded`: call `Test-EvergreenModule`, populate `$syncHash.EvergreenVersion`, apply saved theme from `Get-UIConfig`
-4. **Phase 4** — implement Apps view and complete `New-FilterPanel` WPF control construction
-5. Continue phases 5–8 per `docs/plan.md`
+1. ✅ Phase 1 gaps — all resolved (`psd1` fixed, three private functions created)
+2. ✅ Phase 3 — shell window complete; nav, theme toggle, log panel, GridSplitter, Settings view all wired
+3. **Phase 4** — Apps view (`AppsPanel`):
+  - App selector (ComboBox) calls `Get-EvergreenAppList` on load; results cached in `$syncHash.AppList`
+  - On selection: `Get-EvergreenApp -Name` in a runspace → `$syncHash.CurrentAppResults`
+  - Complete `New-FilterPanel` WPF control construction (`CheckBoxStrip`, `MultiListBox`, `TextBox`)
+  - Filter change → `Invoke-FilterUpdate` → update `VersionsListView` and `ResultsCountLabel`
+  - "Add to queue" button appends selected row to `$syncHash.DownloadQueue`
+4. **Phase 5** — Download view (`DownloadPanel`):
+  - Queue ListView bound to `$syncHash.DownloadQueue`
+  - "Download all" button → sequential `Invoke-AppDownload` in a runspace
+5. **Phase 6** — Library view (`LibraryPanel`):
+  - Library path display + "Update library" button → `Invoke-LibraryUpdate` in a runspace
+6. Phases 7–8 per `docs/plan.md` (settings persistence polish, keyboard shortcuts)

@@ -26,13 +26,6 @@
         @{ ModuleName = 'Evergreen'; ModuleVersion = '2603.2832.0' }
     )
 
-    RequiredAssemblies = @(
-        'PresentationFramework'
-        'PresentationCore'
-        'WindowsBase'
-        'System.Windows.Forms'
-    )
-
     # Module metadata
     PrivateData = @{
         PSData = @{
