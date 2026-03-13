@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'EvergreenUI/EvergreenUI.psd1'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,7 +23,7 @@ jobs:
       - name: Extract version from manifest
         id: version
         run: |
-          MODULE_VERSION=$(grep -oP "ModuleVersion\s*=\s*'\K[^']+" EvergreenUI/EvergreenUI.psd1)
+          MODULE_VERSION=$(sed -n "4p" EvergreenUI/EvergreenUI.psd1 | grep -oP "'\K[^']+")
           PRERELEASE=$(grep -oP "Prerelease\s*=\s*'\K[^']+" EvergreenUI/EvergreenUI.psd1 || true)
 
           if [ -n "$PRERELEASE" ]; then
