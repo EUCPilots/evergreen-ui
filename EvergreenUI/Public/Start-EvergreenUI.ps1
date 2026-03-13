@@ -85,6 +85,11 @@ $syncHash = [hashtable]::Synchronized(@{
         DownloadQueue              = [System.Collections.Generic.List[PSCustomObject]]::new()
         EvergreenVersion           = ''
         Config                     = $config
+        PendingLoadTimer           = $null
+        PendingLoadPS              = $null
+        PendingLoadRunspace        = $null
+        PendingLoadAsync           = $null
+        PendingLoadAppName         = $null
     })
 
 # ── XAML ─────────────────────────────────────────────────────────────────────
@@ -125,6 +130,8 @@ $syncHash = [hashtable]::Synchronized(@{
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd"
                                 Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="4"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center"
@@ -305,145 +312,285 @@ $syncHash = [hashtable]::Synchronized(@{
         <!-- ══ ROW 1, COL 1: Content panels (visibility-swapped) ════════════════════ -->
         <Grid Grid.Row="1" Grid.Column="1">
 
-            <!-- Apps view - Phase 4 -->
+            <!-- Apps view -->
             <Grid x:Name="AppsPanel"
                   Visibility="Visible"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <Grid Margin="22,18,22,12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                <!-- App list (left) + detail (right) - search inside left column -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300" MinWidth="180"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
-                        <TextBlock Text="Apps"
-                                   FontSize="20"
-                                   FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                   DockPanel.Dock="Left"
-                                   VerticalAlignment="Center"/>
-                        <Button x:Name="RefreshAppsButton"
-                                Content="Refresh apps"
-                                DockPanel.Dock="Right"
-                                Style="{StaticResource FluentSecondaryButton}"
-                                Padding="12,5"/>
-                    </DockPanel>
-
-                    <Grid Grid.Row="1" Margin="0,0,0,14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="1.3*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                            <TextBlock Text="Search apps"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="12"
-                                       Margin="0,0,0,4"/>
-                            <TextBox x:Name="AppSearchBox"
-                                     Style="{StaticResource FluentTextBox}"
-                                     ToolTip="Filter app list by Name or FriendlyName"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                            <TextBlock Text="Application"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="12"
-                                       Margin="0,0,0,4"/>
-                            <ComboBox x:Name="AppsComboBox"
-                                      DisplayMemberPath="FriendlyName"
-                                      SelectedValuePath="Name"
-                                      MinWidth="260"
-                                      Height="34"
-                                      Background="{DynamicResource ControlBackgroundBrush}"
-                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                      BorderBrush="{DynamicResource ControlBorderBrush}"/>
-                        </StackPanel>
-
-                        <Button x:Name="LoadAppVersionsButton"
-                                Grid.Column="2"
-                                Content="Load versions"
-                                Style="{StaticResource FluentButton}"
-                                Padding="14,6"
-                                VerticalAlignment="Bottom"/>
-                    </Grid>
-
-                    <Grid Grid.Row="2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="320"/>
-                            <ColumnDefinition Width="14"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Border Grid.Column="0"
-                                BorderThickness="1"
-                                BorderBrush="{DynamicResource ControlBorderBrush}"
-                                Background="{DynamicResource ControlBackgroundBrush}"
-                                CornerRadius="4"
-                                Padding="10">
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Top"
-                                           Text="Filters"
-                                           FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"
-                                           Margin="0,0,0,8"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                              HorizontalScrollBarVisibility="Disabled">
-                                    <WrapPanel x:Name="FilterWrapPanel"/>
-                                </ScrollViewer>
-                            </DockPanel>
-                        </Border>
-
-                        <Border Grid.Column="2"
-                                BorderThickness="1"
-                                BorderBrush="{DynamicResource ControlBorderBrush}"
-                                Background="{DynamicResource ControlBackgroundBrush}"
-                                CornerRadius="4"
-                                Padding="10">
-                            <DockPanel>
-                                <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,8">
-                                    <TextBlock x:Name="ResultsCountLabel"
-                                               Text="Showing 0 of 0"
+                    <!-- Left: Search + APPLICATIONS list -->
+                    <Border Grid.Column="0"
+                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                            BorderThickness="0,0,1,0"
+                            Background="{DynamicResource WindowBackgroundBrush}">
+                        <DockPanel>
+                            <!-- Search bar matching list width -->
+                            <Border DockPanel.Dock="Top"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="8,8"
+                                    Background="{DynamicResource WindowBackgroundBrush}">
+                                <DockPanel LastChildFill="True">
+                                    <Button x:Name="RefreshAppsButton"
+                                            Content="Refresh"
+                                            DockPanel.Dock="Right"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="6,0,0,0"
+                                            Padding="10,5"/>
+                                    <Grid>
+                                        <TextBox x:Name="AppSearchBox"
+                                                 Style="{StaticResource FluentTextBox}"/>
+                                        <TextBlock Text="Search applications…"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   IsHitTestVisible="False"
+                                                   Margin="10,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="13">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=AppSearchBox}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </DockPanel>
+                            </Border>
+                            <!-- APPLICATIONS header -->
+                            <Border DockPanel.Dock="Top"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="12,8"
+                                    Background="{DynamicResource ControlBackgroundBrush}">
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock Text="APPLICATIONS"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                VerticalAlignment="Center"
                                                DockPanel.Dock="Left"/>
-                                    <Button x:Name="ClearFiltersButton"
-                                            Content="Reset filters"
-                                            Style="{StaticResource FluentSecondaryButton}"
-                                            Padding="10,4"
-                                            FontSize="12"
-                                            DockPanel.Dock="Right"/>
+                                    <TextBlock x:Name="AppCountLabel"
+                                               Text=""
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               DockPanel.Dock="Right"/>
+                                </DockPanel>
+                            </Border>
+                            <ListBox x:Name="AppsComboBox"
+                                     BorderThickness="0"
+                                     Background="{DynamicResource WindowBackgroundBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     SelectedValuePath="Name"
+                                     VirtualizingPanel.IsVirtualizing="True"
+                                     VirtualizingPanel.VirtualizationMode="Recycling"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding FriendlyName}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding"                   Value="12,7"/>
+                                        <Setter Property="Cursor"                    Value="Hand"/>
+                                        <Setter Property="FontSize"                  Value="13"/>
+                                        <Setter Property="Foreground"                Value="{DynamicResource TextPrimaryBrush}"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border x:Name="bd"
+                                                            Background="Transparent"
+                                                            Padding="{TemplateBinding Padding}"
+                                                            CornerRadius="4"
+                                                            Margin="4,1">
+                                                        <ContentPresenter/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="bd" Property="Background"
+                                                                    Value="{DynamicResource AccentLightBrush}"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="bd" Property="Background"
+                                                                    Value="{DynamicResource AccentLightBrush}"/>
+                                                            <Setter Property="Foreground"
+                                                                    Value="{DynamicResource AccentBrush}"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Right: Version detail -->
+                    <Grid Grid.Column="1" Margin="14,14,14,14">
+
+                        <!-- Empty state -->
+                        <Border x:Name="AppDetailEmpty"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="4"
+                                Visibility="Visible">
+                            <TextBlock Text="Select an application to view version details"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       FontSize="13"/>
+                        </Border>
+
+                        <!-- Loading state -->
+                        <Border x:Name="AppDetailLoading"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="4"
+                                Visibility="Collapsed">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Width="360">
+                                <TextBlock x:Name="AppDetailLoadingLabel"
+                                           Text="Retrieving application details from Evergreen…"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,14"/>
+                                <ProgressBar IsIndeterminate="True"
+                                             Height="3"
+                                             Foreground="{DynamicResource AccentBrush}"
+                                             Background="{DynamicResource ControlBorderBrush}"
+                                             BorderThickness="0"/>
+                                <TextBlock Text="Some applications may take a moment to respond"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Detail panel -->
+                        <Border x:Name="AppDetailContent"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="4"
+                                Visibility="Collapsed">
+                            <DockPanel>
+
+                                <!-- Header: APPNAME  VERSION DETAILS + Refresh -->
+                                <Border DockPanel.Dock="Top"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="14,8"
+                                        Background="{DynamicResource ControlBackgroundBrush}">
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock x:Name="AppDetailTitle"
+                                                   Text=""
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"
+                                                   DockPanel.Dock="Left"/>
+                                        <Button x:Name="LoadAppVersionsButton"
+                                                Content="Refresh"
+                                                DockPanel.Dock="Right"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="10,4"
+                                                FontSize="12"/>
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- Filters strip -->
+                                <Border DockPanel.Dock="Top"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="12,10">
+                                    <WrapPanel x:Name="FilterWrapPanel"
+                                               Orientation="Horizontal"/>
+                                </Border>
+
+                                <!-- Results meta + action buttons -->
+                                <DockPanel DockPanel.Dock="Top"
+                                           LastChildFill="False"
+                                           Margin="14,8">
+                                    <TextBlock x:Name="ResultsCountLabel"
+                                               Text="Showing 0 of 0"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               VerticalAlignment="Center"
+                                               DockPanel.Dock="Left"/>
+                                    <StackPanel Orientation="Horizontal"
+                                                DockPanel.Dock="Right">
+                                        <Button x:Name="ClearFiltersButton"
+                                                Content="Clear filters"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="10,4"
+                                                FontSize="12"
+                                                Margin="0,0,6,0"/>
+                                        <Button x:Name="AddToQueueButton"
+                                                Content="+ Add to download queue"
+                                                Style="{StaticResource FluentButton}"
+                                                Padding="12,4"
+                                                FontSize="12"/>
+                                    </StackPanel>
                                 </DockPanel>
 
+                                <!-- Versions table -->
                                 <ListView x:Name="VersionsListView"
                                           Style="{StaticResource FluentListView}"
                                           BorderBrush="{DynamicResource ControlBorderBrush}"
-                                          BorderThickness="1"
-                                          SelectionMode="Single">
+                                          BorderThickness="0,1,0,0"
+                                          SelectionMode="Extended">
+                                    <ListView.Resources>
+                                        <Style TargetType="GridViewColumnHeader">
+                                            <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
+                                            <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
+                                            <Setter Property="FontSize"                   Value="11"/>
+                                            <Setter Property="FontWeight"                 Value="SemiBold"/>
+                                            <Setter Property="Padding"                    Value="12,6"/>
+                                            <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
+                                            <Setter Property="BorderThickness"            Value="0,0,1,1"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                        </Style>
+                                    </ListView.Resources>
                                     <ListView.View>
                                         <GridView>
-                                            <GridViewColumn Header="Version"       DisplayMemberBinding="{Binding Version}"       Width="130"/>
-                                            <GridViewColumn Header="Platform"      DisplayMemberBinding="{Binding Platform}"      Width="90"/>
-                                            <GridViewColumn Header="Channel"       DisplayMemberBinding="{Binding Channel}"       Width="110"/>
-                                            <GridViewColumn Header="Architecture"  DisplayMemberBinding="{Binding Architecture}"  Width="100"/>
+                                            <GridViewColumn Header="VERSION"       DisplayMemberBinding="{Binding Version}"       Width="130"/>
+                                            <GridViewColumn Header="CHANNEL"       DisplayMemberBinding="{Binding Channel}"       Width="110"/>
+                                            <GridViewColumn Header="RELEASE"       DisplayMemberBinding="{Binding Release}"       Width="100"/>
+                                            <GridViewColumn Header="ARCHITECTURE"  DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
+                                            <GridViewColumn Header="TYPE"          DisplayMemberBinding="{Binding Type}"          Width="70"/>
+                                            <GridViewColumn Header="DATE"          DisplayMemberBinding="{Binding Date}"          Width="100"/>
                                             <GridViewColumn Header="URI"           DisplayMemberBinding="{Binding URI}"           Width="460"/>
                                         </GridView>
                                     </ListView.View>
                                 </ListView>
+
                             </DockPanel>
                         </Border>
-                    </Grid>
 
-                    <DockPanel Grid.Row="3" Margin="0,12,0,0" LastChildFill="False">
-                        <Button x:Name="AddToQueueButton"
-                                Content="Add selected to queue"
-                                Style="{StaticResource FluentButton}"
-                                DockPanel.Dock="Right"
-                                Padding="14,6"/>
-                    </DockPanel>
+                    </Grid>
                 </Grid>
             </Grid>
 
@@ -929,6 +1076,12 @@ $syncHash.DownloadAllButton = $window.FindName('DownloadAllButton')
 
 $syncHash.VersionsListView = $window.FindName('VersionsListView')
 $syncHash.ResultsCountLabel = $window.FindName('ResultsCountLabel')
+$appCountLabel = $window.FindName('AppCountLabel')
+$appDetailEmpty = $window.FindName('AppDetailEmpty')
+$appDetailLoading = $window.FindName('AppDetailLoading')
+$appDetailLoadingLabel = $window.FindName('AppDetailLoadingLabel')
+$appDetailContent = $window.FindName('AppDetailContent')
+$appDetailTitle = $window.FindName('AppDetailTitle')
 
 $copyLogButton = $window.FindName('CopyLogButton')
 $saveLogButton = $window.FindName('SaveLogButton')
@@ -956,14 +1109,13 @@ $updateAppsComboSource = {
     $allApps = @($syncHash.AppList)
     if ($allApps.Count -eq 0) {
         $appsComboBox.ItemsSource = @()
+        $appCountLabel.Text = ''
         return
     }
 
     if ([string]::IsNullOrWhiteSpace($SearchText)) {
         $appsComboBox.ItemsSource = $allApps
-        if ($appsComboBox.SelectedIndex -lt 0) {
-            $appsComboBox.SelectedIndex = 0
-        }
+        $appCountLabel.Text = " $($allApps.Count) of $($allApps.Count)"
         return
     }
 
@@ -973,9 +1125,7 @@ $updateAppsComboSource = {
     }
 
     $appsComboBox.ItemsSource = @($filtered)
-    if ($appsComboBox.SelectedIndex -lt 0 -and $appsComboBox.Items.Count -gt 0) {
-        $appsComboBox.SelectedIndex = 0
-    }
+    $appCountLabel.Text = " $(@($filtered).Count) of $($allApps.Count)"
 }
 
 $loadAppCatalog = {
@@ -991,6 +1141,54 @@ $loadAppCatalog = {
     }
 }
 
+# Rebuilds the VersionsListView GridView columns to match the properties returned
+# by Get-EvergreenApp for the current app. Version is always first, URI always last.
+$rebuildVersionColumns = {
+    param([PSObject[]]$AppResults)
+
+    if ($null -eq $AppResults -or $AppResults.Count -eq 0) { return }
+
+    $allProps = [string[]]$AppResults[0].PSObject.Properties.Name
+
+    # Well-known preferred widths
+    $widths = @{
+        Version      = 140
+        Architecture = 110
+        Channel      = 130
+        Release      = 100
+        Platform     = 90
+        Language     = 90
+        Ring         = 110
+        Track        = 90
+        Type         = 80
+        Product      = 110
+        Date         = 100
+        URI          = 460
+    }
+
+    # Order: Version first, URI last, everything else in declared order
+    $skip = [System.Collections.Generic.HashSet[string]]::new(
+        [string[]]@('Version', 'URI'),
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $middle = $allProps | Where-Object { -not $skip.Contains($_) }
+    $ordered = @(
+        if ($allProps -contains 'Version') { 'Version' }
+    ) + @($middle) + @(
+        if ($allProps -contains 'URI') { 'URI' }
+    )
+
+    $gv = [System.Windows.Controls.GridView]::new()
+    foreach ($prop in $ordered) {
+        $col = [System.Windows.Controls.GridViewColumn]::new()
+        $col.Header = $prop.ToUpper()
+        $col.DisplayMemberBinding = [System.Windows.Data.Binding]::new($prop)
+        $col.Width = if ($widths.ContainsKey($prop)) { $widths[$prop] } else { 100 }
+        [void]$gv.Columns.Add($col)
+    }
+    $syncHash.VersionsListView.View = $gv
+}
+
 $loadAppVersions = {
     $selectedApp = $appsComboBox.SelectedItem
     if ($null -eq $selectedApp) {
@@ -1000,43 +1198,90 @@ $loadAppVersions = {
 
     $appName = [string]$selectedApp.Name
     $loadAppVersionsButton.IsEnabled = $false
-    try {
-        Write-UILog -SyncHash $syncHash -Message "Loading versions for $appName..." -Level Info
 
-        $runspace = New-WpfRunspace -SyncHash $syncHash
-        $ps = [powershell]::Create()
-        $ps.Runspace = $runspace
+    # Show loading state
+    $appDetailContent.Visibility     = [System.Windows.Visibility]::Collapsed
+    $appDetailLoading.Visibility     = [System.Windows.Visibility]::Visible
+    $appDetailLoadingLabel.Text      = "Retrieving details for $appName from Evergreen..."
 
-        [void]$ps.AddScript({
-                param([string]$Name)
-                Get-EvergreenApp -Name $Name -ErrorAction Stop
-            }).AddArgument($appName)
+    Write-UILog -SyncHash $syncHash -Message "Loading versions for $appName..." -Level Info
 
-        $results = @($ps.Invoke())
-        $ps.Dispose()
-        $runspace.Dispose()
+    $runspace = New-WpfRunspace -SyncHash $syncHash
+    $ps = [powershell]::Create()
+    $ps.Runspace = $runspace
+    [void]$ps.AddScript({
+            param([string]$Name)
+            Get-EvergreenApp -Name $Name -ErrorAction Stop
+        }).AddArgument($appName)
 
-        $syncHash.CurrentAppResults = @($results)
+    # Store async state in syncHash so the tick handler and cancellation logic can reach it
+    $syncHash.PendingLoadPS       = $ps
+    $syncHash.PendingLoadRunspace = $runspace
+    $syncHash.PendingLoadAppName  = $appName
+    $syncHash.PendingLoadAsync    = $ps.BeginInvoke()
 
-        $filterProps = Get-FilterableProperties -AppResults $syncHash.CurrentAppResults
-        New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
+    $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $pollTimer.Interval = [TimeSpan]::FromMilliseconds(300)
+    $syncHash.PendingLoadTimer = $pollTimer
+
+    $pollTimer.add_Tick({
+        # Guard against null (can happen if cancelled between ticks)
+        if ($null -eq $syncHash.PendingLoadAsync -or -not $syncHash.PendingLoadAsync.IsCompleted) { return }
+
+        $syncHash.PendingLoadTimer.Stop()
+        $syncHash.PendingLoadTimer = $null
+
+        # Grab refs before clearing syncHash slots
+        $currentPS       = $syncHash.PendingLoadPS
+        $currentRunspace = $syncHash.PendingLoadRunspace
+        $currentAsync    = $syncHash.PendingLoadAsync
+        $currentAppName  = $syncHash.PendingLoadAppName
+
+        $syncHash.PendingLoadPS       = $null
+        $syncHash.PendingLoadRunspace = $null
+        $syncHash.PendingLoadAsync    = $null
+        $syncHash.PendingLoadAppName  = $null
+
+        try {
+            $results = @($currentPS.EndInvoke($currentAsync))
+            $currentPS.Dispose()
+            $currentRunspace.Dispose()
+
+            $syncHash.CurrentAppResults = @($results)
+
+            & $rebuildVersionColumns -AppResults $syncHash.CurrentAppResults
+
+            $filterProps = @(Get-FilterableProperties -AppResults $syncHash.CurrentAppResults)
+            New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
+                Invoke-FilterUpdate -SyncHash $syncHash
+            }
+
             Invoke-FilterUpdate -SyncHash $syncHash
+
+            $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
+            $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
+
+            Write-UILog -SyncHash $syncHash -Message "Loaded $($syncHash.CurrentAppResults.Count) versions for $currentAppName." -Level Info
         }
+        catch {
+            try { $currentPS.Dispose() } catch {}
+            try { $currentRunspace.Dispose() } catch {}
 
-        Invoke-FilterUpdate -SyncHash $syncHash
+            $syncHash.CurrentAppResults = @()
+            $syncHash.VersionsListView.ItemsSource = @()
+            $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
+            $filterWrapPanel.Children.Clear()
 
-        Write-UILog -SyncHash $syncHash -Message "Loaded $($syncHash.CurrentAppResults.Count) versions for $appName." -Level Info
-    }
-    catch {
-        $syncHash.CurrentAppResults = @()
-        $syncHash.VersionsListView.ItemsSource = @()
-        $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
-        $filterWrapPanel.Children.Clear()
-        Write-UILog -SyncHash $syncHash -Message "Failed to load versions for ${appName}: $_" -Level Error
-    }
-    finally {
-        $loadAppVersionsButton.IsEnabled = $true
-    }
+            $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
+            $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Visible
+
+            Write-UILog -SyncHash $syncHash -Message "Failed to load versions for ${currentAppName}: $_" -Level Error
+        }
+        finally {
+            $loadAppVersionsButton.IsEnabled = $true
+        }
+    })
+    $pollTimer.Start()
 }
 
 $refreshQueueView = {
@@ -1396,6 +1641,7 @@ $window.add_Loaded({
             $savedApp = @($syncHash.AppList | Where-Object { $_.Name -eq $syncHash.Config.LastAppName } | Select-Object -First 1)
             if ($savedApp.Count -gt 0) {
                 $appsComboBox.SelectedItem = $savedApp[0]
+                $appsComboBox.ScrollIntoView($savedApp[0])
             }
         }
 
@@ -1578,11 +1824,41 @@ $loadAppVersionsButton.add_Click({
     })
 
 $appsComboBox.add_SelectionChanged({
+        # Cancel any in-progress version load before starting a new one
+        if ($null -ne $syncHash.PendingLoadTimer -and $syncHash.PendingLoadTimer.IsEnabled) {
+            $syncHash.PendingLoadTimer.Stop()
+            $syncHash.PendingLoadTimer = $null
+        }
+        if ($null -ne $syncHash.PendingLoadPS) {
+            try { $syncHash.PendingLoadPS.Stop() } catch {}
+            try { $syncHash.PendingLoadPS.Dispose() } catch {}
+            $syncHash.PendingLoadPS = $null
+        }
+        if ($null -ne $syncHash.PendingLoadRunspace) {
+            try { $syncHash.PendingLoadRunspace.Dispose() } catch {}
+            $syncHash.PendingLoadRunspace = $null
+        }
+        $syncHash.PendingLoadAsync   = $null
+        $syncHash.PendingLoadAppName = $null
+
         $syncHash.CurrentAppResults = @()
         $syncHash.VersionsListView.ItemsSource = @()
         $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
         $filterWrapPanel.Children.Clear()
         $syncHash.FilterState = @{}
+
+        $selectedApp = $appsComboBox.SelectedItem
+        if ($null -ne $selectedApp) {
+            $appDetailTitle.Text         = "$($selectedApp.Name.ToUpper())  VERSION DETAILS"
+            $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Collapsed
+            $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
+            $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
+        }
+        else {
+            $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Visible
+            $appDetailContent.Visibility = [System.Windows.Visibility]::Collapsed
+            $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
+        }
     })
 
 $clearFiltersButton.add_Click({
@@ -1598,26 +1874,27 @@ $clearFiltersButton.add_Click({
     })
 
 $addToQueueButton.add_Click({
-        $selectedVersion = $syncHash.VersionsListView.SelectedItem
         $selectedApp = $appsComboBox.SelectedItem
+        $selectedVersions = @($syncHash.VersionsListView.SelectedItems)
 
-        if ($null -eq $selectedApp -or $null -eq $selectedVersion) {
-            Write-UILog -SyncHash $syncHash -Message 'Select one app version row before adding to queue.' -Level Warning
+        if ($null -eq $selectedApp -or $selectedVersions.Count -eq 0) {
+            Write-UILog -SyncHash $syncHash -Message 'Select one or more version rows before adding to queue.' -Level Warning
             return
         }
 
-        $queueItem = [PSCustomObject]@{
-            AppName      = [string]$selectedApp.Name
-            Version      = [string]$selectedVersion.Version
-            Platform     = if ($selectedVersion.PSObject.Properties.Name -contains 'Platform') { [string]$selectedVersion.Platform } else { '' }
-            Architecture = if ($selectedVersion.PSObject.Properties.Name -contains 'Architecture') { [string]$selectedVersion.Architecture } else { '' }
-            Channel      = if ($selectedVersion.PSObject.Properties.Name -contains 'Channel') { [string]$selectedVersion.Channel } else { '' }
-            Uri          = if ($selectedVersion.PSObject.Properties.Name -contains 'URI') { [string]$selectedVersion.URI } else { '' }
-            Status       = 'Pending'
+        foreach ($selectedVersion in $selectedVersions) {
+            $queueItem = [PSCustomObject]@{
+                AppName      = [string]$selectedApp.Name
+                Version      = [string]$selectedVersion.Version
+                Platform     = if ($selectedVersion.PSObject.Properties.Name -contains 'Platform') { [string]$selectedVersion.Platform } else { '' }
+                Architecture = if ($selectedVersion.PSObject.Properties.Name -contains 'Architecture') { [string]$selectedVersion.Architecture } else { '' }
+                Channel      = if ($selectedVersion.PSObject.Properties.Name -contains 'Channel') { [string]$selectedVersion.Channel } else { '' }
+                Uri          = if ($selectedVersion.PSObject.Properties.Name -contains 'URI') { [string]$selectedVersion.URI } else { '' }
+                Status       = 'Pending'
+            }
+            $syncHash.DownloadQueue.Add($queueItem)
+            Write-UILog -SyncHash $syncHash -Message "Queued: $($queueItem.AppName) $($queueItem.Version)" -Level Info
         }
-
-        $syncHash.DownloadQueue.Add($queueItem)
-        Write-UILog -SyncHash $syncHash -Message "Queued: $($queueItem.AppName) $($queueItem.Version)" -Level Info
         & $refreshQueueView
     })
 
