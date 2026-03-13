@@ -65,8 +65,6 @@ $syncHash = [hashtable]::Synchronized(@{
         LogTextBox                 = $null
         LogScrollViewer            = $null
         IsRunning                  = $false
-        IsAdmin                    = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-            [Security.Principal.WindowsBuiltInRole]::Administrator)
         AppList                    = $null
         CurrentAppResults          = $null
         FilterState                = @{}
@@ -369,7 +367,7 @@ $syncHash = [hashtable]::Synchronized(@{
         <Border Grid.Row="0" Grid.ColumnSpan="2"
                 Background="{DynamicResource AccentBrush}">
             <DockPanel LastChildFill="False" Margin="16,0">
-                <TextBlock Text="Evergreen"
+                <TextBlock Text="EvergreenUI (beta)"
                            Foreground="{DynamicResource ButtonForegroundBrush}"
                            FontSize="16" FontWeight="SemiBold"
                            VerticalAlignment="Center"
@@ -442,7 +440,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                 <Grid>
                                         <TextBox x:Name="AppSearchBox"
                                                  Style="{StaticResource FluentTextBox}"/>
-                                        <TextBlock Text="Search applications…"
+                                        <TextBlock Text="Search applications..."
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    IsHitTestVisible="False"
                                                    Margin="10,0,0,0"
@@ -684,13 +682,13 @@ $syncHash = [hashtable]::Synchronized(@{
                                     </ListView.Resources>
                                     <ListView.View>
                                         <GridView>
-                                            <GridViewColumn Header="VERSION"       DisplayMemberBinding="{Binding Version}"       Width="130"/>
-                                            <GridViewColumn Header="CHANNEL"       DisplayMemberBinding="{Binding Channel}"       Width="110"/>
-                                            <GridViewColumn Header="RELEASE"       DisplayMemberBinding="{Binding Release}"       Width="100"/>
-                                            <GridViewColumn Header="ARCHITECTURE"  DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
-                                            <GridViewColumn Header="TYPE"          DisplayMemberBinding="{Binding Type}"          Width="70"/>
-                                            <GridViewColumn Header="DATE"          DisplayMemberBinding="{Binding Date}"          Width="100"/>
-                                            <GridViewColumn Header="URI"           DisplayMemberBinding="{Binding URI}"           Width="460"/>
+                                            <GridViewColumn Header="Version"       DisplayMemberBinding="{Binding Version}"       Width="130"/>
+                                            <GridViewColumn Header="Channel"       DisplayMemberBinding="{Binding Channel}"       Width="110"/>
+                                            <GridViewColumn Header="Release"       DisplayMemberBinding="{Binding Release}"       Width="100"/>
+                                            <GridViewColumn Header="Architecture"  DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
+                                            <GridViewColumn Header="Type"          DisplayMemberBinding="{Binding Type}"          Width="70"/>
+                                            <GridViewColumn Header="Date"          DisplayMemberBinding="{Binding Date}"          Width="100"/>
+                                            <GridViewColumn Header="Uri"           DisplayMemberBinding="{Binding URI}"           Width="460"/>
                                         </GridView>
                                     </ListView.View>
                                 </ListView>
@@ -754,6 +752,18 @@ $syncHash = [hashtable]::Synchronized(@{
                                   BorderBrush="{DynamicResource ControlBorderBrush}"
                                   BorderThickness="1"
                                   SelectionMode="Single">
+                            <ListView.Resources>
+                                <Style TargetType="GridViewColumnHeader">
+                                    <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
+                                    <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
+                                    <Setter Property="FontSize"                   Value="11"/>
+                                    <Setter Property="FontWeight"                 Value="SemiBold"/>
+                                    <Setter Property="Padding"                    Value="12,6"/>
+                                    <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
+                                    <Setter Property="BorderThickness"            Value="0,0,1,1"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                </Style>
+                            </ListView.Resources>
                             <ListView.View>
                                 <GridView>
                                     <GridViewColumn Header="App"          DisplayMemberBinding="{Binding AppName}"       Width="180"/>
@@ -762,7 +772,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                     <GridViewColumn Header="Channel"      DisplayMemberBinding="{Binding Channel}"       Width="110"/>
                                     <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
                                     <GridViewColumn Header="Status"       DisplayMemberBinding="{Binding Status}"        Width="110"/>
-                                    <GridViewColumn Header="URI"          DisplayMemberBinding="{Binding Uri}"           Width="440"/>
+                                    <GridViewColumn Header="Uri"          DisplayMemberBinding="{Binding Uri}"           Width="440"/>
                                 </GridView>
                             </ListView.View>
                         </ListView>
@@ -852,6 +862,18 @@ $syncHash = [hashtable]::Synchronized(@{
                                       BorderBrush="{DynamicResource ControlBorderBrush}"
                                       BorderThickness="1"
                                       SelectionMode="Single">
+                                <ListView.Resources>
+                                    <Style TargetType="GridViewColumnHeader">
+                                        <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
+                                        <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
+                                        <Setter Property="FontSize"                   Value="11"/>
+                                        <Setter Property="FontWeight"                 Value="SemiBold"/>
+                                        <Setter Property="Padding"                    Value="12,6"/>
+                                        <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
+                                        <Setter Property="BorderThickness"            Value="0,0,1,1"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                    </Style>
+                                </ListView.Resources>
                                 <ListView.View>
                                     <GridView>
                                         <GridViewColumn Header="App"          DisplayMemberBinding="{Binding Name}"         Width="220"/>
@@ -895,13 +917,25 @@ $syncHash = [hashtable]::Synchronized(@{
                                       BorderBrush="{DynamicResource ControlBorderBrush}"
                                       BorderThickness="1"
                                       SelectionMode="Single">
+                                <ListView.Resources>
+                                    <Style TargetType="GridViewColumnHeader">
+                                        <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
+                                        <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
+                                        <Setter Property="FontSize"                   Value="11"/>
+                                        <Setter Property="FontWeight"                 Value="SemiBold"/>
+                                        <Setter Property="Padding"                    Value="12,6"/>
+                                        <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
+                                        <Setter Property="BorderThickness"            Value="0,0,1,1"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                    </Style>
+                                </ListView.Resources>
                                 <ListView.View>
                                     <GridView>
                                         <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="130"/>
                                         <GridViewColumn Header="Type"         DisplayMemberBinding="{Binding Type}"          Width="90"/>
                                         <GridViewColumn Header="Channel"      DisplayMemberBinding="{Binding Channel}"       Width="110"/>
                                         <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
-                                        <GridViewColumn Header="URI"          DisplayMemberBinding="{Binding URI}"           Width="630"/>
+                                        <GridViewColumn Header="Uri"          DisplayMemberBinding="{Binding URI}"           Width="630"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
@@ -1012,10 +1046,21 @@ $syncHash = [hashtable]::Synchronized(@{
                             <ComboBoxItem Content="Settings"/>
                         </ComboBox>
 
-                        <!-- Admin / environment info -->
-                        <TextBlock x:Name="AdminStatusText"
+                        <!-- Cache -->
+                        <TextBlock Text="App version cache"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"/>
+                                   FontSize="12"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fresh fetch from Evergreen on next selection."
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,8"/>
+                        <Button x:Name="ClearCacheButton"
+                                Content="Clear cache"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,0"/>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -1117,7 +1162,8 @@ $syncHash = [hashtable]::Synchronized(@{
                                             BorderBrush="{DynamicResource ControlBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="4"
-                                            Padding="{TemplateBinding Padding}">
+                                            Padding="{TemplateBinding Padding}"
+                                            TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
                                         <ContentPresenter HorizontalAlignment="Center"
                                                           VerticalAlignment="Center"/>
                                     </Border>
@@ -1229,8 +1275,7 @@ $logVerbosityLabel  = $window.FindName('LogVerbosityLabel')
 $startupViewComboBox = $window.FindName('StartupViewComboBox')
 $browseOutputButton = $window.FindName('BrowseOutputButton')
 $browseLibraryButton = $window.FindName('BrowseLibraryButton')
-$adminStatusText = $window.FindName('AdminStatusText')
-
+$clearCacheButton = $window.FindName('ClearCacheButton')
 # Log row is RowDefinitions[3]; track its height for collapse/restore
 $logRowDef = $rootGrid.RowDefinitions[3]
 
@@ -1569,31 +1614,37 @@ $startQueueDownload = {
                 Write-UILog -SyncHash $syncHash -Message "Failed to import Evergreen in background runspace: $_" -Level Error
             }
 
-            Write-UILog -SyncHash $syncHash -Message 'Starting queue download run (sequential).' -Level Info
+            try {
+                Write-UILog -SyncHash $syncHash -Message 'Starting queue download run (sequential).' -Level Info
 
-            foreach ($item in @($syncHash.DownloadQueue)) {
-                if ($item.Status -eq 'Done') { continue }
-                Invoke-AppDownload -SyncHash $syncHash -QueueItem $item
+                foreach ($item in @($syncHash.DownloadQueue)) {
+                    if ($item.Status -eq 'Done') { continue }
+                    Invoke-AppDownload -SyncHash $syncHash -QueueItem $item
+                }
+
+                Write-UILog -SyncHash $syncHash -Message 'Queue download run finished.' -Level Info
             }
-
-            Write-UILog -SyncHash $syncHash -Message 'Queue download run finished.' -Level Info
-
-            $syncHash.Window.Dispatcher.Invoke([action] {
-                    $syncHash.IsRunning = $false
-                    if ($null -ne $syncHash.DownloadAllButton) {
-                        $syncHash.DownloadAllButton.IsEnabled = $true
-                    }
-                    if ($null -ne $syncHash.DownloadQueueListView) {
-                        $syncHash.DownloadQueueListView.Items.Refresh()
-                    }
-                    if ($null -ne $syncHash.QueueCountLabel) {
-                        $pending = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
-                        $done = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
-                        $failed = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
-                        $total = $syncHash.DownloadQueue.Count
-                        $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
-                    }
-                }, 'Normal')
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Queue download run failed: $_" -Level Error
+            }
+            finally {
+                $syncHash.Window.Dispatcher.Invoke([action] {
+                        $syncHash.IsRunning = $false
+                        if ($null -ne $syncHash.DownloadAllButton) {
+                            $syncHash.DownloadAllButton.IsEnabled = $true
+                        }
+                        if ($null -ne $syncHash.DownloadQueueListView) {
+                            $syncHash.DownloadQueueListView.Items.Refresh()
+                        }
+                        if ($null -ne $syncHash.QueueCountLabel) {
+                            $pending = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
+                            $done = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+                            $failed = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+                            $total = $syncHash.DownloadQueue.Count
+                            $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+                        }
+                    }, 'Normal')
+            }
         }).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
 
     $async = $ps.BeginInvoke()
@@ -1806,9 +1857,6 @@ $window.add_Loaded({
         }
 
         Write-UILog -SyncHash $syncHash -Message "EvergreenUI started. $($syncHash.EvergreenVersion)" -Level Info
-        if ($syncHash.IsAdmin) {
-            Write-UILog -SyncHash $syncHash -Message 'Running as administrator.' -Level Info
-        }
 
         & $loadAppCatalog
 
@@ -2232,13 +2280,6 @@ $navSettings.add_Checked({
             'Settings' { $startupViewComboBox.SelectedIndex = 3 }
             default { $startupViewComboBox.SelectedIndex = 0 }
         }
-
-        $adminStatusText.Text = if ($syncHash.IsAdmin) {
-            'Running as administrator'
-        }
-        else {
-            'Not running as administrator. Some operations may require elevation.'
-        }
     })
 
 # ── Theme toggle ──────────────────────────────────────────────────────────────
@@ -2322,6 +2363,25 @@ $browseLibraryButton.add_Click({
             $syncHash.Config.LibraryPath = $normalised
             Set-UIConfig -Config $syncHash.Config
             & $refreshLibraryView
+        }
+    })
+
+# ── Settings: Clear cache ────────────────────────────────────────────────────
+$clearCacheButton.add_Click({
+        $cacheDir = Join-Path $env:APPDATA 'EvergreenUI\cache'
+        if (Test-Path -LiteralPath $cacheDir) {
+            try {
+                $files = Get-ChildItem -LiteralPath $cacheDir -Filter '*.json' -File -ErrorAction Stop
+                $count = $files.Count
+                $files | Remove-Item -Force -ErrorAction Stop
+                Write-UILog -SyncHash $syncHash -Message "Cache cleared. $count file(s) removed." -Level Info
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Failed to clear cache: $_" -Level Error
+            }
+        }
+        else {
+            Write-UILog -SyncHash $syncHash -Message 'Cache directory does not exist. Nothing to clear.' -Level Info
         }
     })
 

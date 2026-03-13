@@ -68,32 +68,21 @@ function Invoke-AppDownload {
     Write-UILog -SyncHash $SyncHash -Message "Downloading: $($QueueItem.AppName) $($QueueItem.Version)..." -Level Info
 
     try {
-        # Resolve download objects for this app
-        $appResults = Get-EvergreenApp -Name $QueueItem.AppName -ErrorAction Stop
-
-        # Filter to the specific row matching the queue item's criteria
-        $target = $appResults | Where-Object {
-            $_.Version -eq $QueueItem.Version -and
-            $_.URI -eq $QueueItem.Uri
-        } | Select-Object -First 1
-
-        if ($null -eq $target) {
-            # URI may have rotated - fall back to criteria-only match
-            $target = $appResults | Where-Object {
-                $_.Version -eq $QueueItem.Version -and
-                (-not $QueueItem.Architecture -or $_.Architecture -eq $QueueItem.Architecture) -and
-                (-not $QueueItem.Channel -or $_.Channel -eq $QueueItem.Channel) -and
-                (-not $QueueItem.Platform -or $_.Platform -eq $QueueItem.Platform)
-            } | Select-Object -First 1
-        }
-
-        if ($null -eq $target) {
-            throw "No matching download found for $($QueueItem.AppName) $($QueueItem.Version)."
+        if ([string]::IsNullOrWhiteSpace($QueueItem.Uri)) {
+            throw "No download URI stored for $($QueueItem.AppName) $($QueueItem.Version)."
         }
 
         $outputPath = if ($SyncHash.Config.OutputPath) { $SyncHash.Config.OutputPath } else { $env:TEMP }
 
-        $saved = $target | Save-EvergreenApp -Path $outputPath -ErrorAction Stop
+        $downloadObj = [PSCustomObject]@{
+            URI          = $QueueItem.Uri
+            Version      = $QueueItem.Version
+            Architecture = $QueueItem.Architecture
+            Channel      = $QueueItem.Channel
+            Platform     = $QueueItem.Platform
+        }
+
+        $saved = $downloadObj | Save-EvergreenApp -Path $outputPath -ErrorAction Stop
 
         $savedPath = if ($saved -and $saved.FullName) { $saved.FullName } else { $outputPath }
         Write-UILog -SyncHash $SyncHash -Message "Saved: $savedPath" -Level Info
