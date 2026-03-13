@@ -763,7 +763,6 @@
                                                 DockPanel.Dock="Left"
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Padding="25,6"
-                                                FontSize="12"
                                                 Margin="0,0,12,0"/>
                                         <TextBlock x:Name="AppDetailTitle"
                                                    Text=""
@@ -799,13 +798,11 @@
                                                 Content="Clear filters"
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Padding="10,6"
-                                                FontSize="12"
                                                 Margin="0,0,6,0"/>
                                         <Button x:Name="AddToQueueButton"
                                                 Content="+ Add to download queue"
                                                 Style="{StaticResource FluentButton}"
-                                                Padding="12,6"
-                                                FontSize="12"/>
+                                                Padding="12,6"/>
                                     </StackPanel>
                                 </DockPanel>
 
@@ -951,6 +948,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
@@ -990,6 +988,14 @@
                                 x:Name="LibraryRefreshButton"
                                 Content="Refresh library"
                                 Style="{StaticResource FluentSecondaryButton}"
+                                MinWidth="50"
+                                Margin="0,18,6,0"
+                                Padding="10,6"/>
+
+                        <Button Grid.Column="5"
+                                x:Name="LibraryUpdateButton"
+                                Content="Update library"
+                                Style="{StaticResource FluentButton}"
                                 MinWidth="50"
                                 Margin="0,18,0,0"
                                 Padding="10,6"/>
@@ -1037,20 +1043,12 @@
                         </DockPanel>
                     </Border>
 
-                    <DockPanel Grid.Row="2" Margin="0,9,0,7" LastChildFill="False">
-                        <TextBlock x:Name="LibraryStatusLabel"
-                                   Text="Select an app row to view versions from library."
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   VerticalAlignment="Center"
-                                   DockPanel.Dock="Left"/>
-                        <Button x:Name="LibraryUpdateButton"
-                                Content="Update library"
-                                Style="{StaticResource FluentButton}"
-                                DockPanel.Dock="Right"
-                                BorderThickness="1"
-                                BorderBrush="Transparent"
-                                Padding="10,6"/>
-                    </DockPanel>
+                    <TextBlock Grid.Row="2"
+                               x:Name="LibraryStatusLabel"
+                               Text="Select an app row to view versions from library."
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,9,0,7"/>
 
                     <Border Grid.Row="3"
                             BorderThickness="1"
