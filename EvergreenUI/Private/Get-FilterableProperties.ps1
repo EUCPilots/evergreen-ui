@@ -71,7 +71,7 @@ function Get-FilterableProperties {
     }
 
     $filterableProps = $appResultsArray[0].PSObject.Properties.Name |
-    Where-Object { $_ -notin $displayOnly }
+    Where-Object { $_ -notin $displayOnly -and $_ -notlike '*Date*' }
 
     $output = foreach ($propName in $filterableProps) {
         $allValues = @(
