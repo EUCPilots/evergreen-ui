@@ -4,17 +4,17 @@ A WPF-based graphical frontend for the [Evergreen](https://eucpilots.com/evergre
 
 EvergreenUI ships as a separate PowerShell module so it never modifies the core Evergreen module. It targets Windows only, requires no external DLLs, and supports both **PowerShell 5.1** (Desktop) and **PowerShell 7+**.
 
-> **Status:** Pre-release — design and prototyping phase. Not yet functional.
+> **Status:** Pre-release — core functionality implemented; not yet published to PSGallery.
 
-## Features (planned)
+## Features
 
 - **Apps view** — search and browse all 500+ Evergreen-supported applications; inspect version and download metadata returned by `Get-EvergreenApp`
 - **Dynamic filters** — filter panel builds itself at runtime from whatever properties a given app actually returns (Architecture, Channel, Ring, Language, Type, Release, etc.)
 - **Download queue** — select multiple app/version combinations and download them sequentially via `Save-EvergreenApp`
-- **Library management** — create, inspect, and update an Evergreen library on disk using `New-EvergreenLibrary`, `Get-EvergreenLibrary`, `Start-EvergreenLibraryUpdate`, and `Get-EvergreenAppFromLibrary`
+- **Library management** — inspect and update an Evergreen library on disk using `Start-EvergreenLibraryUpdate` and related cmdlets
 - **Fluent UI design** — light and dark themes aligned to the Evergreen docs brand palette
-- **Real-time log panel** — collapsible progress log with copy and save support
-- **Session persistence** — last-used paths and theme stored in `$env:APPDATA\EvergreenUI\config.json`
+- **Real-time log panel** — timestamped progress log with `Info`, `Warning`, and `Error` levels, updated live from background runspaces
+- **Session persistence** — last-used paths, theme, window size, and startup view stored in `$env:APPDATA\EvergreenUI\config.json`
 
 ## Requirements
 
@@ -23,20 +23,21 @@ EvergreenUI ships as a separate PowerShell module so it never modifies the core 
 | Operating system | Windows 10 / Windows Server 2019 or later |
 | PowerShell | 5.1 (Desktop) or 7.0+ |
 | .NET | .NET Framework 4.7.2+ (for PS 5.1) or .NET 6+ (for PS 7+) |
-| Evergreen module | Latest stable (installed from PSGallery) |
+| Evergreen module | 2603.2832.0 or later (installed from PSGallery) |
 
 No additional DLLs are required. The UI is built entirely using WPF assemblies that ship with Windows.
 
 ## Installation
 
-> Not yet published. Steps below describe the intended install experience.
+> Not yet published to PSGallery. To run from source:
 
 ```powershell
 # Install the Evergreen dependency first
 Install-Module -Name Evergreen -Scope CurrentUser
 
-# Install EvergreenUI from PSGallery (once published)
-Install-Module -Name EvergreenUI -Scope CurrentUser
+# Clone the repository and import the module directly
+git clone https://github.com/EUCPilots/evergreen-ui.git
+Import-Module ./evergreen-ui/EvergreenUI/EvergreenUI.psd1
 ```
 
 ## Usage
@@ -72,12 +73,15 @@ EvergreenUI/
 │       ├── themes/
 │       │   ├── Set-LightTheme.ps1
 │       │   └── Set-DarkTheme.ps1
+│       ├── Get-EvergreenAppList.ps1
 │       ├── New-WpfRunspace.ps1
 │       ├── Write-UILog.ps1
 │       ├── Test-EvergreenModule.ps1
 │       ├── Get-FilterableProperties.ps1
 │       ├── New-FilterPanel.ps1
 │       ├── Invoke-FilterUpdate.ps1
+│       ├── Invoke-AppDownload.ps1
+│       ├── Invoke-LibraryUpdate.ps1
 │       ├── Get-UIConfig.ps1
 │       └── Set-UIConfig.ps1
 │
