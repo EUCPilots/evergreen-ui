@@ -531,8 +531,26 @@
             <Grid x:Name="AppsPanel"
                   Visibility="Visible"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <!-- App list (left) + detail (right) - search inside left column -->
-                <Grid>
+                <DockPanel>
+
+                    <!-- Header -->
+                    <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="22,18,22,12">
+                        <TextBlock Text="Apps"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   DockPanel.Dock="Left"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <!-- Horizontal divider under header -->
+                    <Rectangle DockPanel.Dock="Top"
+                               Height="1"
+                               Fill="{DynamicResource ControlBorderBrush}"
+                               HorizontalAlignment="Stretch"/>
+
+                    <!-- App list (left) + detail (right) - search inside left column -->
+                    <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="300" MinWidth="180"/>
                         <ColumnDefinition Width="*"/>
@@ -841,7 +859,8 @@
                         </Border>
 
                     </Grid>
-                </Grid>
+                    </Grid>
+                </DockPanel>
             </Grid>
 
             <!-- Download view - Phase 5 -->
@@ -936,12 +955,23 @@
                 <Grid Margin="22,18,22,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="2*"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <!-- Header -->
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <TextBlock Text="Library"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   DockPanel.Dock="Left"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -1001,7 +1031,7 @@
                                 Padding="10,6"/>
                     </Grid>
 
-                    <Border Grid.Row="1"
+                    <Border Grid.Row="2"
                             BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorderBrush}"
                             Background="{DynamicResource ControlBackgroundBrush}"
@@ -1043,14 +1073,14 @@
                         </DockPanel>
                     </Border>
 
-                    <TextBlock Grid.Row="2"
+                    <TextBlock Grid.Row="3"
                                x:Name="LibraryStatusLabel"
                                Text="Select an app row to view versions from library."
                                Foreground="{DynamicResource TextSecondaryBrush}"
                                VerticalAlignment="Center"
                                Margin="0,9,0,7"/>
 
-                    <Border Grid.Row="3"
+                    <Border Grid.Row="4"
                             BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorderBrush}"
                             Background="{DynamicResource ControlBackgroundBrush}"
@@ -1101,12 +1131,12 @@
                   Background="{DynamicResource WindowBackgroundBrush}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="28,24" MaxWidth="520" HorizontalAlignment="Left">
+                    <StackPanel Margin="22,18,22,12" MaxWidth="520" HorizontalAlignment="Left">
 
                         <TextBlock Text="Settings"
                                    FontSize="20" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                   Margin="0,0,0,20"/>
+                                   Margin="0,0,0,12"/>
 
                         <!-- Download output path -->
                         <TextBlock Text="Download output path"
