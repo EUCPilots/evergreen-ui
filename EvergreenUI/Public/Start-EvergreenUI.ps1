@@ -620,8 +620,8 @@ $syncHash = [hashtable]::Synchronized(@{
                                                 Margin="0,0,12,0"/>
                                         <TextBlock x:Name="AppDetailTitle"
                                                    Text=""
-                                                   FontSize="11"
-                                                   FontWeight="SemiBold"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center"/>
                                     </DockPanel>
@@ -1056,11 +1056,15 @@ $syncHash = [hashtable]::Synchronized(@{
                                    FontSize="12"
                                    TextWrapping="Wrap"
                                    Margin="0,0,0,8"/>
-                        <Button x:Name="ClearCacheButton"
-                                Content="Clear cache"
-                                Style="{StaticResource FluentSecondaryButton}"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,0"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                            <Button x:Name="OpenCacheFolderButton"
+                                    Content="Open cache folder"
+                                    Style="{StaticResource FluentSecondaryButton}"
+                                    Margin="0,0,8,0"/>
+                            <Button x:Name="ClearCacheButton"
+                                    Content="Clear cache"
+                                    Style="{StaticResource FluentSecondaryButton}"/>
+                        </StackPanel>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -1276,6 +1280,7 @@ $startupViewComboBox = $window.FindName('StartupViewComboBox')
 $browseOutputButton = $window.FindName('BrowseOutputButton')
 $browseLibraryButton = $window.FindName('BrowseLibraryButton')
 $clearCacheButton = $window.FindName('ClearCacheButton')
+$openCacheFolderButton = $window.FindName('OpenCacheFolderButton')
 # Log row is RowDefinitions[3]; track its height for collapse/restore
 $logRowDef = $rootGrid.RowDefinitions[3]
 
@@ -1362,7 +1367,7 @@ $rebuildVersionColumns = {
     $gv = [System.Windows.Controls.GridView]::new()
     foreach ($prop in $ordered) {
         $col = [System.Windows.Controls.GridViewColumn]::new()
-        $col.Header = $prop.ToUpper()
+        $col.Header = $prop
         $col.DisplayMemberBinding = [System.Windows.Data.Binding]::new($prop)
         $col.Width = if ($widths.ContainsKey($prop)) { $widths[$prop] } else { 100 }
         [void]$gv.Columns.Add($col)
@@ -2071,7 +2076,7 @@ $appsComboBox.add_SelectionChanged({
 
         $selectedApp = $appsComboBox.SelectedItem
         if ($null -ne $selectedApp) {
-            $appDetailTitle.Text = "$($selectedApp.Name.ToUpper()) VERSION DETAILS"
+            $appDetailTitle.Text = "$($selectedApp.Name) Version Details"
 
             # Load from cache if available; otherwise show the panel empty (user clicks Refresh)
             $cachePath = & $getAppCacheFile -AppName $selectedApp.Name
@@ -2364,6 +2369,15 @@ $browseLibraryButton.add_Click({
             Set-UIConfig -Config $syncHash.Config
             & $refreshLibraryView
         }
+    })
+
+# ── Settings: Open cache folder ─────────────────────────────────────────
+$openCacheFolderButton.add_Click({
+        $cacheDir = Join-Path $env:APPDATA 'EvergreenUI\cache'
+        if (-not (Test-Path -LiteralPath $cacheDir)) {
+            $null = New-Item -ItemType Directory -Path $cacheDir -Force
+        }
+        Start-Process -FilePath 'explorer.exe' -ArgumentList $cacheDir | Out-Null
     })
 
 # ── Settings: Clear cache ────────────────────────────────────────────────────
