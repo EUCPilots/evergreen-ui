@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '0.1.0'
+    ModuleVersion     = '1.0.0'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker'
     CompanyName       = 'EUC Pilots'
@@ -32,7 +32,8 @@
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Initial pre-release scaffold. No functional UI yet.'
+            ReleaseNotes = 'Initial pre-release scaffold. Mostly working except for Downloads.'
+            Prerelease   = 'beta'
         }
     }
 }
