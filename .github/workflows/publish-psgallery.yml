@@ -16,6 +16,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install required modules
+        shell: pwsh
+        run: |
+          Install-Module -Name Evergreen -Force -Scope CurrentUser
+
       - name: Publish module to PowerShell Gallery
         shell: pwsh
         env:
