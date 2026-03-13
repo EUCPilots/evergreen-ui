@@ -178,6 +178,41 @@ $syncHash = [hashtable]::Synchronized(@{
             <Setter Property="Background"      Value="{DynamicResource ControlBackgroundBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground"      Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Padding"                    Value="0"/>
+                        <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
+                        <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListViewItem">
+                                    <Border x:Name="bd"
+                                            Background="Transparent"
+                                            Padding="{TemplateBinding Padding}">
+                                        <GridViewRowPresenter Content="{TemplateBinding Content}"
+                                                              HorizontalAlignment="Stretch"
+                                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background"
+                                                    Value="{DynamicResource AccentLightBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="bd" Property="Background"
+                                                    Value="{DynamicResource AccentLightBrush}"/>
+                                            <Setter Property="Foreground"
+                                                    Value="{DynamicResource AccentBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- ── FluentCheckBox ── -->
@@ -346,6 +381,103 @@ $syncHash = [hashtable]::Synchronized(@{
             <Setter Property="Height"            Value="8"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Margin"            Value="0,0,5,0"/>
+        </Style>
+
+        <!-- ScrollBar helper: transparent repeat button -->
+        <Style x:Key="ScrollBarFlatRepeatButton" TargetType="RepeatButton">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Focusable"             Value="False"/>
+            <Setter Property="IsTabStop"             Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Rectangle Fill="Transparent"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ScrollBar helper: themed thumb -->
+        <Style x:Key="ScrollBarThumbStyle" TargetType="Thumb">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="IsTabStop"             Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border x:Name="r"
+                                CornerRadius="3"
+                                Background="{DynamicResource ControlBorderBrush}"
+                                Opacity="0.9"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="r" Property="Background"
+                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="r" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="r" Property="Background"
+                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="r" Property="Opacity" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ScrollBar vertical and horizontal templates -->
+        <ControlTemplate x:Key="VerticalScrollBarTemplate" TargetType="ScrollBar">
+            <Border Background="{DynamicResource WindowBackgroundBrush}">
+                <Track x:Name="PART_Track" IsDirectionReversed="True">
+                    <Track.DecreaseRepeatButton>
+                        <RepeatButton Style="{StaticResource ScrollBarFlatRepeatButton}"
+                                      Command="ScrollBar.PageUpCommand"/>
+                    </Track.DecreaseRepeatButton>
+                    <Track.Thumb>
+                        <Thumb Style="{StaticResource ScrollBarThumbStyle}" Margin="2,0"/>
+                    </Track.Thumb>
+                    <Track.IncreaseRepeatButton>
+                        <RepeatButton Style="{StaticResource ScrollBarFlatRepeatButton}"
+                                      Command="ScrollBar.PageDownCommand"/>
+                    </Track.IncreaseRepeatButton>
+                </Track>
+            </Border>
+        </ControlTemplate>
+
+        <ControlTemplate x:Key="HorizontalScrollBarTemplate" TargetType="ScrollBar">
+            <Border Background="{DynamicResource WindowBackgroundBrush}">
+                <Track x:Name="PART_Track" IsDirectionReversed="False">
+                    <Track.DecreaseRepeatButton>
+                        <RepeatButton Style="{StaticResource ScrollBarFlatRepeatButton}"
+                                      Command="ScrollBar.PageLeftCommand"/>
+                    </Track.DecreaseRepeatButton>
+                    <Track.Thumb>
+                        <Thumb Style="{StaticResource ScrollBarThumbStyle}" Margin="0,2"/>
+                    </Track.Thumb>
+                    <Track.IncreaseRepeatButton>
+                        <RepeatButton Style="{StaticResource ScrollBarFlatRepeatButton}"
+                                      Command="ScrollBar.PageRightCommand"/>
+                    </Track.IncreaseRepeatButton>
+                </Track>
+            </Border>
+        </ControlTemplate>
+
+        <!-- ScrollBar implicit style - applies to all scrollbars in the window -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="OverridesDefaultStyle"    Value="True"/>
+            <Setter Property="Stylus.IsFlicksEnabled"  Value="False"/>
+            <Setter Property="Width"                   Value="10"/>
+            <Setter Property="MinWidth"                Value="10"/>
+            <Setter Property="Template"                Value="{StaticResource VerticalScrollBarTemplate}"/>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Width"    Value="Auto"/>
+                    <Setter Property="MinWidth" Value="0"/>
+                    <Setter Property="Height"   Value="10"/>
+                    <Setter Property="MinHeight" Value="10"/>
+                    <Setter Property="Template" Value="{StaticResource HorizontalScrollBarTemplate}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
     </Window.Resources>
@@ -779,7 +911,7 @@ $syncHash = [hashtable]::Synchronized(@{
                     </Border>
 
                     <TextBlock Grid.Row="2"
-                               Text="Downloads are processed sequentially in queue order."
+                               Text="Downloads are processed sequentially and in queue order."
                                Foreground="{DynamicResource TextSecondaryBrush}"
                                Margin="0,10,0,0"/>
                 </Grid>
@@ -1051,7 +1183,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontSize="12"
                                    Margin="0,0,0,4"/>
-                        <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fresh fetch from Evergreen on next selection."
+                        <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fetch via Evergreen on next selection."
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontSize="12"
                                    TextWrapping="Wrap"
