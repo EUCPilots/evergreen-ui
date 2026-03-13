@@ -2,9 +2,9 @@
 @{
     # Module identity
     ModuleVersion     = '0.1.0'
-    GUID              = 'a3f8c2d1-4b7e-4f9a-8c3d-1e2f5a6b7c8d'
-    Author            = 'EUC Pilots'
-    CompanyName       = ''
+    GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
+    Author            = 'Aaron Parker'
+    CompanyName       = 'EUC Pilots'
     Copyright         = '(c) 2026 EUC Pilots. Licensed under the MIT Licence.'
     Description       = 'WPF graphical frontend for the Evergreen PowerShell module. Provides a Windows-only GUI for Find-EvergreenApp, Get-EvergreenApp, Save-EvergreenApp, and Evergreen library management cmdlets.'
 
@@ -37,8 +37,8 @@
     PrivateData = @{
         PSData = @{
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
-            LicenseUri   = 'https://github.com/your-org/EvergreenUI/blob/main/LICENSE'
-            ProjectUri   = 'https://github.com/your-org/EvergreenUI'
+            LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
+            ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
             ReleaseNotes = 'Initial pre-release scaffold. No functional UI yet.'
         }
     }
