@@ -51,17 +51,18 @@ function Get-EvergreenAppList {
         $raw = Find-EvergreenApp -ErrorAction Stop
 
         $list = $raw |
-            Sort-Object -Property Name |
-            ForEach-Object {
-                [PSCustomObject]@{
-                    Name         = $_.Name
-                    FriendlyName = if ($_.PSObject.Properties.Name -contains 'Application') {
-                                       $_.Application
-                                   } else {
-                                       $_.Name
-                                   }
+        Sort-Object -Property Name |
+        ForEach-Object {
+            [PSCustomObject]@{
+                Name         = $_.Name
+                FriendlyName = if ($_.PSObject.Properties.Name -contains 'Application') {
+                    $_.Application
+                }
+                else {
+                    $_.Name
                 }
             }
+        }
 
         $SyncHash.AppList = $list
         Write-UILog -SyncHash $SyncHash -Message "Application list loaded — $($list.Count) apps available." -Level Info

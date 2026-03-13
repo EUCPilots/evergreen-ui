@@ -47,21 +47,21 @@ function Invoke-AppDownload {
     # Helper: update Status on the queue item from the UI thread
     $setStatus = {
         param([string]$NewStatus)
-        $SyncHash.Window.Dispatcher.Invoke([action]{
-            $QueueItem.Status = $NewStatus
+        $SyncHash.Window.Dispatcher.Invoke([action] {
+                $QueueItem.Status = $NewStatus
 
-            if ($null -ne $SyncHash.DownloadQueueListView) {
-                $SyncHash.DownloadQueueListView.Items.Refresh()
-            }
+                if ($null -ne $SyncHash.DownloadQueueListView) {
+                    $SyncHash.DownloadQueueListView.Items.Refresh()
+                }
 
-            if ($null -ne $SyncHash.QueueCountLabel) {
-                $pending = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
-                $done    = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
-                $failed  = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
-                $total   = $SyncHash.DownloadQueue.Count
-                $SyncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
-            }
-        })
+                if ($null -ne $SyncHash.QueueCountLabel) {
+                    $pending = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
+                    $done = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+                    $failed = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+                    $total = $SyncHash.DownloadQueue.Count
+                    $SyncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+                }
+            })
     }
 
     & $setStatus 'Downloading'
@@ -74,7 +74,7 @@ function Invoke-AppDownload {
         # Filter to the specific row matching the queue item's criteria
         $target = $appResults | Where-Object {
             $_.Version -eq $QueueItem.Version -and
-            $_.URI     -eq $QueueItem.Uri
+            $_.URI -eq $QueueItem.Uri
         } | Select-Object -First 1
 
         if ($null -eq $target) {
@@ -82,8 +82,8 @@ function Invoke-AppDownload {
             $target = $appResults | Where-Object {
                 $_.Version -eq $QueueItem.Version -and
                 (-not $QueueItem.Architecture -or $_.Architecture -eq $QueueItem.Architecture) -and
-                (-not $QueueItem.Channel      -or $_.Channel      -eq $QueueItem.Channel)      -and
-                (-not $QueueItem.Platform     -or $_.Platform     -eq $QueueItem.Platform)
+                (-not $QueueItem.Channel -or $_.Channel -eq $QueueItem.Channel) -and
+                (-not $QueueItem.Platform -or $_.Platform -eq $QueueItem.Platform)
             } | Select-Object -First 1
         }
 

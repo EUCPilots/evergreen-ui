@@ -29,7 +29,7 @@ param()
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$ProgressPreference    = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'
 
 # ── STA guard (PowerShell 7+ may start MTA) ──────────────────────────────────
 if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
@@ -38,7 +38,7 @@ if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
     $sta.AddScript({ Import-Module EvergreenUI; Start-EvergreenUI }) | Out-Null
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = 'STA'
-    $runspace.ThreadOptions  = 'ReuseThread'
+    $runspace.ThreadOptions = 'ReuseThread'
     $runspace.Open()
     $sta.Runspace = $runspace
     $sta.Invoke()
@@ -61,31 +61,31 @@ $config = Get-UIConfig
 
 # ── Shared state ─────────────────────────────────────────────────────────────
 $syncHash = [hashtable]::Synchronized(@{
-    Window            = $null
-    LogTextBox        = $null
-    LogScrollViewer   = $null
-    IsRunning         = $false
-    IsAdmin           = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-                            [Security.Principal.WindowsBuiltInRole]::Administrator)
-    AppList           = $null
-    CurrentAppResults = $null
-    FilterState       = @{}
-    VersionsListView  = $null
-    ResultsCountLabel = $null
-    DownloadQueueListView = $null
-    QueueCountLabel   = $null
-    DownloadAllButton = $null
-    LibraryContentsListView = $null
-    LibraryDetailsListView  = $null
-    LibraryStatusLabel      = $null
-    LibraryUpdateButton     = $null
-    LibraryData             = @()
-    ActiveBackgroundOperations = [System.Collections.Generic.List[object]]::new()
-    BackgroundOperationsTimer  = $null
-    DownloadQueue     = [System.Collections.Generic.List[PSCustomObject]]::new()
-    EvergreenVersion  = ''
-    Config            = $config
-})
+        Window                     = $null
+        LogTextBox                 = $null
+        LogScrollViewer            = $null
+        IsRunning                  = $false
+        IsAdmin                    = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator)
+        AppList                    = $null
+        CurrentAppResults          = $null
+        FilterState                = @{}
+        VersionsListView           = $null
+        ResultsCountLabel          = $null
+        DownloadQueueListView      = $null
+        QueueCountLabel            = $null
+        DownloadAllButton          = $null
+        LibraryContentsListView    = $null
+        LibraryDetailsListView     = $null
+        LibraryStatusLabel         = $null
+        LibraryUpdateButton        = $null
+        LibraryData                = @()
+        ActiveBackgroundOperations = [System.Collections.Generic.List[object]]::new()
+        BackgroundOperationsTimer  = $null
+        DownloadQueue              = [System.Collections.Generic.List[PSCustomObject]]::new()
+        EvergreenVersion           = ''
+        Config                     = $config
+    })
 
 # ── XAML ─────────────────────────────────────────────────────────────────────
 [xml]$xaml = @'
@@ -231,7 +231,7 @@ $syncHash = [hashtable]::Synchronized(@{
             </Setter>
         </Style>
 
-        <!-- ── StatusDot — 8×8 coloured indicator ── -->
+        <!-- ── StatusDot — 8x8 coloured indicator ── -->
         <Style x:Key="StatusDot" TargetType="Ellipse">
             <Setter Property="Width"             Value="8"/>
             <Setter Property="Height"            Value="8"/>
@@ -881,41 +881,41 @@ $reader = [System.Xml.XmlNodeReader]::new($xaml)
 $window = [System.Windows.Markup.XamlReader]::Load($reader)
 
 # ── Resolve named controls ────────────────────────────────────────────────────
-$syncHash.Window          = $window
-$syncHash.LogTextBox      = $window.FindName('LogTextBox')
+$syncHash.Window = $window
+$syncHash.LogTextBox = $window.FindName('LogTextBox')
 $syncHash.LogScrollViewer = $window.FindName('LogScrollViewer')
 
-$rootGrid              = $window.FindName('RootGrid')
-$evergreenVersionText  = $window.FindName('EvergreenVersionText')
-$evergreenStatusDot    = $window.FindName('EvergreenStatusDot')
-$themeToggle           = $window.FindName('ThemeToggle')
-$themeLabel            = $window.FindName('ThemeLabel')
+$rootGrid = $window.FindName('RootGrid')
+$evergreenVersionText = $window.FindName('EvergreenVersionText')
+$evergreenStatusDot = $window.FindName('EvergreenStatusDot')
+$themeToggle = $window.FindName('ThemeToggle')
+$themeLabel = $window.FindName('ThemeLabel')
 
-$navApps               = $window.FindName('NavApps')
-$navDownload           = $window.FindName('NavDownload')
-$navLibrary            = $window.FindName('NavLibrary')
-$navSettings           = $window.FindName('NavSettings')
+$navApps = $window.FindName('NavApps')
+$navDownload = $window.FindName('NavDownload')
+$navLibrary = $window.FindName('NavLibrary')
+$navSettings = $window.FindName('NavSettings')
 
-$appsPanel             = $window.FindName('AppsPanel')
-$downloadPanel         = $window.FindName('DownloadPanel')
-$libraryPanel          = $window.FindName('LibraryPanel')
-$settingsPanel         = $window.FindName('SettingsPanel')
+$appsPanel = $window.FindName('AppsPanel')
+$downloadPanel = $window.FindName('DownloadPanel')
+$libraryPanel = $window.FindName('LibraryPanel')
+$settingsPanel = $window.FindName('SettingsPanel')
 
-$refreshAppsButton     = $window.FindName('RefreshAppsButton')
-$appSearchBox          = $window.FindName('AppSearchBox')
-$appsComboBox          = $window.FindName('AppsComboBox')
+$refreshAppsButton = $window.FindName('RefreshAppsButton')
+$appSearchBox = $window.FindName('AppSearchBox')
+$appsComboBox = $window.FindName('AppsComboBox')
 $loadAppVersionsButton = $window.FindName('LoadAppVersionsButton')
-$filterWrapPanel       = $window.FindName('FilterWrapPanel')
-$clearFiltersButton    = $window.FindName('ClearFiltersButton')
-$addToQueueButton      = $window.FindName('AddToQueueButton')
+$filterWrapPanel = $window.FindName('FilterWrapPanel')
+$clearFiltersButton = $window.FindName('ClearFiltersButton')
+$addToQueueButton = $window.FindName('AddToQueueButton')
 
 $removeQueueItemButton = $window.FindName('RemoveQueueItemButton')
-$clearQueueButton      = $window.FindName('ClearQueueButton')
+$clearQueueButton = $window.FindName('ClearQueueButton')
 
-$libraryPathViewBox     = $window.FindName('LibraryPathViewBox')
-$libraryBrowseButton    = $window.FindName('LibraryBrowseButton')
-$libraryNewButton       = $window.FindName('LibraryNewButton')
-$libraryRefreshButton   = $window.FindName('LibraryRefreshButton')
+$libraryPathViewBox = $window.FindName('LibraryPathViewBox')
+$libraryBrowseButton = $window.FindName('LibraryBrowseButton')
+$libraryNewButton = $window.FindName('LibraryNewButton')
+$libraryRefreshButton = $window.FindName('LibraryRefreshButton')
 $libraryOpenFolderButton = $window.FindName('LibraryOpenFolderButton')
 
 $syncHash.LibraryContentsListView = $window.FindName('LibraryContentsListView')
@@ -930,23 +930,23 @@ $syncHash.DownloadAllButton = $window.FindName('DownloadAllButton')
 $syncHash.VersionsListView = $window.FindName('VersionsListView')
 $syncHash.ResultsCountLabel = $window.FindName('ResultsCountLabel')
 
-$copyLogButton         = $window.FindName('CopyLogButton')
-$saveLogButton         = $window.FindName('SaveLogButton')
-$logToggleButton       = $window.FindName('LogToggleButton')
+$copyLogButton = $window.FindName('CopyLogButton')
+$saveLogButton = $window.FindName('SaveLogButton')
+$logToggleButton = $window.FindName('LogToggleButton')
 
-$outputPathBox         = $window.FindName('OutputPathBox')
-$libraryPathBox        = $window.FindName('LibraryPathBox')
-$logVerbosityComboBox  = $window.FindName('LogVerbosityComboBox')
-$startupViewComboBox   = $window.FindName('StartupViewComboBox')
-$browseOutputButton    = $window.FindName('BrowseOutputButton')
-$browseLibraryButton   = $window.FindName('BrowseLibraryButton')
-$adminStatusText       = $window.FindName('AdminStatusText')
+$outputPathBox = $window.FindName('OutputPathBox')
+$libraryPathBox = $window.FindName('LibraryPathBox')
+$logVerbosityComboBox = $window.FindName('LogVerbosityComboBox')
+$startupViewComboBox = $window.FindName('StartupViewComboBox')
+$browseOutputButton = $window.FindName('BrowseOutputButton')
+$browseLibraryButton = $window.FindName('BrowseLibraryButton')
+$adminStatusText = $window.FindName('AdminStatusText')
 
 # Log row is RowDefinitions[3]; track its height for collapse/restore
 $logRowDef = $rootGrid.RowDefinitions[3]
 
 # Apply persisted window size with safe minimums
-$window.Width  = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
+$window.Width = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
 $window.Height = [Math]::Max(600, [double]$syncHash.Config.WindowHeight)
 
 # ── Apps view helpers ───────────────────────────────────────────────────────
@@ -1008,9 +1008,9 @@ $loadAppVersions = {
         $ps.Runspace = $runspace
 
         [void]$ps.AddScript({
-            param([string]$Name)
-            Get-EvergreenApp -Name $Name -ErrorAction Stop
-        }).AddArgument($appName)
+                param([string]$Name)
+                Get-EvergreenApp -Name $Name -ErrorAction Stop
+            }).AddArgument($appName)
 
         $results = @($ps.Invoke())
         $ps.Dispose()
@@ -1032,7 +1032,7 @@ $loadAppVersions = {
         $syncHash.VersionsListView.ItemsSource = @()
         $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
         $filterWrapPanel.Children.Clear()
-        Write-UILog -SyncHash $syncHash -Message "Failed to load versions for $appName: $_" -Level Error
+        Write-UILog -SyncHash $syncHash -Message "Failed to load versions for ${appName}: $_" -Level Error
     }
     finally {
         $loadAppVersionsButton.IsEnabled = $true
@@ -1045,9 +1045,9 @@ $refreshQueueView = {
     $syncHash.DownloadQueueListView.Items.Refresh()
 
     $pending = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
-    $done    = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
-    $failed  = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
-    $total   = $syncHash.DownloadQueue.Count
+    $done = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+    $failed = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+    $total = $syncHash.DownloadQueue.Count
     $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
 }
 
@@ -1082,25 +1082,25 @@ $registerBackgroundOperation = {
         $timer = [System.Windows.Threading.DispatcherTimer]::new()
         $timer.Interval = [TimeSpan]::FromMilliseconds(500)
         $timer.add_Tick({
-            $completed = @($syncHash.ActiveBackgroundOperations | Where-Object { $_.Async.IsCompleted })
-            foreach ($op in $completed) {
-                try {
-                    [void]$op.PowerShell.EndInvoke($op.Async)
+                $completed = @($syncHash.ActiveBackgroundOperations | Where-Object { $_.Async.IsCompleted })
+                foreach ($op in $completed) {
+                    try {
+                        [void]$op.PowerShell.EndInvoke($op.Async)
+                    }
+                    catch {
+                        Write-UILog -SyncHash $syncHash -Message "Background operation '$($op.Name)' completed with error: $_" -Level Error
+                    }
+                    finally {
+                        try { $op.PowerShell.Dispose() } catch {}
+                        try { $op.Runspace.Dispose() } catch {}
+                        [void]$syncHash.ActiveBackgroundOperations.Remove($op)
+                    }
                 }
-                catch {
-                    Write-UILog -SyncHash $syncHash -Message "Background operation '$($op.Name)' completed with error: $_" -Level Error
-                }
-                finally {
-                    try { $op.PowerShell.Dispose() } catch {}
-                    try { $op.Runspace.Dispose() } catch {}
-                    [void]$syncHash.ActiveBackgroundOperations.Remove($op)
-                }
-            }
 
-            if ($syncHash.ActiveBackgroundOperations.Count -eq 0) {
-                $syncHash.BackgroundOperationsTimer.Stop()
-            }
-        })
+                if ($syncHash.ActiveBackgroundOperations.Count -eq 0) {
+                    $syncHash.BackgroundOperationsTimer.Stop()
+                }
+            })
         $syncHash.BackgroundOperationsTimer = $timer
     }
 
@@ -1152,47 +1152,47 @@ $startQueueDownload = {
     $ps.Runspace = $rs
 
     [void]$ps.AddScript({
-        param(
-            [string]$WriteUILogPath,
-            [string]$InvokeDownloadPath
-        )
+            param(
+                [string]$WriteUILogPath,
+                [string]$InvokeDownloadPath
+            )
 
-        . $WriteUILogPath
-        . $InvokeDownloadPath
+            . $WriteUILogPath
+            . $InvokeDownloadPath
 
-        try {
-            Import-Module Evergreen -ErrorAction Stop | Out-Null
-        }
-        catch {
-            Write-UILog -SyncHash $syncHash -Message "Failed to import Evergreen in background runspace: $_" -Level Error
-        }
-
-        Write-UILog -SyncHash $syncHash -Message 'Starting queue download run (sequential).' -Level Info
-
-        foreach ($item in @($syncHash.DownloadQueue)) {
-            if ($item.Status -eq 'Done') { continue }
-            Invoke-AppDownload -SyncHash $syncHash -QueueItem $item
-        }
-
-        Write-UILog -SyncHash $syncHash -Message 'Queue download run finished.' -Level Info
-
-        $syncHash.Window.Dispatcher.Invoke([action]{
-            $syncHash.IsRunning = $false
-            if ($null -ne $syncHash.DownloadAllButton) {
-                $syncHash.DownloadAllButton.IsEnabled = $true
+            try {
+                Import-Module Evergreen -ErrorAction Stop | Out-Null
             }
-            if ($null -ne $syncHash.DownloadQueueListView) {
-                $syncHash.DownloadQueueListView.Items.Refresh()
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Failed to import Evergreen in background runspace: $_" -Level Error
             }
-            if ($null -ne $syncHash.QueueCountLabel) {
-                $pending = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
-                $done    = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
-                $failed  = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
-                $total   = $syncHash.DownloadQueue.Count
-                $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+
+            Write-UILog -SyncHash $syncHash -Message 'Starting queue download run (sequential).' -Level Info
+
+            foreach ($item in @($syncHash.DownloadQueue)) {
+                if ($item.Status -eq 'Done') { continue }
+                Invoke-AppDownload -SyncHash $syncHash -QueueItem $item
             }
-        }, 'Normal')
-    }).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
+
+            Write-UILog -SyncHash $syncHash -Message 'Queue download run finished.' -Level Info
+
+            $syncHash.Window.Dispatcher.Invoke([action] {
+                    $syncHash.IsRunning = $false
+                    if ($null -ne $syncHash.DownloadAllButton) {
+                        $syncHash.DownloadAllButton.IsEnabled = $true
+                    }
+                    if ($null -ne $syncHash.DownloadQueueListView) {
+                        $syncHash.DownloadQueueListView.Items.Refresh()
+                    }
+                    if ($null -ne $syncHash.QueueCountLabel) {
+                        $pending = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
+                        $done = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+                        $failed = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+                        $total = $syncHash.DownloadQueue.Count
+                        $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+                    }
+                }, 'Normal')
+        }).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
 
     $async = $ps.BeginInvoke()
     & $registerBackgroundOperation -Name 'QueueDownload' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
@@ -1322,30 +1322,30 @@ $startLibraryUpdate = {
     $ps.Runspace = $rs
 
     [void]$ps.AddScript({
-        param(
-            [string]$WriteUILogPath,
-            [string]$InvokeLibraryUpdatePath
-        )
+            param(
+                [string]$WriteUILogPath,
+                [string]$InvokeLibraryUpdatePath
+            )
 
-        . $WriteUILogPath
-        . $InvokeLibraryUpdatePath
+            . $WriteUILogPath
+            . $InvokeLibraryUpdatePath
 
-        try {
-            Import-Module Evergreen -ErrorAction Stop | Out-Null
-            Invoke-LibraryUpdate -SyncHash $syncHash
-        }
-        catch {
-            Write-UILog -SyncHash $syncHash -Message "Library update run failed: $_" -Level Error
-        }
-        finally {
-            $syncHash.Window.Dispatcher.Invoke([action]{
-                $syncHash.IsRunning = $false
-                if ($null -ne $syncHash.LibraryUpdateButton) {
-                    $syncHash.LibraryUpdateButton.IsEnabled = $true
-                }
-            }, 'Normal')
-        }
-    }).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
+            try {
+                Import-Module Evergreen -ErrorAction Stop | Out-Null
+                Invoke-LibraryUpdate -SyncHash $syncHash
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Library update run failed: $_" -Level Error
+            }
+            finally {
+                $syncHash.Window.Dispatcher.Invoke([action] {
+                        $syncHash.IsRunning = $false
+                        if ($null -ne $syncHash.LibraryUpdateButton) {
+                            $syncHash.LibraryUpdateButton.IsEnabled = $true
+                        }
+                    }, 'Normal')
+            }
+        }).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
 
     $async = $ps.BeginInvoke()
     & $registerBackgroundOperation -Name 'LibraryUpdate' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
@@ -1357,109 +1357,109 @@ $logRowDef.Height = [System.Windows.GridLength]::new($initialLogHeight)
 
 # ── Event: Window.Loaded ─────────────────────────────────────────────────────
 $window.add_Loaded({
-    # Apply saved theme (before any logging so colours are correct)
-    if ($syncHash.Config.Theme -eq 'Dark') {
-        $themeToggle.IsChecked = $true
-        Set-DarkTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
-    }
-    else {
-        $themeToggle.IsChecked = $false
-        Set-LightTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
-    }
-
-    # Populate Evergreen version info in title bar
-    try {
-        $egModule = Get-Module -Name Evergreen | Select-Object -First 1
-        if ($null -ne $egModule) {
-            $syncHash.EvergreenVersion  = "v$($egModule.Version)"
-            $evergreenVersionText.Text  = "Evergreen $($syncHash.EvergreenVersion)"
-            $evergreenStatusDot.Fill    = [System.Windows.Media.Brushes]::LightGreen
+        # Apply saved theme (before any logging so colours are correct)
+        if ($syncHash.Config.Theme -eq 'Dark') {
+            $themeToggle.IsChecked = $true
+            Set-DarkTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
         }
         else {
-            $evergreenVersionText.Text = 'Evergreen: not loaded'
-            $evergreenStatusDot.Fill   = [System.Windows.Media.Brushes]::OrangeRed
+            $themeToggle.IsChecked = $false
+            Set-LightTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
         }
-    }
-    catch {
-        $evergreenVersionText.Text = 'Evergreen: error'
-        $evergreenStatusDot.Fill   = [System.Windows.Media.Brushes]::OrangeRed
-    }
 
-    Write-UILog -SyncHash $syncHash -Message "EvergreenUI started. $($syncHash.EvergreenVersion)" -Level Info
-    if ($syncHash.IsAdmin) {
-        Write-UILog -SyncHash $syncHash -Message 'Running as administrator.' -Level Info
-    }
+        # Populate Evergreen version info in title bar
+        try {
+            $egModule = Get-Module -Name Evergreen | Select-Object -First 1
+            if ($null -ne $egModule) {
+                $syncHash.EvergreenVersion = "v$($egModule.Version)"
+                $evergreenVersionText.Text = "Evergreen $($syncHash.EvergreenVersion)"
+                $evergreenStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
+            }
+            else {
+                $evergreenVersionText.Text = 'Evergreen: not loaded'
+                $evergreenStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+            }
+        }
+        catch {
+            $evergreenVersionText.Text = 'Evergreen: error'
+            $evergreenStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+        }
 
-    & $loadAppCatalog
+        Write-UILog -SyncHash $syncHash -Message "EvergreenUI started. $($syncHash.EvergreenVersion)" -Level Info
+        if ($syncHash.IsAdmin) {
+            Write-UILog -SyncHash $syncHash -Message 'Running as administrator.' -Level Info
+        }
 
-    if (-not [string]::IsNullOrWhiteSpace($syncHash.Config.LastAppName)) {
-        $savedApp = @($syncHash.AppList | Where-Object { $_.Name -eq $syncHash.Config.LastAppName } | Select-Object -First 1)
-        if ($savedApp.Count -gt 0) {
-            $appsComboBox.SelectedItem = $savedApp[0]
-        }
-    }
+        & $loadAppCatalog
 
-    & $refreshQueueView
-    $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
+        if (-not [string]::IsNullOrWhiteSpace($syncHash.Config.LastAppName)) {
+            $savedApp = @($syncHash.AppList | Where-Object { $_.Name -eq $syncHash.Config.LastAppName } | Select-Object -First 1)
+            if ($savedApp.Count -gt 0) {
+                $appsComboBox.SelectedItem = $savedApp[0]
+            }
+        }
 
-    switch ([string]$syncHash.Config.StartupView) {
-        'Download' {
-            $navDownload.IsChecked = $true
+        & $refreshQueueView
+        $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
+
+        switch ([string]$syncHash.Config.StartupView) {
+            'Download' {
+                $navDownload.IsChecked = $true
+            }
+            'Library' {
+                $navLibrary.IsChecked = $true
+            }
+            'Settings' {
+                $navSettings.IsChecked = $true
+            }
+            default {
+                $navApps.IsChecked = $true
+            }
         }
-        'Library' {
-            $navLibrary.IsChecked = $true
-        }
-        'Settings' {
-            $navSettings.IsChecked = $true
-        }
-        default {
-            $navApps.IsChecked = $true
-        }
-    }
-})
+    })
 
 # ── Event: Window.Closing — persist config ────────────────────────────────────
 $window.add_Closing({
-    try {
-        $currentLogHeight = [int]$logRowDef.Height.Value - 32
-        if ($currentLogHeight -gt 0) {
-            $syncHash.Config.LogHeight = $currentLogHeight
-        }
-        $syncHash.Config.Theme = if ($themeToggle.IsChecked) { 'Dark' } else { 'Light' }
-        $syncHash.Config.WindowWidth = [int]$window.Width
-        $syncHash.Config.WindowHeight = [int]$window.Height
-        $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
+        try {
+            $currentLogHeight = [int]$logRowDef.Height.Value - 32
+            if ($currentLogHeight -gt 0) {
+                $syncHash.Config.LogHeight = $currentLogHeight
+            }
+            $syncHash.Config.Theme = if ($themeToggle.IsChecked) { 'Dark' } else { 'Light' }
+            $syncHash.Config.WindowWidth = [int]$window.Width
+            $syncHash.Config.WindowHeight = [int]$window.Height
+            $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
 
-        $syncHash.Config.StartupView = if ($navDownload.IsChecked) {
-            'Download'
-        }
-        elseif ($navLibrary.IsChecked) {
-            'Library'
-        }
-        elseif ($navSettings.IsChecked) {
-            'Settings'
-        }
-        else {
-            'Apps'
-        }
+            $syncHash.Config.StartupView = if ($navDownload.IsChecked) {
+                'Download'
+            }
+            elseif ($navLibrary.IsChecked) {
+                'Library'
+            }
+            elseif ($navSettings.IsChecked) {
+                'Settings'
+            }
+            else {
+                'Apps'
+            }
 
-        Set-UIConfig -Config $syncHash.Config
+            Set-UIConfig -Config $syncHash.Config
 
-        if ($null -ne $syncHash.BackgroundOperationsTimer -and $syncHash.BackgroundOperationsTimer.IsEnabled) {
-            $syncHash.BackgroundOperationsTimer.Stop()
-        }
+            if ($null -ne $syncHash.BackgroundOperationsTimer -and $syncHash.BackgroundOperationsTimer.IsEnabled) {
+                $syncHash.BackgroundOperationsTimer.Stop()
+            }
 
-        foreach ($op in @($syncHash.ActiveBackgroundOperations)) {
-            try { $op.PowerShell.Stop() } catch {}
-            try { $op.PowerShell.Dispose() } catch {}
-            try { $op.Runspace.Dispose() } catch {}
+            foreach ($op in @($syncHash.ActiveBackgroundOperations)) {
+                try { $op.PowerShell.Stop() } catch {}
+                try { $op.PowerShell.Dispose() } catch {}
+                try { $op.Runspace.Dispose() } catch {}
+            }
+            $syncHash.ActiveBackgroundOperations.Clear()
         }
-        $syncHash.ActiveBackgroundOperations.Clear()
-    }
-    catch {
-        # Never block window close for a config-save failure
-    }
-})
+        catch {
+            # Never block window close for a config-save failure
+        }
+    })
 
 # ── Keyboard shortcuts (Phase 8 polish) ─────────────────────────────────────
 # Ctrl+F: focus app search
@@ -1469,59 +1469,59 @@ $window.add_Closing({
 # Ctrl+L: toggle log panel
 # F5: refresh current active view
 $window.add_PreviewKeyDown({
-    param($sender, $e)
+        param($sender, $e)
 
-    $mods = [System.Windows.Input.Keyboard]::Modifiers
-    $ctrl = ($mods -band [System.Windows.Input.ModifierKeys]::Control) -ne 0
+        $mods = [System.Windows.Input.Keyboard]::Modifiers
+        $ctrl = ($mods -band [System.Windows.Input.ModifierKeys]::Control) -ne 0
 
-    if ($e.Key -eq [System.Windows.Input.Key]::F5) {
-        if ($navApps.IsChecked) {
-            & $loadAppCatalog -Force
-        }
-        elseif ($navDownload.IsChecked) {
-            & $refreshQueueView
-        }
-        elseif ($navLibrary.IsChecked) {
-            & $refreshLibraryView
-        }
-        $e.Handled = $true
-        return
-    }
-
-    if (-not $ctrl) {
-        return
-    }
-
-    switch ($e.Key) {
-        ([System.Windows.Input.Key]::F) {
-            $navApps.IsChecked = $true
-            [void]$appSearchBox.Focus()
-            $appSearchBox.SelectAll()
+        if ($e.Key -eq [System.Windows.Input.Key]::F5) {
+            if ($navApps.IsChecked) {
+                & $loadAppCatalog -Force
+            }
+            elseif ($navDownload.IsChecked) {
+                & $refreshQueueView
+            }
+            elseif ($navLibrary.IsChecked) {
+                & $refreshLibraryView
+            }
             $e.Handled = $true
+            return
         }
-        ([System.Windows.Input.Key]::OemComma) {
-            $navSettings.IsChecked = $true
-            $e.Handled = $true
+
+        if (-not $ctrl) {
+            return
         }
-        ([System.Windows.Input.Key]::D) {
-            if ($navDownload.IsChecked) {
-                & $startQueueDownload
+
+        switch ($e.Key) {
+            ([System.Windows.Input.Key]::F) {
+                $navApps.IsChecked = $true
+                [void]$appSearchBox.Focus()
+                $appSearchBox.SelectAll()
+                $e.Handled = $true
+            }
+            ([System.Windows.Input.Key]::OemComma) {
+                $navSettings.IsChecked = $true
+                $e.Handled = $true
+            }
+            ([System.Windows.Input.Key]::D) {
+                if ($navDownload.IsChecked) {
+                    & $startQueueDownload
+                    $e.Handled = $true
+                }
+            }
+            ([System.Windows.Input.Key]::U) {
+                if ($navLibrary.IsChecked) {
+                    & $startLibraryUpdate
+                    $e.Handled = $true
+                }
+            }
+            ([System.Windows.Input.Key]::L) {
+                $logToggleButton.IsChecked = -not $logToggleButton.IsChecked
+                $logToggleButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
                 $e.Handled = $true
             }
         }
-        ([System.Windows.Input.Key]::U) {
-            if ($navLibrary.IsChecked) {
-                & $startLibraryUpdate
-                $e.Handled = $true
-            }
-        }
-        ([System.Windows.Input.Key]::L) {
-            $logToggleButton.IsChecked = -not $logToggleButton.IsChecked
-            $logToggleButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
-            $e.Handled = $true
-        }
-    }
-})
+    })
 
 # ── Navigation: Checked handler swaps content panels ─────────────────────────
 $panelMap = @{
@@ -1548,333 +1548,333 @@ foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navSettings)) {
 }
 
 $navApps.add_Checked({
-    if ($null -eq $syncHash.AppList -or $syncHash.AppList.Count -eq 0) {
-        & $loadAppCatalog
-    }
-})
+        if ($null -eq $syncHash.AppList -or $syncHash.AppList.Count -eq 0) {
+            & $loadAppCatalog
+        }
+    })
 
 $navDownload.add_Checked({
-    & $refreshQueueView
-})
+        & $refreshQueueView
+    })
 
 $navLibrary.add_Checked({
-    if ([string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
-        $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
-    }
-    & $refreshLibraryView
-})
+        if ([string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
+            $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
+        }
+        & $refreshLibraryView
+    })
 
 $refreshAppsButton.add_Click({
-    Write-UILog -SyncHash $syncHash -Message 'Refreshing Evergreen app catalog...' -Level Info
-    & $loadAppCatalog -Force
-})
+        Write-UILog -SyncHash $syncHash -Message 'Refreshing Evergreen app catalog...' -Level Info
+        & $loadAppCatalog -Force
+    })
 
 $appSearchBox.add_TextChanged({
-    & $updateAppsComboSource -SearchText $appSearchBox.Text
-})
+        & $updateAppsComboSource -SearchText $appSearchBox.Text
+    })
 
 $loadAppVersionsButton.add_Click({
-    & $loadAppVersions
-})
+        & $loadAppVersions
+    })
 
 $appsComboBox.add_SelectionChanged({
-    $syncHash.CurrentAppResults = @()
-    $syncHash.VersionsListView.ItemsSource = @()
-    $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
-    $filterWrapPanel.Children.Clear()
-    $syncHash.FilterState = @{}
-})
+        $syncHash.CurrentAppResults = @()
+        $syncHash.VersionsListView.ItemsSource = @()
+        $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
+        $filterWrapPanel.Children.Clear()
+        $syncHash.FilterState = @{}
+    })
 
 $clearFiltersButton.add_Click({
-    if ($null -eq $syncHash.CurrentAppResults -or $syncHash.CurrentAppResults.Count -eq 0) {
-        return
-    }
+        if ($null -eq $syncHash.CurrentAppResults -or $syncHash.CurrentAppResults.Count -eq 0) {
+            return
+        }
 
-    $filterProps = Get-FilterableProperties -AppResults $syncHash.CurrentAppResults
-    New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
+        $filterProps = Get-FilterableProperties -AppResults $syncHash.CurrentAppResults
+        New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
+            Invoke-FilterUpdate -SyncHash $syncHash
+        }
         Invoke-FilterUpdate -SyncHash $syncHash
-    }
-    Invoke-FilterUpdate -SyncHash $syncHash
-})
+    })
 
 $addToQueueButton.add_Click({
-    $selectedVersion = $syncHash.VersionsListView.SelectedItem
-    $selectedApp = $appsComboBox.SelectedItem
+        $selectedVersion = $syncHash.VersionsListView.SelectedItem
+        $selectedApp = $appsComboBox.SelectedItem
 
-    if ($null -eq $selectedApp -or $null -eq $selectedVersion) {
-        Write-UILog -SyncHash $syncHash -Message 'Select one app version row before adding to queue.' -Level Warning
-        return
-    }
+        if ($null -eq $selectedApp -or $null -eq $selectedVersion) {
+            Write-UILog -SyncHash $syncHash -Message 'Select one app version row before adding to queue.' -Level Warning
+            return
+        }
 
-    $queueItem = [PSCustomObject]@{
-        AppName      = [string]$selectedApp.Name
-        Version      = [string]$selectedVersion.Version
-        Platform     = if ($selectedVersion.PSObject.Properties.Name -contains 'Platform') { [string]$selectedVersion.Platform } else { '' }
-        Architecture = if ($selectedVersion.PSObject.Properties.Name -contains 'Architecture') { [string]$selectedVersion.Architecture } else { '' }
-        Channel      = if ($selectedVersion.PSObject.Properties.Name -contains 'Channel') { [string]$selectedVersion.Channel } else { '' }
-        Uri          = if ($selectedVersion.PSObject.Properties.Name -contains 'URI') { [string]$selectedVersion.URI } else { '' }
-        Status       = 'Pending'
-    }
+        $queueItem = [PSCustomObject]@{
+            AppName      = [string]$selectedApp.Name
+            Version      = [string]$selectedVersion.Version
+            Platform     = if ($selectedVersion.PSObject.Properties.Name -contains 'Platform') { [string]$selectedVersion.Platform } else { '' }
+            Architecture = if ($selectedVersion.PSObject.Properties.Name -contains 'Architecture') { [string]$selectedVersion.Architecture } else { '' }
+            Channel      = if ($selectedVersion.PSObject.Properties.Name -contains 'Channel') { [string]$selectedVersion.Channel } else { '' }
+            Uri          = if ($selectedVersion.PSObject.Properties.Name -contains 'URI') { [string]$selectedVersion.URI } else { '' }
+            Status       = 'Pending'
+        }
 
-    $syncHash.DownloadQueue.Add($queueItem)
-    Write-UILog -SyncHash $syncHash -Message "Queued: $($queueItem.AppName) $($queueItem.Version)" -Level Info
-    & $refreshQueueView
-})
+        $syncHash.DownloadQueue.Add($queueItem)
+        Write-UILog -SyncHash $syncHash -Message "Queued: $($queueItem.AppName) $($queueItem.Version)" -Level Info
+        & $refreshQueueView
+    })
 
 $removeQueueItemButton.add_Click({
-    if ($syncHash.IsRunning) {
-        Write-UILog -SyncHash $syncHash -Message 'Cannot remove queue items while downloads are running.' -Level Warning
-        return
-    }
+        if ($syncHash.IsRunning) {
+            Write-UILog -SyncHash $syncHash -Message 'Cannot remove queue items while downloads are running.' -Level Warning
+            return
+        }
 
-    $selectedQueueItem = $syncHash.DownloadQueueListView.SelectedItem
-    if ($null -eq $selectedQueueItem) {
-        Write-UILog -SyncHash $syncHash -Message 'Select one queue item to remove.' -Level Warning
-        return
-    }
+        $selectedQueueItem = $syncHash.DownloadQueueListView.SelectedItem
+        if ($null -eq $selectedQueueItem) {
+            Write-UILog -SyncHash $syncHash -Message 'Select one queue item to remove.' -Level Warning
+            return
+        }
 
-    [void]$syncHash.DownloadQueue.Remove($selectedQueueItem)
-    Write-UILog -SyncHash $syncHash -Message 'Removed selected item from queue.' -Level Info
-    & $refreshQueueView
-})
+        [void]$syncHash.DownloadQueue.Remove($selectedQueueItem)
+        Write-UILog -SyncHash $syncHash -Message 'Removed selected item from queue.' -Level Info
+        & $refreshQueueView
+    })
 
 $clearQueueButton.add_Click({
-    if ($syncHash.IsRunning) {
-        Write-UILog -SyncHash $syncHash -Message 'Cannot clear queue while downloads are running.' -Level Warning
-        return
-    }
+        if ($syncHash.IsRunning) {
+            Write-UILog -SyncHash $syncHash -Message 'Cannot clear queue while downloads are running.' -Level Warning
+            return
+        }
 
-    $syncHash.DownloadQueue.Clear()
-    Write-UILog -SyncHash $syncHash -Message 'Queue cleared.' -Level Info
-    & $refreshQueueView
-})
+        $syncHash.DownloadQueue.Clear()
+        Write-UILog -SyncHash $syncHash -Message 'Queue cleared.' -Level Info
+        & $refreshQueueView
+    })
 
 $syncHash.DownloadAllButton.add_Click({
-    & $startQueueDownload
-})
+        & $startQueueDownload
+    })
 
 $libraryRefreshButton.add_Click({
-    & $refreshLibraryView
-})
+        & $refreshLibraryView
+    })
 
 $libraryBrowseButton.add_Click({
-    $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
-    $dlg.Description = 'Select Evergreen library folder'
-    $dlg.SelectedPath = $libraryPathViewBox.Text
-    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $libraryPathViewBox.Text = $dlg.SelectedPath
-        $syncHash.Config.LibraryPath = $dlg.SelectedPath
-        Set-UIConfig -Config $syncHash.Config
-        & $refreshLibraryView
-    }
-})
+        $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+        $dlg.Description = 'Select Evergreen library folder'
+        $dlg.SelectedPath = $libraryPathViewBox.Text
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $libraryPathViewBox.Text = $dlg.SelectedPath
+            $syncHash.Config.LibraryPath = $dlg.SelectedPath
+            Set-UIConfig -Config $syncHash.Config
+            & $refreshLibraryView
+        }
+    })
 
 $libraryNewButton.add_Click({
-    $path = $libraryPathViewBox.Text
-    if ([string]::IsNullOrWhiteSpace($path)) {
-        Write-UILog -SyncHash $syncHash -Message 'Set a library path before creating a new library.' -Level Warning
-        return
-    }
+        $path = $libraryPathViewBox.Text
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            Write-UILog -SyncHash $syncHash -Message 'Set a library path before creating a new library.' -Level Warning
+            return
+        }
 
-    try {
-        New-EvergreenLibrary -Path $path -ErrorAction Stop | Out-Null
-        Write-UILog -SyncHash $syncHash -Message "Created Evergreen library: $path" -Level Info
-        $syncHash.Config.LibraryPath = $path
-        Set-UIConfig -Config $syncHash.Config
-        & $refreshLibraryView
-    }
-    catch {
-        Write-UILog -SyncHash $syncHash -Message "Failed to create library: $_" -Level Error
-    }
-})
+        try {
+            New-EvergreenLibrary -Path $path -ErrorAction Stop | Out-Null
+            Write-UILog -SyncHash $syncHash -Message "Created Evergreen library: $path" -Level Info
+            $syncHash.Config.LibraryPath = $path
+            Set-UIConfig -Config $syncHash.Config
+            & $refreshLibraryView
+        }
+        catch {
+            Write-UILog -SyncHash $syncHash -Message "Failed to create library: $_" -Level Error
+        }
+    })
 
 $libraryOpenFolderButton.add_Click({
-    $path = $libraryPathViewBox.Text
-    if ([string]::IsNullOrWhiteSpace($path)) {
-        return
-    }
+        $path = $libraryPathViewBox.Text
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            return
+        }
 
-    if (Test-Path -LiteralPath $path -PathType Container) {
-        Start-Process -FilePath 'explorer.exe' -ArgumentList $path | Out-Null
-    }
-    else {
-        Write-UILog -SyncHash $syncHash -Message "Library path does not exist: $path" -Level Warning
-    }
-})
+        if (Test-Path -LiteralPath $path -PathType Container) {
+            Start-Process -FilePath 'explorer.exe' -ArgumentList $path | Out-Null
+        }
+        else {
+            Write-UILog -SyncHash $syncHash -Message "Library path does not exist: $path" -Level Warning
+        }
+    })
 
 $syncHash.LibraryUpdateButton.add_Click({
-    & $startLibraryUpdate
-})
+        & $startLibraryUpdate
+    })
 
 $syncHash.LibraryContentsListView.add_MouseDoubleClick({
-    $selected = $syncHash.LibraryContentsListView.SelectedItem
-    & $loadLibraryAppDetails -SelectedLibraryItem $selected
-})
+        $selected = $syncHash.LibraryContentsListView.SelectedItem
+        & $loadLibraryAppDetails -SelectedLibraryItem $selected
+    })
 
 $syncHash.LibraryContentsListView.add_SelectionChanged({
-    $selected = $syncHash.LibraryContentsListView.SelectedItem
-    if ($null -eq $selected) {
-        $syncHash.LibraryDetailsListView.ItemsSource = @()
-        return
-    }
-    & $loadLibraryAppDetails -SelectedLibraryItem $selected
-})
+        $selected = $syncHash.LibraryContentsListView.SelectedItem
+        if ($null -eq $selected) {
+            $syncHash.LibraryDetailsListView.ItemsSource = @()
+            return
+        }
+        & $loadLibraryAppDetails -SelectedLibraryItem $selected
+    })
 
 $libraryPathViewBox.add_LostFocus({
-    $normalised = & $normalizeDirectoryPath -PathValue $libraryPathViewBox.Text
-    $libraryPathViewBox.Text = $normalised
-    $syncHash.Config.LibraryPath = $normalised
-    $libraryPathBox.Text = $normalised
-    Set-UIConfig -Config $syncHash.Config
-})
+        $normalised = & $normalizeDirectoryPath -PathValue $libraryPathViewBox.Text
+        $libraryPathViewBox.Text = $normalised
+        $syncHash.Config.LibraryPath = $normalised
+        $libraryPathBox.Text = $normalised
+        Set-UIConfig -Config $syncHash.Config
+    })
 
 $logVerbosityComboBox.add_SelectionChanged({
-    $item = $logVerbosityComboBox.SelectedItem
-    if ($null -eq $item) { return }
+        $item = $logVerbosityComboBox.SelectedItem
+        if ($null -eq $item) { return }
 
-    $selected = [string]$item.Content
-    if ($selected -ne 'Verbose') {
-        $selected = 'Normal'
-    }
+        $selected = [string]$item.Content
+        if ($selected -ne 'Verbose') {
+            $selected = 'Normal'
+        }
 
-    $syncHash.Config.LogVerbosity = $selected
-    Set-UIConfig -Config $syncHash.Config
-})
+        $syncHash.Config.LogVerbosity = $selected
+        Set-UIConfig -Config $syncHash.Config
+    })
 
 $startupViewComboBox.add_SelectionChanged({
-    $item = $startupViewComboBox.SelectedItem
-    if ($null -eq $item) { return }
+        $item = $startupViewComboBox.SelectedItem
+        if ($null -eq $item) { return }
 
-    $selected = [string]$item.Content
-    if ([string]::IsNullOrWhiteSpace($selected)) {
-        $selected = 'Apps'
-    }
+        $selected = [string]$item.Content
+        if ([string]::IsNullOrWhiteSpace($selected)) {
+            $selected = 'Apps'
+        }
 
-    $syncHash.Config.StartupView = $selected
-    Set-UIConfig -Config $syncHash.Config
-})
+        $syncHash.Config.StartupView = $selected
+        Set-UIConfig -Config $syncHash.Config
+    })
 
 # ── Navigation: Settings panel — populate form on activation ─────────────────
 $navSettings.add_Checked({
-    $outputPathBox.Text  = $syncHash.Config.OutputPath
-    $libraryPathBox.Text = $syncHash.Config.LibraryPath
+        $outputPathBox.Text = $syncHash.Config.OutputPath
+        $libraryPathBox.Text = $syncHash.Config.LibraryPath
 
-    $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
-    $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
+        $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
+        $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
 
-    switch ([string]$syncHash.Config.StartupView) {
-        'Download' { $startupViewComboBox.SelectedIndex = 1 }
-        'Library'  { $startupViewComboBox.SelectedIndex = 2 }
-        'Settings' { $startupViewComboBox.SelectedIndex = 3 }
-        default    { $startupViewComboBox.SelectedIndex = 0 }
-    }
+        switch ([string]$syncHash.Config.StartupView) {
+            'Download' { $startupViewComboBox.SelectedIndex = 1 }
+            'Library' { $startupViewComboBox.SelectedIndex = 2 }
+            'Settings' { $startupViewComboBox.SelectedIndex = 3 }
+            default { $startupViewComboBox.SelectedIndex = 0 }
+        }
 
-    $adminStatusText.Text = if ($syncHash.IsAdmin) {
-        'Running as administrator'
-    }
-    else {
-        'Not running as administrator. Some operations may require elevation.'
-    }
-})
+        $adminStatusText.Text = if ($syncHash.IsAdmin) {
+            'Running as administrator'
+        }
+        else {
+            'Not running as administrator. Some operations may require elevation.'
+        }
+    })
 
 # ── Theme toggle ──────────────────────────────────────────────────────────────
 $themeToggle.add_Click({
-    if ($themeToggle.IsChecked) {
-        Set-DarkTheme  -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
-    }
-    else {
-        Set-LightTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
-    }
+        if ($themeToggle.IsChecked) {
+            Set-DarkTheme  -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
+        }
+        else {
+            Set-LightTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
+        }
 
-    $syncHash.Config.Theme = if ($themeToggle.IsChecked) { 'Dark' } else { 'Light' }
-    Set-UIConfig -Config $syncHash.Config
-})
+        $syncHash.Config.Theme = if ($themeToggle.IsChecked) { 'Dark' } else { 'Light' }
+        Set-UIConfig -Config $syncHash.Config
+    })
 
 # ── Log panel collapse / expand ───────────────────────────────────────────────
 # When expanded, the log area height (above the 32px status bar) is restored
 # from config; when collapsed, row 3 drops to exactly the status bar height.
 $logToggleButton.add_Click({
-    if ($logToggleButton.IsChecked) {
-        $restoreHeight = [Math]::Max(80, $syncHash.Config.LogHeight)
-        $logRowDef.Height = [System.Windows.GridLength]::new(32 + $restoreHeight)
-        $logToggleButton.Content = [char]0x25BE + ' Progress log'
-    }
-    else {
-        # Save current displayed log height before collapsing
-        $currentHeight = [int]$logRowDef.Height.Value - 32
-        if ($currentHeight -gt 0) { $syncHash.Config.LogHeight = $currentHeight }
-        $logRowDef.Height = [System.Windows.GridLength]::new(32)
-        $logToggleButton.Content = [char]0x25B8 + ' Progress log'
-    }
-})
+        if ($logToggleButton.IsChecked) {
+            $restoreHeight = [Math]::Max(80, $syncHash.Config.LogHeight)
+            $logRowDef.Height = [System.Windows.GridLength]::new(32 + $restoreHeight)
+            $logToggleButton.Content = [char]0x25BE + ' Progress log'
+        }
+        else {
+            # Save current displayed log height before collapsing
+            $currentHeight = [int]$logRowDef.Height.Value - 32
+            if ($currentHeight -gt 0) { $syncHash.Config.LogHeight = $currentHeight }
+            $logRowDef.Height = [System.Windows.GridLength]::new(32)
+            $logToggleButton.Content = [char]0x25B8 + ' Progress log'
+        }
+    })
 
 # ── Copy log ──────────────────────────────────────────────────────────────────
 $copyLogButton.add_Click({
-    if (-not [string]::IsNullOrEmpty($syncHash.LogTextBox.Text)) {
-        [System.Windows.Clipboard]::SetText($syncHash.LogTextBox.Text)
-        Write-UILog -SyncHash $syncHash -Message 'Log copied to clipboard.' -Level Info
-    }
-})
+        if (-not [string]::IsNullOrEmpty($syncHash.LogTextBox.Text)) {
+            [System.Windows.Clipboard]::SetText($syncHash.LogTextBox.Text)
+            Write-UILog -SyncHash $syncHash -Message 'Log copied to clipboard.' -Level Info
+        }
+    })
 
 # ── Save log ──────────────────────────────────────────────────────────────────
 $saveLogButton.add_Click({
-    $dlg = [System.Windows.Forms.SaveFileDialog]::new()
-    $dlg.Filter   = 'Text files (*.txt)|*.txt|All files (*.*)|*.*'
-    $dlg.FileName = "EvergreenUI-Log-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
-    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        try {
-            $syncHash.LogTextBox.Text |
+        $dlg = [System.Windows.Forms.SaveFileDialog]::new()
+        $dlg.Filter = 'Text files (*.txt)|*.txt|All files (*.*)|*.*'
+        $dlg.FileName = "EvergreenUI-Log-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            try {
+                $syncHash.LogTextBox.Text |
                 Set-Content -Path $dlg.FileName -Encoding UTF8 -ErrorAction Stop
-            Write-UILog -SyncHash $syncHash -Message "Log saved: $($dlg.FileName)" -Level Info
+                Write-UILog -SyncHash $syncHash -Message "Log saved: $($dlg.FileName)" -Level Info
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Failed to save log: $_" -Level Error
+            }
         }
-        catch {
-            Write-UILog -SyncHash $syncHash -Message "Failed to save log: $_" -Level Error
-        }
-    }
-})
+    })
 
 # ── Settings: Output path — Browse ───────────────────────────────────────────
 $browseOutputButton.add_Click({
-    $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
-    $dlg.Description  = 'Select download output folder'
-    $dlg.SelectedPath = $outputPathBox.Text
-    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
-        $outputPathBox.Text                = $normalised
-        $syncHash.Config.OutputPath        = $normalised
-        Set-UIConfig -Config $syncHash.Config
-    }
-})
+        $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+        $dlg.Description = 'Select download output folder'
+        $dlg.SelectedPath = $outputPathBox.Text
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+            $outputPathBox.Text = $normalised
+            $syncHash.Config.OutputPath = $normalised
+            Set-UIConfig -Config $syncHash.Config
+        }
+    })
 
 # ── Settings: Library path — Browse ──────────────────────────────────────────
 $browseLibraryButton.add_Click({
-    $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
-    $dlg.Description  = 'Select Evergreen library folder'
-    $dlg.SelectedPath = $libraryPathBox.Text
-    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
-        $libraryPathBox.Text              = $normalised
-        $libraryPathViewBox.Text          = $normalised
-        $syncHash.Config.LibraryPath      = $normalised
-        Set-UIConfig -Config $syncHash.Config
-        & $refreshLibraryView
-    }
-})
+        $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+        $dlg.Description = 'Select Evergreen library folder'
+        $dlg.SelectedPath = $libraryPathBox.Text
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+            $libraryPathBox.Text = $normalised
+            $libraryPathViewBox.Text = $normalised
+            $syncHash.Config.LibraryPath = $normalised
+            Set-UIConfig -Config $syncHash.Config
+            & $refreshLibraryView
+        }
+    })
 
 # ── Settings: persist path edits on focus-leave ───────────────────────────────
 $outputPathBox.add_LostFocus({
-    $normalised = & $normalizeDirectoryPath -PathValue $outputPathBox.Text
-    $outputPathBox.Text = $normalised
-    $syncHash.Config.OutputPath = $normalised
-    Set-UIConfig -Config $syncHash.Config
-})
+        $normalised = & $normalizeDirectoryPath -PathValue $outputPathBox.Text
+        $outputPathBox.Text = $normalised
+        $syncHash.Config.OutputPath = $normalised
+        Set-UIConfig -Config $syncHash.Config
+    })
 $libraryPathBox.add_LostFocus({
-    $normalised = & $normalizeDirectoryPath -PathValue $libraryPathBox.Text
-    $libraryPathBox.Text = $normalised
-    $syncHash.Config.LibraryPath = $normalised
-    $libraryPathViewBox.Text = $normalised
-    Set-UIConfig -Config $syncHash.Config
-})
+        $normalised = & $normalizeDirectoryPath -PathValue $libraryPathBox.Text
+        $libraryPathBox.Text = $normalised
+        $syncHash.Config.LibraryPath = $normalised
+        $libraryPathViewBox.Text = $normalised
+        Set-UIConfig -Config $syncHash.Config
+    })
 
 # ── Show window (blocking) ────────────────────────────────────────────────────
 [void]$window.ShowDialog()

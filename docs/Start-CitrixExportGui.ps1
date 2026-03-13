@@ -40,7 +40,7 @@ Add-Type -AssemblyName System.Windows.Forms
     MinHeight="600"
     WindowStartupLocation="CenterScreen"
     Background="{DynamicResource WindowBackgroundBrush}">
-    
+
     <Window.Resources>
         <!-- Light Theme Colors (Default) -->
         <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F0F0F0"/>
@@ -52,7 +52,7 @@ Add-Type -AssemblyName System.Windows.Forms
         <SolidColorBrush x:Key="ButtonHoverBrush" Color="#E6E6E6"/>
         <SolidColorBrush x:Key="ButtonForegroundBrush" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="ToggleThumbBrush" Color="#FFFFFF"/>
-        
+
         <!-- Button Style with Fluent design -->
         <Style x:Key="FluentButton" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
@@ -85,7 +85,7 @@ Add-Type -AssemblyName System.Windows.Forms
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!-- TextBox Style -->
         <Style x:Key="FluentTextBox" TargetType="TextBox">
             <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
@@ -96,7 +96,7 @@ Add-Type -AssemblyName System.Windows.Forms
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        
+
         <!-- GroupBox Style -->
         <Style TargetType="GroupBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
@@ -104,14 +104,14 @@ Add-Type -AssemblyName System.Windows.Forms
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8"/>
         </Style>
-        
+
         <!-- TextBlock Style -->
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="FontSize" Value="14"/>
         </Style>
     </Window.Resources>
-    
+
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>  <!-- SDK status -->
@@ -128,7 +128,7 @@ Add-Type -AssemblyName System.Windows.Forms
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        
+
         <!-- Citrix SDK status and install -->
         <TextBlock Grid.Row="0" Grid.Column="0"
                    Text="Citrix SDK:"
@@ -145,14 +145,14 @@ Add-Type -AssemblyName System.Windows.Forms
                 Style="{StaticResource FluentButton}"
                 Margin="0,0,0,8"
                 MinWidth="180"/>
-        
+
         <!-- SDK hint text -->
         <TextBlock Grid.Row="1" Grid.ColumnSpan="3"
                    Margin="0,0,0,24"
                    TextWrapping="Wrap"
                    Foreground="{DynamicResource TextSecondaryBrush}"
                    Text="Citrix PowerShell SDK install requires elevation. If not installed, install the SDK separately, or run this app as an administrator."/>
-        
+
         <!-- Export script path -->
         <TextBlock Grid.Row="2" Grid.Column="0"
                    Text="Export script:"
@@ -170,7 +170,7 @@ Add-Type -AssemblyName System.Windows.Forms
                 Style="{StaticResource FluentButton}"
                 Margin="0,0,0,8"
                 MinWidth="100"/>
-        
+
         <!-- Secure client file -->
         <TextBlock Grid.Row="3" Grid.Column="0"
                    Text="Secure client file:"
@@ -188,7 +188,7 @@ Add-Type -AssemblyName System.Windows.Forms
                 Style="{StaticResource FluentButton}"
                 Margin="0,0,0,8"
                 MinWidth="100"/>
-        
+
         <!-- Customer ID -->
         <TextBlock Grid.Row="4" Grid.Column="0"
                    Text="Customer ID:"
@@ -200,7 +200,7 @@ Add-Type -AssemblyName System.Windows.Forms
                  Style="{StaticResource FluentTextBox}"
                  Margin="0,0,0,8"
                  MinHeight="32"/>
-        
+
         <!-- Output directory -->
         <TextBlock Grid.Row="5" Grid.Column="0"
                    Text="Output directory:"
@@ -218,7 +218,7 @@ Add-Type -AssemblyName System.Windows.Forms
                 Style="{StaticResource FluentButton}"
                 Margin="0,0,0,8"
                 MinWidth="100"/>
-        
+
         <!-- Progress log -->
         <GroupBox Grid.Row="6" Grid.ColumnSpan="3"
                   Header="Progress"
@@ -239,7 +239,7 @@ Add-Type -AssemblyName System.Windows.Forms
                          Padding="4"/>
             </ScrollViewer>
         </GroupBox>
-        
+
         <!-- Actions and theme toggle -->
         <Grid Grid.Row="7" Grid.ColumnSpan="3">
             <Grid.ColumnDefinitions>
@@ -247,7 +247,7 @@ Add-Type -AssemblyName System.Windows.Forms
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            
+
                 <!-- Theme toggle -->
                 <StackPanel Grid.Column="0"
                        Orientation="Horizontal"
@@ -304,7 +304,7 @@ Add-Type -AssemblyName System.Windows.Forms
                        VerticalAlignment="Center"
                        Foreground="{DynamicResource TextPrimaryBrush}"/>
                 </StackPanel>
-            
+
             <!-- Action buttons -->
             <StackPanel Grid.Column="2"
                        Orientation="Horizontal"
@@ -360,12 +360,12 @@ $syncHash = [hashtable]::Synchronized(@{
 #region Helper Functions
 function Write-Log {
     param([string]$Message)
-    
+
     if ([string]::IsNullOrWhiteSpace($Message)) { return }
-    
+
     $timestamp = Get-Date -Format "HH:mm:ss"
     $logEntry = "[$timestamp] $Message"
-    
+
     $syncHash.Window.Dispatcher.Invoke([action] {
             $syncHash.LogTextBox.AppendText("$logEntry`r`n")
             $syncHash.LogScrollViewer.ScrollToEnd()
@@ -380,26 +380,26 @@ function Test-Administrator {
 
 function Test-CitrixSdk {
     Write-Log -Message "Checking Citrix SDK..."
-    
+
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = "STA"
     $runspace.ThreadOptions = "ReuseThread"
     $runspace.Open()
     $runspace.SessionStateProxy.SetVariable("syncHash", $syncHash)
-    
+
     $powershell = [powershell]::Create()
     $powershell.Runspace = $runspace
-    
+
     [void]$powershell.AddScript({
             try {
                 $snapins = Get-PSSnapin -Name "Citrix*" -Registered -ErrorAction SilentlyContinue
                 $installed = $null -ne $snapins -and $snapins.Count -gt 0
-            
+
                 $syncHash.Window.Dispatcher.Invoke([action] {
                         $status = if ($installed) { "Installed" } else { "Not installed" }
                         $syncHash.SdkStatusTextBlock.Text = $status
                     }, "Normal")
-            
+
                 $message = if ($installed) { "Installed" } else { "Not installed" }
                 $syncHash.Window.Dispatcher.Invoke([action] {
                         $timestamp = Get-Date -Format "HH:mm:ss"
@@ -416,13 +416,13 @@ function Test-CitrixSdk {
                     }, "Normal")
             }
         })
-    
+
     [void]$powershell.BeginInvoke()
 }
 
 function Set-LightTheme {
     $resources = $window.Resources
-    
+
     $resources["WindowBackgroundBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(240, 240, 240))
     $resources["TextPrimaryBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0, 0, 0))
     $resources["TextSecondaryBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(96, 96, 96))
@@ -432,7 +432,7 @@ function Set-LightTheme {
     $resources["ControlBackgroundBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(255, 255, 255))
     $resources["ControlBorderBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(200, 200, 200))
     $resources["ButtonHoverBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(230, 230, 230))
-    
+
     $window.Background = $resources["WindowBackgroundBrush"]
     $themeLabelTextBlock.Text = "Light theme"
     Write-Log -Message "Theme changed to light mode"
@@ -440,7 +440,7 @@ function Set-LightTheme {
 
 function Set-DarkTheme {
     $resources = $window.Resources
-    
+
     $resources["WindowBackgroundBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(32, 32, 32))
     $resources["TextPrimaryBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(255, 255, 255))
     $resources["TextSecondaryBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(176, 176, 176))
@@ -449,7 +449,7 @@ function Set-DarkTheme {
     $resources["ControlBorderBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(64, 64, 64))
     $resources["ButtonHoverBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(61, 61, 61))
     $resources["ButtonForegroundBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0, 0, 0))
-    $resources["ToggleThumbBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0, 0, 0))    
+    $resources["ToggleThumbBrush"] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0, 0, 0))
     $window.Background = $resources["WindowBackgroundBrush"]
     $themeLabelTextBlock.Text = "Dark theme"
     Write-Log -Message "Theme changed to dark mode"
@@ -463,11 +463,11 @@ $downloadSdkButton.Add_Click({
             Write-Log -Message "SDK installation requires administrator privileges"
             return
         }
-    
+
         $sdkUrl = "https://download.apps.cloud.com/CitrixPoshSdk.exe"
         $tempPath = Join-Path -Path $env:TEMP -ChildPath "CitrixPoshSdk.exe"
         Write-Log -Message "Starting Citrix SDK download..."
-    
+
         try {
             Invoke-WebRequest -Uri $sdkUrl -OutFile $tempPath -UseBasicParsing
             Write-Log -Message "Download complete. Launching installer..."
@@ -485,7 +485,7 @@ $browseExportScriptButton.Add_Click({
         $dialog.Filter = "PowerShell script (Export-CitrixDaas.ps1)|Export-CitrixDaas.ps1|PowerShell scripts (*.ps1)|*.ps1|All files (*.*)|*.*"
         $dialog.Title = "Select Export-CitrixDaas.ps1"
         $dialog.FileName = "Export-CitrixDaas.ps1"
-    
+
         if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $exportScriptPathTextBox.Text = $dialog.FileName
             Write-Log -Message "Export script selected: $($dialog.FileName)"
@@ -497,7 +497,7 @@ $browseSecureClientFileButton.Add_Click({
         $dialog = New-Object -TypeName "System.Windows.Forms.OpenFileDialog"
         $dialog.Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
         $dialog.Title = "Select Secure Client File"
-    
+
         if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $secureClientFileTextBox.Text = $dialog.FileName
             Write-Log -Message "Secure client file selected: $($dialog.FileName)"
@@ -509,7 +509,7 @@ $browseOutputDirectoryButton.Add_Click({
         $dialog = New-Object -TypeName "System.Windows.Forms.FolderBrowserDialog"
         $dialog.Description = "Select Output Directory"
         $dialog.ShowNewFolderButton = $true
-    
+
         if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $outputDirectoryTextBox.Text = $dialog.SelectedPath
             Write-Log -Message "Output directory selected: $($dialog.SelectedPath)"
@@ -531,33 +531,33 @@ $runExportButton.Add_Click({
             Write-Log -Message "Export is already running"
             return
         }
-    
+
         # Validate inputs
         $scriptPath = $exportScriptPathTextBox.Text
         $secureFile = $secureClientFileTextBox.Text
         $customerId = $customerIdTextBox.Text
         $outputPath = $outputDirectoryTextBox.Text
-    
+
         if ([string]::IsNullOrWhiteSpace($scriptPath) -or -not (Test-Path $scriptPath)) {
             Write-Log -Message "ERROR: Export script path is invalid. Select Export-CitrixDaas.ps1."
             return
         }
-    
+
         if ([string]::IsNullOrWhiteSpace($secureFile) -or -not (Test-Path $secureFile)) {
             Write-Log -Message "ERROR: Secure client file path is invalid."
             return
         }
-    
+
         if ([string]::IsNullOrWhiteSpace($customerId)) {
             Write-Log -Message "ERROR: Customer ID is required."
             return
         }
-    
+
         if ([string]::IsNullOrWhiteSpace($outputPath)) {
             Write-Log -Message "ERROR: Output directory is required."
             return
         }
-    
+
         # Create output directory if it doesn't exist
         if (-not (Test-Path $outputPath)) {
             try {
@@ -569,17 +569,17 @@ $runExportButton.Add_Click({
                 return
             }
         }
-    
+
         # Disable buttons during execution
         $syncHash.IsRunning = $true
         $runExportButton.IsEnabled = $false
         $downloadSdkButton.IsEnabled = $false
-    
+
         Write-Log -Message "Starting export..."
         Write-Log -Message "Script: $scriptPath"
         Write-Log -Message "Customer ID: $customerId"
         Write-Log -Message "Output: $outputPath"
-    
+
         # Create runspace for background execution
         $runspace = [runspacefactory]::CreateRunspace()
         $runspace.ApartmentState = "STA"
@@ -590,28 +590,28 @@ $runExportButton.Add_Click({
         $runspace.SessionStateProxy.SetVariable("outputPath", $outputPath)
         $runspace.SessionStateProxy.SetVariable("customerId", $customerId)
         $runspace.SessionStateProxy.SetVariable("secureFile", $secureFile)
-    
+
         $powershell = [powershell]::Create()
         $powershell.Runspace = $runspace
-    
+
         [void]$powershell.AddScript({
                 try {
                     # Define progress callback
                     $progressCallback = {
                         param([string]$message)
-                
+
                         if ([string]::IsNullOrWhiteSpace($message)) { return }
-                
+
                         $syncHash.Window.Dispatcher.Invoke([action] {
                                 $timestamp = Get-Date -Format "HH:mm:ss"
                                 $syncHash.LogTextBox.AppendText("[$timestamp] $message`r`n")
                                 $syncHash.LogScrollViewer.ScrollToEnd()
                             }, "Normal")
                     }
-            
+
                     # Execute the export script
                     & $scriptPath -Path $outputPath -CustomerId $customerId -SecureClientFile $secureFile -ProgressCallback $progressCallback
-            
+
                     # Success
                     $syncHash.Window.Dispatcher.Invoke([action] {
                             $timestamp = Get-Date -Format "HH:mm:ss"
@@ -636,19 +636,19 @@ $runExportButton.Add_Click({
                         }, "Normal")
                 }
             })
-    
+
         [void]$powershell.BeginInvoke()
     })
 
 # Open Folder Button
 $openFolderButton.Add_Click({
         $outputPath = $outputDirectoryTextBox.Text
-    
+
         if ([string]::IsNullOrWhiteSpace($outputPath)) {
             Write-Log -Message "ERROR: No output directory specified"
             return
         }
-    
+
         if (Test-Path $outputPath) {
             Start-Process explorer.exe -ArgumentList $outputPath
             Write-Log -Message "Opened output directory in Explorer"
@@ -665,28 +665,28 @@ $window.Add_Loaded({
         # Check administrator status
         $syncHash.IsAdmin = Test-Administrator
         $downloadSdkButton.IsEnabled = $syncHash.IsAdmin
-    
+
         if ($syncHash.IsAdmin) {
             Write-Log -Message "Running with administrator privileges"
         }
         else {
             Write-Log -Message "Running without administrator privileges (SDK install disabled)"
         }
-    
+
         # Set default values
         $scriptDir = Split-Path -Parent $PSCommandPath
         $exportScriptPathTextBox.Text = Join-Path -Path $scriptDir -ChildPath "Export-CitrixDaas.ps1"
         $secureClientFileTextBox.Text = Join-Path -Path $scriptDir -ChildPath "serviceprincipal.csv"
         $customerIdTextBox.Text = "ukmsctx002"
         $outputDirectoryTextBox.Text = Join-Path -Path $scriptDir -ChildPath "Export"
-    
+
         Write-Log -Message "GUI initialized"
         Write-Log -Message "Default export script: $($exportScriptPathTextBox.Text)"
         Write-Log -Message "Default output: $($outputDirectoryTextBox.Text)"
-    
+
         # Check SDK status asynchronously
         Test-CitrixSdk
-    
+
         # Focus on Customer ID field
         $customerIdTextBox.Focus()
     })

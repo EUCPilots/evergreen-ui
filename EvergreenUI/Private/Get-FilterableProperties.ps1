@@ -69,17 +69,17 @@ function Get-FilterableProperties {
     }
 
     $filterableProps = $AppResults[0].PSObject.Properties.Name |
-        Where-Object { $_ -notin $displayOnly }
+    Where-Object { $_ -notin $displayOnly }
 
     $output = foreach ($propName in $filterableProps) {
         $allValues = $AppResults.$propName |
-            Where-Object { $null -ne $_ } |
-            ForEach-Object { [string]$_ } |
-            Sort-Object -Unique
+        Where-Object { $null -ne $_ } |
+        ForEach-Object { [string]$_ } |
+        Sort-Object -Unique
 
-        $controlType = if ($allValues.Count -le 6)  { 'CheckBoxStrip' }
-                       elseif ($allValues.Count -le 20) { 'MultiListBox' }
-                       else                             { 'TextBox' }
+        $controlType = if ($allValues.Count -le 6) { 'CheckBoxStrip' }
+        elseif ($allValues.Count -le 20) { 'MultiListBox' }
+        else { 'TextBox' }
 
         [PSCustomObject]@{
             Name         = $propName
@@ -93,14 +93,14 @@ function Get-FilterableProperties {
 
     # URI-based Type derivation — add synthetic 'File type' if Type is absent
     $hasTypeProperty = ($AppResults[0].PSObject.Properties.Name) -contains 'Type'
-    $hasUriProperty  = ($AppResults[0].PSObject.Properties.Name) -contains 'URI'
+    $hasUriProperty = ($AppResults[0].PSObject.Properties.Name) -contains 'URI'
 
     if (-not $hasTypeProperty -and $hasUriProperty) {
         $derivedTypes = $AppResults.URI |
-            Where-Object { $null -ne $_ } |
-            ForEach-Object { [System.IO.Path]::GetExtension($_).TrimStart('.').ToLower() } |
-            Where-Object { $_ -ne '' } |
-            Sort-Object -Unique
+        Where-Object { $null -ne $_ } |
+        ForEach-Object { [System.IO.Path]::GetExtension($_).TrimStart('.').ToLower() } |
+        Where-Object { $_ -ne '' } |
+        Sort-Object -Unique
 
         if ($derivedTypes.Count -gt 0) {
             $output = @($output) + [PSCustomObject]@{

@@ -24,8 +24,8 @@ function Test-EvergreenModule {
     param()
 
     $module = Get-Module -Name 'Evergreen' -ListAvailable -ErrorAction SilentlyContinue |
-        Sort-Object -Property Version -Descending |
-        Select-Object -First 1
+    Sort-Object -Property Version -Descending |
+    Select-Object -First 1
 
     if ($null -eq $module) {
         throw (

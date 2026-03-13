@@ -27,7 +27,7 @@ function Set-UIConfig {
         [PSCustomObject]$Config
     )
 
-    $configDir  = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
+    $configDir = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
     $configPath = Join-Path -Path $configDir   -ChildPath 'config.json'
 
     try {
@@ -36,8 +36,8 @@ function Set-UIConfig {
         }
 
         $Config |
-            ConvertTo-Json -Depth 5 -ErrorAction Stop |
-            Set-Content -Path $configPath -Encoding UTF8 -Force -ErrorAction Stop
+        ConvertTo-Json -Depth 5 -ErrorAction Stop |
+        Set-Content -Path $configPath -Encoding UTF8 -Force -ErrorAction Stop
     }
     catch {
         Write-Warning "EvergreenUI: Could not save config ($configPath): $($_.Exception.Message)"

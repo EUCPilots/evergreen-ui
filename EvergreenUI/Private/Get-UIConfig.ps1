@@ -49,7 +49,7 @@ function Get-UIConfig {
 
     try {
         $json = Get-Content -Path $configPath -Raw -ErrorAction Stop |
-            ConvertFrom-Json -ErrorAction Stop
+        ConvertFrom-Json -ErrorAction Stop
 
         # Merge with defaults so new keys added in future versions are populated
         foreach ($prop in $default.PSObject.Properties.Name) {

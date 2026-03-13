@@ -67,9 +67,9 @@ function New-FilterPanel {
     }
 
     foreach ($prop in $FilterProperties) {
-        $propName     = [string]$prop.Name
-        $displayName  = [string]$prop.DisplayName
-        $controlType  = [string]$prop.ControlType
+        $propName = [string]$prop.Name
+        $displayName = [string]$prop.DisplayName
+        $controlType = [string]$prop.ControlType
         $uniqueValues = [string[]]$prop.UniqueValues
 
         # Initialise filter state — all values selected
@@ -110,14 +110,14 @@ function New-FilterPanel {
                     $checkbox.Style = $SyncHash.Window.Resources['FluentCheckBox']
 
                     $checkbox.add_Checked({
-                        [void]$SyncHash.FilterState[$propName].Add($valueText)
-                        & $OnChangeCallback
-                    }.GetNewClosure())
+                            [void]$SyncHash.FilterState[$propName].Add($valueText)
+                            & $OnChangeCallback
+                        }.GetNewClosure())
 
                     $checkbox.add_Unchecked({
-                        [void]$SyncHash.FilterState[$propName].Remove($valueText)
-                        & $OnChangeCallback
-                    }.GetNewClosure())
+                            [void]$SyncHash.FilterState[$propName].Remove($valueText)
+                            & $OnChangeCallback
+                        }.GetNewClosure())
 
                     [void]$strip.Children.Add($checkbox)
                 }
@@ -143,15 +143,15 @@ function New-FilterPanel {
                 }
 
                 $listBox.add_SelectionChanged({
-                    $selected = [System.Collections.Generic.HashSet[string]]::new(
-                        [System.StringComparer]::OrdinalIgnoreCase
-                    )
-                    foreach ($item in $listBox.SelectedItems) {
-                        [void]$selected.Add([string]$item)
-                    }
-                    $SyncHash.FilterState[$propName] = $selected
-                    & $OnChangeCallback
-                }.GetNewClosure())
+                        $selected = [System.Collections.Generic.HashSet[string]]::new(
+                            [System.StringComparer]::OrdinalIgnoreCase
+                        )
+                        foreach ($item in $listBox.SelectedItems) {
+                            [void]$selected.Add([string]$item)
+                        }
+                        $SyncHash.FilterState[$propName] = $selected
+                        & $OnChangeCallback
+                    }.GetNewClosure())
 
                 [void]$groupPanel.Children.Add($listBox)
             }
@@ -165,22 +165,22 @@ function New-FilterPanel {
                 $allValues = [string[]]$uniqueValues
 
                 $textBox.add_TextChanged({
-                    $needle = $textBox.Text
+                        $needle = $textBox.Text
 
-                    $selected = [System.Collections.Generic.HashSet[string]]::new(
-                        [System.StringComparer]::OrdinalIgnoreCase
-                    )
+                        $selected = [System.Collections.Generic.HashSet[string]]::new(
+                            [System.StringComparer]::OrdinalIgnoreCase
+                        )
 
-                    foreach ($candidate in $allValues) {
-                        if ([string]::IsNullOrWhiteSpace($needle) -or
-                            $candidate.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
-                            [void]$selected.Add($candidate)
+                        foreach ($candidate in $allValues) {
+                            if ([string]::IsNullOrWhiteSpace($needle) -or
+                                $candidate.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                                [void]$selected.Add($candidate)
+                            }
                         }
-                    }
 
-                    $SyncHash.FilterState[$propName] = $selected
-                    & $OnChangeCallback
-                }.GetNewClosure())
+                        $SyncHash.FilterState[$propName] = $selected
+                        & $OnChangeCallback
+                    }.GetNewClosure())
 
                 [void]$groupPanel.Children.Add($textBox)
             }

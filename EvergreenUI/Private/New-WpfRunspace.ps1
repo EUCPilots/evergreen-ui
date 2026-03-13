@@ -37,7 +37,7 @@ function New-WpfRunspace {
 
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = [System.Threading.ApartmentState]::STA
-    $runspace.ThreadOptions  = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
+    $runspace.ThreadOptions = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
     $runspace.Open()
     $runspace.SessionStateProxy.SetVariable('syncHash', $SyncHash)
 

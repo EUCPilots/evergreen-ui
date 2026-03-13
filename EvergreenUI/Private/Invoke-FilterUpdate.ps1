@@ -57,13 +57,13 @@ function Invoke-FilterUpdate {
     }
 
     $filteredArray = @($filtered)
-    $totalCount    = $SyncHash.CurrentAppResults.Count
-    $shownCount    = $filteredArray.Count
+    $totalCount = $SyncHash.CurrentAppResults.Count
+    $shownCount = $filteredArray.Count
 
     $SyncHash.Window.Dispatcher.Invoke([action] {
-        $SyncHash.VersionsListView.ItemsSource = $filteredArray
-        if ($null -ne $SyncHash.ResultsCountLabel) {
-            $SyncHash.ResultsCountLabel.Text = "Showing $shownCount of $totalCount"
-        }
-    }, 'Normal')
+            $SyncHash.VersionsListView.ItemsSource = $filteredArray
+            if ($null -ne $SyncHash.ResultsCountLabel) {
+                $SyncHash.ResultsCountLabel.Text = "Showing $shownCount of $totalCount"
+            }
+        }, 'Normal')
 }
