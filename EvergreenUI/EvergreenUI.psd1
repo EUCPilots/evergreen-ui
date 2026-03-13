@@ -26,6 +26,27 @@
         @{ ModuleName = 'Evergreen'; ModuleVersion = '2603.2832.0' }
     )
 
+    # All files shipped with the module
+    FileList = @(
+        'EvergreenUI.psd1'
+        'EvergreenUI.psm1'
+        'Resources\EvergreenUI.xaml'
+        'Public\Start-EvergreenUI.ps1'
+        'Private\Get-EvergreenAppList.ps1'
+        'Private\Get-FilterableProperties.ps1'
+        'Private\Get-UIConfig.ps1'
+        'Private\Invoke-AppDownload.ps1'
+        'Private\Invoke-FilterUpdate.ps1'
+        'Private\Invoke-LibraryUpdate.ps1'
+        'Private\New-FilterPanel.ps1'
+        'Private\New-WpfRunspace.ps1'
+        'Private\Set-UIConfig.ps1'
+        'Private\Test-EvergreenModule.ps1'
+        'Private\Write-UILog.ps1'
+        'Private\themes\Set-DarkTheme.ps1'
+        'Private\themes\Set-LightTheme.ps1'
+    )
+
     # Module metadata
     PrivateData = @{
         PSData = @{
