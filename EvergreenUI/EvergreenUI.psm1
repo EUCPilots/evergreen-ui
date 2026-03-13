@@ -18,9 +18,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # ── Guard: Windows and WPF only ──────────────────────────────────────────────
-if (-not $IsWindows -and $PSVersionTable.PSVersion.Major -ge 6) {
-    throw 'EvergreenUI requires Windows. This module cannot be used on Linux or macOS.'
-}
+# if (-not $IsWindows -and $PSVersionTable.PSVersion.Major -ge 6) {
+#     throw 'EvergreenUI requires Windows. This module cannot be used on Linux or macOS.'
+# }
 
 # ── Dot-source Private functions ─────────────────────────────────────────────
 $privatePath = Join-Path -Path $PSScriptRoot -ChildPath 'Private'
