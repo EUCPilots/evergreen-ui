@@ -30,7 +30,7 @@ function Get-UIConfig {
     param()
 
     $default = [PSCustomObject]@{
-        OutputPath   = ''
+        OutputPath   = (Join-Path -Path ([System.Environment]::GetFolderPath('UserProfile')) -ChildPath 'Downloads')
         LibraryPath  = ''
         Theme        = 'Light'
         LogVerbosity = 'Normal'
