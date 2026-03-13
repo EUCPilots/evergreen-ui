@@ -1,0 +1,74 @@
+# ── PowerShell ──────────────────────────────────────────────────────────────
+# Pester test results
+TestResults.xml
+testResults*.xml
+coverage.xml
+
+# PSScriptAnalyzer cache
+.PSScriptAnalyzerSettings.psd1.cache
+
+# Module build output
+/build/
+/out/
+/release/
+*.nupkg
+
+# PowerShell Studio artefacts
+*.psproj.user
+*.psprojs
+
+# ── Evergreen runtime artefacts ─────────────────────────────────────────────
+# Config written by EvergreenUI at runtime — not committed; each user has their own
+EvergreenUI/Private/config.json
+**/config.json
+
+# Downloaded installers (the library itself lives outside the repo)
+/downloads/
+/library/
+
+# ── Editors ─────────────────────────────────────────────────────────────────
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+*.code-workspace
+
+# Visual Studio / VS tools
+.vs/
+*.suo
+*.user
+
+# JetBrains (Rider, etc.)
+.idea/
+*.iml
+
+# ── OS artefacts ─────────────────────────────────────────────────────────────
+# Windows
+Thumbs.db
+Thumbs.db:encdata
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS (in case contributors use cross-platform tooling)
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ── Secrets / credentials ────────────────────────────────────────────────────
+*.pfx
+*.cer
+*.key
+*.pem
+*secret*
+*credential*
+*password*
+serviceprincipal.csv
+
+# ── Temp / logs ──────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+~$*

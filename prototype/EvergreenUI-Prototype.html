@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EvergreenUI — Prototype</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    /* Evergreen brand palette — from eucpilots.com/evergreen-docs             */
+    /* --vp-c-brand-1: #009485  --vp-c-brand-2: #01786c  teal-light: #67b9c9  */
+    --brand:        #009485;
+    --brand-dark:   #01786c;
+    --brand-light:  #67b9c9;
+
+    --bg:           #f3f4f4;
+    --bg-elevated:  #ffffff;
+    --bg-subtle:    #eaecec;
+    --bg-inset:     #f6f8f8;
+    --border:       #dde2e1;
+    --border-focus: #009485;
+    --text:         #1a1a1a;
+    --text-2:       #4d5a58;
+    --text-3:       #8a9694;
+    --accent:       #009485;
+    --accent-hover: #01786c;
+    --accent-light: #d9f2ef;
+    --accent-text:  #005c54;
+    --nav-bg:       #f5f8f7;
+    --nav-hover:    #e5edeb;
+    --nav-active:   #d4eeeb;
+    --nav-active-text: #007a6c;
+    --danger:       #c42b1c;
+    --success:      #007a6c;
+    --warning:      #9d5d00;
+    --tag-bg:       #e4f4f2;
+    --tag-text:     #005c54;
+    --row-hover:    #f0faf9;
+    --row-selected: #d4eeeb;
+    --row-check:    #009485;
+    --log-bg:       #0f1f1d;
+    --log-text:     #cfe8e5;
+    --log-ts:       #4db8ad;
+    --log-err:      #f48771;
+    --log-info:     #67b9c9;
+    --shadow:       0 1px 4px rgba(0,74,68,.07), 0 4px 16px rgba(0,74,68,.05);
+    --shadow-sm:    0 1px 3px rgba(0,74,68,.06);
+    --radius:       6px;
+    --radius-sm:    4px;
+    --radius-lg:    8px;
+    --transition:   all .15s ease;
+  }
+
+  [data-theme="dark"] {
+    --bg:           #141d1c;
+    --bg-elevated:  #1c2826;
+    --bg-subtle:    #243330;
+    --bg-inset:     #111918;
+    --border:       #2e3f3c;
+    --border-focus: #4db8ad;
+    --text:         #e8f2f0;
+    --text-2:       #90aaa7;
+    --text-3:       #546460;
+    --accent:       #4db8ad;
+    --accent-hover: #67b9c9;
+    --accent-light: #0d2926;
+    --accent-text:  #4db8ad;
+    --nav-bg:       #181f1e;
+    --nav-hover:    #243330;
+    --nav-active:   #0d2926;
+    --nav-active-text: #4db8ad;
+    --tag-bg:       #0d2926;
+    --tag-text:     #4db8ad;
+    --row-hover:    #1a2e2c;
+    --row-selected: #0d2926;
+    --row-check:    #4db8ad;
+    --log-bg:       #0a1412;
+    --log-text:     #cfe8e5;
+    --log-ts:       #4db8ad;
+    --log-err:      #f48771;
+    --shadow:       0 1px 4px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.25);
+    --shadow-sm:    0 1px 3px rgba(0,0,0,.25);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 13.5px;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Title bar ── */
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    height: 48px;
+    background: var(--brand);
+    border-bottom: 1px solid var(--brand-dark);
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,74,68,.2);
+    z-index: 10;
+  }
+  .titlebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -.2px;
+    color: #ffffff;
+  }
+  .titlebar-logo svg { color: rgba(255,255,255,.85); }
+  .titlebar-spacer { flex: 1; }
+  .module-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(0,0,0,.18);
+    color: #ffffff;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,.15);
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #a8f0d6;
+    flex-shrink: 0;
+  }
+  .status-dot.warn { background: #ffd966; }
+  .status-dot.err  { background: #f48771; }
+
+  /* ── Theme toggle ── */
+  .theme-toggle {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: rgba(255,255,255,.8);
+  }
+  .toggle-track {
+    width: 36px; height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .toggle-track.on { background: rgba(255,255,255,.35); }
+  .toggle-thumb {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 14px; height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  }
+  .toggle-track.on .toggle-thumb { transform: translateX(16px); }
+
+  /* ── App shell ── */
+  .app-shell {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Nav rail ── */
+  .nav-rail {
+    width: 180px;
+    background: var(--nav-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+    flex-shrink: 0;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    margin: 1px 6px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    color: var(--text-2);
+    font-weight: 500;
+    font-size: 13.5px;
+    transition: var(--transition);
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--nav-hover); color: var(--text); }
+  .nav-item.active {
+    background: var(--nav-active);
+    color: var(--nav-active-text);
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--accent);
+    padding-left: 11px;
+  }
+  .nav-item svg { flex-shrink: 0; opacity: .8; }
+  .nav-item.active svg { opacity: 1; }
+  .nav-spacer { flex: 1; }
+  .nav-divider { height: 1px; background: var(--border); margin: 6px 10px; }
+
+  /* ── Content area ── */
+  .content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Views ── */
+  .view { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .view.active { display: flex; }
+
+  .view-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── Common form controls ── */
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row-label {
+    width: 130px;
+    flex-shrink: 0;
+    color: var(--text-2);
+    font-weight: 500;
+    font-size: 13px;
+  }
+  input[type="text"], select {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13.5px;
+    padding: 6px 10px;
+    outline: none;
+    transition: var(--transition);
+    height: 34px;
+  }
+  input[type="text"]:focus, select:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-focus) 20%, transparent);
+  }
+  input[type="text"].fill, select.fill { flex: 1; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition);
+    height: 34px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary {
+    background: var(--bg-elevated);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--bg-subtle); }
+  .btn-ghost { background: transparent; color: var(--text-2); border: 1px solid transparent; }
+  .btn-ghost:hover { background: var(--bg-subtle); color: var(--text); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { opacity: .9; }
+  .btn-sm { height: 28px; padding: 4px 10px; font-size: 12.5px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* ── GroupBox ── */
+  .group-box {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .group-box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-subtle);
+    font-weight: 600;
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--text-2);
+  }
+  .group-box-body { padding: 14px; }
+
+  /* ── Filter panel ── */
+  .filter-panel { padding: 12px 14px; }
+  .filter-groups { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .filter-group { display: flex; flex-direction: column; gap: 6px; }
+  .filter-group-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--text-3);
+  }
+  .filter-checks { display: flex; flex-direction: column; gap: 4px; }
+  .filter-check {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .filter-check input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 14px; height: 14px;
+    cursor: pointer;
+  }
+  .filter-spacer { flex: 1; }
+  .filter-actions { align-self: flex-end; }
+
+  /* ── Language listbox ── */
+  .filter-listbox {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow-y: auto;
+    height: 88px;
+    width: 160px;
+    padding: 3px 0;
+  }
+  .filter-listbox-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 3px 9px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .filter-listbox-item:hover { background: var(--row-hover); }
+
+  /* ── Results counter ── */
+  .results-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12.5px; color: var(--text-2);
+  }
+
+  /* ── Data table ── */
+  .data-table-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-elevated);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: var(--bg-subtle);
+    color: var(--text-2);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+    cursor: pointer;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr.selected { background: var(--row-selected); }
+  tbody td { padding: 7px 12px; color: var(--text); }
+  tbody td.mono {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .check-col { width: 40px; text-align: center; }
+  .check-col input[type="checkbox"] {
+    accent-color: var(--row-check);
+    width: 14px; height: 14px;
+    cursor: pointer;
+  }
+
+  /* ── Tags / badges ── */
+  .tag {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 500;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+  }
+  .tag.green { background: #d4eeeb; color: #005c54; }
+  .tag.amber { background: #fff4ce; color: #9d5d00; }
+  .tag.red   { background: #fde7e9; color: #c42b1c; }
+  .tag.gray  { background: var(--bg-subtle); color: var(--text-2); }
+  [data-theme="dark"] .tag.green { background: #0d2926; color: #4db8ad; }
+  [data-theme="dark"] .tag.amber { background: #3a2e00; color: #ffd966; }
+  [data-theme="dark"] .tag.red   { background: #3a1a1a; color: #f48771; }
+
+  /* ── Queue status ── */
+  .status-pending   { color: var(--text-3); }
+  .status-downloading { color: var(--accent); font-weight: 500; }
+  .status-done      { color: var(--success); }
+  .status-failed    { color: var(--danger); }
+
+  /* ── Log panel ── */
+  .log-panel {
+    border-top: 1px solid var(--brand-dark);
+    display: flex;
+    flex-direction: column;
+    transition: height .2s ease;
+    flex-shrink: 0;
+    background: var(--log-bg);
+  }
+  .log-panel.collapsed { height: 32px !important; }
+  .log-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    height: 32px;
+    background: #0d2320;
+    border-bottom: 1px solid #1a3a36;
+    flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .log-header-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: #4db8ad;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .log-header-spacer { flex: 1; }
+  .log-header-btn {
+    background: none; border: none; cursor: pointer;
+    color: #4a7a75; padding: 3px 6px; border-radius: 3px;
+    font-size: 11.5px; font-family: inherit;
+    transition: var(--transition);
+  }
+  .log-header-btn:hover { background: #1a3a36; color: #4db8ad; }
+  .log-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--log-text);
+  }
+  .log-line { display: flex; gap: 8px; }
+  .log-ts { color: var(--log-ts); flex-shrink: 0; }
+  .log-msg { color: var(--log-text); }
+  .log-err { color: var(--log-err); }
+  .log-info { color: #67b9c9; }
+
+  /* ── Collapsible section ── */
+  .collapsible-header {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; user-select: none;
+    font-size: 12.5px; font-weight: 600;
+    color: var(--text-2);
+    padding: 6px 0;
+  }
+  .collapsible-header .chevron {
+    transition: transform .2s;
+    color: var(--text-3);
+  }
+  .collapsible-header.open .chevron { transform: rotate(90deg); }
+  .collapsible-body { display: none; padding-top: 8px; }
+  .collapsible-body.open { display: block; }
+
+  /* ── Settings specific ── */
+  .setting-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-info { flex: 1; }
+  .setting-label { font-weight: 600; font-size: 13.5px; }
+  .setting-desc  { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+  .setting-control { flex-shrink: 0; min-width: 200px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+  /* ── Library app list ── */
+  .library-app-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 12px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+  }
+  .library-app-item:hover { background: var(--row-hover); }
+  .library-app-item.selected { background: var(--row-selected); }
+  .library-app-icon {
+    width: 32px; height: 32px;
+    background: var(--accent-light);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent-text);
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+  }
+  .library-app-name { font-weight: 600; font-size: 13.5px; }
+  .library-app-meta { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+
+  /* ── Apps search view ── */
+  .app-list-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+    border-bottom: 1px solid var(--border);
+  }
+  .app-list-item:last-child { border-bottom: none; }
+  .app-list-item:hover { background: var(--row-hover); }
+  .app-list-item.selected { background: var(--row-selected); }
+  .app-list-name { font-weight: 500; flex: 1; }
+  .app-list-pub { font-size: 12px; color: var(--text-2); }
+
+  /* ── Split layout ── */
+  .split-h { display: flex; gap: 14px; flex: 1; overflow: hidden; }
+  .split-left { width: 280px; flex-shrink: 0; overflow-y: auto; }
+  .split-right { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+
+  /* ── Scrollbars ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+  /* ── Empty state ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 10px;
+    padding: 40px 20px;
+    color: var(--text-3);
+    text-align: center;
+  }
+  .empty-state svg { opacity: .3; }
+  .empty-state p { font-size: 13px; }
+
+  /* ── Separator ── */
+  .sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* prototype note */
+  .proto-banner {
+    background: #01786c;
+    border-bottom: 1px solid #005c54;
+    color: #c8f0ec;
+    font-size: 12px;
+    padding: 5px 20px;
+    text-align: center;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- Title bar -->
+<div class="titlebar">
+  <div class="titlebar-logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    EvergreenUI
+  </div>
+  <div class="titlebar-spacer"></div>
+  <div class="module-badge">
+    <div class="status-dot"></div>
+    Evergreen v2503.412
+  </div>
+  <div style="width:16px"></div>
+  <div class="theme-toggle">
+    <span id="themeLabel">Light</span>
+    <div class="toggle-track" id="themeTrack" onclick="toggleTheme()">
+      <div class="toggle-thumb"></div>
+    </div>
+  </div>
+</div>
+
+<div class="proto-banner">⚠ Prototype — static dummy data, no live Evergreen module calls</div>
+
+<div class="app-shell">
+
+  <!-- Nav rail -->
+  <nav class="nav-rail">
+    <div class="nav-item active" onclick="switchView('apps', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Apps
+    </div>
+    <div class="nav-item" onclick="switchView('download', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download
+    </div>
+    <div class="nav-item" onclick="switchView('library', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Library
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" onclick="switchView('settings', this)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <div class="content-area">
+
+    <!-- ═══════════ APPS VIEW ═══════════ -->
+    <div class="view active" id="view-apps">
+      <div class="view-body">
+        <div class="row">
+          <input type="text" class="fill" id="appSearch" placeholder="Search applications…" oninput="filterApps(this.value)">
+          <button class="btn btn-secondary" onclick="filterApps('')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search
+          </button>
+        </div>
+
+        <div class="split-h">
+          <!-- App list -->
+          <div class="split-left">
+            <div class="group-box" style="overflow:hidden;">
+              <div class="group-box-header">
+                Applications <span id="appCount" style="font-weight:400; text-transform:none; letter-spacing:0; font-size:12px; color:var(--text-3)">— 12 of 547</span>
+              </div>
+              <div id="appListContainer" style="max-height:420px; overflow-y:auto;">
+                <!-- populated by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- App detail -->
+          <div class="split-right">
+            <div id="appDetailEmpty" class="group-box">
+              <div class="empty-state">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <p>Select an application to view version details</p>
+              </div>
+            </div>
+            <div id="appDetail" style="display:none; display:flex; flex-direction:column; gap:14px;">
+              <div class="group-box">
+                <div class="group-box-header" id="appDetailTitle">MicrosoftEdge — version details</div>
+                <!-- Filter panel -->
+                <div class="filter-panel">
+                  <div class="filter-groups" id="appDetailFilters"></div>
+                </div>
+                <div style="padding: 0 14px 14px;">
+                  <div class="results-meta" style="margin-bottom:8px;">
+                    <span id="appDetailCount">Showing 4 of 10 results</span>
+                    <div class="row" style="gap:6px;">
+                      <button class="btn btn-ghost btn-sm" onclick="clearFilters('app')">Clear filters</button>
+                      <button class="btn btn-primary btn-sm" onclick="addToQueue()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Add to download queue
+                      </button>
+                    </div>
+                  </div>
+                  <div class="data-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th class="check-col"><input type="checkbox" id="appSelectAll" onchange="toggleAllAppRows(this)"></th>
+                          <th>Version</th><th>Channel</th><th>Release</th><th>Architecture</th><th>Type</th><th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody id="appDetailTable"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ DOWNLOAD VIEW ═══════════ -->
+    <div class="view" id="view-download">
+      <div class="view-body">
+
+        <!-- App selector row -->
+        <div class="row">
+          <span class="row-label">Application</span>
+          <select class="fill" id="dlAppSelect" onchange="loadDownloadApp(this.value)">
+            <option value="">— select an application —</option>
+            <option value="MicrosoftEdge" selected>MicrosoftEdge</option>
+            <option value="GoogleChrome">GoogleChrome</option>
+            <option value="MozillaFirefox">MozillaFirefox</option>
+            <option value="AdobeAcrobatReaderDC">AdobeAcrobatReaderDC</option>
+            <option value="MicrosoftOneDrive">MicrosoftOneDrive</option>
+            <option value="MicrosoftTeams">MicrosoftTeams</option>
+            <option value="CitrixWorkspaceApp">CitrixWorkspaceApp</option>
+          </select>
+          <button class="btn btn-secondary" onclick="loadDownloadApp(document.getElementById('dlAppSelect').value)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.55"/></svg>
+            Get versions
+          </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="group-box" id="dlFilterBox">
+          <div class="group-box-header">
+            Filters
+            <button class="btn btn-ghost btn-sm" onclick="clearFilters('dl')">Clear all</button>
+          </div>
+          <div class="filter-panel">
+            <div class="filter-groups" id="dlFilters"></div>
+          </div>
+        </div>
+
+        <!-- Versions list -->
+        <div class="group-box">
+          <div class="group-box-header">
+            Available versions
+            <div class="row" style="gap:6px;">
+              <button class="btn btn-ghost btn-sm" onclick="selectAllVisible()">☑ Select all visible</button>
+              <button class="btn btn-ghost btn-sm" onclick="clearSelections()">Clear</button>
+            </div>
+          </div>
+          <div style="padding:10px 14px;">
+            <div class="results-meta" style="margin-bottom:8px;">
+              <span id="dlVersionCount">Showing 4 of 10 versions</span>
+              <button class="btn btn-primary btn-sm" onclick="addToQueue()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add to queue
+              </button>
+            </div>
+            <div class="data-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="check-col"><input type="checkbox" id="dlSelectAll" onchange="toggleAllDlRows(this)"></th>
+                    <th>Version</th><th>Channel</th><th>Release</th><th>Architecture</th><th>Type</th><th>Size (MB)</th>
+                  </tr>
+                </thead>
+                <tbody id="dlVersionTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advanced / AppParams -->
+        <div class="group-box">
+          <div class="group-box-body">
+            <div class="collapsible-header" onclick="toggleCollapsible('appParams', this)">
+              <svg class="chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              Advanced — AppParams
+            </div>
+            <div class="collapsible-body" id="appParams">
+              <div style="font-size:12.5px; color:var(--text-2); margin-bottom:10px;">Pass additional parameters to <code style="background:var(--bg-subtle);padding:1px 5px;border-radius:3px;">Get-EvergreenApp -AppParams</code>. Format: <code style="background:var(--bg-subtle);padding:1px 5px;border-radius:3px;">Key = Value1, Value2</code></div>
+              <div class="row">
+                <input type="text" class="fill" placeholder='e.g. Language = "en-GB", "en-US"' value="">
+                <button class="btn btn-secondary btn-sm">Apply &amp; refresh</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download queue -->
+        <div class="group-box">
+          <div class="group-box-header">
+            Download queue
+            <div class="row" style="gap:6px;">
+              <button class="btn btn-ghost btn-sm" onclick="removeFromQueue()">Remove selected</button>
+              <button class="btn btn-ghost btn-sm" onclick="clearQueue()">Clear queue</button>
+            </div>
+          </div>
+          <div style="padding:10px 14px;">
+            <div class="data-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="check-col"><input type="checkbox"></th>
+                    <th>Application</th><th>Version</th><th>Architecture</th><th>Type</th><th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="queueTable">
+                  <tr>
+                    <td class="check-col"><input type="checkbox" checked></td>
+                    <td>MicrosoftEdge</td>
+                    <td class="mono">145.0.3800.97</td>
+                    <td><span class="tag">x64</span></td>
+                    <td><span class="tag gray">msi</span></td>
+                    <td><span class="status-done">✓ Done</span></td>
+                  </tr>
+                  <tr>
+                    <td class="check-col"><input type="checkbox" checked></td>
+                    <td>MicrosoftEdge</td>
+                    <td class="mono">145.0.3800.97</td>
+                    <td><span class="tag">x86</span></td>
+                    <td><span class="tag gray">msi</span></td>
+                    <td><span class="status-downloading">↓ Downloading…</span></td>
+                  </tr>
+                  <tr>
+                    <td class="check-col"><input type="checkbox"></td>
+                    <td>GoogleChrome</td>
+                    <td class="mono">133.0.6943.99</td>
+                    <td><span class="tag">x64</span></td>
+                    <td><span class="tag gray">msi</span></td>
+                    <td><span class="status-pending">Pending</span></td>
+                  </tr>
+                  <tr>
+                    <td class="check-col"><input type="checkbox"></td>
+                    <td>MozillaFirefox</td>
+                    <td class="mono">136.0.1</td>
+                    <td><span class="tag">x64</span></td>
+                    <td><span class="tag gray">exe</span></td>
+                    <td><span class="status-pending">Pending</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top:10px;" class="sep"></div>
+            <div class="row" style="margin-top:10px; gap:8px;">
+              <span class="row-label">Output path</span>
+              <input type="text" class="fill" value="C:\Installers\Evergreen">
+              <button class="btn btn-secondary btn-sm">Browse</button>
+            </div>
+            <div class="row" style="margin-top:10px; justify-content:flex-end; gap:8px;">
+              <button class="btn btn-secondary" onclick="openFolder()">Open folder</button>
+              <button class="btn btn-primary" onclick="runDownload()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download all
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══════════ LIBRARY VIEW ═══════════ -->
+    <div class="view" id="view-library">
+      <div class="view-body">
+        <div class="row">
+          <span class="row-label">Library path</span>
+          <input type="text" class="fill" value="C:\EvergreenLibrary">
+          <button class="btn btn-secondary">Browse</button>
+          <button class="btn btn-secondary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New library
+          </button>
+        </div>
+
+        <div class="split-h">
+          <!-- Library app list -->
+          <div class="split-left">
+            <div class="group-box">
+              <div class="group-box-header">Library contents <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:12px;color:var(--text-3)">— 6 apps</span></div>
+              <div style="padding:6px;" id="libraryAppList">
+                <!-- populated by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Library detail -->
+          <div class="split-right">
+            <div class="group-box">
+              <div class="group-box-header" id="libDetailTitle">MicrosoftEdge — library installers</div>
+              <div style="padding:10px 14px;">
+                <div class="data-table-wrap">
+                  <table>
+                    <thead>
+                      <tr><th>Version</th><th>Channel</th><th>Architecture</th><th>Type</th><th>Path</th></tr>
+                    </thead>
+                    <tbody id="libDetailTable">
+                      <tr><td class="mono">145.0.3800.97</td><td>Stable</td><td><span class="tag">x64</span></td><td><span class="tag gray">msi</span></td><td class="mono" style="font-size:11px;color:var(--text-3)">Stable\Enterprise\x64\</td></tr>
+                      <tr><td class="mono">145.0.3800.97</td><td>Stable</td><td><span class="tag">x86</span></td><td><span class="tag gray">msi</span></td><td class="mono" style="font-size:11px;color:var(--text-3)">Stable\Enterprise\x86\</td></tr>
+                      <tr><td class="mono">144.0.3744.99</td><td>Stable</td><td><span class="tag">x64</span></td><td><span class="tag gray">msi</span></td><td class="mono" style="font-size:11px;color:var(--text-3)">Stable\Enterprise\x64\</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:flex-end; gap:8px;">
+              <button class="btn btn-secondary" onclick="openFolder()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Open folder
+              </button>
+              <button class="btn btn-secondary" onclick="refreshLibrary()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.55"/></svg>
+                Refresh
+              </button>
+              <button class="btn btn-primary" onclick="updateLibrary()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Update library
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ SETTINGS VIEW ═══════════ -->
+    <div class="view" id="view-settings">
+      <div class="view-body">
+        <div class="group-box">
+          <div class="group-box-header">Paths</div>
+          <div class="group-box-body">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Default output path</div>
+                <div class="setting-desc">Where downloaded installers are saved by default</div>
+              </div>
+              <div class="setting-control">
+                <input type="text" style="width:200px;" value="C:\Installers\Evergreen">
+                <button class="btn btn-secondary btn-sm">Browse</button>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Default library path</div>
+                <div class="setting-desc">Location of the Evergreen library on disk</div>
+              </div>
+              <div class="setting-control">
+                <input type="text" style="width:200px;" value="C:\EvergreenLibrary">
+                <button class="btn btn-secondary btn-sm">Browse</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="group-box">
+          <div class="group-box-header">Appearance</div>
+          <div class="group-box-body">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Theme</div>
+                <div class="setting-desc">Switch between light and dark interface</div>
+              </div>
+              <div class="setting-control">
+                <span id="settingsThemeLabel">Light</span>
+                <div class="toggle-track" id="settingsThemeTrack" onclick="toggleTheme()">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="group-box">
+          <div class="group-box-header">Logging</div>
+          <div class="group-box-body">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Verbosity</div>
+                <div class="setting-desc">Controls whether -Verbose is passed to Evergreen cmdlets</div>
+              </div>
+              <div class="setting-control">
+                <select style="width:160px;">
+                  <option selected>Normal</option>
+                  <option>Verbose</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Log panel height</div>
+                <div class="setting-desc">Default height of the log panel at the bottom</div>
+              </div>
+              <div class="setting-control">
+                <select style="width:160px;">
+                  <option>Collapsed</option>
+                  <option selected>150 px</option>
+                  <option>250 px</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="group-box">
+          <div class="group-box-header">About</div>
+          <div class="group-box-body">
+            <div class="setting-row">
+              <div class="setting-info"><div class="setting-label">EvergreenUI</div><div class="setting-desc">Version 0.1.0 — WPF GUI frontend for the Evergreen PowerShell module</div></div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><div class="setting-label">Evergreen module</div><div class="setting-desc">v2503.412 installed — <span style="color:var(--success);">up to date</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log panel -->
+    <div class="log-panel" id="logPanel" style="height:150px;">
+      <div class="log-header" onclick="toggleLog()">
+        <div class="log-header-title">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          Progress log
+        </div>
+        <div class="log-header-spacer"></div>
+        <button class="log-header-btn" onclick="event.stopPropagation(); copyLog()">Copy</button>
+        <button class="log-header-btn" onclick="event.stopPropagation(); saveLog()">Save</button>
+        <button class="log-header-btn" id="logToggleBtn" style="font-size:14px;">▾</button>
+      </div>
+      <div class="log-body" id="logBody">
+        <div class="log-line"><span class="log-ts">[09:41:02]</span><span class="log-msg">EvergreenUI initialized</span></div>
+        <div class="log-line"><span class="log-ts">[09:41:02]</span><span class="log-info">Evergreen module v2503.412 detected</span></div>
+        <div class="log-line"><span class="log-ts">[09:41:03]</span><span class="log-msg">Default output path: C:\Installers\Evergreen</span></div>
+        <div class="log-line"><span class="log-ts">[09:41:03]</span><span class="log-msg">Default library path: C:\EvergreenLibrary</span></div>
+        <div class="log-line"><span class="log-ts">[09:41:04]</span><span class="log-msg">Find-EvergreenApp — returned 547 applications</span></div>
+        <div class="log-line"><span class="log-ts">[09:42:11]</span><span class="log-msg">Get-EvergreenApp -Name MicrosoftEdge — returned 10 results</span></div>
+        <div class="log-line"><span class="log-ts">[09:42:12]</span><span class="log-msg">Filters: Architecture=x64,x86 | Channel=Stable | Release=Enterprise → 2 of 10 shown</span></div>
+        <div class="log-line"><span class="log-ts">[09:43:05]</span><span class="log-msg">Save-EvergreenApp — MicrosoftEdge 145.0.3800.97 x64 msi → C:\Installers\Evergreen\MicrosoftEdge\145.0.3800.97\x64\</span></div>
+        <div class="log-line"><span class="log-ts">[09:43:31]</span><span class="log-info">Download complete: MicrosoftEdgeEnterpriseX64.msi (183.91 MB)</span></div>
+        <div class="log-line"><span class="log-ts">[09:43:31]</span><span class="log-msg">Save-EvergreenApp — MicrosoftEdge 145.0.3800.97 x86 msi → C:\Installers\Evergreen\MicrosoftEdge\145.0.3800.97\x86\</span></div>
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+</div><!-- /app-shell -->
+
+<script>
+// ── Dummy data ──────────────────────────────────────────────────────────────
+const ALL_APPS = [
+  { name: 'AdobeAcrobatReaderDC', app: 'Adobe Acrobat Reader DC', pub: 'Adobe' },
+  { name: 'CitrixWorkspaceApp',   app: 'Citrix Workspace App',    pub: 'Citrix' },
+  { name: 'GoogleChrome',         app: 'Google Chrome',           pub: 'Google' },
+  { name: 'MicrosoftEdge',        app: 'Microsoft Edge',          pub: 'Microsoft' },
+  { name: 'MicrosoftOneDrive',    app: 'Microsoft OneDrive',      pub: 'Microsoft' },
+  { name: 'MicrosoftTeams',       app: 'Microsoft Teams',         pub: 'Microsoft' },
+  { name: 'MozillaFirefox',       app: 'Mozilla Firefox',         pub: 'Mozilla' },
+  { name: 'MicrosoftVSCode',      app: 'Visual Studio Code',      pub: 'Microsoft' },
+  { name: 'Zoom',                 app: 'Zoom',                    pub: 'Zoom Video' },
+  { name: 'SevenZip',             app: '7-Zip',                   pub: 'Igor Pavlov' },
+  { name: 'Greenshot',            app: 'Greenshot',               pub: 'Greenshot' },
+  { name: 'GitForWindows',        app: 'Git for Windows',         pub: 'The Git Project' },
+];
+
+const APP_DATA = {
+  MicrosoftEdge: [
+    { Version:'145.0.3800.97', Channel:'Stable', Release:'Enterprise', Architecture:'x64',   Type:'msi', Date:'2026-03-08', Size:183.91 },
+    { Version:'145.0.3800.97', Channel:'Stable', Release:'Enterprise', Architecture:'x86',   Type:'msi', Date:'2026-03-08', Size:163.42 },
+    { Version:'145.0.3800.97', Channel:'Stable', Release:'Enterprise', Architecture:'arm64', Type:'msi', Date:'2026-03-08', Size:191.98 },
+    { Version:'146.0.3856.54', Channel:'Beta',   Release:'Enterprise', Architecture:'x64',   Type:'msi', Date:'2026-03-11', Size:192.86 },
+    { Version:'146.0.3856.54', Channel:'Beta',   Release:'Enterprise', Architecture:'x86',   Type:'msi', Date:'2026-03-11', Size:171.21 },
+    { Version:'146.0.3856.54', Channel:'Beta',   Release:'Enterprise', Architecture:'arm64', Type:'msi', Date:'2026-03-11', Size:197.56 },
+    { Version:'147.0.3901.1',  Channel:'Dev',    Release:'Enterprise', Architecture:'x64',   Type:'msi', Date:'2026-03-11', Size:187.82 },
+    { Version:'147.0.3901.1',  Channel:'Dev',    Release:'Enterprise', Architecture:'x86',   Type:'msi', Date:'2026-03-11', Size:164.83 },
+    { Version:'147.0.3901.1',  Channel:'Dev',    Release:'Enterprise', Architecture:'arm64', Type:'msi', Date:'2026-03-11', Size:192.68 },
+    { Version:'1.3.225.7',     Channel:'EdgeUpdate', Release:'Enterprise', Architecture:'x86', Type:'exe', Date:'2026-03-08', Size:1.6 },
+  ],
+  GoogleChrome: [
+    { Version:'133.0.6943.99', Channel:'Stable', Architecture:'x64', Type:'msi', Date:'2026-03-10', Size:161.3 },
+    { Version:'133.0.6943.99', Channel:'Stable', Architecture:'x86', Type:'msi', Date:'2026-03-10', Size:144.8 },
+    { Version:'134.0.6998.35', Channel:'Beta',   Architecture:'x64', Type:'msi', Date:'2026-03-11', Size:163.1 },
+    { Version:'135.0.7049.6',  Channel:'Dev',    Architecture:'x64', Type:'msi', Date:'2026-03-09', Size:162.4 },
+  ],
+  MozillaFirefox: [
+    { Version:'136.0.1', Architecture:'x64', Language:'English (US)', Type:'exe', Date:'2026-03-07' },
+    { Version:'136.0.1', Architecture:'x64', Language:'English (GB)', Type:'exe', Date:'2026-03-07' },
+    { Version:'136.0.1', Architecture:'x64', Language:'German',       Type:'exe', Date:'2026-03-07' },
+    { Version:'136.0.1', Architecture:'x64', Language:'French',       Type:'exe', Date:'2026-03-07' },
+    { Version:'136.0.1', Architecture:'x64', Language:'Spanish',      Type:'exe', Date:'2026-03-07' },
+    { Version:'136.0.1', Architecture:'x86', Language:'English (US)', Type:'exe', Date:'2026-03-07' },
+    { Version:'136.0.1', Architecture:'x86', Language:'English (GB)', Type:'exe', Date:'2026-03-07' },
+  ],
+  AdobeAcrobatReaderDC: [
+    { Version:'24.005.20320', Architecture:'x64', Language:'English',    Type:'exe', Date:'2026-02-14' },
+    { Version:'24.005.20320', Architecture:'x64', Language:'English (UK)',Type:'exe', Date:'2026-02-14' },
+    { Version:'24.005.20320', Architecture:'x64', Language:'German',     Type:'exe', Date:'2026-02-14' },
+    { Version:'24.005.20320', Architecture:'x64', Language:'French',     Type:'exe', Date:'2026-02-14' },
+    { Version:'24.005.20320', Architecture:'x86', Language:'English',    Type:'exe', Date:'2026-02-14' },
+    { Version:'24.005.20320', Architecture:'x86', Language:'German',     Type:'exe', Date:'2026-02-14' },
+  ],
+  MicrosoftOneDrive: [
+    { Version:'25.033.0216.0001', Ring:'Production', Architecture:'x64', Type:'exe', Date:'2026-03-05' },
+    { Version:'25.033.0216.0001', Ring:'Production', Architecture:'x86', Type:'exe', Date:'2026-03-05' },
+    { Version:'25.036.0219.0001', Ring:'Preview',    Architecture:'x64', Type:'exe', Date:'2026-03-08' },
+    { Version:'25.036.0219.0001', Ring:'Preview',    Architecture:'x86', Type:'exe', Date:'2026-03-08' },
+    { Version:'25.040.0221.0001', Ring:'Insider',    Architecture:'x64', Type:'exe', Date:'2026-03-10' },
+  ],
+  MicrosoftTeams: [
+    { Version:'24315.1707.3040.6975', Ring:'Production', Architecture:'x64', Type:'msi', Date:'2026-03-01' },
+    { Version:'24315.1707.3040.6975', Ring:'Production', Architecture:'x86', Type:'msi', Date:'2026-03-01' },
+    { Version:'24318.2002.3050.0012', Ring:'Preview',    Architecture:'x64', Type:'msi', Date:'2026-03-06' },
+  ],
+  CitrixWorkspaceApp: [
+    { Version:'25.1.0.14', Channel:'Current',  Architecture:'x64', Type:'exe', Date:'2026-03-03' },
+    { Version:'24.11.0.40',Channel:'LTSR',     Architecture:'x64', Type:'exe', Date:'2026-02-10' },
+    { Version:'24.11.0.40',Channel:'LTSR',     Architecture:'x86', Type:'exe', Date:'2026-02-10' },
+  ],
+};
+
+const DISPLAY_ONLY = new Set(['Version','URI','Date','Expiry','SHA256','Hash','Size','Checksum']);
+const PROP_LABELS = {
+  Architecture:'Architecture', Type:'File type', Channel:'Channel',
+  Ring:'Ring / Channel', Release:'Release', Language:'Language',
+  Platform:'Platform', Track:'Track', Product:'Product variant',
+};
+
+// ── State ───────────────────────────────────────────────────────────────────
+let currentApp = null;
+let currentData = [];
+let appFilterState = {};
+let dlFilterState  = {};
+let logCollapsed = false;
+let isDark = false;
+let selectedLibraryApp = 'MicrosoftEdge';
+
+// ── Theme ───────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  isDark = !isDark;
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  ['themeTrack','settingsThemeTrack'].forEach(id => document.getElementById(id)?.classList.toggle('on', isDark));
+  ['themeLabel','settingsThemeLabel'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = isDark ? 'Dark' : 'Light'; });
+}
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+function switchView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── Log panel ───────────────────────────────────────────────────────────────
+function toggleLog() {
+  logCollapsed = !logCollapsed;
+  const p = document.getElementById('logPanel');
+  const btn = document.getElementById('logToggleBtn');
+  p.classList.toggle('collapsed', logCollapsed);
+  if (!logCollapsed) p.style.height = '150px';
+  btn.textContent = logCollapsed ? '▴' : '▾';
+}
+function copyLog() {
+  const lines = Array.from(document.querySelectorAll('.log-line')).map(l => l.textContent.trim()).join('\n');
+  navigator.clipboard?.writeText(lines).catch(()=>{});
+  appendLog('Log copied to clipboard');
+}
+function saveLog() { appendLog('Save log dialog would open here'); }
+function appendLog(msg, type) {
+  const body = document.getElementById('logBody');
+  const ts = new Date().toTimeString().slice(0,8);
+  const div = document.createElement('div'); div.className = 'log-line';
+  div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-msg ${type||''}">${msg}</span>`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+  if (logCollapsed) { logCollapsed = false; document.getElementById('logPanel').classList.remove('collapsed'); document.getElementById('logPanel').style.height='150px'; document.getElementById('logToggleBtn').textContent='▾'; }
+}
+
+// ── Collapsible ──────────────────────────────────────────────────────────────
+function toggleCollapsible(id, header) {
+  const body = document.getElementById(id);
+  const open = body.classList.toggle('open');
+  header.classList.toggle('open', open);
+}
+
+// ── Filter helpers ──────────────────────────────────────────────────────────
+function getFilterableProps(data) {
+  if (!data.length) return [];
+  return Object.keys(data[0]).filter(k => !DISPLAY_ONLY.has(k));
+}
+
+function buildFilterPanel(container, data, stateRef, onChangeCb) {
+  stateRef = {};
+  const props = getFilterableProps(data);
+  container.innerHTML = '';
+
+  if (!props.length) {
+    container.innerHTML = '<span style="font-size:12.5px;color:var(--text-3);">No filterable properties for this application.</span>';
+    return stateRef;
+  }
+
+  props.forEach(prop => {
+    const vals = [...new Set(data.map(r => String(r[prop])))].sort();
+    stateRef[prop] = new Set(vals); // all selected by default
+
+    const group = document.createElement('div');
+    group.className = 'filter-group';
+    const label = document.createElement('div');
+    label.className = 'filter-group-label';
+    label.textContent = PROP_LABELS[prop] || prop;
+    group.appendChild(label);
+
+    if (vals.length <= 6) {
+      const checks = document.createElement('div');
+      checks.className = 'filter-checks';
+      vals.forEach(v => {
+        const lbl = document.createElement('label');
+        lbl.className = 'filter-check';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = true;
+        cb.addEventListener('change', () => {
+          if (cb.checked) stateRef[prop].add(v); else stateRef[prop].delete(v);
+          onChangeCb();
+        });
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(v));
+        checks.appendChild(lbl);
+      });
+      group.appendChild(checks);
+    } else {
+      const lb = document.createElement('div');
+      lb.className = 'filter-listbox';
+      vals.forEach(v => {
+        const item = document.createElement('label');
+        item.className = 'filter-listbox-item filter-check';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = true;
+        cb.addEventListener('change', () => {
+          if (cb.checked) stateRef[prop].add(v); else stateRef[prop].delete(v);
+          onChangeCb();
+        });
+        item.appendChild(cb);
+        item.appendChild(document.createTextNode(v));
+        lb.appendChild(item);
+      });
+      group.appendChild(lb);
+    }
+    container.appendChild(group);
+  });
+
+  return stateRef;
+}
+
+function applyFilters(data, state) {
+  return data.filter(row =>
+    Object.entries(state).every(([prop, allowed]) =>
+      allowed.size === 0 || allowed.has(String(row[prop]))
+    )
+  );
+}
+
+function clearFilters(scope) {
+  if (scope === 'dl') {
+    document.querySelectorAll('#dlFilters input[type=checkbox]').forEach(cb => { cb.checked = true; });
+    const props = getFilterableProps(currentData);
+    props.forEach(p => { if (dlFilterState[p]) currentData.map(r=>String(r[p])).forEach(v => dlFilterState[p].add(v)); });
+    renderDlTable(currentData);
+    appendLog('Download filters cleared');
+  } else {
+    document.querySelectorAll('#appDetailFilters input[type=checkbox]').forEach(cb => { cb.checked = true; });
+    renderAppDetail(currentApp);
+    appendLog('App detail filters cleared');
+  }
+}
+
+// ── App list ────────────────────────────────────────────────────────────────
+function renderAppList(apps) {
+  const container = document.getElementById('appListContainer');
+  container.innerHTML = '';
+  apps.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'app-list-item';
+    div.innerHTML = `<span class="app-list-name">${a.app}</span><span class="app-list-pub">${a.pub}</span>`;
+    div.addEventListener('click', () => {
+      document.querySelectorAll('.app-list-item').forEach(i => i.classList.remove('selected'));
+      div.classList.add('selected');
+      loadAppDetail(a.name);
+    });
+    container.appendChild(div);
+  });
+  document.getElementById('appCount').textContent = `— ${apps.length} of ${ALL_APPS.length}`;
+}
+
+function filterApps(q) {
+  const lower = q.toLowerCase();
+  const filtered = ALL_APPS.filter(a => !q || a.name.toLowerCase().includes(lower) || a.app.toLowerCase().includes(lower) || a.pub.toLowerCase().includes(lower));
+  renderAppList(filtered);
+}
+
+function loadAppDetail(appName) {
+  currentApp = appName;
+  const data = APP_DATA[appName];
+  if (!data) {
+    document.getElementById('appDetailEmpty').style.display = '';
+    document.getElementById('appDetail').style.display = 'none';
+    return;
+  }
+  document.getElementById('appDetailEmpty').style.display = 'none';
+  document.getElementById('appDetail').style.display = 'flex';
+  document.getElementById('appDetailTitle').textContent = `${appName} — version details`;
+  currentData = data;
+
+  appFilterState = buildFilterPanel(
+    document.getElementById('appDetailFilters'),
+    data, appFilterState,
+    () => { const f = applyFilters(data, appFilterState); renderAppDetailTable(f, data.length); }
+  );
+  renderAppDetailTable(data, data.length);
+  appendLog(`Get-EvergreenApp -Name ${appName} — returned ${data.length} results`);
+}
+
+function renderAppDetailTable(rows, total) {
+  const tbody = document.getElementById('appDetailTable');
+  tbody.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="check-col"><input type="checkbox"></td>
+      <td class="mono">${r.Version}</td>
+      <td>${r.Channel||r.Ring||'—'}</td>
+      <td>${r.Release||'—'}</td>
+      <td><span class="tag">${r.Architecture||'—'}</span></td>
+      <td><span class="tag gray">${r.Type||'—'}</span></td>
+      <td class="mono" style="color:var(--text-3)">${r.Date||'—'}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('appDetailCount').textContent = `Showing ${rows.length} of ${total} results`;
+}
+
+function toggleAllAppRows(master) {
+  document.querySelectorAll('#appDetailTable input[type=checkbox]').forEach(cb => cb.checked = master.checked);
+}
+
+// ── Download view ───────────────────────────────────────────────────────────
+function loadDownloadApp(appName) {
+  if (!appName) return;
+  const data = APP_DATA[appName];
+  if (!data) { appendLog(`No data for ${appName}`); return; }
+  currentData = data;
+  dlFilterState = buildFilterPanel(
+    document.getElementById('dlFilters'), data, dlFilterState,
+    () => { const f = applyFilters(data, dlFilterState); renderDlTable(f); }
+  );
+  renderDlTable(data);
+  appendLog(`Get-EvergreenApp -Name ${appName} — returned ${data.length} results`);
+}
+
+function renderDlTable(rows) {
+  const tbody = document.getElementById('dlVersionTable');
+  tbody.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="check-col"><input type="checkbox"></td>
+      <td class="mono">${r.Version}</td>
+      <td>${r.Channel||r.Ring||'—'}</td>
+      <td>${r.Release||'—'}</td>
+      <td><span class="tag">${r.Architecture||'—'}</span></td>
+      <td><span class="tag gray">${r.Type||'—'}</span></td>
+      <td class="mono" style="color:var(--text-3)">${r.Size||'—'}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('dlVersionCount').textContent = `Showing ${rows.length} of ${currentData.length} versions`;
+}
+
+function selectAllVisible() {
+  document.querySelectorAll('#dlVersionTable input[type=checkbox]').forEach(cb => cb.checked = true);
+}
+function clearSelections() {
+  document.querySelectorAll('#dlVersionTable input[type=checkbox]').forEach(cb => cb.checked = false);
+}
+function toggleAllDlRows(master) {
+  document.querySelectorAll('#dlVersionTable input[type=checkbox]').forEach(cb => cb.checked = master.checked);
+}
+function addToQueue() { appendLog('Selected versions added to download queue'); }
+function removeFromQueue() { appendLog('Selected items removed from queue'); }
+function clearQueue() { appendLog('Download queue cleared'); }
+function openFolder() { appendLog('Explorer.exe would open the output folder here'); }
+function runDownload() {
+  appendLog('Save-EvergreenApp — starting sequential download of 2 items…');
+  setTimeout(() => appendLog('Save-EvergreenApp — Item 1/2: downloading MicrosoftEdgeEnterpriseX64.msi…','log-info'), 600);
+  setTimeout(() => appendLog('Save-EvergreenApp — Item 1/2 complete (183.91 MB)'), 1800);
+  setTimeout(() => appendLog('Save-EvergreenApp — Item 2/2: downloading MicrosoftEdgeEnterpriseX86.msi…','log-info'), 2100);
+  setTimeout(() => appendLog('Save-EvergreenApp — Item 2/2 complete (163.42 MB)'), 3600);
+  setTimeout(() => appendLog('All downloads complete.'), 3800);
+}
+function refreshLibrary() { appendLog('Get-EvergreenLibrary -Path C:\\EvergreenLibrary — refreshed'); }
+function updateLibrary() {
+  appendLog('Start-EvergreenLibraryUpdate -Path C:\\EvergreenLibrary — starting…');
+  setTimeout(() => appendLog('Checking MicrosoftEdge…'), 500);
+  setTimeout(() => appendLog('Checking GoogleChrome…'), 1000);
+  setTimeout(() => appendLog('Checking MozillaFirefox…'), 1500);
+  setTimeout(() => appendLog('Library update complete.'), 2200);
+}
+
+// ── Library view ────────────────────────────────────────────────────────────
+const LIBRARY_APPS = [
+  { name:'MicrosoftEdge',        count:3, latest:'145.0.3800.97', icon:'ME' },
+  { name:'GoogleChrome',         count:2, latest:'133.0.6943.99', icon:'GC' },
+  { name:'MozillaFirefox',       count:4, latest:'136.0.1',       icon:'FF' },
+  { name:'AdobeAcrobatReaderDC', count:2, latest:'24.005.20320',  icon:'AA' },
+  { name:'MicrosoftOneDrive',    count:2, latest:'25.033.0216',   icon:'OD' },
+  { name:'MicrosoftTeams',       count:1, latest:'24315.1707',    icon:'MT' },
+];
+
+function renderLibrary() {
+  const container = document.getElementById('libraryAppList');
+  container.innerHTML = '';
+  LIBRARY_APPS.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'library-app-item' + (a.name === selectedLibraryApp ? ' selected' : '');
+    div.innerHTML = `
+      <div class="library-app-icon">${a.icon}</div>
+      <div>
+        <div class="library-app-name">${a.name}</div>
+        <div class="library-app-meta">${a.count} installer${a.count>1?'s':''} · latest ${a.latest}</div>
+      </div>`;
+    div.addEventListener('click', () => {
+      selectedLibraryApp = a.name;
+      document.querySelectorAll('.library-app-item').forEach(i => i.classList.remove('selected'));
+      div.classList.add('selected');
+      document.getElementById('libDetailTitle').textContent = `${a.name} — library installers`;
+    });
+    container.appendChild(div);
+  });
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+renderAppList(ALL_APPS);
+loadDownloadApp('MicrosoftEdge');
+renderLibrary();
+</script>
+</body>
+</html>
