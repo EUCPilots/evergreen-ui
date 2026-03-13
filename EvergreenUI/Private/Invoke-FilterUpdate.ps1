@@ -18,10 +18,10 @@
 
 .PARAMETER SyncHash
     Shared synchronised hashtable. Must contain:
-        FilterState        : hashtable — property name → HashSet[string] of selected values
-        CurrentAppResults  : PSObject[] — the full unfiltered result from Get-EvergreenApp
-        VersionsListView   : System.Windows.Controls.ListView — the target list control
-        ResultsCountLabel  : System.Windows.Controls.TextBlock — "N of M shown" label
+        FilterState        : hashtable - property name → HashSet[string] of selected values
+        CurrentAppResults  : PSObject[] - the full unfiltered result from Get-EvergreenApp
+        VersionsListView   : System.Windows.Controls.ListView - the target list control
+        ResultsCountLabel  : System.Windows.Controls.TextBlock - "N of M shown" label
         Window             : the WPF Window (for Dispatcher access)
 
 .EXAMPLE
@@ -45,18 +45,25 @@ function Invoke-FilterUpdate {
         if ($allowedValues.Count -eq 0) { continue }
 
         $filtered = $filtered | Where-Object {
-            $allowedValues.Contains([string]$_.$prop)
+            $value = if ($prop -eq '_DerivedType') {
+                [System.IO.Path]::GetExtension([string]$_.URI).TrimStart('.').ToLower()
+            }
+            else {
+                [string]$_.$prop
+            }
+
+            $allowedValues.Contains($value)
         }
     }
 
     $filteredArray = @($filtered)
-    $totalCount    = $SyncHash.CurrentAppResults.Count
-    $shownCount    = $filteredArray.Count
+    $totalCount = $SyncHash.CurrentAppResults.Count
+    $shownCount = $filteredArray.Count
 
     $SyncHash.Window.Dispatcher.Invoke([action] {
-        $SyncHash.VersionsListView.ItemsSource = $filteredArray
-        if ($null -ne $SyncHash.ResultsCountLabel) {
-            $SyncHash.ResultsCountLabel.Text = "Showing $shownCount of $totalCount"
-        }
-    }, 'Normal')
+            $SyncHash.VersionsListView.ItemsSource = $filteredArray
+            if ($null -ne $SyncHash.ResultsCountLabel) {
+                $SyncHash.ResultsCountLabel.Text = "Showing $shownCount of $totalCount"
+            }
+        }, 'Normal')
 }

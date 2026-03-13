@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Factory function — creates a clean STA runspace ready for WPF background work.
+    Factory function - creates a clean STA runspace ready for WPF background work.
 
 .DESCRIPTION
     Creates, configures, and opens a PowerShell runspace with STA apartment state
@@ -37,7 +37,7 @@ function New-WpfRunspace {
 
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = [System.Threading.ApartmentState]::STA
-    $runspace.ThreadOptions  = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
+    $runspace.ThreadOptions = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
     $runspace.Open()
     $runspace.SessionStateProxy.SetVariable('syncHash', $SyncHash)
 

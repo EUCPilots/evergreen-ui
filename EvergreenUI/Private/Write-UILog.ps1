@@ -43,15 +43,15 @@ function Write-UILog {
     if ([string]::IsNullOrWhiteSpace($Message)) { return }
 
     $timestamp = Get-Date -Format 'HH:mm:ss'
-    $prefix    = switch ($Level) {
+    $prefix = switch ($Level) {
         'Warning' { 'WARN' }
-        'Error'   { 'ERROR' }
-        default   { 'INFO' }
+        'Error' { 'ERROR' }
+        default { 'INFO' }
     }
     $logEntry = "[$timestamp] [$prefix] $Message"
 
     $SyncHash.Window.Dispatcher.Invoke([action] {
-        $SyncHash.LogTextBox.AppendText("$logEntry`r`n")
-        $SyncHash.LogScrollViewer.ScrollToEnd()
-    }, 'Normal')
+            $SyncHash.LogTextBox.AppendText("$logEntry`r`n")
+            $SyncHash.LogScrollViewer.ScrollToEnd()
+        }, 'Normal')
 }

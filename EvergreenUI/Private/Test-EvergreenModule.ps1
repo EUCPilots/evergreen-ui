@@ -12,7 +12,7 @@
     result is also used to populate the module status indicator in the title bar.
 
 .OUTPUTS
-    System.String — the installed Evergreen module version (e.g. '2503.412').
+    System.String - the installed Evergreen module version (e.g. '2503.412').
 
 .EXAMPLE
     $version = Test-EvergreenModule
@@ -24,8 +24,8 @@ function Test-EvergreenModule {
     param()
 
     $module = Get-Module -Name 'Evergreen' -ListAvailable -ErrorAction SilentlyContinue |
-        Sort-Object -Property Version -Descending |
-        Select-Object -First 1
+    Sort-Object -Property Version -Descending |
+    Select-Object -First 1
 
     if ($null -eq $module) {
         throw (

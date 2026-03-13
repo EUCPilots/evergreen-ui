@@ -15,7 +15,7 @@
     # Root module
     RootModule        = 'EvergreenUI.psm1'
 
-    # Exports — only Start-EvergreenUI is public
+    # Exports - only Start-EvergreenUI is public
     FunctionsToExport = @('Start-EvergreenUI')
     CmdletsToExport   = @()
     VariablesToExport = @()
@@ -24,13 +24,6 @@
     # Dependencies
     RequiredModules   = @(
         @{ ModuleName = 'Evergreen'; ModuleVersion = '2603.2832.0' }
-    )
-
-    RequiredAssemblies = @(
-        'PresentationFramework'
-        'PresentationCore'
-        'WindowsBase'
-        'System.Windows.Forms'
     )
 
     # Module metadata

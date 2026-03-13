@@ -18,7 +18,7 @@
     with all values selected by default for each property.
 
 .PARAMETER FilterProperties
-    Output from Get-FilterableProperties — array of property metadata objects.
+    Output from Get-FilterableProperties - array of property metadata objects.
 
 .PARAMETER WrapPanel
     The System.Windows.Controls.WrapPanel that hosts the filter groups.
@@ -50,26 +50,150 @@ function New-FilterPanel {
         [scriptblock]$OnChangeCallback
     )
 
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
+
     # Clear existing controls and reset filter state
     $WrapPanel.Children.Clear()
     $SyncHash.FilterState = @{}
 
     if ($FilterProperties.Count -eq 0) {
-        # TODO: show "No filterable properties" TextBlock
+        $emptyText = [System.Windows.Controls.TextBlock]::new()
+        $emptyText.Text = 'No filterable properties for this app result set.'
+        $emptyText.SetResourceReference(
+            [System.Windows.Controls.TextBlock]::ForegroundProperty, 'TextSecondaryBrush')
+        $emptyText.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
+        [void]$WrapPanel.Children.Add($emptyText)
         return
     }
 
     foreach ($prop in $FilterProperties) {
-        # Initialise filter state — all values selected
-        $SyncHash.FilterState[$prop.Name] = [System.Collections.Generic.HashSet[string]]::new(
-            [string[]]$prop.UniqueValues,
+        $propName = [string]$prop.Name
+        $displayName = [string]$prop.DisplayName
+        $controlType = [string]$prop.ControlType
+        $uniqueValues = [string[]]$prop.UniqueValues
+
+        # Initialise filter state - all values selected
+        $SyncHash.FilterState[$propName] = [System.Collections.Generic.HashSet[string]]::new(
+            $uniqueValues,
             [System.StringComparer]::OrdinalIgnoreCase
         )
 
-        # TODO: Build StackPanel group with label + control per $prop.ControlType
-        # Phase 4 implementation:
-        #   'CheckBoxStrip' → StackPanel of CheckBox per unique value
-        #   'MultiListBox'  → ListBox with SelectionMode=Multiple
-        #   'TextBox'       → TextBox with TextChanged handler (contains-match)
+        $groupBorder = [System.Windows.Controls.Border]::new()
+        $groupBorder.BorderThickness = [System.Windows.Thickness]::new(1)
+        $groupBorder.SetResourceReference(
+            [System.Windows.Controls.Border]::BorderBrushProperty, 'ControlBorderBrush')
+        $groupBorder.SetResourceReference(
+            [System.Windows.Controls.Border]::BackgroundProperty, 'ControlBackgroundBrush')
+        $groupBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
+        $groupBorder.Margin = [System.Windows.Thickness]::new(0, 0, 10, 10)
+        $groupBorder.Padding = [System.Windows.Thickness]::new(10, 8, 10, 10)
+        $groupBorder.MinWidth = 200
+
+        $groupPanel = [System.Windows.Controls.StackPanel]::new()
+
+        $label = [System.Windows.Controls.TextBlock]::new()
+        $label.Text = $displayName
+        $label.FontWeight = [System.Windows.FontWeights]::SemiBold
+        $label.SetResourceReference(
+            [System.Windows.Controls.TextBlock]::ForegroundProperty, 'TextPrimaryBrush')
+        $label.Margin = [System.Windows.Thickness]::new(0, 0, 0, 6)
+        [void]$groupPanel.Children.Add($label)
+
+        switch ($controlType) {
+            'CheckBoxStrip' {
+                $strip = [System.Windows.Controls.WrapPanel]::new()
+
+                foreach ($value in $uniqueValues) {
+                    $valueText = [string]$value
+
+                    $checkbox = [System.Windows.Controls.CheckBox]::new()
+                    $checkbox.Content = $valueText
+                    $checkbox.IsChecked = $true
+                    $checkbox.Margin = [System.Windows.Thickness]::new(0, 0, 10, 6)
+                    $checkbox.Style = $SyncHash.Window.Resources['FluentCheckBox']
+
+                    $checkbox.add_Checked({
+                            [void]$SyncHash.FilterState[$propName].Add($valueText)
+                            & $OnChangeCallback
+                        }.GetNewClosure())
+
+                    $checkbox.add_Unchecked({
+                            [void]$SyncHash.FilterState[$propName].Remove($valueText)
+                            & $OnChangeCallback
+                        }.GetNewClosure())
+
+                    [void]$strip.Children.Add($checkbox)
+                }
+
+                [void]$groupPanel.Children.Add($strip)
+            }
+
+            'MultiListBox' {
+                $listBox = [System.Windows.Controls.ListBox]::new()
+                $listBox.SelectionMode = [System.Windows.Controls.SelectionMode]::Multiple
+                $listBox.MinWidth = 220
+                $listBox.MaxHeight = 120
+                $listBox.SetResourceReference(
+                    [System.Windows.Controls.ListBox]::BorderBrushProperty, 'ControlBorderBrush')
+                $listBox.SetResourceReference(
+                    [System.Windows.Controls.ListBox]::BackgroundProperty, 'ControlBackgroundBrush')
+                $listBox.SetResourceReference(
+                    [System.Windows.Controls.ListBox]::ForegroundProperty, 'TextPrimaryBrush')
+
+                foreach ($value in $uniqueValues) {
+                    [void]$listBox.Items.Add([string]$value)
+                }
+
+                foreach ($item in $listBox.Items) {
+                    [void]$listBox.SelectedItems.Add($item)
+                }
+
+                $listBox.add_SelectionChanged({
+                        $selected = [System.Collections.Generic.HashSet[string]]::new(
+                            [System.StringComparer]::OrdinalIgnoreCase
+                        )
+                        foreach ($item in $listBox.SelectedItems) {
+                            [void]$selected.Add([string]$item)
+                        }
+                        $SyncHash.FilterState[$propName] = $selected
+                        & $OnChangeCallback
+                    }.GetNewClosure())
+
+                [void]$groupPanel.Children.Add($listBox)
+            }
+
+            default {
+                $textBox = [System.Windows.Controls.TextBox]::new()
+                $textBox.MinWidth = 220
+                $textBox.ToolTip = 'Type to filter values (contains match). Leave blank to include all values.'
+                $textBox.Style = $SyncHash.Window.Resources['FluentTextBox']
+
+                $allValues = [string[]]$uniqueValues
+
+                $textBox.add_TextChanged({
+                        $needle = $textBox.Text
+
+                        $selected = [System.Collections.Generic.HashSet[string]]::new(
+                            [System.StringComparer]::OrdinalIgnoreCase
+                        )
+
+                        foreach ($candidate in $allValues) {
+                            if ([string]::IsNullOrWhiteSpace($needle) -or
+                                $candidate.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                                [void]$selected.Add($candidate)
+                            }
+                        }
+
+                        $SyncHash.FilterState[$propName] = $selected
+                        & $OnChangeCallback
+                    }.GetNewClosure())
+
+                [void]$groupPanel.Children.Add($textBox)
+            }
+        }
+
+        $groupBorder.Child = $groupPanel
+        [void]$WrapPanel.Children.Add($groupBorder)
     }
 }

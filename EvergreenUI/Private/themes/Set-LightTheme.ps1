@@ -36,17 +36,19 @@ function Set-LightTheme {
 
     $res = $Window.Resources
 
-    # Evergreen brand light palette — primary: #009485, dark: #01786c, light: #67b9c9
-    $res['WindowBackgroundBrush']    = NewBrush 243 244 244   # #F3F4F4
-    $res['TextPrimaryBrush']         = NewBrush  26  26  26   # #1A1A1A
-    $res['TextSecondaryBrush']       = NewBrush  77  90  88   # #4D5A58
-    $res['AccentBrush']              = NewBrush   0 148 133   # #009485
-    $res['AccentHoverBrush']         = NewBrush   1 120 108   # #01786c
-    $res['AccentLightBrush']         = NewBrush 217 242 239   # #D9F2EF
-    $res['ControlBackgroundBrush']   = NewBrush 255 255 255   # #FFFFFF
-    $res['ControlBorderBrush']       = NewBrush 221 226 225   # #DDE2E1
-    $res['ButtonForegroundBrush']    = NewBrush 255 255 255   # #FFFFFF
-    $res['ToggleThumbBrush']         = NewBrush 255 255 255   # #FFFFFF
+    # Evergreen brand light palette - primary: #009485, dark: #01786c, light: #67b9c9
+    $res['WindowBackgroundBrush'] = NewBrush 243 244 244   # #F3F4F4
+    $res['TextPrimaryBrush'] = NewBrush  26  26  26   # #1A1A1A
+    $res['TextSecondaryBrush'] = NewBrush  77  90  88   # #4D5A58
+    $res['AccentBrush'] = NewBrush   0 148 133   # #009485
+    $res['AccentHoverBrush'] = NewBrush   1 120 108   # #01786c
+    $res['AccentLightBrush'] = NewBrush 217 242 239   # #D9F2EF
+    $res['ControlBackgroundBrush'] = NewBrush 255 255 255   # #FFFFFF
+    $res['ControlBorderBrush'] = NewBrush 221 226 225   # #DDE2E1
+    $res['ButtonForegroundBrush'] = NewBrush 255 255 255   # #FFFFFF
+    $res['ToggleThumbBrush'] = NewBrush 255 255 255   # #FFFFFF
+    $res['SecondaryButtonBackgroundBrush'] = NewBrush 228 232 231   # #E4E8E7 - clearly above window bg
+    $res['SecondaryButtonBorderBrush']     = NewBrush 154 173 170   # #9AADAA - visible mid-tone border
 
     $Window.Background = $res['WindowBackgroundBrush']
     $ThemeLabelTextBlock.Text = 'Light theme'

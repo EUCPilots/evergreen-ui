@@ -35,17 +35,19 @@ function Set-DarkTheme {
 
     $res = $Window.Resources
 
-    # Evergreen brand dark palette — deep forest teal base
-    $res['WindowBackgroundBrush']    = NewBrush  20  29  28   # #141D1C
-    $res['TextPrimaryBrush']         = NewBrush 232 242 240   # #E8F2F0
-    $res['TextSecondaryBrush']       = NewBrush 144 170 167   # #90AAA7
-    $res['AccentBrush']              = NewBrush  77 184 173   # #4DB8AD
-    $res['AccentHoverBrush']         = NewBrush 103 185 201   # #67B9C9
-    $res['AccentLightBrush']         = NewBrush  13  41  38   # #0D2926
-    $res['ControlBackgroundBrush']   = NewBrush  28  40  38   # #1C2826
-    $res['ControlBorderBrush']       = NewBrush  46  63  60   # #2E3F3C
-    $res['ButtonForegroundBrush']    = NewBrush   0   0   0   # #000000
-    $res['ToggleThumbBrush']         = NewBrush   0   0   0   # #000000
+    # Evergreen brand dark palette - deep forest teal base
+    $res['WindowBackgroundBrush'] = NewBrush  20  29  28   # #141D1C
+    $res['TextPrimaryBrush'] = NewBrush 232 242 240   # #E8F2F0
+    $res['TextSecondaryBrush'] = NewBrush 144 170 167   # #90AAA7
+    $res['AccentBrush'] = NewBrush  77 184 173   # #4DB8AD
+    $res['AccentHoverBrush'] = NewBrush 103 185 201   # #67B9C9
+    $res['AccentLightBrush'] = NewBrush  13  41  38   # #0D2926
+    $res['ControlBackgroundBrush'] = NewBrush  28  40  38   # #1C2826
+    $res['ControlBorderBrush'] = NewBrush  46  63  60   # #2E3F3C
+    $res['ButtonForegroundBrush'] = NewBrush   0   0   0   # #000000
+    $res['ToggleThumbBrush'] = NewBrush   0   0   0   # #000000
+    $res['SecondaryButtonBackgroundBrush'] = NewBrush  45  68  64   # #2D4440 - visible above window bg
+    $res['SecondaryButtonBorderBrush']     = NewBrush  90 123 119   # #5A7B77 - visible mid-tone border
 
     $Window.Background = $res['WindowBackgroundBrush']
     $ThemeLabelTextBlock.Text = 'Dark theme'
