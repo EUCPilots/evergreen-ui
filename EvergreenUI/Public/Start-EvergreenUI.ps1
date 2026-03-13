@@ -188,6 +188,108 @@ $syncHash = [hashtable]::Synchronized(@{
             <Setter Property="Cursor"     Value="Hand"/>
         </Style>
 
+        <!-- ── FluentComboBox ── -->
+        <Style x:Key="FluentComboBox" TargetType="ComboBox">
+            <Setter Property="Background"               Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="Foreground"               Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush"              Value="{DynamicResource ControlBorderBrush}"/>
+            <Setter Property="BorderThickness"          Value="1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding"                  Value="8,0"/>
+            <Setter Property="Cursor"                   Value="Hand"/>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                        <Setter Property="Padding"    Value="8,6"/>
+                        <Setter Property="Cursor"     Value="Hand"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="bd"
+                                    Background="{DynamicResource ControlBackgroundBrush}"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="28"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter Grid.Column="0"
+                                                      IsHitTestVisible="False"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      Margin="10,0,4,0"
+                                                      VerticalAlignment="Center"/>
+                                    <Path Grid.Column="1"
+                                          Data="M 0 0 L 4 4 L 8 0"
+                                          Stroke="{DynamicResource TextSecondaryBrush}"
+                                          StrokeThickness="1.5"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsHitTestVisible="False"/>
+                                    <ToggleButton Grid.Column="0"
+                                                  Grid.ColumnSpan="2"
+                                                  Focusable="False"
+                                                  Background="Transparent"
+                                                  BorderThickness="0"
+                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay,
+                                                              RelativeSource={RelativeSource TemplatedParent}}"
+                                                  ClickMode="Press">
+                                        <ToggleButton.Template>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <Border Background="Transparent"/>
+                                            </ControlTemplate>
+                                        </ToggleButton.Template>
+                                    </ToggleButton>
+                                </Grid>
+                            </Border>
+                            <Popup x:Name="Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Border Background="{DynamicResource ControlBackgroundBrush}"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="0,0,4,4"
+                                        MinWidth="{Binding ActualWidth,
+                                                   RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer SnapsToDevicePixels="True">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ── NavRailRadioButton - Fluent NavigationView item pattern ── -->
         <Style x:Key="NavRailRadioButton" TargetType="RadioButton">
             <Setter Property="GroupName"                 Value="Navigation"/>
@@ -390,7 +492,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                         Content="Refresh apps list"
                                         Style="{StaticResource FluentSecondaryButton}"
                                         HorizontalAlignment="Stretch"
-                                        Padding="10,5"/>
+                                        Padding="10,6"/>
                             </Border>
                             <ListBox x:Name="AppsComboBox"
                                      BorderThickness="0"
@@ -515,7 +617,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                                 Content="Refresh"
                                                 DockPanel.Dock="Left"
                                                 Style="{StaticResource FluentSecondaryButton}"
-                                                Padding="15,4"
+                                                Padding="25,6"
                                                 FontSize="12"
                                                 Margin="0,0,12,0"/>
                                         <TextBlock x:Name="AppDetailTitle"
@@ -551,13 +653,13 @@ $syncHash = [hashtable]::Synchronized(@{
                                         <Button x:Name="ClearFiltersButton"
                                                 Content="Clear filters"
                                                 Style="{StaticResource FluentSecondaryButton}"
-                                                Padding="10,4"
+                                                Padding="10,6"
                                                 FontSize="12"
                                                 Margin="0,0,6,0"/>
                                         <Button x:Name="AddToQueueButton"
                                                 Content="+ Add to download queue"
                                                 Style="{StaticResource FluentButton}"
-                                                Padding="12,4"
+                                                Padding="12,6"
                                                 FontSize="12"/>
                                     </StackPanel>
                                 </DockPanel>
@@ -627,17 +729,17 @@ $syncHash = [hashtable]::Synchronized(@{
                             <Button x:Name="RemoveQueueItemButton"
                                     Content="Remove selected"
                                     Style="{StaticResource FluentSecondaryButton}"
-                                    Padding="10,5"
+                                    Padding="10,6"
                                     Margin="0,0,6,0"/>
                             <Button x:Name="ClearQueueButton"
                                     Content="Clear queue"
                                     Style="{StaticResource FluentSecondaryButton}"
-                                    Padding="10,5"
+                                    Padding="10,6"
                                     Margin="0,0,6,0"/>
                             <Button x:Name="DownloadAllButton"
                                     Content="Download all"
                                     Style="{StaticResource FluentButton}"
-                                    Padding="12,5"/>
+                                    Padding="12,6"/>
                         </StackPanel>
                     </DockPanel>
 
@@ -708,28 +810,28 @@ $syncHash = [hashtable]::Synchronized(@{
                                 Content="Browse"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 Margin="0,18,6,0"
-                                Padding="10,5"/>
+                                Padding="10,6"/>
 
                         <Button Grid.Column="2"
                                 x:Name="LibraryNewButton"
                                 Content="New"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 Margin="0,18,6,0"
-                                Padding="10,5"/>
+                                Padding="10,6"/>
 
                         <Button Grid.Column="3"
                                 x:Name="LibraryRefreshButton"
                                 Content="Refresh"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 Margin="0,18,6,0"
-                                Padding="10,5"/>
+                                Padding="10,6"/>
 
                         <Button Grid.Column="4"
                                 x:Name="LibraryOpenFolderButton"
                                 Content="Open folder"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 Margin="0,18,0,0"
-                                Padding="10,5"/>
+                                Padding="10,6"/>
                     </Grid>
 
                     <Border Grid.Row="1"
@@ -772,7 +874,7 @@ $syncHash = [hashtable]::Synchronized(@{
                                 Content="Update library"
                                 Style="{StaticResource FluentButton}"
                                 DockPanel.Dock="Right"
-                                Padding="12,5"/>
+                                Padding="12,6"/>
                     </DockPanel>
 
                     <Border Grid.Row="3"
@@ -856,15 +958,44 @@ $syncHash = [hashtable]::Synchronized(@{
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontSize="12"
                                    Margin="0,0,0,4"/>
-                        <ComboBox x:Name="LogVerbosityComboBox"
-                                  Margin="0,0,0,16"
-                                  Height="32"
-                                  Background="{DynamicResource ControlBackgroundBrush}"
-                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                  BorderBrush="{DynamicResource ControlBorderBrush}">
-                            <ComboBoxItem Content="Normal"/>
-                            <ComboBoxItem Content="Verbose"/>
-                        </ComboBox>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16" VerticalAlignment="Center">
+                            <ToggleButton x:Name="LogVerbosityToggle"
+                                          Width="34" Height="18"
+                                          Cursor="Hand"
+                                          ToolTip="Toggle between Normal and Verbose logging"
+                                          Focusable="False">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="track"
+                                                CornerRadius="9"
+                                                Background="{DynamicResource ControlBorderBrush}"
+                                                Width="34" Height="18">
+                                            <Ellipse x:Name="thumb"
+                                                     Width="12" Height="12"
+                                                     Fill="{DynamicResource AccentBrush}"
+                                                     HorizontalAlignment="Left"
+                                                     Margin="3,0"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="track" Property="Background"
+                                                        Value="{DynamicResource AccentBrush}"/>
+                                                <Setter TargetName="thumb" Property="Fill"
+                                                        Value="{DynamicResource ToggleThumbBrush}"/>
+                                                <Setter TargetName="thumb" Property="HorizontalAlignment"
+                                                        Value="Right"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <TextBlock x:Name="LogVerbosityLabel"
+                                       Text="Normal"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0"
+                                       FontSize="13"/>
+                        </StackPanel>
 
                         <!-- Startup view -->
                         <TextBlock Text="Startup view"
@@ -872,11 +1003,9 @@ $syncHash = [hashtable]::Synchronized(@{
                                    FontSize="12"
                                    Margin="0,0,0,4"/>
                         <ComboBox x:Name="StartupViewComboBox"
+                                  Style="{StaticResource FluentComboBox}"
                                   Margin="0,0,0,24"
-                                  Height="32"
-                                  Background="{DynamicResource ControlBackgroundBrush}"
-                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                  BorderBrush="{DynamicResource ControlBorderBrush}">
+                                  Height="32">
                             <ComboBoxItem Content="Apps"/>
                             <ComboBoxItem Content="Download"/>
                             <ComboBoxItem Content="Library"/>
@@ -913,9 +1042,9 @@ $syncHash = [hashtable]::Synchronized(@{
             <Border DockPanel.Dock="Top"
                     BorderBrush="{DynamicResource ControlBorderBrush}"
                     BorderThickness="0,1,0,1"
-                    Height="32"
+                    Height="40"
                     Background="{DynamicResource WindowBackgroundBrush}">
-                <DockPanel LastChildFill="False" Margin="12,0">
+                <DockPanel LastChildFill="False" Margin="12,4">
 
                     <!-- Theme toggle (left) -->
                     <StackPanel Orientation="Horizontal"
@@ -966,13 +1095,13 @@ $syncHash = [hashtable]::Synchronized(@{
                         <Button x:Name="CopyLogButton"
                                 Content="Copy log"
                                 Style="{StaticResource FluentSecondaryButton}"
-                                Padding="10,3"
+                                Padding="10,6"
                                 FontSize="12"
                                 Margin="0,0,6,0"/>
                         <Button x:Name="SaveLogButton"
                                 Content="Save log"
                                 Style="{StaticResource FluentSecondaryButton}"
-                                Padding="10,3"
+                                Padding="10,6"
                                 FontSize="12"
                                 Margin="0,0,6,0"/>
                         <ToggleButton x:Name="LogToggleButton"
@@ -1095,7 +1224,8 @@ $logToggleButton = $window.FindName('LogToggleButton')
 
 $outputPathBox = $window.FindName('OutputPathBox')
 $libraryPathBox = $window.FindName('LibraryPathBox')
-$logVerbosityComboBox = $window.FindName('LogVerbosityComboBox')
+$logVerbosityToggle = $window.FindName('LogVerbosityToggle')
+$logVerbosityLabel  = $window.FindName('LogVerbosityLabel')
 $startupViewComboBox = $window.FindName('StartupViewComboBox')
 $browseOutputButton = $window.FindName('BrowseOutputButton')
 $browseLibraryButton = $window.FindName('BrowseLibraryButton')
@@ -1535,6 +1665,7 @@ $refreshLibraryView = {
         Write-UILog -SyncHash $syncHash -Message "Failed to load library: $_" -Level Error
     }
 }
+$syncHash.RefreshLibraryView = $refreshLibraryView
 
 $loadLibraryAppDetails = {
     param([PSObject]$SelectedLibraryItem)
@@ -1615,6 +1746,7 @@ $startLibraryUpdate = {
                         if ($null -ne $syncHash.LibraryUpdateButton) {
                             $syncHash.LibraryUpdateButton.IsEnabled = $true
                         }
+                        & $syncHash.RefreshLibraryView
                     }, 'Normal')
             }
         }).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
@@ -1834,7 +1966,6 @@ $navLibrary.add_Checked({
         if ([string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
             $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
         }
-        & $refreshLibraryView
     })
 
 $refreshAppsButton.add_Click({
@@ -2050,16 +2181,10 @@ $libraryPathViewBox.add_LostFocus({
         Set-UIConfig -Config $syncHash.Config
     })
 
-$logVerbosityComboBox.add_SelectionChanged({
-        $item = $logVerbosityComboBox.SelectedItem
-        if ($null -eq $item) { return }
-
-        $selected = [string]$item.Content
-        if ($selected -ne 'Verbose') {
-            $selected = 'Normal'
-        }
-
-        $syncHash.Config.LogVerbosity = $selected
+$logVerbosityToggle.add_Click({
+        $verbosity = if ($logVerbosityToggle.IsChecked) { 'Verbose' } else { 'Normal' }
+        $logVerbosityLabel.Text = $verbosity
+        $syncHash.Config.LogVerbosity = $verbosity
         Set-UIConfig -Config $syncHash.Config
     })
 
@@ -2082,7 +2207,8 @@ $navSettings.add_Checked({
         $libraryPathBox.Text = $syncHash.Config.LibraryPath
 
         $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
-        $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
+        $logVerbosityToggle.IsChecked = ($desiredVerbosity -eq 'Verbose')
+        $logVerbosityLabel.Text = if ($desiredVerbosity -eq 'Verbose') { 'Verbose' } else { 'Normal' }
 
         switch ([string]$syncHash.Config.StartupView) {
             'Download' { $startupViewComboBox.SelectedIndex = 1 }
