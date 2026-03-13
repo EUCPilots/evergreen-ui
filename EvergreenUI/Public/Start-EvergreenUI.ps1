@@ -1189,6 +1189,30 @@ $rebuildVersionColumns = {
     $syncHash.VersionsListView.View = $gv
 }
 
+# Returns the cache file path for a given app name, creating the cache directory if needed.
+$getAppCacheFile = {
+    param([string]$AppName)
+    $cacheDir = Join-Path $env:APPDATA 'EvergreenUI\cache'
+    if (-not (Test-Path -LiteralPath $cacheDir)) {
+        $null = New-Item -ItemType Directory -Path $cacheDir -Force
+    }
+    Join-Path $cacheDir "$AppName.json"
+}
+
+# Populates the detail panel from a result array (used for both live and cached data).
+$displayAppResults = {
+    param([PSObject[]]$AppResults)
+    $syncHash.CurrentAppResults = @($AppResults)
+    & $rebuildVersionColumns -AppResults $syncHash.CurrentAppResults
+    $filterProps = @(Get-FilterableProperties -AppResults $syncHash.CurrentAppResults)
+    New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
+        Invoke-FilterUpdate -SyncHash $syncHash
+    }
+    Invoke-FilterUpdate -SyncHash $syncHash
+    $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
+    $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
+}
+
 $loadAppVersions = {
     $selectedApp = $appsComboBox.SelectedItem
     if ($null -eq $selectedApp) {
@@ -1247,19 +1271,16 @@ $loadAppVersions = {
             $currentPS.Dispose()
             $currentRunspace.Dispose()
 
-            $syncHash.CurrentAppResults = @($results)
-
-            & $rebuildVersionColumns -AppResults $syncHash.CurrentAppResults
-
-            $filterProps = @(Get-FilterableProperties -AppResults $syncHash.CurrentAppResults)
-            New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
-                Invoke-FilterUpdate -SyncHash $syncHash
+            # Save results to cache
+            $cachePath = & $getAppCacheFile -AppName $currentAppName
+            try {
+                $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $cachePath -Encoding UTF8 -Force
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Failed to write cache for ${currentAppName}: $_" -Level Warning
             }
 
-            Invoke-FilterUpdate -SyncHash $syncHash
-
-            $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
-            $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
+            & $displayAppResults -AppResults $results
 
             Write-UILog -SyncHash $syncHash -Message "Loaded $($syncHash.CurrentAppResults.Count) versions for $currentAppName." -Level Info
         }
@@ -1849,10 +1870,28 @@ $appsComboBox.add_SelectionChanged({
 
         $selectedApp = $appsComboBox.SelectedItem
         if ($null -ne $selectedApp) {
-            $appDetailTitle.Text         = "$($selectedApp.Name.ToUpper())  VERSION DETAILS"
-            $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Collapsed
-            $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
-            $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
+            $appDetailTitle.Text = "$($selectedApp.Name.ToUpper())  VERSION DETAILS"
+
+            # Load from cache if available; otherwise show the panel empty (user clicks Refresh)
+            $cachePath = & $getAppCacheFile -AppName $selectedApp.Name
+            if (Test-Path -LiteralPath $cachePath) {
+                try {
+                    $cachedResults = @(Get-Content -LiteralPath $cachePath -Raw | ConvertFrom-Json)
+                    Write-UILog -SyncHash $syncHash -Message "Loaded $($cachedResults.Count) cached versions for $($selectedApp.Name)." -Level Info
+                    & $displayAppResults -AppResults $cachedResults
+                }
+                catch {
+                    Write-UILog -SyncHash $syncHash -Message "Cache read failed for $($selectedApp.Name), click Refresh to load: $_" -Level Warning
+                    $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Collapsed
+                    $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
+                    $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
+                }
+            }
+            else {
+                $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Collapsed
+                $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
+                $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
+            }
         }
         else {
             $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Visible
