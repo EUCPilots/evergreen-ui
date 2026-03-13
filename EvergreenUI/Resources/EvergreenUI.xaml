@@ -73,10 +73,43 @@
             <Setter Property="Foreground"               Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush"              Value="{DynamicResource ControlBorderBrush}"/>
             <Setter Property="BorderThickness"          Value="1"/>
-            <Setter Property="Padding"                  Value="8,6"/>
+            <Setter Property="Padding"                  Value="8,0"/>
+            <Setter Property="MinHeight"                Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="CaretBrush"               Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="SelectionBrush"           Value="{DynamicResource AccentLightBrush}"/>
+            <Setter Property="FocusVisualStyle"         Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1.5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- ── FluentListView ── -->
@@ -572,6 +605,7 @@
                                         HorizontalAlignment="Stretch"
                                         Padding="10,6"/>
                             </Border>
+                            <Grid>
                             <ListBox x:Name="AppsComboBox"
                                      BorderThickness="0"
                                      Background="{DynamicResource WindowBackgroundBrush}"
@@ -622,6 +656,36 @@
                                     </Style>
                                 </ListBox.ItemContainerStyle>
                             </ListBox>
+                            <!-- Empty-list hint - visible only when AppsComboBox has no items -->
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Margin="16">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasItems, ElementName=AppsComboBox}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="No applications loaded."
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="Run 'Update-Evergreen' in PowerShell to download the latest app definitions, then click Refresh apps list."
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,6,0,0"/>
+                            </StackPanel>
+                            </Grid>
                         </DockPanel>
                     </Border>
 
@@ -634,6 +698,7 @@
                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                 Background="{DynamicResource ControlBackgroundBrush}"
                                 CornerRadius="4"
+                                ClipToBounds="True"
                                 Visibility="Visible">
                             <TextBlock Text="Select an application to view version details"
                                        HorizontalAlignment="Center"
@@ -648,6 +713,7 @@
                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                 Background="{DynamicResource ControlBackgroundBrush}"
                                 CornerRadius="4"
+                                ClipToBounds="True"
                                 Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
@@ -681,6 +747,7 @@
                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                 Background="{DynamicResource ControlBackgroundBrush}"
                                 CornerRadius="4"
+                                ClipToBounds="True"
                                 Visibility="Collapsed">
                             <DockPanel>
 
@@ -899,27 +966,31 @@
                                 x:Name="LibraryBrowseButton"
                                 Content="Browse"
                                 Style="{StaticResource FluentSecondaryButton}"
+                                MinWidth="50"
                                 Margin="0,18,6,0"
                                 Padding="10,6"/>
 
                         <Button Grid.Column="2"
-                                x:Name="LibraryNewButton"
-                                Content="New"
+                                x:Name="LibraryOpenFolderButton"
+                                Content="Open folder"
                                 Style="{StaticResource FluentSecondaryButton}"
+                                MinWidth="50"
                                 Margin="0,18,6,0"
                                 Padding="10,6"/>
 
                         <Button Grid.Column="3"
-                                x:Name="LibraryRefreshButton"
-                                Content="Refresh"
+                                x:Name="LibraryNewButton"
+                                Content="New library"
                                 Style="{StaticResource FluentSecondaryButton}"
+                                MinWidth="50"
                                 Margin="0,18,6,0"
                                 Padding="10,6"/>
 
                         <Button Grid.Column="4"
-                                x:Name="LibraryOpenFolderButton"
-                                Content="Open folder"
+                                x:Name="LibraryRefreshButton"
+                                Content="Refresh library"
                                 Style="{StaticResource FluentSecondaryButton}"
+                                MinWidth="50"
                                 Margin="0,18,0,0"
                                 Padding="10,6"/>
                     </Grid>
@@ -966,7 +1037,7 @@
                         </DockPanel>
                     </Border>
 
-                    <DockPanel Grid.Row="2" Margin="0,10,0,8" LastChildFill="False">
+                    <DockPanel Grid.Row="2" Margin="0,9,0,7" LastChildFill="False">
                         <TextBlock x:Name="LibraryStatusLabel"
                                    Text="Select an app row to view versions from library."
                                    Foreground="{DynamicResource TextSecondaryBrush}"
@@ -976,7 +1047,9 @@
                                 Content="Update library"
                                 Style="{StaticResource FluentButton}"
                                 DockPanel.Dock="Right"
-                                Padding="12,6"/>
+                                BorderThickness="1"
+                                BorderBrush="Transparent"
+                                Padding="10,6"/>
                     </DockPanel>
 
                     <Border Grid.Row="3"
