@@ -23,7 +23,7 @@ jobs:
       - name: Extract version from manifest
         id: version
         run: |
-          FULL_VERSION=$(sed -n "4p" EvergreenUI/EvergreenUI.psd1 | grep -oP "'\K[^']+")
+          FULL_VERSION=$(sed -n "4p" EvergreenUI/EvergreenUI.psd1 | grep -oP "'\K[^']+" | tr -d '\r')
 
           echo "full_version=$FULL_VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: $FULL_VERSION"
