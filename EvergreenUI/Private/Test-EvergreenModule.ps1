@@ -12,7 +12,7 @@
     result is also used to populate the module status indicator in the title bar.
 
 .OUTPUTS
-    System.String — the installed Evergreen module version (e.g. '2503.412').
+    System.String - the installed Evergreen module version (e.g. '2503.412').
 
 .EXAMPLE
     $version = Test-EvergreenModule

@@ -6,7 +6,7 @@
 .DESCRIPTION
     Serialises the provided config object to JSON and writes it to
     $env:APPDATA\EvergreenUI\config.json. Creates the directory if it does not
-    exist. Errors are written as warnings and are never terminating — a failed
+    exist. Errors are written as warnings and are never terminating - a failed
     config write must not crash the UI.
 
 .PARAMETER Config

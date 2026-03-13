@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    EvergreenUI — WPF graphical frontend for the Evergreen PowerShell module.
+    EvergreenUI - WPF graphical frontend for the Evergreen PowerShell module.
 
 .DESCRIPTION
     Root module file. Dot-sources all Private helper functions and then all
@@ -25,7 +25,7 @@ $ErrorActionPreference = 'Stop'
 # ── Dot-source Private functions ─────────────────────────────────────────────
 $privatePath = Join-Path -Path $PSScriptRoot -ChildPath 'Private'
 
-# Themes first — other helpers may reference theme functions
+# Themes first - other helpers may reference theme functions
 Get-ChildItem -Path (Join-Path $privatePath 'themes') -Filter '*.ps1' -ErrorAction SilentlyContinue |
     ForEach-Object { . $_.FullName }
 

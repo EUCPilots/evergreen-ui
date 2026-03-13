@@ -23,13 +23,13 @@
     object. Version and URI are always required on each object.
 
 .OUTPUTS
-    PSCustomObject[] — one object per filterable property with:
-        Name         : string  — property name as returned by Evergreen
-        DisplayName  : string  — friendly label for the UI
-        UniqueValues : string[] — sorted distinct values
-        Count        : int    — number of unique values
-        ControlType  : string — 'CheckBoxStrip' | 'MultiListBox' | 'TextBox'
-        IsSynthetic  : bool   — true if derived from URI rather than a real property
+    PSCustomObject[] - one object per filterable property with:
+        Name         : string  - property name as returned by Evergreen
+        DisplayName  : string  - friendly label for the UI
+        UniqueValues : string[] - sorted distinct values
+        Count        : int    - number of unique values
+        ControlType  : string - 'CheckBoxStrip' | 'MultiListBox' | 'TextBox'
+        IsSynthetic  : bool   - true if derived from URI rather than a real property
 
 .EXAMPLE
     $results = Get-EvergreenApp -Name 'MicrosoftEdge'
@@ -49,7 +49,7 @@ function Get-FilterableProperties {
         return @()
     }
 
-    # Properties that are never filterable — display in the grid only
+    # Properties that are never filterable - display in the grid only
     [string[]]$displayOnly = @(
         'Version', 'URI', 'Date', 'Expiry',
         'SHA256', 'Hash', 'Checksum', 'Size'
@@ -91,7 +91,7 @@ function Get-FilterableProperties {
         }
     }
 
-    # URI-based Type derivation — add synthetic 'File type' if Type is absent
+    # URI-based Type derivation - add synthetic 'File type' if Type is absent
     $hasTypeProperty = ($AppResults[0].PSObject.Properties.Name) -contains 'Type'
     $hasUriProperty = ($AppResults[0].PSObject.Properties.Name) -contains 'URI'
 

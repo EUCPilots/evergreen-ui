@@ -18,7 +18,7 @@
     with all values selected by default for each property.
 
 .PARAMETER FilterProperties
-    Output from Get-FilterableProperties — array of property metadata objects.
+    Output from Get-FilterableProperties - array of property metadata objects.
 
 .PARAMETER WrapPanel
     The System.Windows.Controls.WrapPanel that hosts the filter groups.
@@ -72,7 +72,7 @@ function New-FilterPanel {
         $controlType = [string]$prop.ControlType
         $uniqueValues = [string[]]$prop.UniqueValues
 
-        # Initialise filter state — all values selected
+        # Initialise filter state - all values selected
         $SyncHash.FilterState[$propName] = [System.Collections.Generic.HashSet[string]]::new(
             $uniqueValues,
             [System.StringComparer]::OrdinalIgnoreCase

@@ -33,7 +33,7 @@ $ProgressPreference = 'SilentlyContinue'
 
 # ── STA guard (PowerShell 7+ may start MTA) ──────────────────────────────────
 if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
-    Write-Verbose 'Current thread is MTA — restarting on an STA thread.'
+    Write-Verbose 'Current thread is MTA - restarting on an STA thread.'
     $sta = [powershell]::Create()
     $sta.AddScript({ Import-Module EvergreenUI; Start-EvergreenUI }) | Out-Null
     $runspace = [runspacefactory]::CreateRunspace()
@@ -101,7 +101,7 @@ $syncHash = [hashtable]::Synchronized(@{
 
     <Window.Resources>
 
-        <!-- ── Brushes — placeholder transparent; theme functions fill them on Loaded ── -->
+        <!-- ── Brushes - placeholder transparent; theme functions fill them on Loaded ── -->
         <SolidColorBrush x:Key="WindowBackgroundBrush"  Color="Transparent"/>
         <SolidColorBrush x:Key="TextPrimaryBrush"       Color="Transparent"/>
         <SolidColorBrush x:Key="TextSecondaryBrush"     Color="Transparent"/>
@@ -179,7 +179,7 @@ $syncHash = [hashtable]::Synchronized(@{
             <Setter Property="Cursor"     Value="Hand"/>
         </Style>
 
-        <!-- ── NavRailRadioButton — Fluent NavigationView item pattern ── -->
+        <!-- ── NavRailRadioButton - Fluent NavigationView item pattern ── -->
         <Style x:Key="NavRailRadioButton" TargetType="RadioButton">
             <Setter Property="GroupName"                 Value="Navigation"/>
             <Setter Property="HorizontalAlignment"       Value="Stretch"/>
@@ -231,7 +231,7 @@ $syncHash = [hashtable]::Synchronized(@{
             </Setter>
         </Style>
 
-        <!-- ── StatusDot — 8x8 coloured indicator ── -->
+        <!-- ── StatusDot - 8x8 coloured indicator ── -->
         <Style x:Key="StatusDot" TargetType="Ellipse">
             <Setter Property="Width"             Value="8"/>
             <Setter Property="Height"            Value="8"/>
@@ -305,7 +305,7 @@ $syncHash = [hashtable]::Synchronized(@{
         <!-- ══ ROW 1, COL 1: Content panels (visibility-swapped) ════════════════════ -->
         <Grid Grid.Row="1" Grid.Column="1">
 
-            <!-- Apps view — Phase 4 -->
+            <!-- Apps view - Phase 4 -->
             <Grid x:Name="AppsPanel"
                   Visibility="Visible"
                   Background="{DynamicResource WindowBackgroundBrush}">
@@ -447,7 +447,7 @@ $syncHash = [hashtable]::Synchronized(@{
                 </Grid>
             </Grid>
 
-            <!-- Download view — Phase 5 -->
+            <!-- Download view - Phase 5 -->
             <Grid x:Name="DownloadPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
@@ -520,7 +520,7 @@ $syncHash = [hashtable]::Synchronized(@{
                 </Grid>
             </Grid>
 
-            <!-- Library view — Phase 6 -->
+            <!-- Library view - Phase 6 -->
             <Grid x:Name="LibraryPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
@@ -756,7 +756,7 @@ $syncHash = [hashtable]::Synchronized(@{
                    LastChildFill="True"
                    Background="{DynamicResource WindowBackgroundBrush}">
 
-            <!-- Status bar — always visible, docked at top of row 3 -->
+            <!-- Status bar - always visible, docked at top of row 3 -->
             <Border DockPanel.Dock="Top"
                     BorderBrush="{DynamicResource ControlBorderBrush}"
                     BorderThickness="0,1,0,1"
@@ -852,7 +852,7 @@ $syncHash = [hashtable]::Synchronized(@{
                 </DockPanel>
             </Border>
 
-            <!-- Log TextBox — fills remainder of row 3 -->
+            <!-- Log TextBox - fills remainder of row 3 -->
             <ScrollViewer x:Name="LogScrollViewer"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Auto"
@@ -1418,7 +1418,7 @@ $window.add_Loaded({
         }
     })
 
-# ── Event: Window.Closing — persist config ────────────────────────────────────
+# ── Event: Window.Closing - persist config ────────────────────────────────────
 $window.add_Closing({
         try {
             $currentLogHeight = [int]$logRowDef.Height.Value - 32
@@ -1754,7 +1754,7 @@ $startupViewComboBox.add_SelectionChanged({
         Set-UIConfig -Config $syncHash.Config
     })
 
-# ── Navigation: Settings panel — populate form on activation ─────────────────
+# ── Navigation: Settings panel - populate form on activation ─────────────────
 $navSettings.add_Checked({
         $outputPathBox.Text = $syncHash.Config.OutputPath
         $libraryPathBox.Text = $syncHash.Config.LibraryPath
@@ -1833,7 +1833,7 @@ $saveLogButton.add_Click({
         }
     })
 
-# ── Settings: Output path — Browse ───────────────────────────────────────────
+# ── Settings: Output path - Browse ───────────────────────────────────────────
 $browseOutputButton.add_Click({
         $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
         $dlg.Description = 'Select download output folder'
@@ -1846,7 +1846,7 @@ $browseOutputButton.add_Click({
         }
     })
 
-# ── Settings: Library path — Browse ──────────────────────────────────────────
+# ── Settings: Library path - Browse ──────────────────────────────────────────
 $browseLibraryButton.add_Click({
         $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
         $dlg.Description = 'Select Evergreen library folder'

@@ -35,7 +35,7 @@ function Set-DarkTheme {
 
     $res = $Window.Resources
 
-    # Evergreen brand dark palette — deep forest teal base
+    # Evergreen brand dark palette - deep forest teal base
     $res['WindowBackgroundBrush'] = NewBrush  20  29  28   # #141D1C
     $res['TextPrimaryBrush'] = NewBrush 232 242 240   # #E8F2F0
     $res['TextSecondaryBrush'] = NewBrush 144 170 167   # #90AAA7

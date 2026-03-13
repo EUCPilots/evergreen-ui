@@ -17,8 +17,8 @@
 
 .PARAMETER SyncHash
     Shared synchronised hashtable. Reads:
-        DownloadQueue  — List[PSCustomObject] of pending items
-        Config         — PSCustomObject with OutputPath property
+        DownloadQueue  - List[PSCustomObject] of pending items
+        Config         - PSCustomObject with OutputPath property
 
 .PARAMETER QueueItem
     A single PSCustomObject from DownloadQueue matching the Download Queue Item
@@ -26,10 +26,10 @@
 
 .NOTES
     Queue item Status values:
-        'Pending'     — not yet started
-        'Downloading' — in progress
-        'Done'        — completed successfully
-        'Failed'      — error occurred (check log for details)
+        'Pending'     - not yet started
+        'Downloading' - in progress
+        'Done'        - completed successfully
+        'Failed'      - error occurred (check log for details)
 #>
 function Invoke-AppDownload {
     [CmdletBinding()]
@@ -78,7 +78,7 @@ function Invoke-AppDownload {
         } | Select-Object -First 1
 
         if ($null -eq $target) {
-            # URI may have rotated — fall back to criteria-only match
+            # URI may have rotated - fall back to criteria-only match
             $target = $appResults | Where-Object {
                 $_.Version -eq $QueueItem.Version -and
                 (-not $QueueItem.Architecture -or $_.Architecture -eq $QueueItem.Architecture) -and

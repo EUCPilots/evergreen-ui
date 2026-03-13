@@ -6,19 +6,19 @@
 .DESCRIPTION
     Loads $env:APPDATA\EvergreenUI\config.json and returns a PSCustomObject.
     If the file does not exist or is malformed, returns a default config object.
-    Never throws — a missing or corrupt config is treated as first-run.
+    Never throws - a missing or corrupt config is treated as first-run.
 
 .OUTPUTS
     PSCustomObject with properties:
-        OutputPath   : string  — last-used download output path
-        LibraryPath  : string  — last-used library path
-        Theme        : string  — 'Light' or 'Dark'
-        LogVerbosity : string  — 'Normal' or 'Verbose'
-        LogHeight    : int     — log panel height in pixels
-        StartupView  : string  — 'Apps' | 'Download' | 'Library' | 'Settings'
-        LastAppName  : string  — last selected app in Apps view
-        WindowWidth  : int     — last window width
-        WindowHeight : int     — last window height
+        OutputPath   : string  - last-used download output path
+        LibraryPath  : string  - last-used library path
+        Theme        : string  - 'Light' or 'Dark'
+        LogVerbosity : string  - 'Normal' or 'Verbose'
+        LogHeight    : int     - log panel height in pixels
+        StartupView  : string  - 'Apps' | 'Download' | 'Library' | 'Settings'
+        LastAppName  : string  - last selected app in Apps view
+        WindowWidth  : int     - last window width
+        WindowHeight : int     - last window height
 
 .EXAMPLE
     $config = Get-UIConfig

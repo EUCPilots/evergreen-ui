@@ -36,7 +36,7 @@ function Set-LightTheme {
 
     $res = $Window.Resources
 
-    # Evergreen brand light palette — primary: #009485, dark: #01786c, light: #67b9c9
+    # Evergreen brand light palette - primary: #009485, dark: #01786c, light: #67b9c9
     $res['WindowBackgroundBrush'] = NewBrush 243 244 244   # #F3F4F4
     $res['TextPrimaryBrush'] = NewBrush  26  26  26   # #1A1A1A
     $res['TextSecondaryBrush'] = NewBrush  77  90  88   # #4D5A58

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Factory function — creates a clean STA runspace ready for WPF background work.
+    Factory function - creates a clean STA runspace ready for WPF background work.
 
 .DESCRIPTION
     Creates, configures, and opens a PowerShell runspace with STA apartment state

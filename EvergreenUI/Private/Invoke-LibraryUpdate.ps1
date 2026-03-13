@@ -9,13 +9,13 @@
     significant event is forwarded to Write-UILog.
 
     Should be called from a runspace variable block (see New-WpfRunspace). The
-    function is synchronous within that runspace — it runs the library update to
+    function is synchronous within that runspace - it runs the library update to
     completion (or error) before returning.
 
 .PARAMETER SyncHash
     Shared synchronised hashtable. Reads:
-        Config.LibraryPath  — string path to the Evergreen library root
-        IsRunning           — bool set True during execution, False on completion
+        Config.LibraryPath  - string path to the Evergreen library root
+        IsRunning           - bool set True during execution, False on completion
 
 .EXAMPLE
     # Typically called inside a New-WpfRunspace scriptblock:

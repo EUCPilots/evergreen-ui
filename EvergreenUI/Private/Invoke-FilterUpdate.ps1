@@ -18,10 +18,10 @@
 
 .PARAMETER SyncHash
     Shared synchronised hashtable. Must contain:
-        FilterState        : hashtable — property name → HashSet[string] of selected values
-        CurrentAppResults  : PSObject[] — the full unfiltered result from Get-EvergreenApp
-        VersionsListView   : System.Windows.Controls.ListView — the target list control
-        ResultsCountLabel  : System.Windows.Controls.TextBlock — "N of M shown" label
+        FilterState        : hashtable - property name → HashSet[string] of selected values
+        CurrentAppResults  : PSObject[] - the full unfiltered result from Get-EvergreenApp
+        VersionsListView   : System.Windows.Controls.ListView - the target list control
+        ResultsCountLabel  : System.Windows.Controls.TextBlock - "N of M shown" label
         Window             : the WPF Window (for Dispatcher access)
 
 .EXAMPLE

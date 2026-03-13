@@ -15,7 +15,7 @@
     # Root module
     RootModule        = 'EvergreenUI.psm1'
 
-    # Exports — only Start-EvergreenUI is public
+    # Exports - only Start-EvergreenUI is public
     FunctionsToExport = @('Start-EvergreenUI')
     CmdletsToExport   = @()
     VariablesToExport = @()

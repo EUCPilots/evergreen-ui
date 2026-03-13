@@ -18,9 +18,9 @@
     If specified, bypasses the in-session cache and re-queries Find-EvergreenApp.
 
 .OUTPUTS
-    PSCustomObject[] — each object has:
-        Name         : string — internal Evergreen app name (e.g. 'MicrosoftEdge')
-        FriendlyName : string — display name returned by Find-EvergreenApp
+    PSCustomObject[] - each object has:
+        Name         : string - internal Evergreen app name (e.g. 'MicrosoftEdge')
+        FriendlyName : string - display name returned by Find-EvergreenApp
 
 .EXAMPLE
     $apps = Get-EvergreenAppList -SyncHash $syncHash
@@ -65,7 +65,7 @@ function Get-EvergreenAppList {
         }
 
         $SyncHash.AppList = $list
-        Write-UILog -SyncHash $SyncHash -Message "Application list loaded — $($list.Count) apps available." -Level Info
+        Write-UILog -SyncHash $SyncHash -Message "Application list loaded - $($list.Count) apps available." -Level Info
         return $list
     }
     catch {
