@@ -45,7 +45,14 @@ function Invoke-FilterUpdate {
         if ($allowedValues.Count -eq 0) { continue }
 
         $filtered = $filtered | Where-Object {
-            $allowedValues.Contains([string]$_.$prop)
+            $value = if ($prop -eq '_DerivedType') {
+                [System.IO.Path]::GetExtension([string]$_.URI).TrimStart('.').ToLower()
+            }
+            else {
+                [string]$_.$prop
+            }
+
+            $allowedValues.Contains($value)
         }
     }
 

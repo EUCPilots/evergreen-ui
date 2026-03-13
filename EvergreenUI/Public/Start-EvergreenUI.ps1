@@ -72,6 +72,16 @@ $syncHash = [hashtable]::Synchronized(@{
     FilterState       = @{}
     VersionsListView  = $null
     ResultsCountLabel = $null
+    DownloadQueueListView = $null
+    QueueCountLabel   = $null
+    DownloadAllButton = $null
+    LibraryContentsListView = $null
+    LibraryDetailsListView  = $null
+    LibraryStatusLabel      = $null
+    LibraryUpdateButton     = $null
+    LibraryData             = @()
+    ActiveBackgroundOperations = [System.Collections.Generic.List[object]]::new()
+    BackgroundOperationsTimer  = $null
     DownloadQueue     = [System.Collections.Generic.List[PSCustomObject]]::new()
     EvergreenVersion  = ''
     Config            = $config
@@ -299,30 +309,350 @@ $syncHash = [hashtable]::Synchronized(@{
             <Grid x:Name="AppsPanel"
                   Visibility="Visible"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <TextBlock Text="Apps view — coming in Phase 4"
-                           Foreground="{DynamicResource TextSecondaryBrush}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                <Grid Margin="22,18,22,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <TextBlock Text="Apps"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   DockPanel.Dock="Left"
+                                   VerticalAlignment="Center"/>
+                        <Button x:Name="RefreshAppsButton"
+                                Content="Refresh apps"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Padding="12,5"/>
+                    </DockPanel>
+
+                    <Grid Grid.Row="1" Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="1.3*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock Text="Search apps"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       FontSize="12"
+                                       Margin="0,0,0,4"/>
+                            <TextBox x:Name="AppSearchBox"
+                                     Style="{StaticResource FluentTextBox}"
+                                     ToolTip="Filter app list by Name or FriendlyName"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                            <TextBlock Text="Application"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       FontSize="12"
+                                       Margin="0,0,0,4"/>
+                            <ComboBox x:Name="AppsComboBox"
+                                      DisplayMemberPath="FriendlyName"
+                                      SelectedValuePath="Name"
+                                      MinWidth="260"
+                                      Height="34"
+                                      Background="{DynamicResource ControlBackgroundBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource ControlBorderBrush}"/>
+                        </StackPanel>
+
+                        <Button x:Name="LoadAppVersionsButton"
+                                Grid.Column="2"
+                                Content="Load versions"
+                                Style="{StaticResource FluentButton}"
+                                Padding="14,6"
+                                VerticalAlignment="Bottom"/>
+                    </Grid>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="320"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="4"
+                                Padding="10">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="Filters"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,8"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <WrapPanel x:Name="FilterWrapPanel"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Grid.Column="2"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="4"
+                                Padding="10">
+                            <DockPanel>
+                                <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,8">
+                                    <TextBlock x:Name="ResultsCountLabel"
+                                               Text="Showing 0 of 0"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               DockPanel.Dock="Left"/>
+                                    <Button x:Name="ClearFiltersButton"
+                                            Content="Reset filters"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Padding="10,4"
+                                            FontSize="12"
+                                            DockPanel.Dock="Right"/>
+                                </DockPanel>
+
+                                <ListView x:Name="VersionsListView"
+                                          Style="{StaticResource FluentListView}"
+                                          BorderBrush="{DynamicResource ControlBorderBrush}"
+                                          BorderThickness="1"
+                                          SelectionMode="Single">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="Version"       DisplayMemberBinding="{Binding Version}"       Width="130"/>
+                                            <GridViewColumn Header="Platform"      DisplayMemberBinding="{Binding Platform}"      Width="90"/>
+                                            <GridViewColumn Header="Channel"       DisplayMemberBinding="{Binding Channel}"       Width="110"/>
+                                            <GridViewColumn Header="Architecture"  DisplayMemberBinding="{Binding Architecture}"  Width="100"/>
+                                            <GridViewColumn Header="URI"           DisplayMemberBinding="{Binding URI}"           Width="460"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+
+                    <DockPanel Grid.Row="3" Margin="0,12,0,0" LastChildFill="False">
+                        <Button x:Name="AddToQueueButton"
+                                Content="Add selected to queue"
+                                Style="{StaticResource FluentButton}"
+                                DockPanel.Dock="Right"
+                                Padding="14,6"/>
+                    </DockPanel>
+                </Grid>
             </Grid>
 
             <!-- Download view — Phase 5 -->
             <Grid x:Name="DownloadPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <TextBlock Text="Download view — coming in Phase 5"
-                           Foreground="{DynamicResource TextSecondaryBrush}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                <Grid Margin="22,18,22,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <StackPanel DockPanel.Dock="Left">
+                            <TextBlock Text="Download"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock x:Name="QueueCountLabel"
+                                       Text="Queue: 0 items"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,3,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="RemoveQueueItemButton"
+                                    Content="Remove selected"
+                                    Style="{StaticResource FluentSecondaryButton}"
+                                    Padding="10,5"
+                                    Margin="0,0,6,0"/>
+                            <Button x:Name="ClearQueueButton"
+                                    Content="Clear queue"
+                                    Style="{StaticResource FluentSecondaryButton}"
+                                    Padding="10,5"
+                                    Margin="0,0,6,0"/>
+                            <Button x:Name="DownloadAllButton"
+                                    Content="Download all"
+                                    Style="{StaticResource FluentButton}"
+                                    Padding="12,5"/>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Border Grid.Row="1"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                            Background="{DynamicResource ControlBackgroundBrush}"
+                            CornerRadius="4"
+                            Padding="10">
+                        <ListView x:Name="DownloadQueueListView"
+                                  Style="{StaticResource FluentListView}"
+                                  BorderBrush="{DynamicResource ControlBorderBrush}"
+                                  BorderThickness="1"
+                                  SelectionMode="Single">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="App"          DisplayMemberBinding="{Binding AppName}"       Width="180"/>
+                                    <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="130"/>
+                                    <GridViewColumn Header="Platform"     DisplayMemberBinding="{Binding Platform}"      Width="90"/>
+                                    <GridViewColumn Header="Channel"      DisplayMemberBinding="{Binding Channel}"       Width="110"/>
+                                    <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
+                                    <GridViewColumn Header="Status"       DisplayMemberBinding="{Binding Status}"        Width="110"/>
+                                    <GridViewColumn Header="URI"          DisplayMemberBinding="{Binding Uri}"           Width="440"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </Border>
+
+                    <TextBlock Grid.Row="2"
+                               Text="Downloads are processed sequentially in queue order."
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,10,0,0"/>
+                </Grid>
             </Grid>
 
             <!-- Library view — Phase 6 -->
             <Grid x:Name="LibraryPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <TextBlock Text="Library view — coming in Phase 6"
-                           Foreground="{DynamicResource TextSecondaryBrush}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                <Grid Margin="22,18,22,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Library path"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       FontSize="12"
+                                       Margin="0,0,0,4"/>
+                            <TextBox x:Name="LibraryPathViewBox"
+                                     Style="{StaticResource FluentTextBox}"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="1"
+                                x:Name="LibraryBrowseButton"
+                                Content="Browse"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Margin="0,18,6,0"
+                                Padding="10,5"/>
+
+                        <Button Grid.Column="2"
+                                x:Name="LibraryNewButton"
+                                Content="New"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Margin="0,18,6,0"
+                                Padding="10,5"/>
+
+                        <Button Grid.Column="3"
+                                x:Name="LibraryRefreshButton"
+                                Content="Refresh"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Margin="0,18,6,0"
+                                Padding="10,5"/>
+
+                        <Button Grid.Column="4"
+                                x:Name="LibraryOpenFolderButton"
+                                Content="Open folder"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Margin="0,18,0,0"
+                                Padding="10,5"/>
+                    </Grid>
+
+                    <Border Grid.Row="1"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                            Background="{DynamicResource ControlBackgroundBrush}"
+                            CornerRadius="4"
+                            Padding="10">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top"
+                                       Text="Library contents"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Margin="0,0,0,8"/>
+
+                            <ListView x:Name="LibraryContentsListView"
+                                      Style="{StaticResource FluentListView}"
+                                      BorderBrush="{DynamicResource ControlBorderBrush}"
+                                      BorderThickness="1"
+                                      SelectionMode="Single">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="App"            DisplayMemberBinding="{Binding Name}"     Width="240"/>
+                                        <GridViewColumn Header="Count"          DisplayMemberBinding="{Binding Count}"    Width="70"/>
+                                        <GridViewColumn Header="Latest version" DisplayMemberBinding="{Binding Version}"  Width="140"/>
+                                        <GridViewColumn Header="Path"           DisplayMemberBinding="{Binding Path}"     Width="620"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </DockPanel>
+                    </Border>
+
+                    <DockPanel Grid.Row="2" Margin="0,10,0,8" LastChildFill="False">
+                        <TextBlock x:Name="LibraryStatusLabel"
+                                   Text="Select an app row to view versions from library."
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Left"/>
+                        <Button x:Name="LibraryUpdateButton"
+                                Content="Update library"
+                                Style="{StaticResource FluentButton}"
+                                DockPanel.Dock="Right"
+                                Padding="12,5"/>
+                    </DockPanel>
+
+                    <Border Grid.Row="3"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                            Background="{DynamicResource ControlBackgroundBrush}"
+                            CornerRadius="4"
+                            Padding="10">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top"
+                                       Text="Selected app details"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Margin="0,0,0,8"/>
+
+                            <ListView x:Name="LibraryDetailsListView"
+                                      Style="{StaticResource FluentListView}"
+                                      BorderBrush="{DynamicResource ControlBorderBrush}"
+                                      BorderThickness="1"
+                                      SelectionMode="Single">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="130"/>
+                                        <GridViewColumn Header="Platform"     DisplayMemberBinding="{Binding Platform}"      Width="90"/>
+                                        <GridViewColumn Header="Channel"      DisplayMemberBinding="{Binding Channel}"       Width="110"/>
+                                        <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
+                                        <GridViewColumn Header="URI"          DisplayMemberBinding="{Binding URI}"           Width="630"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </DockPanel>
+                    </Border>
+                </Grid>
             </Grid>
 
             <!-- Settings view -->
@@ -367,6 +697,38 @@ $syncHash = [hashtable]::Synchronized(@{
                             <TextBox x:Name="LibraryPathBox"
                                      Style="{StaticResource FluentTextBox}"/>
                         </DockPanel>
+
+                        <!-- Log verbosity -->
+                        <TextBlock Text="Log verbosity"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,0,0,4"/>
+                        <ComboBox x:Name="LogVerbosityComboBox"
+                                  Margin="0,0,0,16"
+                                  Height="32"
+                                  Background="{DynamicResource ControlBackgroundBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  BorderBrush="{DynamicResource ControlBorderBrush}">
+                            <ComboBoxItem Content="Normal"/>
+                            <ComboBoxItem Content="Verbose"/>
+                        </ComboBox>
+
+                        <!-- Startup view -->
+                        <TextBlock Text="Startup view"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,0,0,4"/>
+                        <ComboBox x:Name="StartupViewComboBox"
+                                  Margin="0,0,0,24"
+                                  Height="32"
+                                  Background="{DynamicResource ControlBackgroundBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  BorderBrush="{DynamicResource ControlBorderBrush}">
+                            <ComboBoxItem Content="Apps"/>
+                            <ComboBoxItem Content="Download"/>
+                            <ComboBoxItem Content="Library"/>
+                            <ComboBoxItem Content="Settings"/>
+                        </ComboBox>
 
                         <!-- Admin / environment info -->
                         <TextBlock x:Name="AdminStatusText"
@@ -539,18 +901,455 @@ $downloadPanel         = $window.FindName('DownloadPanel')
 $libraryPanel          = $window.FindName('LibraryPanel')
 $settingsPanel         = $window.FindName('SettingsPanel')
 
+$refreshAppsButton     = $window.FindName('RefreshAppsButton')
+$appSearchBox          = $window.FindName('AppSearchBox')
+$appsComboBox          = $window.FindName('AppsComboBox')
+$loadAppVersionsButton = $window.FindName('LoadAppVersionsButton')
+$filterWrapPanel       = $window.FindName('FilterWrapPanel')
+$clearFiltersButton    = $window.FindName('ClearFiltersButton')
+$addToQueueButton      = $window.FindName('AddToQueueButton')
+
+$removeQueueItemButton = $window.FindName('RemoveQueueItemButton')
+$clearQueueButton      = $window.FindName('ClearQueueButton')
+
+$libraryPathViewBox     = $window.FindName('LibraryPathViewBox')
+$libraryBrowseButton    = $window.FindName('LibraryBrowseButton')
+$libraryNewButton       = $window.FindName('LibraryNewButton')
+$libraryRefreshButton   = $window.FindName('LibraryRefreshButton')
+$libraryOpenFolderButton = $window.FindName('LibraryOpenFolderButton')
+
+$syncHash.LibraryContentsListView = $window.FindName('LibraryContentsListView')
+$syncHash.LibraryDetailsListView = $window.FindName('LibraryDetailsListView')
+$syncHash.LibraryStatusLabel = $window.FindName('LibraryStatusLabel')
+$syncHash.LibraryUpdateButton = $window.FindName('LibraryUpdateButton')
+
+$syncHash.DownloadQueueListView = $window.FindName('DownloadQueueListView')
+$syncHash.QueueCountLabel = $window.FindName('QueueCountLabel')
+$syncHash.DownloadAllButton = $window.FindName('DownloadAllButton')
+
+$syncHash.VersionsListView = $window.FindName('VersionsListView')
+$syncHash.ResultsCountLabel = $window.FindName('ResultsCountLabel')
+
 $copyLogButton         = $window.FindName('CopyLogButton')
 $saveLogButton         = $window.FindName('SaveLogButton')
 $logToggleButton       = $window.FindName('LogToggleButton')
 
 $outputPathBox         = $window.FindName('OutputPathBox')
 $libraryPathBox        = $window.FindName('LibraryPathBox')
+$logVerbosityComboBox  = $window.FindName('LogVerbosityComboBox')
+$startupViewComboBox   = $window.FindName('StartupViewComboBox')
 $browseOutputButton    = $window.FindName('BrowseOutputButton')
 $browseLibraryButton   = $window.FindName('BrowseLibraryButton')
 $adminStatusText       = $window.FindName('AdminStatusText')
 
 # Log row is RowDefinitions[3]; track its height for collapse/restore
 $logRowDef = $rootGrid.RowDefinitions[3]
+
+# Apply persisted window size with safe minimums
+$window.Width  = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
+$window.Height = [Math]::Max(600, [double]$syncHash.Config.WindowHeight)
+
+# ── Apps view helpers ───────────────────────────────────────────────────────
+$updateAppsComboSource = {
+    param([string]$SearchText = '')
+
+    $allApps = @($syncHash.AppList)
+    if ($allApps.Count -eq 0) {
+        $appsComboBox.ItemsSource = @()
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($SearchText)) {
+        $appsComboBox.ItemsSource = $allApps
+        if ($appsComboBox.SelectedIndex -lt 0) {
+            $appsComboBox.SelectedIndex = 0
+        }
+        return
+    }
+
+    $needle = $SearchText.Trim()
+    $filtered = $allApps | Where-Object {
+        $_.Name -like "*$needle*" -or $_.FriendlyName -like "*$needle*"
+    }
+
+    $appsComboBox.ItemsSource = @($filtered)
+    if ($appsComboBox.SelectedIndex -lt 0 -and $appsComboBox.Items.Count -gt 0) {
+        $appsComboBox.SelectedIndex = 0
+    }
+}
+
+$loadAppCatalog = {
+    param([switch]$Force)
+
+    $refreshAppsButton.IsEnabled = $false
+    try {
+        [void](Get-EvergreenAppList -SyncHash $syncHash -Force:$Force)
+        & $updateAppsComboSource -SearchText $appSearchBox.Text
+    }
+    finally {
+        $refreshAppsButton.IsEnabled = $true
+    }
+}
+
+$loadAppVersions = {
+    $selectedApp = $appsComboBox.SelectedItem
+    if ($null -eq $selectedApp) {
+        Write-UILog -SyncHash $syncHash -Message 'Select an application first.' -Level Warning
+        return
+    }
+
+    $appName = [string]$selectedApp.Name
+    $loadAppVersionsButton.IsEnabled = $false
+    try {
+        Write-UILog -SyncHash $syncHash -Message "Loading versions for $appName..." -Level Info
+
+        $runspace = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $runspace
+
+        [void]$ps.AddScript({
+            param([string]$Name)
+            Get-EvergreenApp -Name $Name -ErrorAction Stop
+        }).AddArgument($appName)
+
+        $results = @($ps.Invoke())
+        $ps.Dispose()
+        $runspace.Dispose()
+
+        $syncHash.CurrentAppResults = @($results)
+
+        $filterProps = Get-FilterableProperties -AppResults $syncHash.CurrentAppResults
+        New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
+            Invoke-FilterUpdate -SyncHash $syncHash
+        }
+
+        Invoke-FilterUpdate -SyncHash $syncHash
+
+        Write-UILog -SyncHash $syncHash -Message "Loaded $($syncHash.CurrentAppResults.Count) versions for $appName." -Level Info
+    }
+    catch {
+        $syncHash.CurrentAppResults = @()
+        $syncHash.VersionsListView.ItemsSource = @()
+        $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
+        $filterWrapPanel.Children.Clear()
+        Write-UILog -SyncHash $syncHash -Message "Failed to load versions for $appName: $_" -Level Error
+    }
+    finally {
+        $loadAppVersionsButton.IsEnabled = $true
+    }
+}
+
+$refreshQueueView = {
+    $syncHash.DownloadQueueListView.ItemsSource = $null
+    $syncHash.DownloadQueueListView.ItemsSource = $syncHash.DownloadQueue
+    $syncHash.DownloadQueueListView.Items.Refresh()
+
+    $pending = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
+    $done    = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+    $failed  = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+    $total   = $syncHash.DownloadQueue.Count
+    $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+}
+
+$normalizeDirectoryPath = {
+    param([string]$PathValue)
+
+    if ([string]::IsNullOrWhiteSpace($PathValue)) {
+        return ''
+    }
+
+    return $PathValue.Trim().Trim('"')
+}
+
+$registerBackgroundOperation = {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][System.Management.Automation.PowerShell]$PowerShellInstance,
+        [Parameter(Mandatory)][System.Management.Automation.Runspaces.Runspace]$RunspaceInstance,
+        [Parameter(Mandatory)]$AsyncResult
+    )
+
+    $operation = [PSCustomObject]@{
+        Name       = $Name
+        PowerShell = $PowerShellInstance
+        Runspace   = $RunspaceInstance
+        Async      = $AsyncResult
+    }
+
+    $syncHash.ActiveBackgroundOperations.Add($operation)
+
+    if ($null -eq $syncHash.BackgroundOperationsTimer) {
+        $timer = [System.Windows.Threading.DispatcherTimer]::new()
+        $timer.Interval = [TimeSpan]::FromMilliseconds(500)
+        $timer.add_Tick({
+            $completed = @($syncHash.ActiveBackgroundOperations | Where-Object { $_.Async.IsCompleted })
+            foreach ($op in $completed) {
+                try {
+                    [void]$op.PowerShell.EndInvoke($op.Async)
+                }
+                catch {
+                    Write-UILog -SyncHash $syncHash -Message "Background operation '$($op.Name)' completed with error: $_" -Level Error
+                }
+                finally {
+                    try { $op.PowerShell.Dispose() } catch {}
+                    try { $op.Runspace.Dispose() } catch {}
+                    [void]$syncHash.ActiveBackgroundOperations.Remove($op)
+                }
+            }
+
+            if ($syncHash.ActiveBackgroundOperations.Count -eq 0) {
+                $syncHash.BackgroundOperationsTimer.Stop()
+            }
+        })
+        $syncHash.BackgroundOperationsTimer = $timer
+    }
+
+    if (-not $syncHash.BackgroundOperationsTimer.IsEnabled) {
+        $syncHash.BackgroundOperationsTimer.Start()
+    }
+}
+
+$startQueueDownload = {
+    if ($syncHash.IsRunning) {
+        Write-UILog -SyncHash $syncHash -Message 'A queue operation is already running.' -Level Warning
+        return
+    }
+
+    if ($syncHash.DownloadQueue.Count -eq 0) {
+        Write-UILog -SyncHash $syncHash -Message 'Queue is empty. Add items from Apps view first.' -Level Warning
+        return
+    }
+
+    $outputPath = & $normalizeDirectoryPath -PathValue $syncHash.Config.OutputPath
+    if ([string]::IsNullOrWhiteSpace($outputPath)) {
+        Write-UILog -SyncHash $syncHash -Message 'Set a download output path in Settings before starting queue downloads.' -Level Warning
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $outputPath -PathType Container)) {
+        try {
+            [void](New-Item -Path $outputPath -ItemType Directory -Force -ErrorAction Stop)
+        }
+        catch {
+            Write-UILog -SyncHash $syncHash -Message "Could not create output path '$outputPath': $_" -Level Error
+            return
+        }
+    }
+
+    $syncHash.Config.OutputPath = $outputPath
+    $outputPathBox.Text = $outputPath
+    Set-UIConfig -Config $syncHash.Config
+
+    $syncHash.IsRunning = $true
+    $syncHash.DownloadAllButton.IsEnabled = $false
+
+    $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+    $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
+    $invokeDownloadPath = Join-Path -Path $privateRoot -ChildPath 'Invoke-AppDownload.ps1'
+
+    $rs = New-WpfRunspace -SyncHash $syncHash
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
+
+    [void]$ps.AddScript({
+        param(
+            [string]$WriteUILogPath,
+            [string]$InvokeDownloadPath
+        )
+
+        . $WriteUILogPath
+        . $InvokeDownloadPath
+
+        try {
+            Import-Module Evergreen -ErrorAction Stop | Out-Null
+        }
+        catch {
+            Write-UILog -SyncHash $syncHash -Message "Failed to import Evergreen in background runspace: $_" -Level Error
+        }
+
+        Write-UILog -SyncHash $syncHash -Message 'Starting queue download run (sequential).' -Level Info
+
+        foreach ($item in @($syncHash.DownloadQueue)) {
+            if ($item.Status -eq 'Done') { continue }
+            Invoke-AppDownload -SyncHash $syncHash -QueueItem $item
+        }
+
+        Write-UILog -SyncHash $syncHash -Message 'Queue download run finished.' -Level Info
+
+        $syncHash.Window.Dispatcher.Invoke([action]{
+            $syncHash.IsRunning = $false
+            if ($null -ne $syncHash.DownloadAllButton) {
+                $syncHash.DownloadAllButton.IsEnabled = $true
+            }
+            if ($null -ne $syncHash.DownloadQueueListView) {
+                $syncHash.DownloadQueueListView.Items.Refresh()
+            }
+            if ($null -ne $syncHash.QueueCountLabel) {
+                $pending = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
+                $done    = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+                $failed  = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+                $total   = $syncHash.DownloadQueue.Count
+                $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+            }
+        }, 'Normal')
+    }).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
+
+    $async = $ps.BeginInvoke()
+    & $registerBackgroundOperation -Name 'QueueDownload' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
+}
+
+$getLibraryItemName = {
+    param([PSObject]$Item)
+    if ($null -eq $Item) { return '' }
+
+    foreach ($candidate in @('Name', 'AppName', 'Application', 'Product')) {
+        if ($Item.PSObject.Properties.Name -contains $candidate -and -not [string]::IsNullOrWhiteSpace([string]$Item.$candidate)) {
+            return [string]$Item.$candidate
+        }
+    }
+
+    return [string]$Item
+}
+
+$refreshLibraryView = {
+    $path = $libraryPathViewBox.Text
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        $syncHash.LibraryStatusLabel.Text = 'Set a library path to load library contents.'
+        $syncHash.LibraryContentsListView.ItemsSource = @()
+        $syncHash.LibraryDetailsListView.ItemsSource = @()
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $path -PathType Container)) {
+        $syncHash.LibraryStatusLabel.Text = "Library path does not exist: $path"
+        $syncHash.LibraryContentsListView.ItemsSource = @()
+        $syncHash.LibraryDetailsListView.ItemsSource = @()
+        return
+    }
+
+    try {
+        $syncHash.Config.LibraryPath = $path
+        Set-UIConfig -Config $syncHash.Config
+
+        $items = @()
+        $raw = @(Get-EvergreenLibrary -Path $path -ErrorAction Stop)
+
+        foreach ($entry in $raw) {
+            $name = & $getLibraryItemName -Item $entry
+            $count = if ($entry.PSObject.Properties.Name -contains 'Count') { [int]$entry.Count } else { 0 }
+            $version = if ($entry.PSObject.Properties.Name -contains 'Version') { [string]$entry.Version } else { '' }
+            $itemPath = if ($entry.PSObject.Properties.Name -contains 'Path') { [string]$entry.Path } else { '' }
+
+            $items += [PSCustomObject]@{
+                Name       = $name
+                Count      = $count
+                Version    = $version
+                Path       = $itemPath
+                SourceItem = $entry
+            }
+        }
+
+        $syncHash.LibraryData = @($items)
+        $syncHash.LibraryContentsListView.ItemsSource = $syncHash.LibraryData
+        $syncHash.LibraryDetailsListView.ItemsSource = @()
+        $syncHash.LibraryStatusLabel.Text = "Loaded $($syncHash.LibraryData.Count) library apps."
+        Write-UILog -SyncHash $syncHash -Message "Library loaded from $path ($($syncHash.LibraryData.Count) apps)." -Level Info
+    }
+    catch {
+        $syncHash.LibraryData = @()
+        $syncHash.LibraryContentsListView.ItemsSource = @()
+        $syncHash.LibraryDetailsListView.ItemsSource = @()
+        $syncHash.LibraryStatusLabel.Text = 'Failed to load library.'
+        Write-UILog -SyncHash $syncHash -Message "Failed to load library: $_" -Level Error
+    }
+}
+
+$loadLibraryAppDetails = {
+    param([PSObject]$SelectedLibraryItem)
+
+    if ($null -eq $SelectedLibraryItem) {
+        $syncHash.LibraryDetailsListView.ItemsSource = @()
+        return
+    }
+
+    $path = $libraryPathViewBox.Text
+    $appName = [string]$SelectedLibraryItem.Name
+    if ([string]::IsNullOrWhiteSpace($appName) -or [string]::IsNullOrWhiteSpace($path)) {
+        return
+    }
+
+    try {
+        $details = @(Get-EvergreenAppFromLibrary -Name $appName -Path $path -ErrorAction Stop)
+        $syncHash.LibraryDetailsListView.ItemsSource = $details
+        $syncHash.LibraryStatusLabel.Text = "Loaded details for $appName ($($details.Count) entries)."
+    }
+    catch {
+        $syncHash.LibraryDetailsListView.ItemsSource = @()
+        $syncHash.LibraryStatusLabel.Text = "Failed to load details for $appName."
+        Write-UILog -SyncHash $syncHash -Message "Failed to load app details from library: $_" -Level Error
+    }
+}
+
+$startLibraryUpdate = {
+    if ($syncHash.IsRunning) {
+        Write-UILog -SyncHash $syncHash -Message 'Another operation is currently running.' -Level Warning
+        return
+    }
+
+    $path = $libraryPathViewBox.Text
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        Write-UILog -SyncHash $syncHash -Message 'Set a library path before updating.' -Level Warning
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $path -PathType Container)) {
+        Write-UILog -SyncHash $syncHash -Message "Library path does not exist: $path" -Level Error
+        return
+    }
+
+    $syncHash.Config.LibraryPath = $path
+    Set-UIConfig -Config $syncHash.Config
+
+    $syncHash.IsRunning = $true
+    $syncHash.LibraryUpdateButton.IsEnabled = $false
+
+    $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+    $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
+    $invokeLibraryUpdatePath = Join-Path -Path $privateRoot -ChildPath 'Invoke-LibraryUpdate.ps1'
+
+    $rs = New-WpfRunspace -SyncHash $syncHash
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
+
+    [void]$ps.AddScript({
+        param(
+            [string]$WriteUILogPath,
+            [string]$InvokeLibraryUpdatePath
+        )
+
+        . $WriteUILogPath
+        . $InvokeLibraryUpdatePath
+
+        try {
+            Import-Module Evergreen -ErrorAction Stop | Out-Null
+            Invoke-LibraryUpdate -SyncHash $syncHash
+        }
+        catch {
+            Write-UILog -SyncHash $syncHash -Message "Library update run failed: $_" -Level Error
+        }
+        finally {
+            $syncHash.Window.Dispatcher.Invoke([action]{
+                $syncHash.IsRunning = $false
+                if ($null -ne $syncHash.LibraryUpdateButton) {
+                    $syncHash.LibraryUpdateButton.IsEnabled = $true
+                }
+            }, 'Normal')
+        }
+    }).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
+
+    $async = $ps.BeginInvoke()
+    & $registerBackgroundOperation -Name 'LibraryUpdate' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
+}
 
 # ── Apply initial log height from config ──────────────────────────────────────
 $initialLogHeight = [Math]::Max(32, 32 + $config.LogHeight)
@@ -590,6 +1389,33 @@ $window.add_Loaded({
     if ($syncHash.IsAdmin) {
         Write-UILog -SyncHash $syncHash -Message 'Running as administrator.' -Level Info
     }
+
+    & $loadAppCatalog
+
+    if (-not [string]::IsNullOrWhiteSpace($syncHash.Config.LastAppName)) {
+        $savedApp = @($syncHash.AppList | Where-Object { $_.Name -eq $syncHash.Config.LastAppName } | Select-Object -First 1)
+        if ($savedApp.Count -gt 0) {
+            $appsComboBox.SelectedItem = $savedApp[0]
+        }
+    }
+
+    & $refreshQueueView
+    $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
+
+    switch ([string]$syncHash.Config.StartupView) {
+        'Download' {
+            $navDownload.IsChecked = $true
+        }
+        'Library' {
+            $navLibrary.IsChecked = $true
+        }
+        'Settings' {
+            $navSettings.IsChecked = $true
+        }
+        default {
+            $navApps.IsChecked = $true
+        }
+    }
 })
 
 # ── Event: Window.Closing — persist config ────────────────────────────────────
@@ -600,10 +1426,100 @@ $window.add_Closing({
             $syncHash.Config.LogHeight = $currentLogHeight
         }
         $syncHash.Config.Theme = if ($themeToggle.IsChecked) { 'Dark' } else { 'Light' }
+        $syncHash.Config.WindowWidth = [int]$window.Width
+        $syncHash.Config.WindowHeight = [int]$window.Height
+        $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
+
+        $syncHash.Config.StartupView = if ($navDownload.IsChecked) {
+            'Download'
+        }
+        elseif ($navLibrary.IsChecked) {
+            'Library'
+        }
+        elseif ($navSettings.IsChecked) {
+            'Settings'
+        }
+        else {
+            'Apps'
+        }
+
         Set-UIConfig -Config $syncHash.Config
+
+        if ($null -ne $syncHash.BackgroundOperationsTimer -and $syncHash.BackgroundOperationsTimer.IsEnabled) {
+            $syncHash.BackgroundOperationsTimer.Stop()
+        }
+
+        foreach ($op in @($syncHash.ActiveBackgroundOperations)) {
+            try { $op.PowerShell.Stop() } catch {}
+            try { $op.PowerShell.Dispose() } catch {}
+            try { $op.Runspace.Dispose() } catch {}
+        }
+        $syncHash.ActiveBackgroundOperations.Clear()
     }
     catch {
         # Never block window close for a config-save failure
+    }
+})
+
+# ── Keyboard shortcuts (Phase 8 polish) ─────────────────────────────────────
+# Ctrl+F: focus app search
+# Ctrl+,: open settings
+# Ctrl+D: start queue download (when Download view active)
+# Ctrl+U: start library update (when Library view active)
+# Ctrl+L: toggle log panel
+# F5: refresh current active view
+$window.add_PreviewKeyDown({
+    param($sender, $e)
+
+    $mods = [System.Windows.Input.Keyboard]::Modifiers
+    $ctrl = ($mods -band [System.Windows.Input.ModifierKeys]::Control) -ne 0
+
+    if ($e.Key -eq [System.Windows.Input.Key]::F5) {
+        if ($navApps.IsChecked) {
+            & $loadAppCatalog -Force
+        }
+        elseif ($navDownload.IsChecked) {
+            & $refreshQueueView
+        }
+        elseif ($navLibrary.IsChecked) {
+            & $refreshLibraryView
+        }
+        $e.Handled = $true
+        return
+    }
+
+    if (-not $ctrl) {
+        return
+    }
+
+    switch ($e.Key) {
+        ([System.Windows.Input.Key]::F) {
+            $navApps.IsChecked = $true
+            [void]$appSearchBox.Focus()
+            $appSearchBox.SelectAll()
+            $e.Handled = $true
+        }
+        ([System.Windows.Input.Key]::OemComma) {
+            $navSettings.IsChecked = $true
+            $e.Handled = $true
+        }
+        ([System.Windows.Input.Key]::D) {
+            if ($navDownload.IsChecked) {
+                & $startQueueDownload
+                $e.Handled = $true
+            }
+        }
+        ([System.Windows.Input.Key]::U) {
+            if ($navLibrary.IsChecked) {
+                & $startLibraryUpdate
+                $e.Handled = $true
+            }
+        }
+        ([System.Windows.Input.Key]::L) {
+            $logToggleButton.IsChecked = -not $logToggleButton.IsChecked
+            $logToggleButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+            $e.Handled = $true
+        }
     }
 })
 
@@ -631,10 +1547,228 @@ foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navSettings)) {
     $navBtn.add_Checked($navCheckedHandler)
 }
 
+$navApps.add_Checked({
+    if ($null -eq $syncHash.AppList -or $syncHash.AppList.Count -eq 0) {
+        & $loadAppCatalog
+    }
+})
+
+$navDownload.add_Checked({
+    & $refreshQueueView
+})
+
+$navLibrary.add_Checked({
+    if ([string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
+        $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
+    }
+    & $refreshLibraryView
+})
+
+$refreshAppsButton.add_Click({
+    Write-UILog -SyncHash $syncHash -Message 'Refreshing Evergreen app catalog...' -Level Info
+    & $loadAppCatalog -Force
+})
+
+$appSearchBox.add_TextChanged({
+    & $updateAppsComboSource -SearchText $appSearchBox.Text
+})
+
+$loadAppVersionsButton.add_Click({
+    & $loadAppVersions
+})
+
+$appsComboBox.add_SelectionChanged({
+    $syncHash.CurrentAppResults = @()
+    $syncHash.VersionsListView.ItemsSource = @()
+    $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
+    $filterWrapPanel.Children.Clear()
+    $syncHash.FilterState = @{}
+})
+
+$clearFiltersButton.add_Click({
+    if ($null -eq $syncHash.CurrentAppResults -or $syncHash.CurrentAppResults.Count -eq 0) {
+        return
+    }
+
+    $filterProps = Get-FilterableProperties -AppResults $syncHash.CurrentAppResults
+    New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
+        Invoke-FilterUpdate -SyncHash $syncHash
+    }
+    Invoke-FilterUpdate -SyncHash $syncHash
+})
+
+$addToQueueButton.add_Click({
+    $selectedVersion = $syncHash.VersionsListView.SelectedItem
+    $selectedApp = $appsComboBox.SelectedItem
+
+    if ($null -eq $selectedApp -or $null -eq $selectedVersion) {
+        Write-UILog -SyncHash $syncHash -Message 'Select one app version row before adding to queue.' -Level Warning
+        return
+    }
+
+    $queueItem = [PSCustomObject]@{
+        AppName      = [string]$selectedApp.Name
+        Version      = [string]$selectedVersion.Version
+        Platform     = if ($selectedVersion.PSObject.Properties.Name -contains 'Platform') { [string]$selectedVersion.Platform } else { '' }
+        Architecture = if ($selectedVersion.PSObject.Properties.Name -contains 'Architecture') { [string]$selectedVersion.Architecture } else { '' }
+        Channel      = if ($selectedVersion.PSObject.Properties.Name -contains 'Channel') { [string]$selectedVersion.Channel } else { '' }
+        Uri          = if ($selectedVersion.PSObject.Properties.Name -contains 'URI') { [string]$selectedVersion.URI } else { '' }
+        Status       = 'Pending'
+    }
+
+    $syncHash.DownloadQueue.Add($queueItem)
+    Write-UILog -SyncHash $syncHash -Message "Queued: $($queueItem.AppName) $($queueItem.Version)" -Level Info
+    & $refreshQueueView
+})
+
+$removeQueueItemButton.add_Click({
+    if ($syncHash.IsRunning) {
+        Write-UILog -SyncHash $syncHash -Message 'Cannot remove queue items while downloads are running.' -Level Warning
+        return
+    }
+
+    $selectedQueueItem = $syncHash.DownloadQueueListView.SelectedItem
+    if ($null -eq $selectedQueueItem) {
+        Write-UILog -SyncHash $syncHash -Message 'Select one queue item to remove.' -Level Warning
+        return
+    }
+
+    [void]$syncHash.DownloadQueue.Remove($selectedQueueItem)
+    Write-UILog -SyncHash $syncHash -Message 'Removed selected item from queue.' -Level Info
+    & $refreshQueueView
+})
+
+$clearQueueButton.add_Click({
+    if ($syncHash.IsRunning) {
+        Write-UILog -SyncHash $syncHash -Message 'Cannot clear queue while downloads are running.' -Level Warning
+        return
+    }
+
+    $syncHash.DownloadQueue.Clear()
+    Write-UILog -SyncHash $syncHash -Message 'Queue cleared.' -Level Info
+    & $refreshQueueView
+})
+
+$syncHash.DownloadAllButton.add_Click({
+    & $startQueueDownload
+})
+
+$libraryRefreshButton.add_Click({
+    & $refreshLibraryView
+})
+
+$libraryBrowseButton.add_Click({
+    $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+    $dlg.Description = 'Select Evergreen library folder'
+    $dlg.SelectedPath = $libraryPathViewBox.Text
+    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $libraryPathViewBox.Text = $dlg.SelectedPath
+        $syncHash.Config.LibraryPath = $dlg.SelectedPath
+        Set-UIConfig -Config $syncHash.Config
+        & $refreshLibraryView
+    }
+})
+
+$libraryNewButton.add_Click({
+    $path = $libraryPathViewBox.Text
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        Write-UILog -SyncHash $syncHash -Message 'Set a library path before creating a new library.' -Level Warning
+        return
+    }
+
+    try {
+        New-EvergreenLibrary -Path $path -ErrorAction Stop | Out-Null
+        Write-UILog -SyncHash $syncHash -Message "Created Evergreen library: $path" -Level Info
+        $syncHash.Config.LibraryPath = $path
+        Set-UIConfig -Config $syncHash.Config
+        & $refreshLibraryView
+    }
+    catch {
+        Write-UILog -SyncHash $syncHash -Message "Failed to create library: $_" -Level Error
+    }
+})
+
+$libraryOpenFolderButton.add_Click({
+    $path = $libraryPathViewBox.Text
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        return
+    }
+
+    if (Test-Path -LiteralPath $path -PathType Container) {
+        Start-Process -FilePath 'explorer.exe' -ArgumentList $path | Out-Null
+    }
+    else {
+        Write-UILog -SyncHash $syncHash -Message "Library path does not exist: $path" -Level Warning
+    }
+})
+
+$syncHash.LibraryUpdateButton.add_Click({
+    & $startLibraryUpdate
+})
+
+$syncHash.LibraryContentsListView.add_MouseDoubleClick({
+    $selected = $syncHash.LibraryContentsListView.SelectedItem
+    & $loadLibraryAppDetails -SelectedLibraryItem $selected
+})
+
+$syncHash.LibraryContentsListView.add_SelectionChanged({
+    $selected = $syncHash.LibraryContentsListView.SelectedItem
+    if ($null -eq $selected) {
+        $syncHash.LibraryDetailsListView.ItemsSource = @()
+        return
+    }
+    & $loadLibraryAppDetails -SelectedLibraryItem $selected
+})
+
+$libraryPathViewBox.add_LostFocus({
+    $normalised = & $normalizeDirectoryPath -PathValue $libraryPathViewBox.Text
+    $libraryPathViewBox.Text = $normalised
+    $syncHash.Config.LibraryPath = $normalised
+    $libraryPathBox.Text = $normalised
+    Set-UIConfig -Config $syncHash.Config
+})
+
+$logVerbosityComboBox.add_SelectionChanged({
+    $item = $logVerbosityComboBox.SelectedItem
+    if ($null -eq $item) { return }
+
+    $selected = [string]$item.Content
+    if ($selected -ne 'Verbose') {
+        $selected = 'Normal'
+    }
+
+    $syncHash.Config.LogVerbosity = $selected
+    Set-UIConfig -Config $syncHash.Config
+})
+
+$startupViewComboBox.add_SelectionChanged({
+    $item = $startupViewComboBox.SelectedItem
+    if ($null -eq $item) { return }
+
+    $selected = [string]$item.Content
+    if ([string]::IsNullOrWhiteSpace($selected)) {
+        $selected = 'Apps'
+    }
+
+    $syncHash.Config.StartupView = $selected
+    Set-UIConfig -Config $syncHash.Config
+})
+
 # ── Navigation: Settings panel — populate form on activation ─────────────────
 $navSettings.add_Checked({
     $outputPathBox.Text  = $syncHash.Config.OutputPath
     $libraryPathBox.Text = $syncHash.Config.LibraryPath
+
+    $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
+    $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
+
+    switch ([string]$syncHash.Config.StartupView) {
+        'Download' { $startupViewComboBox.SelectedIndex = 1 }
+        'Library'  { $startupViewComboBox.SelectedIndex = 2 }
+        'Settings' { $startupViewComboBox.SelectedIndex = 3 }
+        default    { $startupViewComboBox.SelectedIndex = 0 }
+    }
+
     $adminStatusText.Text = if ($syncHash.IsAdmin) {
         'Running as administrator'
     }
@@ -651,6 +1785,9 @@ $themeToggle.add_Click({
     else {
         Set-LightTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
     }
+
+    $syncHash.Config.Theme = if ($themeToggle.IsChecked) { 'Dark' } else { 'Light' }
+    Set-UIConfig -Config $syncHash.Config
 })
 
 # ── Log panel collapse / expand ───────────────────────────────────────────────
@@ -702,8 +1839,9 @@ $browseOutputButton.add_Click({
     $dlg.Description  = 'Select download output folder'
     $dlg.SelectedPath = $outputPathBox.Text
     if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $outputPathBox.Text                = $dlg.SelectedPath
-        $syncHash.Config.OutputPath        = $dlg.SelectedPath
+        $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+        $outputPathBox.Text                = $normalised
+        $syncHash.Config.OutputPath        = $normalised
         Set-UIConfig -Config $syncHash.Config
     }
 })
@@ -714,18 +1852,28 @@ $browseLibraryButton.add_Click({
     $dlg.Description  = 'Select Evergreen library folder'
     $dlg.SelectedPath = $libraryPathBox.Text
     if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $libraryPathBox.Text              = $dlg.SelectedPath
-        $syncHash.Config.LibraryPath      = $dlg.SelectedPath
+        $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+        $libraryPathBox.Text              = $normalised
+        $libraryPathViewBox.Text          = $normalised
+        $syncHash.Config.LibraryPath      = $normalised
         Set-UIConfig -Config $syncHash.Config
+        & $refreshLibraryView
     }
 })
 
 # ── Settings: persist path edits on focus-leave ───────────────────────────────
 $outputPathBox.add_LostFocus({
-    $syncHash.Config.OutputPath = $outputPathBox.Text
+    $normalised = & $normalizeDirectoryPath -PathValue $outputPathBox.Text
+    $outputPathBox.Text = $normalised
+    $syncHash.Config.OutputPath = $normalised
+    Set-UIConfig -Config $syncHash.Config
 })
 $libraryPathBox.add_LostFocus({
-    $syncHash.Config.LibraryPath = $libraryPathBox.Text
+    $normalised = & $normalizeDirectoryPath -PathValue $libraryPathBox.Text
+    $libraryPathBox.Text = $normalised
+    $syncHash.Config.LibraryPath = $normalised
+    $libraryPathViewBox.Text = $normalised
+    Set-UIConfig -Config $syncHash.Config
 })
 
 # ── Show window (blocking) ────────────────────────────────────────────────────

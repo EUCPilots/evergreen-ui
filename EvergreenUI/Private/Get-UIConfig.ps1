@@ -15,6 +15,10 @@
         Theme        : string  — 'Light' or 'Dark'
         LogVerbosity : string  — 'Normal' or 'Verbose'
         LogHeight    : int     — log panel height in pixels
+        StartupView  : string  — 'Apps' | 'Download' | 'Library' | 'Settings'
+        LastAppName  : string  — last selected app in Apps view
+        WindowWidth  : int     — last window width
+        WindowHeight : int     — last window height
 
 .EXAMPLE
     $config = Get-UIConfig
@@ -31,6 +35,10 @@ function Get-UIConfig {
         Theme        = 'Light'
         LogVerbosity = 'Normal'
         LogHeight    = 150
+        StartupView  = 'Apps'
+        LastAppName  = ''
+        WindowWidth  = 1200
+        WindowHeight = 750
     }
 
     $configPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI\config.json'

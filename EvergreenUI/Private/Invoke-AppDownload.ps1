@@ -49,6 +49,18 @@ function Invoke-AppDownload {
         param([string]$NewStatus)
         $SyncHash.Window.Dispatcher.Invoke([action]{
             $QueueItem.Status = $NewStatus
+
+            if ($null -ne $SyncHash.DownloadQueueListView) {
+                $SyncHash.DownloadQueueListView.Items.Refresh()
+            }
+
+            if ($null -ne $SyncHash.QueueCountLabel) {
+                $pending = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
+                $done    = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+                $failed  = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+                $total   = $SyncHash.DownloadQueue.Count
+                $SyncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+            }
         })
     }
 

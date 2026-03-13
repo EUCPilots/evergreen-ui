@@ -3,7 +3,7 @@
 > This file is the authoritative record of design decisions, implementation state,
 > and next steps. Update it at the end of every working session.
 >
-> Last updated: 2026-03-13
+> Last updated: 2026-03-13 (Phase 8 implemented)
 
 ---
 
@@ -80,21 +80,19 @@ evergreen-ui/
 | 1 | Module scaffold — `psd1`, `psm1`, folder structure | ✅ Done (see known issues below) |
 | 2 | Shared helpers — runspace factory, log, theme, config, filter helpers | ✅ Done |
 | 3 | Shell window — nav rail, log panel, theme toggle, Evergreen status | ✅ Done |
-| 4 | Apps view — `Find-EvergreenApp` list + `Get-EvergreenApp` detail + filter panel | ❌ Not started |
-| 5 | Download view — `Save-EvergreenApp` with sequential queue | ❌ Not started |
-| 6 | Library view — library CRUD + `Start-EvergreenLibraryUpdate` | ❌ Not started |
-| 7 | Settings + persistence — config.json read/write, startup theme, last-used paths | ❌ Not started |
-| 8 | Polish — keyboard shortcuts, validation, error handling, help tooltips | ❌ Not started |
+| 4 | Apps view — `Find-EvergreenApp` list + `Get-EvergreenApp` detail + filter panel | ✅ Done |
+| 5 | Download view — `Save-EvergreenApp` with sequential queue | ✅ Done |
+| 6 | Library view — library CRUD + `Start-EvergreenLibraryUpdate` | ✅ Done |
+| 7 | Settings + persistence — config.json read/write, startup theme, last-used paths | ✅ Done |
+| 8 | Polish — keyboard shortcuts, validation, error handling, help tooltips | ✅ Done |
 
 ---
 
-## Known Issues / TODOs Before Phase 4
+## Known Issues / Follow-up
 
-1. **`New-FilterPanel.ps1` — Phase 4 work** — the stub initialises `$syncHash.FilterState`
-   correctly but does not yet build any WPF controls. This is intentional (Phase 4 work).
-
-2. **Phase 3 shell — content panels are placeholder stubs** — `AppsPanel`, `DownloadPanel`,
-   and `LibraryPanel` show "coming in Phase X" TextBlocks. These are replaced in Phases 4–6.
+1. **Library list column mapping may vary by Evergreen output shape** — current UI normalises
+  common fields (`Name`, `Count`, `Version`, `Path`) but may need additional mapping tweaks
+  if module output changes.
 
 ---
 
@@ -152,12 +150,22 @@ Functions must not add undocumented keys.
 | `LogScrollViewer` | `ScrollViewer` | `Start-EvergreenUI` | `Write-UILog` |
 | `IsRunning` | `bool` | `Start-EvergreenUI` / runspaces | `Run` button handler |
 | `IsAdmin` | `bool` | `Start-EvergreenUI` | settings view |
-| `AppList` | `PSCustomObject[]` | `Get-EvergreenAppList` | Apps / Download views |
-| `CurrentAppResults` | `PSObject[]` | Download view runspace | `Invoke-FilterUpdate` |
+| `AppList` | `PSCustomObject[]` | `Get-EvergreenAppList` | Apps view selectors |
+| `CurrentAppResults` | `PSObject[]` | Apps view runspace | `Invoke-FilterUpdate` |
 | `FilterState` | `hashtable` (prop→`HashSet[string]`) | `New-FilterPanel` | `Invoke-FilterUpdate` |
-| `VersionsListView` | `ListView` | Download view | `Invoke-FilterUpdate` |
-| `ResultsCountLabel` | `TextBlock` | Download view | `Invoke-FilterUpdate` |
-| `DownloadQueue` | `List[PSCustomObject]` | Download view | `Invoke-AppDownload` |
+| `VersionsListView` | `ListView` | Apps view | `Invoke-FilterUpdate` |
+| `ResultsCountLabel` | `TextBlock` | Apps view | `Invoke-FilterUpdate` |
+| `DownloadQueue` | `List[PSCustomObject]` | Apps + Download views | `Invoke-AppDownload` |
+| `DownloadQueueListView` | `ListView` | Download view | `Invoke-AppDownload`, queue refresh helper |
+| `QueueCountLabel` | `TextBlock` | Download view | queue refresh helper, `Invoke-AppDownload` |
+| `DownloadAllButton` | `Button` | Download view | queue runner |
+| `LibraryContentsListView` | `ListView` | Library view | library refresh/detail loaders |
+| `LibraryDetailsListView` | `ListView` | Library view | library detail loader |
+| `LibraryStatusLabel` | `TextBlock` | Library view | library refresh/detail loaders |
+| `LibraryUpdateButton` | `Button` | Library view | library update runner |
+| `LibraryData` | `PSCustomObject[]` | Library refresh helper | Library view bindings |
+| `ActiveBackgroundOperations` | `List[object]` | background operation tracker | cleanup timer / shutdown cleanup |
+| `BackgroundOperationsTimer` | `DispatcherTimer` | background operation tracker | runspace completion disposal |
 | `EvergreenVersion` | `string` | `Start-EvergreenUI` on load | title bar TextBlock |
 | `Config` | `PSCustomObject` | `Get-UIConfig` on load | `Set-UIConfig` on close |
 
@@ -228,7 +236,11 @@ Path: `$env:APPDATA\EvergreenUI\config.json`
   "LibraryPath":  "D:\\EvergreenLibrary",
   "Theme":        "Light",
   "LogVerbosity": "Normal",
-  "LogHeight":    150
+  "LogHeight":    150,
+  "StartupView":  "Apps",
+  "LastAppName":  "MicrosoftEdge",
+  "WindowWidth":  1200,
+  "WindowHeight": 750
 }
 ```
 
@@ -282,15 +294,25 @@ Raw data: https://github.com/aaronparker/apptracker
 
 1. ✅ Phase 1 gaps — all resolved (`psd1` fixed, three private functions created)
 2. ✅ Phase 3 — shell window complete; nav, theme toggle, log panel, GridSplitter, Settings view all wired
-3. **Phase 4** — Apps view (`AppsPanel`):
-  - App selector (ComboBox) calls `Get-EvergreenAppList` on load; results cached in `$syncHash.AppList`
-  - On selection: `Get-EvergreenApp -Name` in a runspace → `$syncHash.CurrentAppResults`
-  - Complete `New-FilterPanel` WPF control construction (`CheckBoxStrip`, `MultiListBox`, `TextBox`)
-  - Filter change → `Invoke-FilterUpdate` → update `VersionsListView` and `ResultsCountLabel`
-  - "Add to queue" button appends selected row to `$syncHash.DownloadQueue`
-4. **Phase 5** — Download view (`DownloadPanel`):
-  - Queue ListView bound to `$syncHash.DownloadQueue`
-  - "Download all" button → sequential `Invoke-AppDownload` in a runspace
-5. **Phase 6** — Library view (`LibraryPanel`):
-  - Library path display + "Update library" button → `Invoke-LibraryUpdate` in a runspace
-6. Phases 7–8 per `docs/plan.md` (settings persistence polish, keyboard shortcuts)
+3. ✅ **Phase 4** — Apps view implemented:
+   - app search + selector + refresh flow
+   - versions loader (`Get-EvergreenApp`) with dynamic filters
+   - `New-FilterPanel` implemented (`CheckBoxStrip`, `MultiListBox`, `TextBox`)
+   - filter application via `Invoke-FilterUpdate`
+   - "Add to queue" integration with `$syncHash.DownloadQueue`
+4. ✅ **Phase 5** — Download view implemented:
+   - Queue ListView with remove/clear actions
+   - queue counters (`Pending/Done/Failed`) and live status refresh
+   - "Download all" runs sequentially in a background runspace using `Invoke-AppDownload`
+5. ✅ **Phase 6** — Library view implemented:
+  - Library path management (`Browse`, `New`, `Refresh`, `Open folder`)
+  - Library contents list + app detail list (`Get-EvergreenLibrary`, `Get-EvergreenAppFromLibrary`)
+  - "Update library" runs in background via `Invoke-LibraryUpdate`
+6. ✅ **Phase 7** — Settings + persistence polish implemented:
+   - Settings view now includes `LogVerbosity` and `StartupView` controls
+   - cross-view library path fields remain synchronised
+   - persisted startup state now includes startup view, last selected app, window size
+7. ✅ **Phase 8** — polish and resilience implemented:
+  - keyboard shortcuts (`Ctrl+F`, `Ctrl+,`, `Ctrl+D`, `Ctrl+U`, `Ctrl+L`, `F5`)
+  - additional path validation/normalisation for settings and queue downloads
+  - background runspace completion tracking + disposal callbacks via dispatcher timer
