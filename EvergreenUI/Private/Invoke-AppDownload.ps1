@@ -44,24 +44,33 @@ function Invoke-AppDownload {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    # Helper: update Status on the queue item from the UI thread
+    # Helper: update Status on the queue item from the UI thread.
+    # PSCustomObject has no WPF thread affinity, so the Status assignment and the
+    # Where-Object counts are computed here on the background thread.  Only the
+    # pure UI-property writes are dispatched, keeping the [action] delegate free of
+    # PS cmdlet pipelines (which deadlock when executed via Dispatcher.Invoke).
     $setStatus = {
         param([string]$NewStatus)
-        $SyncHash.Window.Dispatcher.Invoke([action] {
-                $QueueItem.Status = $NewStatus
 
+        # Update the data object on the background thread.
+        $QueueItem.Status = $NewStatus
+
+        # Pre-compute queue counts on the background thread.
+        $pending = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
+        $done    = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+        $failed  = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+        $total   = $SyncHash.DownloadQueue.Count
+        $queueText = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+
+        # Dispatch only simple .NET property writes to the UI thread.
+        $SyncHash.Window.Dispatcher.Invoke([action] {
                 if ($null -ne $SyncHash.DownloadQueueListView) {
                     $SyncHash.DownloadQueueListView.Items.Refresh()
                 }
-
                 if ($null -ne $SyncHash.QueueCountLabel) {
-                    $pending = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
-                    $done = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
-                    $failed = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
-                    $total = $SyncHash.DownloadQueue.Count
-                    $SyncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+                    $SyncHash.QueueCountLabel.Text = $queueText
                 }
-            })
+            }, 'Normal')
     }
 
     & $setStatus 'Downloading'
@@ -72,7 +81,8 @@ function Invoke-AppDownload {
             throw "No download URI stored for $($QueueItem.AppName) $($QueueItem.Version)."
         }
 
-        $outputPath = if ($SyncHash.Config.OutputPath) { $SyncHash.Config.OutputPath } else { $env:TEMP }
+        $baseOutput = if ($SyncHash.Config.OutputPath) { $SyncHash.Config.OutputPath } else { $env:TEMP }
+        $outputPath = Join-Path -Path $baseOutput -ChildPath $QueueItem.AppName
 
         $downloadObj = [PSCustomObject]@{
             URI          = $QueueItem.Uri
