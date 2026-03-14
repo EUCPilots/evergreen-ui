@@ -1035,6 +1035,19 @@ $addToQueueButton.add_Click({
                 Uri          = if ($selectedVersion.PSObject.Properties.Name -contains 'URI') { [string]$selectedVersion.URI } else { '' }
                 Status       = 'Pending'
             }
+
+            $isDuplicate = $syncHash.DownloadQueue | Where-Object {
+                $_.AppName      -eq $queueItem.AppName      -and
+                $_.Version      -eq $queueItem.Version      -and
+                $_.Architecture -eq $queueItem.Architecture -and
+                $_.Channel      -eq $queueItem.Channel      -and
+                $_.Platform     -eq $queueItem.Platform
+            }
+            if ($isDuplicate) {
+                Write-UILog -SyncHash $syncHash -Message "Already queued: $($queueItem.AppName) $($queueItem.Version)" -Level Warning
+                continue
+            }
+
             $syncHash.DownloadQueue.Add($queueItem)
             Write-UILog -SyncHash $syncHash -Message "Queued: $($queueItem.AppName) $($queueItem.Version)" -Level Info
         }
