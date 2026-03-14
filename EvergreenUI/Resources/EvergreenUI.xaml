@@ -472,7 +472,7 @@
             <RowDefinition Height="48"/>                        <!-- 0  Title bar    -->
             <RowDefinition Height="*" MinHeight="200"/>         <!-- 1  Main area     -->
             <RowDefinition Height="5"/>                         <!-- 2  GridSplitter  -->
-            <RowDefinition Height="182" MinHeight="40"/>        <!-- 3  Status + Log  -->
+            <RowDefinition Height="175" MinHeight="40"/>        <!-- 3  Status + Log  -->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="140"/>     <!-- Nav rail -->

@@ -47,6 +47,7 @@ function Invoke-LibraryUpdate {
 
     $SyncHash.IsRunning = $true
     Write-UILog -SyncHash $SyncHash -Message "Starting library update: $libraryPath" -Level Info
+    Write-UILog -SyncHash $SyncHash -Message "Start-EvergreenLibraryUpdate -Path '$libraryPath'" -Level Cmd
 
     try {
         Start-EvergreenLibraryUpdate -Path $libraryPath -ErrorAction Stop

@@ -33,7 +33,7 @@ function Write-UILog {
         [string]$Message,
 
         [Parameter()]
-        [ValidateSet('Info', 'Warning', 'Error')]
+        [ValidateSet('Info', 'Warning', 'Error', 'Cmd')]
         [string]$Level = 'Info',
 
         [Parameter(Mandatory)]
@@ -46,6 +46,7 @@ function Write-UILog {
     $prefix = switch ($Level) {
         'Warning' { 'WARN' }
         'Error' { 'ERROR' }
+        'Cmd' { 'CMD' }
         default { 'INFO' }
     }
     $logEntry = "[$timestamp] [$prefix] $Message"

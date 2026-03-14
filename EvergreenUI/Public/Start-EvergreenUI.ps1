@@ -306,6 +306,7 @@ $loadAppVersions = {
     $appDetailLoadingLabel.Text      = "Retrieving details for $appName with Evergreen..."
 
     Write-UILog -SyncHash $syncHash -Message "Loading versions for $appName..." -Level Info
+    Write-UILog -SyncHash $syncHash -Message "Get-EvergreenApp -Name '$appName'" -Level Cmd
 
     $runspace = New-WpfRunspace -SyncHash $syncHash
     $ps = [powershell]::Create()
@@ -583,6 +584,7 @@ $refreshLibraryView = {
         $syncHash.Config.LibraryPath = $path
         Set-UIConfig -Config $syncHash.Config
 
+        Write-UILog -SyncHash $syncHash -Message "Get-EvergreenLibrary -Path '$path'" -Level Cmd
         $items = @()
         $libraryObj = Get-EvergreenLibrary -Path $path -ErrorAction Stop
         $inventory = if ($libraryObj.PSObject.Properties.Name -contains 'Inventory') {
@@ -1170,6 +1172,7 @@ $libraryNewButton.add_Click({
         }
 
         try {
+            Write-UILog -SyncHash $syncHash -Message "New-EvergreenLibrary -Path '$path'" -Level Cmd
             New-EvergreenLibrary -Path $path -ErrorAction Stop | Out-Null
             Write-UILog -SyncHash $syncHash -Message "Created Evergreen library: $path" -Level Info
             $syncHash.Config.LibraryPath = $path

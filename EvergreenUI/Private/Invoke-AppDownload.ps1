@@ -83,6 +83,7 @@ function Invoke-AppDownload {
 
         $baseOutput = if ($SyncHash.Config.OutputPath) { $SyncHash.Config.OutputPath } else { $env:TEMP }
         $outputPath = Join-Path -Path $baseOutput -ChildPath $QueueItem.AppName
+        Write-UILog -SyncHash $SyncHash -Message "Get-EvergreenApp -Name '$($QueueItem.AppName)' | Save-EvergreenApp -Path '$outputPath'" -Level Cmd
 
         $downloadObj = [PSCustomObject]@{
             URI          = $QueueItem.Uri
