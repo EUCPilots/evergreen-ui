@@ -22,7 +22,7 @@
     - Windows only.
     - Requires the Evergreen module to be installed.
     - No parameters are accepted; all configuration is done inside the GUI and
-      persisted to $env:APPDATA\EvergreenUI\config.json.
+      persisted to $env:APPDATA\EvergreenUI\settings.json.
 #>
 [CmdletBinding()]
 param()
@@ -730,9 +730,19 @@ $startLibraryUpdate = {
     & $registerBackgroundOperation -Name 'LibraryUpdate' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
 }
 
-# Apply initial log height from config
-$initialLogHeight = [Math]::Max(40, 40 + $config.LogHeight)
-$logRowDef.Height = [System.Windows.GridLength]::new($initialLogHeight)
+# Apply initial log state from config
+$isLogVisible = [bool]$syncHash.Config.LogVisible
+if ($isLogVisible) {
+    $initialLogHeight = [Math]::Max(80, [int]$syncHash.Config.LogHeight)
+    $logRowDef.Height = [System.Windows.GridLength]::new(40 + $initialLogHeight)
+    $logToggleButton.IsChecked = $true
+    $logToggleButton.Content = 'Hide progress log'
+}
+else {
+    $logRowDef.Height = [System.Windows.GridLength]::new(40)
+    $logToggleButton.IsChecked = $false
+    $logToggleButton.Content = 'Show progress log'
+}
 
 # Event: Window.Loaded
 $window.add_Loaded({
@@ -798,9 +808,12 @@ $window.add_Loaded({
 # Event: Window.Closing - persist config
 $window.add_Closing({
         try {
-            $currentLogHeight = [int]$logRowDef.Height.Value - 40
-            if ($currentLogHeight -gt 0) {
-                $syncHash.Config.LogHeight = $currentLogHeight
+            $syncHash.Config.LogVisible = [bool]$logToggleButton.IsChecked
+            if ($syncHash.Config.LogVisible) {
+                $currentLogHeight = [int]$logRowDef.Height.Value - 40
+                if ($currentLogHeight -gt 0) {
+                    $syncHash.Config.LogHeight = $currentLogHeight
+                }
             }
             $syncHash.Config.Theme = if ($themeComboBox.SelectedIndex -eq 1) { 'Dark' } else { 'Light' }
             $syncHash.Config.WindowWidth = [int]$window.Width
@@ -1284,6 +1297,7 @@ $logToggleButton.add_Click({
             $restoreHeight = [Math]::Max(80, $syncHash.Config.LogHeight)
             $logRowDef.Height = [System.Windows.GridLength]::new(40 + $restoreHeight)
             $logToggleButton.Content = 'Hide progress log'
+            $syncHash.Config.LogVisible = $true
         }
         else {
             # Save current displayed log height before collapsing
@@ -1291,7 +1305,10 @@ $logToggleButton.add_Click({
             if ($currentHeight -gt 0) { $syncHash.Config.LogHeight = $currentHeight }
             $logRowDef.Height = [System.Windows.GridLength]::new(40)
             $logToggleButton.Content = 'Show progress log'
+            $syncHash.Config.LogVisible = $false
         }
+
+        Set-UIConfig -Config $syncHash.Config
     })
 
 # Copy log
