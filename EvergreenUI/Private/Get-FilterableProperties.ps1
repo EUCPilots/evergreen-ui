@@ -51,6 +51,13 @@ function Get-FilterableProperties {
         return @()
     }
 
+    # Guard against double-wrapped data: if element 0 is itself an array (e.g. Object[]{ Object[]{...} }),
+    # flatten one level so the actual PSCustomObjects are used instead of the Array's own properties.
+    if ($appResultsArray[0] -is [System.Array]) {
+        $appResultsArray = @($appResultsArray[0])
+        if ($appResultsArray.Count -eq 0) { return @() }
+    }
+
     # Properties that are never filterable - display in the grid only
     [string[]]$displayOnly = @(
         'Version', 'URI', 'Date', 'Expiry',
