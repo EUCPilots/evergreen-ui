@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Launches the EvergreenUI graphical interface.
+    Launches the Evergreen Workbench graphical interface.
 
 .DESCRIPTION
     Start-EvergreenUI is the single exported function of the EvergreenUI module.
@@ -16,7 +16,7 @@
 .EXAMPLE
     Start-EvergreenUI
 
-    Opens the EvergreenUI window. All interaction happens inside the GUI.
+    Opens the Evergreen Workbench window. All interaction happens inside the GUI.
 
 .NOTES
     - Windows only.
@@ -218,6 +218,12 @@ $rebuildVersionColumns = {
     param([PSObject[]]$AppResults)
 
     if ($null -eq $AppResults -or $AppResults.Count -eq 0) { return }
+
+    # Guard against double-wrapped data: if element 0 is itself an array, flatten one level.
+    if ($AppResults[0] -is [System.Array]) {
+        $AppResults = @($AppResults[0])
+        if ($AppResults.Count -eq 0) { return }
+    }
 
     $allProps = [string[]]$AppResults[0].PSObject.Properties.Name
 
@@ -981,12 +987,27 @@ $appsComboBox.add_SelectionChanged({
             $cachePath = & $getAppCacheFile -AppName $selectedApp.Name
             if (Test-Path -LiteralPath $cachePath) {
                 try {
-                    $cachedResults = @(Get-Content -LiteralPath $cachePath -Raw | ConvertFrom-Json)
+                    $rawJson     = Get-Content -LiteralPath $cachePath -Raw
+                    $parsed      = ConvertFrom-Json -InputObject $rawJson
+                    # Guard against double-wrapping: @() can treat the Object[] returned by
+                    # ConvertFrom-Json as a single item in certain PS/WPF execution contexts,
+                    # producing Object[]{ Object[]{realItems} }. Detect and flatten one level.
+                    $cachedResults = if ($parsed -is [System.Array] -and
+                                        $parsed.Count -gt 0 -and
+                                        $parsed[0] -is [System.Array]) {
+                        [object[]]$parsed[0]
+                    } elseif ($parsed -is [System.Array]) {
+                        [object[]]$parsed
+                    } else {
+                        @($parsed)
+                    }
                     Write-UILog -SyncHash $syncHash -Message "Loaded $($cachedResults.Count) cached versions for $($selectedApp.Name)." -Level Info
                     & $displayAppResults -AppResults $cachedResults
                 }
                 catch {
                     Write-UILog -SyncHash $syncHash -Message "Cache read failed for $($selectedApp.Name), click Refresh to load: $_" -Level Warning
+                    $filterWrapPanel.Children.Clear()
+                    $syncHash.FilterState = @{}
                     $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Collapsed
                     $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
                     $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
