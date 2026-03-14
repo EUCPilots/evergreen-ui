@@ -741,7 +741,7 @@
                                         VerticalAlignment="Center"
                                         Width="360">
                                 <TextBlock x:Name="AppDetailLoadingLabel"
-                                           Text="Retrieving application details from Evergreen…"
+                                           Text="Retrieving application details with Evergreen…"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
                                            Foreground="{DynamicResource TextPrimaryBrush}"
@@ -818,6 +818,11 @@
                                                 DockPanel.Dock="Right">
                                         <Button x:Name="ClearFiltersButton"
                                                 Content="Clear filters"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="10,6"
+                                                Margin="0,0,6,0"/>
+                                        <Button x:Name="ExportCsvButton"
+                                                Content="Export to CSV"
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Padding="10,6"
                                                 Margin="0,0,6,0"/>

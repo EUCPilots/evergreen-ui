@@ -45,7 +45,7 @@ function Get-EvergreenAppList {
         return $SyncHash.AppList
     }
 
-    Write-UILog -SyncHash $SyncHash -Message 'Retrieving application list from Evergreen...' -Level Info
+    Write-UILog -SyncHash $SyncHash -Message 'Retrieving application list with Evergreen...' -Level Info
 
     try {
         $raw = Find-EvergreenApp -ErrorAction Stop

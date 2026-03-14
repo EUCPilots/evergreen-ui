@@ -123,7 +123,8 @@ $appsComboBox = $window.FindName('AppsComboBox')
 $loadAppVersionsButton = $window.FindName('LoadAppVersionsButton')
 $filterWrapPanel = $window.FindName('FilterWrapPanel')
 $clearFiltersButton = $window.FindName('ClearFiltersButton')
-$addToQueueButton = $window.FindName('AddToQueueButton')
+$exportCsvButton   = $window.FindName('ExportCsvButton')
+$addToQueueButton  = $window.FindName('AddToQueueButton')
 
 $removeQueueItemButton = $window.FindName('RemoveQueueItemButton')
 $clearQueueButton = $window.FindName('ClearQueueButton')
@@ -296,7 +297,7 @@ $loadAppVersions = {
     # Show loading state
     $appDetailContent.Visibility     = [System.Windows.Visibility]::Collapsed
     $appDetailLoading.Visibility     = [System.Windows.Visibility]::Visible
-    $appDetailLoadingLabel.Text      = "Retrieving details for $appName from Evergreen..."
+    $appDetailLoadingLabel.Text      = "Retrieving details for $appName with Evergreen..."
 
     Write-UILog -SyncHash $syncHash -Message "Loading versions for $appName..." -Level Info
 
@@ -1014,6 +1015,32 @@ $clearFiltersButton.add_Click({
             Invoke-FilterUpdate -SyncHash $syncHash
         }
         Invoke-FilterUpdate -SyncHash $syncHash
+    })
+
+$exportCsvButton.add_Click({
+        $selectedApp = $appsComboBox.SelectedItem
+        $items = @($syncHash.VersionsListView.Items)
+
+        if ($null -eq $selectedApp -or $items.Count -eq 0) {
+            Write-UILog -SyncHash $syncHash -Message 'No version data to export. Load an app first.' -Level Warning
+            return
+        }
+
+        $dlg = New-Object Microsoft.Win32.SaveFileDialog
+        $dlg.Title      = 'Export to CSV'
+        $dlg.FileName   = "$($selectedApp.Name).csv"
+        $dlg.DefaultExt = '.csv'
+        $dlg.Filter     = 'CSV Files (*.csv)|*.csv|All Files (*.*)|*.*'
+
+        if ($dlg.ShowDialog() -eq $true) {
+            try {
+                $items | Export-Csv -Path $dlg.FileName -NoTypeInformation -Encoding UTF8
+                Write-UILog -SyncHash $syncHash -Message "Exported $($items.Count) rows to $($dlg.FileName)" -Level Info
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Export failed: $_" -Level Error
+            }
+        }
     })
 
 $addToQueueButton.add_Click({
