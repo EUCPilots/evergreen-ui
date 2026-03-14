@@ -4,7 +4,7 @@ A WPF-based graphical frontend for the [Evergreen](https://eucpilots.com/evergre
 
 EvergreenUI ships as a separate PowerShell module so it never modifies the core Evergreen module. It targets Windows only, requires no external DLLs, and supports both **PowerShell 5.1** (Desktop) and **PowerShell 7+**.
 
-> **Status:** Pre-release — core functionality implemented; not yet published to PSGallery.
+> **Status:** Pre-release — core functionality implemented; published to PSGallery as beta.
 
 ## Features
 
@@ -29,7 +29,13 @@ No additional DLLs are required. The UI is built entirely using WPF assemblies t
 
 ## Installation
 
-> Not yet published to PSGallery. To run from source:
+To install from the PowerShell Gallery:
+
+```powershell
+Install-Module -Name EvergreenUI -AllowPrerelease
+```
+
+To run from source:
 
 ```powershell
 # Install the Evergreen dependency first
@@ -58,9 +64,6 @@ EvergreenUI/
 ├── docs/                          # Design documents and specifications
 │   ├── plan.md                    # Architecture and module design plan
 │   └── filter-design.md           # Dynamic filter panel specification
-│
-├── prototype/                     # Static HTML UI prototype (no live data)
-│   └── EvergreenUI-Prototype.html
 │
 ├── EvergreenUI/                   # The PowerShell module
 │   ├── EvergreenUI.psd1           # Module manifest
