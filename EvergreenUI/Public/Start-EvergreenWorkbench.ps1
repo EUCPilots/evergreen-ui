@@ -88,6 +88,7 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingLoadRunspace        = $null
         PendingLoadAsync           = $null
         PendingLoadAppName         = $null
+        ImportCurrentProvider      = 'Nerdio'
     })
 
 # Load XAML layout
@@ -109,11 +110,13 @@ $themeComboBox = $window.FindName('ThemeComboBox')
 $navApps = $window.FindName('NavApps')
 $navDownload = $window.FindName('NavDownload')
 $navLibrary = $window.FindName('NavLibrary')
+$navImport = $window.FindName('NavImport')
 $navSettings = $window.FindName('NavSettings')
 
 $appsPanel = $window.FindName('AppsPanel')
 $downloadPanel = $window.FindName('DownloadPanel')
 $libraryPanel = $window.FindName('LibraryPanel')
+$importPanel = $window.FindName('ImportPanel')
 $settingsPanel = $window.FindName('SettingsPanel')
 
 $refreshAppsButton = $window.FindName('RefreshAppsButton')
@@ -165,6 +168,14 @@ $browseOutputButton = $window.FindName('BrowseOutputButton')
 $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
 $clearCacheButton = $window.FindName('ClearCacheButton')
 $openCacheFolderButton = $window.FindName('OpenCacheFolderButton')
+
+$importProviderTabControl = $window.FindName('ImportProviderTabControl')
+$nerdioRefreshDefinitionsButton = $window.FindName('NerdioRefreshDefinitionsButton')
+$nerdioPreviewImportButton = $window.FindName('NerdioPreviewImportButton')
+$nerdioApplyImportButton = $window.FindName('NerdioApplyImportButton')
+$intuneRefreshCatalogButton = $window.FindName('IntuneRefreshCatalogButton')
+$intunePreviewImportButton = $window.FindName('IntunePreviewImportButton')
+$intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
 # Log row is RowDefinitions[3]; track its height for collapse/restore
 $logRowDef = $rootGrid.RowDefinitions[3]
 
@@ -392,6 +403,47 @@ $refreshQueueView = {
     $failed = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
     $total = $syncHash.DownloadQueue.Count
     $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+}
+
+$normalizeImportProvider = {
+    param([string]$Provider)
+
+    if ([string]::IsNullOrWhiteSpace($Provider)) {
+        return 'Nerdio'
+    }
+
+    switch -Regex ($Provider.Trim()) {
+        '^Nerdio(\s+Manager)?$' { return 'Nerdio' }
+        '^Intune$' { return 'Intune' }
+        '^Microsoft\s+Intune$' { return 'Intune' }
+        default { return 'Nerdio' }
+    }
+}
+
+$setImportProvider = {
+    param(
+        [string]$Provider,
+        [switch]$Persist
+    )
+
+    $resolvedProvider = & $normalizeImportProvider -Provider $Provider
+    $syncHash.ImportCurrentProvider = $resolvedProvider
+
+    if ($null -eq $syncHash.Config.ImportSettings) {
+        $syncHash.Config | Add-Member -NotePropertyName 'ImportSettings' -NotePropertyValue ([PSCustomObject]@{ CurrentProvider = $resolvedProvider }) -Force
+    }
+    else {
+        $syncHash.Config.ImportSettings.CurrentProvider = $resolvedProvider
+    }
+
+    $targetIndex = if ($resolvedProvider -eq 'Intune') { 0 } else { 1 }
+    if ($importProviderTabControl.SelectedIndex -ne $targetIndex) {
+        $importProviderTabControl.SelectedIndex = $targetIndex
+    }
+
+    if ($Persist) {
+        Set-UIConfig -Config $syncHash.Config
+    }
 }
 
 $normalizeDirectoryPath = {
@@ -788,6 +840,7 @@ $window.add_Loaded({
 
         & $refreshQueueView
         $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
+        & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
 
         switch ([string]$syncHash.Config.StartupView) {
             'Download' {
@@ -795,6 +848,9 @@ $window.add_Loaded({
             }
             'Library' {
                 $navLibrary.IsChecked = $true
+            }
+            'Import' {
+                $navImport.IsChecked = $true
             }
             'Settings' {
                 $navSettings.IsChecked = $true
@@ -825,6 +881,9 @@ $window.add_Closing({
             }
             elseif ($navLibrary.IsChecked) {
                 'Library'
+            }
+            elseif ($navImport.IsChecked) {
+                'Import'
             }
             elseif ($navSettings.IsChecked) {
                 'Settings'
@@ -859,7 +918,7 @@ $window.add_Closing({
 # Ctrl+L: toggle log panel
 # F5: refresh current active view
 $window.add_PreviewKeyDown({
-        param($sender, $e)
+    param($source, $e)
 
         $mods = [System.Windows.Input.Keyboard]::Modifiers
         $ctrl = ($mods -band [System.Windows.Input.ModifierKeys]::Control) -ne 0
@@ -873,6 +932,9 @@ $window.add_PreviewKeyDown({
             }
             elseif ($navLibrary.IsChecked) {
                 & $refreshLibraryView
+            }
+            elseif ($navImport.IsChecked) {
+                & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
             }
             $e.Handled = $true
             return
@@ -918,6 +980,7 @@ $panelMap = @{
     NavApps     = $appsPanel
     NavDownload = $downloadPanel
     NavLibrary  = $libraryPanel
+    NavImport   = $importPanel
     NavSettings = $settingsPanel
 }
 
@@ -933,7 +996,7 @@ $navCheckedHandler = {
     }
 }
 
-foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navSettings)) {
+foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navSettings)) {
     $navBtn.add_Checked($navCheckedHandler)
 }
 
@@ -954,6 +1017,43 @@ $navLibrary.add_Checked({
         if (-not [string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
             & $refreshLibraryView
         }
+    })
+
+$navImport.add_Checked({
+        & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
+    })
+
+$importProviderTabControl.add_SelectionChanged({
+        param($s, $e)
+        if ($s -ne $importProviderTabControl) { return }
+    $provider = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Intune' } else { 'Nerdio' }
+        & $setImportProvider -Provider $provider -Persist
+    $label = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Microsoft Intune Win32 Apps' } else { 'Nerdio Manager Shell Apps' }
+        Write-UILog -SyncHash $syncHash -Message "Import workflow switched to $label placeholder." -Level Info
+    })
+
+$nerdioRefreshDefinitionsButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio placeholder action: refresh definitions is not implemented yet.' -Level Info
+    })
+
+$nerdioPreviewImportButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio placeholder action: preview import is not implemented yet.' -Level Info
+    })
+
+$nerdioApplyImportButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio placeholder action: apply import is not implemented yet.' -Level Info
+    })
+
+$intuneRefreshCatalogButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: refresh catalog is not implemented yet.' -Level Info
+    })
+
+$intunePreviewImportButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: preview import is not implemented yet.' -Level Info
+    })
+
+$intuneApplyImportButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: apply import is not implemented yet.' -Level Info
     })
 
 $refreshAppsButton.add_Click({
@@ -1284,7 +1384,8 @@ $navSettings.add_Checked({
         switch ([string]$syncHash.Config.StartupView) {
             'Download' { $startupViewComboBox.SelectedIndex = 1 }
             'Library' { $startupViewComboBox.SelectedIndex = 2 }
-            'Settings' { $startupViewComboBox.SelectedIndex = 3 }
+            'Import' { $startupViewComboBox.SelectedIndex = 3 }
+            'Settings' { $startupViewComboBox.SelectedIndex = 4 }
             default { $startupViewComboBox.SelectedIndex = 0 }
         }
     })

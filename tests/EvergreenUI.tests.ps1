@@ -23,11 +23,11 @@ Describe 'Module manifest' {
         { Test-ModuleManifest -Path $manifestPath -ErrorAction Stop } | Should -Not -Throw
     }
 
-    It 'Exports only Start-EvergreenUI' {
+    It 'Exports only Start-EvergreenWorkbench' {
         $manifest = Import-PowerShellDataFile -Path (
             Join-Path $PSScriptRoot '..\EvergreenUI\EvergreenUI.psd1'
         )
-        $manifest.FunctionsToExport | Should -Be @('Start-EvergreenUI')
+        $manifest.FunctionsToExport | Should -Be @('Start-EvergreenWorkbench')
     }
 }
 
@@ -47,69 +47,98 @@ Describe 'Get-FilterableProperties' {
     }
 
     It 'Returns filterable properties excluding display-only columns' {
-        $result = Get-FilterableProperties -AppResults $edgeData
-        $result.Name | Should -Contain 'Architecture'
-        $result.Name | Should -Contain 'Channel'
-        $result.Name | Should -Contain 'Type'
-        $result.Name | Should -Not -Contain 'Version'
-        $result.Name | Should -Not -Contain 'URI'
-        $result.Name | Should -Not -Contain 'Date'
+        InModuleScope EvergreenUI {
+            $edgeData = @(
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Stable'; Architecture='x64'; Type='msi'; URI='https://example.com/edge-x64.msi'; Date='2026-03-01' }
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Stable'; Architecture='x86'; Type='msi'; URI='https://example.com/edge-x86.msi'; Date='2026-03-01' }
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Beta';   Architecture='x64'; Type='msi'; URI='https://example.com/edge-beta-x64.msi'; Date='2026-03-01' }
+            )
+            $result = Get-FilterableProperties -AppResults $edgeData
+            $result.Name | Should -Contain 'Architecture'
+            $result.Name | Should -Contain 'Channel'
+            $result.Name | Should -Contain 'Type'
+            $result.Name | Should -Not -Contain 'Version'
+            $result.Name | Should -Not -Contain 'URI'
+            $result.Name | Should -Not -Contain 'Date'
+        }
     }
 
     It 'Assigns CheckBoxStrip control type when unique value count is <= 6' {
-        $result = Get-FilterableProperties -AppResults $edgeData
-        $archProp = $result | Where-Object { $_.Name -eq 'Architecture' }
-        $archProp.ControlType | Should -Be 'CheckBoxStrip'
+        InModuleScope EvergreenUI {
+            $edgeData = @(
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Stable'; Architecture='x64'; Type='msi'; URI='https://example.com/edge-x64.msi'; Date='2026-03-01' }
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Stable'; Architecture='x86'; Type='msi'; URI='https://example.com/edge-x86.msi'; Date='2026-03-01' }
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Beta';   Architecture='x64'; Type='msi'; URI='https://example.com/edge-beta-x64.msi'; Date='2026-03-01' }
+            )
+            $result = Get-FilterableProperties -AppResults $edgeData
+            $archProp = $result | Where-Object { $_.Name -eq 'Architecture' }
+            $archProp.ControlType | Should -Be 'CheckBoxStrip'
+        }
     }
 
     It 'Returns empty array for empty input' {
-        $result = Get-FilterableProperties -AppResults @()
-        $result | Should -HaveCount 0
+        InModuleScope EvergreenUI {
+            $result = Get-FilterableProperties -AppResults @()
+            $result | Should -HaveCount 0
+        }
     }
 
     It 'Creates synthetic File type property when Type is absent but URI is present' {
-        $result = Get-FilterableProperties -AppResults $uriOnlyData
-        $synthetic = $result | Where-Object { $_.IsSynthetic -eq $true }
-        $synthetic | Should -Not -BeNullOrEmpty
-        $synthetic.DisplayName | Should -BeLike '*derived*'
+        InModuleScope EvergreenUI {
+            $uriOnlyData = @(
+                [PSCustomObject]@{ Version='1.0.0'; URI='https://example.com/app.exe' }
+                [PSCustomObject]@{ Version='1.0.0'; URI='https://example.com/app2.msi' }
+            )
+            $result = Get-FilterableProperties -AppResults $uriOnlyData
+            $synthetic = $result | Where-Object { $_.IsSynthetic -eq $true }
+            $synthetic | Should -Not -BeNullOrEmpty
+            $synthetic.DisplayName | Should -BeLike '*derived*'
+        }
     }
 }
 
 Describe 'Get-UIConfig' {
     It 'Returns a default config object when no config file exists' {
-        # Temporarily redirect APPDATA to a temp path with no config file
-        $originalAppData = $env:APPDATA
-        $env:APPDATA = Join-Path $env:TEMP 'EvergreenUI_TestNoConfig'
-        try {
-            $config = Get-UIConfig
-            $config.Theme        | Should -Be 'Light'
-            $config.LogVerbosity | Should -Be 'Normal'
-            $config.LogHeight    | Should -Be 150
-        }
-        finally {
-            $env:APPDATA = $originalAppData
+        InModuleScope EvergreenUI {
+            # Temporarily redirect APPDATA to a temp path with no config file
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = Join-Path $env:TEMP 'EvergreenUI_TestNoConfig'
+            try {
+                $config = Get-UIConfig
+                $config.Theme        | Should -Be 'Light'
+                $config.LogVerbosity | Should -Be 'Normal'
+                $config.LogHeight    | Should -Be 150
+                $config.ImportSettings.CurrentProvider | Should -Be 'Nerdio'
+            }
+            finally {
+                $env:APPDATA = $originalAppData
+            }
         }
     }
 }
 
 Describe 'Set-UIConfig and Get-UIConfig round-trip' {
     It 'Persists and retrieves config values correctly' {
-        $tempAppData = Join-Path $env:TEMP "EvergreenUI_TestRoundTrip_$(Get-Random)"
-        $originalAppData = $env:APPDATA
-        $env:APPDATA = $tempAppData
-        try {
-            $config = Get-UIConfig
-            $config.Theme = 'Dark'
-            $config.OutputPath = 'C:\TestOutput'
-            Set-UIConfig -Config $config
+        InModuleScope EvergreenUI {
+            $tempAppData = Join-Path $env:TEMP "EvergreenUI_TestRoundTrip_$(Get-Random)"
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = $tempAppData
+            try {
+                $config = Get-UIConfig
+                $config.Theme = 'Dark'
+                $config.OutputPath = 'C:\TestOutput'
+                $config.ImportSettings.CurrentProvider = 'Intune'
+                Set-UIConfig -Config $config
 
-            $loaded = Get-UIConfig
-            $loaded.Theme      | Should -Be 'Dark'
-            $loaded.OutputPath | Should -Be 'C:\TestOutput'
-        }
-        finally {
-            $env:APPDATA = $originalAppData
-            Remove-Item -Path $tempAppData -Recurse -Force -ErrorAction SilentlyContinue
+                $loaded = Get-UIConfig
+                $loaded.Theme      | Should -Be 'Dark'
+                $loaded.OutputPath | Should -Be 'C:\TestOutput'
+                $loaded.ImportSettings.CurrentProvider | Should -Be 'Intune'
+            }
+            finally {
+                $env:APPDATA = $originalAppData
+                Remove-Item -Path $tempAppData -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
     }
 }

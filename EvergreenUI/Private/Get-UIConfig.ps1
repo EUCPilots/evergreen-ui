@@ -41,6 +41,9 @@ function Get-UIConfig {
         LastAppName  = ''
         WindowWidth  = 1200
         WindowHeight = 750
+        ImportSettings = [PSCustomObject]@{
+            CurrentProvider = 'Nerdio'
+        }
     }
 
     $configPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI\settings.json'
@@ -59,6 +62,14 @@ function Get-UIConfig {
                 $json | Add-Member -NotePropertyName $prop -NotePropertyValue $default.$prop -Force
             }
         }
+
+        if ($null -eq $json.ImportSettings) {
+            $json | Add-Member -NotePropertyName 'ImportSettings' -NotePropertyValue $default.ImportSettings -Force
+        }
+        elseif ($null -eq $json.ImportSettings.CurrentProvider -or [string]::IsNullOrWhiteSpace([string]$json.ImportSettings.CurrentProvider)) {
+            $json.ImportSettings | Add-Member -NotePropertyName 'CurrentProvider' -NotePropertyValue 'Nerdio' -Force
+        }
+
         return $json
     }
     catch {

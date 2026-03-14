@@ -367,6 +367,89 @@
             <Setter Property="Margin"            Value="0,0,5,0"/>
         </Style>
 
+        <!-- ── FluentTabControl / FluentTabItem - underline pivot style ── -->
+        <Style x:Key="FluentTabControl" TargetType="TabControl">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="0,0,0,1">
+                                <TabPanel x:Name="HeaderPanel"
+                                          IsItemsHost="True"
+                                          Background="Transparent"
+                                          KeyboardNavigation.TabIndex="1"/>
+                            </Border>
+                            <ContentPresenter Grid.Row="1"
+                                              x:Name="PART_SelectedContentHost"
+                                              Margin="0,14,0,0"
+                                                 HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Stretch"
+                                              ContentSource="SelectedContent"
+                                              KeyboardNavigation.TabIndex="2"
+                                              KeyboardNavigation.DirectionalNavigation="Contained"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FluentTabItem" TargetType="TabItem">
+            <Setter Property="Background"               Value="Transparent"/>
+            <Setter Property="Foreground"               Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="BorderThickness"          Value="0"/>
+            <Setter Property="Cursor"                   Value="Hand"/>
+            <Setter Property="FontSize"                 Value="13"/>
+            <Setter Property="MinWidth"                 Value="160"/>
+            <Setter Property="MinHeight"                Value="44"/>
+            <Setter Property="Margin"                   Value="0,0,4,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="Transparent" Padding="16,10,16,10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="2"/>
+                                </Grid.RowDefinitions>
+                                <ContentPresenter Grid.Row="0"
+                                                  ContentSource="Header"
+                                                  Margin="0"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  SnapsToDevicePixels="True"/>
+                                <Border x:Name="underline"
+                                        Grid.Row="1"
+                                        Background="Transparent"
+                                        CornerRadius="1"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground"
+                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="underline" Property="Background"
+                                        Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ScrollBar helper: transparent repeat button -->
         <Style x:Key="ScrollBarFlatRepeatButton" TargetType="RepeatButton">
             <Setter Property="OverridesDefaultStyle" Value="True"/>
@@ -518,6 +601,9 @@
                              Style="{StaticResource NavRailRadioButton}"/>
                 <RadioButton x:Name="NavLibrary"
                              Content="Library"
+                             Style="{StaticResource NavRailRadioButton}"/>
+                <RadioButton x:Name="NavImport"
+                             Content="Import"
                              Style="{StaticResource NavRailRadioButton}"/>
                 <Rectangle Height="1"
                            Fill="{DynamicResource ControlBorderBrush}"
@@ -1126,6 +1212,147 @@
                 </Grid>
             </Grid>
 
+            <!-- Import view -->
+            <Grid x:Name="ImportPanel"
+                  Visibility="Collapsed"
+                  Background="{DynamicResource WindowBackgroundBrush}">
+                <Grid Margin="22,18,22,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <TextBlock Text="Import"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   DockPanel.Dock="Left"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <TabControl Grid.Row="1"
+                                x:Name="ImportProviderTabControl"
+                                Style="{StaticResource FluentTabControl}">
+
+                        <TabItem Header="Microsoft Intune Win32 Apps"
+                                 Style="{StaticResource FluentTabItem}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="8"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                <TextBlock Text="Microsoft Intune Win32 Apps"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="15"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   Margin="0,0,0,6"/>
+                                <TextBlock Text="Placeholder workflow for importing Win32 applications into Microsoft Intune."
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <StackPanel Grid.Row="1"
+                                            Orientation="Horizontal"
+                                            Margin="0,0,0,12">
+                                <Button x:Name="IntuneRefreshCatalogButton"
+                                    Content="Refresh catalog"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="0,0,8,0"/>
+                                <Button x:Name="IntunePreviewImportButton"
+                                            Content="Preview import"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="0,0,8,0"/>
+                                <Button x:Name="IntuneApplyImportButton"
+                                            Content="Apply import"
+                                            Style="{StaticResource FluentButton}"/>
+                                </StackPanel>
+
+                                <Border Grid.Row="2"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="8"
+                                        Padding="12">
+                                <TextBlock Text="Intune workflow status and results will be shown here in a later implementation phase."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Nerdio Manager Shell Apps"
+                                 Style="{StaticResource FluentTabItem}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="8"
+                                        Padding="12"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                <TextBlock Text="Nerdio Manager Shell Apps"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="15"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   Margin="0,0,0,6"/>
+                                <TextBlock Text="Placeholder workflow for importing shell applications into Nerdio Manager."
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <StackPanel Grid.Row="1"
+                                            Orientation="Horizontal"
+                                            Margin="0,0,0,12">
+                                <Button x:Name="NerdioRefreshDefinitionsButton"
+                                    Content="Refresh definitions"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="0,0,8,0"/>
+                                <Button x:Name="NerdioPreviewImportButton"
+                                            Content="Preview import"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="0,0,8,0"/>
+                                <Button x:Name="NerdioApplyImportButton"
+                                            Content="Apply import"
+                                            Style="{StaticResource FluentButton}"/>
+                                </StackPanel>
+
+                                <Border Grid.Row="2"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="8"
+                                        Padding="12">
+                                <TextBlock Text="Nerdio workflow status and results will be shown here in a later implementation phase."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+
+                    </TabControl>
+                </Grid>
+            </Grid>
+
             <!-- Settings view -->
             <Grid x:Name="SettingsPanel"
                   Visibility="Collapsed"
@@ -1222,6 +1449,7 @@
                                     <ComboBoxItem Content="Apps"/>
                                     <ComboBoxItem Content="Download"/>
                                     <ComboBoxItem Content="Library"/>
+                                    <ComboBoxItem Content="Import"/>
                                     <ComboBoxItem Content="Settings"/>
                                 </ComboBox>
 
