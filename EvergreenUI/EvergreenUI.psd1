@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.0.3'
+    ModuleVersion     = '1.0.4'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker'
     CompanyName       = 'EUC Pilots'
@@ -53,7 +53,7 @@
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Initial pre-release. UI updates and all existing functionality is now working.'
+            ReleaseNotes = 'Pre-release version. Now named Evergreen Workbench UI. All existing functionality are now working.'
             Prerelease   = 'beta'
         }
     }
