@@ -157,12 +157,10 @@ $saveLogButton = $window.FindName('SaveLogButton')
 $logToggleButton = $window.FindName('LogToggleButton')
 
 $outputPathBox = $window.FindName('OutputPathBox')
-$libraryPathBox = $window.FindName('LibraryPathBox')
 $evergreenAppsPathBox = $window.FindName('EvergreenAppsPathBox')
 $logVerbosityComboBox = $window.FindName('LogVerbosityComboBox')
 $startupViewComboBox = $window.FindName('StartupViewComboBox')
 $browseOutputButton = $window.FindName('BrowseOutputButton')
-$browseLibraryButton = $window.FindName('BrowseLibraryButton')
 $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
 $clearCacheButton = $window.FindName('ClearCacheButton')
 $openCacheFolderButton = $window.FindName('OpenCacheFolderButton')
@@ -641,7 +639,23 @@ $loadLibraryAppDetails = {
         return
     }
 
-    $syncHash.LibraryDetailsListView.ItemsSource = @($versions)
+    $versionArray = @($versions)
+
+    # Build columns dynamically from the first item's properties, Version always first
+    $gridView = [System.Windows.Controls.GridView]::new()
+    if ($versionArray.Count -gt 0) {
+        $allProps = $versionArray[0].PSObject.Properties.Name
+        $orderedProps = @('Version') + ($allProps | Where-Object { $_ -ne 'Version' })
+        foreach ($prop in $orderedProps) {
+            $col = [System.Windows.Controls.GridViewColumn]::new()
+            $col.Header = $prop
+            $col.DisplayMemberBinding = [System.Windows.Data.Binding]::new($prop)
+            $col.Width = if ($prop -match 'URI|Url|Path') { 400 } elseif ($prop -eq 'Version') { 130 } else { 110 }
+            $gridView.Columns.Add($col)
+        }
+    }
+    $syncHash.LibraryDetailsListView.View = $gridView
+    $syncHash.LibraryDetailsListView.ItemsSource = $versionArray
     $syncHash.LibraryStatusLabel.Text = "Details loaded for $appName."
 }
 
@@ -915,6 +929,9 @@ $navLibrary.add_Checked({
         if ([string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
             $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
         }
+        if (-not [string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
+            & $refreshLibraryView
+        }
     })
 
 $refreshAppsButton.add_Click({
@@ -1126,7 +1143,6 @@ $libraryPathViewBox.add_LostFocus({
         $normalised = & $normalizeDirectoryPath -PathValue $libraryPathViewBox.Text
         $libraryPathViewBox.Text = $normalised
         $syncHash.Config.LibraryPath = $normalised
-        $libraryPathBox.Text = $normalised
         Set-UIConfig -Config $syncHash.Config
     })
 
@@ -1153,7 +1169,6 @@ $startupViewComboBox.add_SelectionChanged({
 # ── Navigation: Settings panel - populate form on activation ─────────────────
 $navSettings.add_Checked({
         $outputPathBox.Text = $syncHash.Config.OutputPath
-        $libraryPathBox.Text = $syncHash.Config.LibraryPath
         $evergreenAppsPathBox.Text = (Get-EvergreenAppsPath)
 
         $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
@@ -1236,21 +1251,6 @@ $browseOutputButton.add_Click({
         }
     })
 
-# ── Settings: Library path - Browse ──────────────────────────────────────────
-$browseLibraryButton.add_Click({
-        $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
-        $dlg.Description = 'Select Evergreen library folder'
-        $dlg.SelectedPath = $libraryPathBox.Text
-        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-            $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
-            $libraryPathBox.Text = $normalised
-            $libraryPathViewBox.Text = $normalised
-            $syncHash.Config.LibraryPath = $normalised
-            Set-UIConfig -Config $syncHash.Config
-            & $refreshLibraryView
-        }
-    })
-
 # ── Settings: Open cache folder ─────────────────────────────────────────
 $openEvergreenAppsFolderButton.add_Click({
         $folderPath = $evergreenAppsPathBox.Text
@@ -1294,13 +1294,6 @@ $outputPathBox.add_LostFocus({
         $normalised = & $normalizeDirectoryPath -PathValue $outputPathBox.Text
         $outputPathBox.Text = $normalised
         $syncHash.Config.OutputPath = $normalised
-        Set-UIConfig -Config $syncHash.Config
-    })
-$libraryPathBox.add_LostFocus({
-        $normalised = & $normalizeDirectoryPath -PathValue $libraryPathBox.Text
-        $libraryPathBox.Text = $normalised
-        $syncHash.Config.LibraryPath = $normalised
-        $libraryPathViewBox.Text = $normalised
         Set-UIConfig -Config $syncHash.Config
     })
 

@@ -956,7 +956,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
@@ -1110,13 +1110,7 @@
                                     </Style>
                                 </ListView.Resources>
                                 <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="130"/>
-                                        <GridViewColumn Header="Type"         DisplayMemberBinding="{Binding Type}"          Width="90"/>
-                                        <GridViewColumn Header="Channel"      DisplayMemberBinding="{Binding Channel}"       Width="110"/>
-                                        <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
-                                        <GridViewColumn Header="Uri"          DisplayMemberBinding="{Binding URI}"           Width="630"/>
-                                    </GridView>
+                                    <GridView/>
                                 </ListView.View>
                             </ListView>
                         </DockPanel>
@@ -1149,21 +1143,6 @@
                                     Style="{StaticResource FluentSecondaryButton}"
                                     Margin="8,0,0,0"/>
                             <TextBox x:Name="OutputPathBox"
-                                     Style="{StaticResource FluentTextBox}"/>
-                        </DockPanel>
-
-                        <!-- Evergreen library path -->
-                        <TextBlock Text="Evergreen library path"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,0,0,4"/>
-                        <DockPanel Margin="0,0,0,24">
-                            <Button x:Name="BrowseLibraryButton"
-                                    Content="Browse..."
-                                    DockPanel.Dock="Right"
-                                    Style="{StaticResource FluentSecondaryButton}"
-                                    Margin="8,0,0,0"/>
-                            <TextBox x:Name="LibraryPathBox"
                                      Style="{StaticResource FluentTextBox}"/>
                         </DockPanel>
 
