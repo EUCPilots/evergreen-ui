@@ -23,7 +23,8 @@ function Set-LightTheme {
         [Parameter(Mandatory)]
         [System.Windows.Window]$Window,
 
-        [Parameter(Mandatory)]
+        [Parameter()]
+        [AllowNull()]
         [System.Windows.Controls.TextBlock]$ThemeLabelTextBlock
     )
 
@@ -51,7 +52,9 @@ function Set-LightTheme {
     $res['SecondaryButtonBorderBrush']     = NewBrush 154 173 170   # #9AADAA - visible mid-tone border
 
     $Window.Background = $res['WindowBackgroundBrush']
-    $ThemeLabelTextBlock.Text = 'Light theme'
+    if ($null -ne $ThemeLabelTextBlock) {
+        $ThemeLabelTextBlock.Text = 'Light theme'
+    }
 
     # Colour the native OS title bar to match AccentBrush #009485 (R=0 G=148 B=133)
     # COLORREF byte order is 0x00BBGGRR → 0x00859400

@@ -1186,6 +1186,19 @@
                             <ComboBoxItem Content="Verbose"/>
                         </ComboBox>
 
+                        <!-- Theme -->
+                        <TextBlock Text="Theme"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,0,0,4"/>
+                        <ComboBox x:Name="ThemeComboBox"
+                                  Style="{StaticResource FluentComboBox}"
+                                  Margin="0,0,0,16"
+                                  Height="32">
+                            <ComboBoxItem Content="Light"/>
+                            <ComboBoxItem Content="Dark"/>
+                        </ComboBox>
+
                         <!-- Startup view -->
                         <TextBlock Text="Startup view"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
@@ -1249,48 +1262,6 @@
                     Height="40"
                     Background="{DynamicResource WindowBackgroundBrush}">
                 <DockPanel LastChildFill="False" Margin="12,4">
-
-                    <!-- Theme toggle (left) -->
-                    <StackPanel Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                DockPanel.Dock="Left">
-                        <ToggleButton x:Name="ThemeToggle"
-                                      Width="34" Height="18"
-                                      Cursor="Hand"
-                                      ToolTip="Toggle dark / light theme"
-                                      Focusable="False">
-                            <ToggleButton.Template>
-                                <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="track"
-                                            CornerRadius="9"
-                                            Background="{DynamicResource ControlBorderBrush}"
-                                            Width="34" Height="18">
-                                        <Ellipse x:Name="thumb"
-                                                 Width="12" Height="12"
-                                                 Fill="{DynamicResource AccentBrush}"
-                                                 HorizontalAlignment="Left"
-                                                 Margin="3,0"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter TargetName="track" Property="Background"
-                                                    Value="{DynamicResource AccentBrush}"/>
-                                            <Setter TargetName="thumb" Property="Fill"
-                                                    Value="{DynamicResource ToggleThumbBrush}"/>
-                                            <Setter TargetName="thumb" Property="HorizontalAlignment"
-                                                    Value="Right"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </ToggleButton.Template>
-                        </ToggleButton>
-                        <TextBlock x:Name="ThemeLabel"
-                                   Text="Light theme"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   VerticalAlignment="Center"
-                                   Margin="7,0,0,0"
-                                   FontSize="12"/>
-                    </StackPanel>
 
                     <!-- Log controls (right) -->
                     <StackPanel Orientation="Horizontal"

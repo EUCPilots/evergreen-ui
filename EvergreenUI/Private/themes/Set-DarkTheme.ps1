@@ -23,7 +23,8 @@ function Set-DarkTheme {
         [Parameter(Mandatory)]
         [System.Windows.Window]$Window,
 
-        [Parameter(Mandatory)]
+        [Parameter()]
+        [AllowNull()]
         [System.Windows.Controls.TextBlock]$ThemeLabelTextBlock
     )
 
@@ -50,7 +51,9 @@ function Set-DarkTheme {
     $res['SecondaryButtonBorderBrush']     = NewBrush  90 123 119   # #5A7B77 - visible mid-tone border
 
     $Window.Background = $res['WindowBackgroundBrush']
-    $ThemeLabelTextBlock.Text = 'Dark theme'
+    if ($null -ne $ThemeLabelTextBlock) {
+        $ThemeLabelTextBlock.Text = 'Dark theme'
+    }
 
     # Colour the native OS title bar to match AccentBrush #4DB8AD (R=77 G=184 B=173)
     # COLORREF byte order is 0x00BBGGRR → 0x00ADB84D

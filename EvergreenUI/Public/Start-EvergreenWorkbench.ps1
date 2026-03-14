@@ -104,8 +104,7 @@ $syncHash.LogScrollViewer = $window.FindName('LogScrollViewer')
 $rootGrid = $window.FindName('RootGrid')
 $evergreenVersionText = $window.FindName('EvergreenVersionText')
 $evergreenStatusDot = $window.FindName('EvergreenStatusDot')
-$themeToggle = $window.FindName('ThemeToggle')
-$themeLabel = $window.FindName('ThemeLabel')
+$themeComboBox = $window.FindName('ThemeComboBox')
 
 $navApps = $window.FindName('NavApps')
 $navDownload = $window.FindName('NavDownload')
@@ -739,12 +738,12 @@ $logRowDef.Height = [System.Windows.GridLength]::new($initialLogHeight)
 $window.add_Loaded({
         # Apply saved theme (before any logging so colours are correct)
         if ($syncHash.Config.Theme -eq 'Dark') {
-            $themeToggle.IsChecked = $true
-            Set-DarkTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
+            $themeComboBox.SelectedIndex = 1
+            Set-DarkTheme -Window $syncHash.Window
         }
         else {
-            $themeToggle.IsChecked = $false
-            Set-LightTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
+            $themeComboBox.SelectedIndex = 0
+            Set-LightTheme -Window $syncHash.Window
         }
 
         # Populate Evergreen version info in title bar
@@ -803,7 +802,7 @@ $window.add_Closing({
             if ($currentLogHeight -gt 0) {
                 $syncHash.Config.LogHeight = $currentLogHeight
             }
-            $syncHash.Config.Theme = if ($themeToggle.IsChecked) { 'Dark' } else { 'Light' }
+            $syncHash.Config.Theme = if ($themeComboBox.SelectedIndex -eq 1) { 'Dark' } else { 'Light' }
             $syncHash.Config.WindowWidth = [int]$window.Width
             $syncHash.Config.WindowHeight = [int]$window.Height
             $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
@@ -1230,6 +1229,22 @@ $logVerbosityComboBox.add_SelectionChanged({
         Set-UIConfig -Config $syncHash.Config
     })
 
+$themeComboBox.add_SelectionChanged({
+        $item = $themeComboBox.SelectedItem
+        if ($null -eq $item) { return }
+
+        if ([string]$item.Content -eq 'Dark') {
+            Set-DarkTheme -Window $syncHash.Window
+            $syncHash.Config.Theme = 'Dark'
+        }
+        else {
+            Set-LightTheme -Window $syncHash.Window
+            $syncHash.Config.Theme = 'Light'
+        }
+
+        Set-UIConfig -Config $syncHash.Config
+    })
+
 $startupViewComboBox.add_SelectionChanged({
         $item = $startupViewComboBox.SelectedItem
         if ($null -eq $item) { return }
@@ -1251,25 +1266,14 @@ $navSettings.add_Checked({
         $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
         $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
 
+        $themeComboBox.SelectedIndex = if ([string]$syncHash.Config.Theme -eq 'Dark') { 1 } else { 0 }
+
         switch ([string]$syncHash.Config.StartupView) {
             'Download' { $startupViewComboBox.SelectedIndex = 1 }
             'Library' { $startupViewComboBox.SelectedIndex = 2 }
             'Settings' { $startupViewComboBox.SelectedIndex = 3 }
             default { $startupViewComboBox.SelectedIndex = 0 }
         }
-    })
-
-# Theme toggle
-$themeToggle.add_Click({
-        if ($themeToggle.IsChecked) {
-            Set-DarkTheme  -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
-        }
-        else {
-            Set-LightTheme -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
-        }
-
-        $syncHash.Config.Theme = if ($themeToggle.IsChecked) { 'Dark' } else { 'Light' }
-        Set-UIConfig -Config $syncHash.Config
     })
 
 # Log panel collapse / expand
