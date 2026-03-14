@@ -31,7 +31,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-# ── STA guard (PowerShell 7+ may start MTA) ──────────────────────────────────
+# STA guard (PowerShell 7+ may start MTA)
 if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
     Write-Verbose 'Current thread is MTA - restarting on an STA thread.'
     $sta = [powershell]::Create()
@@ -47,19 +47,19 @@ if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
     return
 }
 
-# ── Dependency check ─────────────────────────────────────────────────────────
+# Dependency check
 Test-EvergreenModule
 
-# ── Load WPF assemblies ───────────────────────────────────────────────────────
+# Load WPF assemblies
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Windows.Forms
 
-# ── Load saved config ────────────────────────────────────────────────────────
+# Load saved config
 $config = Get-UIConfig
 
-# ── Shared state ─────────────────────────────────────────────────────────────
+# Shared state
 $syncHash = [hashtable]::Synchronized(@{
         Window                     = $null
         LogTextBox                 = $null
@@ -90,13 +90,13 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingLoadAppName         = $null
     })
 
-# ── Load XAML layout ────────────────────────────────────────────────────────
-$xamlPath = Join-Path $PSScriptRoot ".." "Resources" "EvergreenUI.xaml"
-$stream   = [System.IO.File]::OpenRead((Resolve-Path $xamlPath).Path)
+# Load XAML layout
+$xamlPath = Join-Path -Path (Join-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath "..") -ChildPath "Resources") -ChildPath "EvergreenUI.xaml"
+$stream   = [System.IO.File]::OpenRead((Resolve-Path -Path $xamlPath).Path)
 $window   = [System.Windows.Markup.XamlReader]::Load($stream)
 $stream.Dispose()
 
-# ── Resolve named controls ────────────────────────────────────────────────────
+# Resolve named controls
 $syncHash.Window = $window
 $syncHash.LogTextBox = $window.FindName('LogTextBox')
 $syncHash.LogScrollViewer = $window.FindName('LogScrollViewer')
@@ -173,7 +173,7 @@ $logRowDef = $rootGrid.RowDefinitions[3]
 $window.Width = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
 $window.Height = [Math]::Max(600, [double]$syncHash.Config.WindowHeight)
 
-# ── Apps view helpers ───────────────────────────────────────────────────────
+# Apps view helpers
 $updateAppsComboSource = {
     param([string]$SearchText = '')
 
@@ -723,11 +723,11 @@ $startLibraryUpdate = {
     & $registerBackgroundOperation -Name 'LibraryUpdate' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
 }
 
-# ── Apply initial log height from config ──────────────────────────────────────
+# Apply initial log height from config
 $initialLogHeight = [Math]::Max(40, 40 + $config.LogHeight)
 $logRowDef.Height = [System.Windows.GridLength]::new($initialLogHeight)
 
-# ── Event: Window.Loaded ─────────────────────────────────────────────────────
+# Event: Window.Loaded
 $window.add_Loaded({
         # Apply saved theme (before any logging so colours are correct)
         if ($syncHash.Config.Theme -eq 'Dark') {
@@ -788,7 +788,7 @@ $window.add_Loaded({
         }
     })
 
-# ── Event: Window.Closing - persist config ────────────────────────────────────
+# Event: Window.Closing - persist config
 $window.add_Closing({
         try {
             $currentLogHeight = [int]$logRowDef.Height.Value - 40
@@ -831,7 +831,7 @@ $window.add_Closing({
         }
     })
 
-# ── Keyboard shortcuts (Phase 8 polish) ─────────────────────────────────────
+# Keyboard shortcuts (Phase 8 polish)
 # Ctrl+F: focus app search
 # Ctrl+,: open settings
 # Ctrl+D: start queue download (when Download view active)
@@ -893,7 +893,7 @@ $window.add_PreviewKeyDown({
         }
     })
 
-# ── Navigation: Checked handler swaps content panels ─────────────────────────
+# Navigation: Checked handler swaps content panels
 $panelMap = @{
     NavApps     = $appsPanel
     NavDownload = $downloadPanel
@@ -1219,7 +1219,7 @@ $startupViewComboBox.add_SelectionChanged({
         Set-UIConfig -Config $syncHash.Config
     })
 
-# ── Navigation: Settings panel - populate form on activation ─────────────────
+# Navigation: Settings panel - populate form on activation
 $navSettings.add_Checked({
         $outputPathBox.Text = $syncHash.Config.OutputPath
         $evergreenAppsPathBox.Text = (Get-EvergreenAppsPath)
@@ -1235,7 +1235,7 @@ $navSettings.add_Checked({
         }
     })
 
-# ── Theme toggle ──────────────────────────────────────────────────────────────
+# Theme toggle
 $themeToggle.add_Click({
         if ($themeToggle.IsChecked) {
             Set-DarkTheme  -Window $syncHash.Window -ThemeLabelTextBlock $themeLabel
@@ -1248,7 +1248,7 @@ $themeToggle.add_Click({
         Set-UIConfig -Config $syncHash.Config
     })
 
-# ── Log panel collapse / expand ───────────────────────────────────────────────
+# Log panel collapse / expand
 # When expanded, the log area height (above the 32px status bar) is restored
 # from config; when collapsed, row 3 drops to exactly the status bar height.
 $logToggleButton.add_Click({
@@ -1266,7 +1266,7 @@ $logToggleButton.add_Click({
         }
     })
 
-# ── Copy log ──────────────────────────────────────────────────────────────────
+# Copy log
 $copyLogButton.add_Click({
         if (-not [string]::IsNullOrEmpty($syncHash.LogTextBox.Text)) {
             [System.Windows.Clipboard]::SetText($syncHash.LogTextBox.Text)
@@ -1274,7 +1274,7 @@ $copyLogButton.add_Click({
         }
     })
 
-# ── Save log ──────────────────────────────────────────────────────────────────
+# Save log
 $saveLogButton.add_Click({
         $dlg = [System.Windows.Forms.SaveFileDialog]::new()
         $dlg.Filter = 'Text files (*.txt)|*.txt|All files (*.*)|*.*'
@@ -1291,7 +1291,7 @@ $saveLogButton.add_Click({
         }
     })
 
-# ── Settings: Output path - Browse ───────────────────────────────────────────
+# Settings: Output path - Browse
 $browseOutputButton.add_Click({
         $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
         $dlg.Description = 'Select download output folder'
@@ -1304,7 +1304,7 @@ $browseOutputButton.add_Click({
         }
     })
 
-# ── Settings: Open cache folder ─────────────────────────────────────────
+# Settings: Open cache folder
 $openEvergreenAppsFolderButton.add_Click({
         $folderPath = $evergreenAppsPathBox.Text
         if ([string]::IsNullOrWhiteSpace($folderPath)) { return }
@@ -1314,7 +1314,7 @@ $openEvergreenAppsFolderButton.add_Click({
         Start-Process -FilePath 'explorer.exe' -ArgumentList $folderPath | Out-Null
     })
 
-# ── Settings: Open cache folder ─────────────────────────────────────────
+# Settings: Open cache folder
 $openCacheFolderButton.add_Click({
         $cacheDir = Join-Path $env:APPDATA 'EvergreenUI\cache'
         if (-not (Test-Path -LiteralPath $cacheDir)) {
@@ -1323,7 +1323,7 @@ $openCacheFolderButton.add_Click({
         Start-Process -FilePath 'explorer.exe' -ArgumentList $cacheDir | Out-Null
     })
 
-# ── Settings: Clear cache ────────────────────────────────────────────────────
+# Settings: Clear cache
 $clearCacheButton.add_Click({
         $cacheDir = Join-Path $env:APPDATA 'EvergreenUI\cache'
         if (Test-Path -LiteralPath $cacheDir) {
@@ -1342,7 +1342,7 @@ $clearCacheButton.add_Click({
         }
     })
 
-# ── Settings: persist path edits on focus-leave ───────────────────────────────
+# Settings: persist path edits on focus-leave
 $outputPathBox.add_LostFocus({
         $normalised = & $normalizeDirectoryPath -PathValue $outputPathBox.Text
         $outputPathBox.Text = $normalised
@@ -1350,5 +1350,5 @@ $outputPathBox.add_LostFocus({
         Set-UIConfig -Config $syncHash.Config
     })
 
-# ── Show window (blocking) ────────────────────────────────────────────────────
+# Show window (blocking)
 [void]$window.ShowDialog()
