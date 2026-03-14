@@ -158,11 +158,12 @@ $logToggleButton = $window.FindName('LogToggleButton')
 
 $outputPathBox = $window.FindName('OutputPathBox')
 $libraryPathBox = $window.FindName('LibraryPathBox')
-$logVerbosityToggle = $window.FindName('LogVerbosityToggle')
-$logVerbosityLabel  = $window.FindName('LogVerbosityLabel')
+$evergreenAppsPathBox = $window.FindName('EvergreenAppsPathBox')
+$logVerbosityComboBox = $window.FindName('LogVerbosityComboBox')
 $startupViewComboBox = $window.FindName('StartupViewComboBox')
 $browseOutputButton = $window.FindName('BrowseOutputButton')
 $browseLibraryButton = $window.FindName('BrowseLibraryButton')
+$openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
 $clearCacheButton = $window.FindName('ClearCacheButton')
 $openCacheFolderButton = $window.FindName('OpenCacheFolderButton')
 # Log row is RowDefinitions[3]; track its height for collapse/restore
@@ -517,6 +518,13 @@ $startQueueDownload = {
                 Write-UILog -SyncHash $syncHash -Message "Queue download run failed: $_" -Level Error
             }
             finally {
+                # Pre-compute counts on the background thread before dispatching.
+                $pendingCount = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
+                $doneCount    = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+                $failedCount  = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+                $totalCount   = $syncHash.DownloadQueue.Count
+                $finalQueueText = "Queue: $totalCount items (Pending: $pendingCount, Done: $doneCount, Failed: $failedCount)"
+
                 $syncHash.Window.Dispatcher.Invoke([action] {
                         $syncHash.IsRunning = $false
                         if ($null -ne $syncHash.DownloadAllButton) {
@@ -526,11 +534,7 @@ $startQueueDownload = {
                             $syncHash.DownloadQueueListView.Items.Refresh()
                         }
                         if ($null -ne $syncHash.QueueCountLabel) {
-                            $pending = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
-                            $done = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
-                            $failed = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
-                            $total = $syncHash.DownloadQueue.Count
-                            $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+                            $syncHash.QueueCountLabel.Text = $finalQueueText
                         }
                     }, 'Normal')
             }
@@ -588,21 +592,13 @@ $refreshLibraryView = {
                 & $getLibraryItemName -Item $entry
             }
             $versions = if ($entry.PSObject.Properties.Name -contains 'Versions') { $entry.Versions } else { $null }
-            $version  = if ($null -ne $versions -and $versions.PSObject.Properties.Name -contains 'Version') {
-                [string]$versions.Version
-            } else { '' }
-            $arch = if ($null -ne $versions -and $versions.PSObject.Properties.Name -contains 'Architecture') {
-                [string]$versions.Architecture
-            } else { '' }
-            $itemPath = if ($null -ne $versions -and $versions.PSObject.Properties.Name -contains 'Path') {
-                [string]$versions.Path
-            } else { '' }
+            $versionCount = if ($null -ne $versions) { @($versions).Count } else { 0 }
+            $appPath = Join-Path -Path $path -ChildPath $appName
 
             $items += [PSCustomObject]@{
                 Name         = $appName
-                Version      = $version
-                Architecture = $arch
-                Path         = $itemPath
+                VersionCount = $versionCount
+                Path         = $appPath
                 SourceItem   = $entry
             }
         }
@@ -1134,10 +1130,10 @@ $libraryPathViewBox.add_LostFocus({
         Set-UIConfig -Config $syncHash.Config
     })
 
-$logVerbosityToggle.add_Click({
-        $verbosity = if ($logVerbosityToggle.IsChecked) { 'Verbose' } else { 'Normal' }
-        $logVerbosityLabel.Text = $verbosity
-        $syncHash.Config.LogVerbosity = $verbosity
+$logVerbosityComboBox.add_SelectionChanged({
+        $item = $logVerbosityComboBox.SelectedItem
+        if ($null -eq $item) { return }
+        $syncHash.Config.LogVerbosity = [string]$item.Content
         Set-UIConfig -Config $syncHash.Config
     })
 
@@ -1158,10 +1154,10 @@ $startupViewComboBox.add_SelectionChanged({
 $navSettings.add_Checked({
         $outputPathBox.Text = $syncHash.Config.OutputPath
         $libraryPathBox.Text = $syncHash.Config.LibraryPath
+        $evergreenAppsPathBox.Text = (Get-EvergreenAppsPath)
 
         $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
-        $logVerbosityToggle.IsChecked = ($desiredVerbosity -eq 'Verbose')
-        $logVerbosityLabel.Text = if ($desiredVerbosity -eq 'Verbose') { 'Verbose' } else { 'Normal' }
+        $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
 
         switch ([string]$syncHash.Config.StartupView) {
             'Download' { $startupViewComboBox.SelectedIndex = 1 }
@@ -1253,6 +1249,16 @@ $browseLibraryButton.add_Click({
             Set-UIConfig -Config $syncHash.Config
             & $refreshLibraryView
         }
+    })
+
+# ── Settings: Open cache folder ─────────────────────────────────────────
+$openEvergreenAppsFolderButton.add_Click({
+        $folderPath = $evergreenAppsPathBox.Text
+        if ([string]::IsNullOrWhiteSpace($folderPath)) { return }
+        if (-not (Test-Path -LiteralPath $folderPath)) {
+            $null = New-Item -ItemType Directory -Path $folderPath -Force
+        }
+        Start-Process -FilePath 'explorer.exe' -ArgumentList $folderPath | Out-Null
     })
 
 # ── Settings: Open cache folder ─────────────────────────────────────────

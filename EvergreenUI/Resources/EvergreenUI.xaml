@@ -1063,10 +1063,9 @@
                                 </ListView.Resources>
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="App"          DisplayMemberBinding="{Binding Name}"         Width="220"/>
-                                        <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="140"/>
-                                        <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="100"/>
-                                        <GridViewColumn Header="Path"         DisplayMemberBinding="{Binding Path}"          Width="590"/>
+                                        <GridViewColumn Header="App"      DisplayMemberBinding="{Binding Name}"          Width="220"/>
+                                        <GridViewColumn Header="Versions" DisplayMemberBinding="{Binding VersionCount}"  Width="80"/>
+                                        <GridViewColumn Header="Path"     DisplayMemberBinding="{Binding Path}"          Width="750"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
@@ -1168,49 +1167,37 @@
                                      Style="{StaticResource FluentTextBox}"/>
                         </DockPanel>
 
+                        <!-- Evergreen apps path (read-only) -->
+                        <TextBlock Text="Evergreen apps path"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,0,0,4"/>
+                        <DockPanel Margin="0,0,0,24">
+                            <Button x:Name="OpenEvergreenAppsFolderButton"
+                                    Content="Open folder"
+                                    DockPanel.Dock="Right"
+                                    Style="{StaticResource FluentSecondaryButton}"
+                                    Margin="8,0,0,0"/>
+                            <TextBox x:Name="EvergreenAppsPathBox"
+                                     Style="{StaticResource FluentTextBox}"
+                                     IsReadOnly="True"
+                                     Background="{DynamicResource SecondaryButtonBackgroundBrush}"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"
+                                     ToolTip="Path returned by Get-EvergreenAppsPath"/>
+                        </DockPanel>
+
                         <!-- Log verbosity -->
                         <TextBlock Text="Log verbosity"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontSize="12"
                                    Margin="0,0,0,4"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16" VerticalAlignment="Center">
-                            <ToggleButton x:Name="LogVerbosityToggle"
-                                          Width="34" Height="18"
-                                          Cursor="Hand"
-                                          ToolTip="Toggle between Normal and Verbose logging"
-                                          Focusable="False">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border x:Name="track"
-                                                CornerRadius="9"
-                                                Background="{DynamicResource ControlBorderBrush}"
-                                                Width="34" Height="18">
-                                            <Ellipse x:Name="thumb"
-                                                     Width="12" Height="12"
-                                                     Fill="{DynamicResource AccentBrush}"
-                                                     HorizontalAlignment="Left"
-                                                     Margin="3,0"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="track" Property="Background"
-                                                        Value="{DynamicResource AccentBrush}"/>
-                                                <Setter TargetName="thumb" Property="Fill"
-                                                        Value="{DynamicResource ToggleThumbBrush}"/>
-                                                <Setter TargetName="thumb" Property="HorizontalAlignment"
-                                                        Value="Right"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-                            <TextBlock x:Name="LogVerbosityLabel"
-                                       Text="Normal"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                       VerticalAlignment="Center"
-                                       Margin="8,0,0,0"
-                                       FontSize="13"/>
-                        </StackPanel>
+                        <ComboBox x:Name="LogVerbosityComboBox"
+                                  Style="{StaticResource FluentComboBox}"
+                                  Margin="0,0,0,16"
+                                  Height="32">
+                            <ComboBoxItem Content="Normal"/>
+                            <ComboBoxItem Content="Verbose"/>
+                        </ComboBox>
 
                         <!-- Startup view -->
                         <TextBlock Text="Startup view"
