@@ -1139,100 +1139,113 @@
                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
 
-                        <!-- Download output path -->
-                        <TextBlock Text="Download output path"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,0,0,4"/>
-                        <DockPanel Margin="0,0,0,16">
-                            <Button x:Name="BrowseOutputButton"
-                                    Content="Browse..."
-                                    DockPanel.Dock="Right"
-                                    Style="{StaticResource FluentSecondaryButton}"
-                                    Margin="8,0,0,0"/>
-                            <TextBox x:Name="OutputPathBox"
-                                     Style="{StaticResource FluentTextBox}"/>
-                        </DockPanel>
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="General"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,14"/>
 
-                        <!-- Evergreen apps path (read-only) -->
-                        <TextBlock Text="Evergreen apps path"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,0,0,4"/>
-                        <DockPanel Margin="0,0,0,24">
-                            <Button x:Name="OpenEvergreenAppsFolderButton"
-                                    Content="Open folder"
-                                    DockPanel.Dock="Right"
-                                    Style="{StaticResource FluentSecondaryButton}"
-                                    Margin="8,0,0,0"/>
-                            <TextBox x:Name="EvergreenAppsPathBox"
-                                     Style="{StaticResource FluentTextBox}"
-                                     IsReadOnly="True"
-                                     Background="{DynamicResource SecondaryButtonBackgroundBrush}"
-                                     Foreground="{DynamicResource TextSecondaryBrush}"
-                                     ToolTip="Path returned by Get-EvergreenAppsPath"/>
-                        </DockPanel>
+                                <!-- Download output path -->
+                                <TextBlock Text="Download output path"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,4"/>
+                                <DockPanel Margin="0,0,0,16">
+                                    <Button x:Name="BrowseOutputButton"
+                                            Content="Browse..."
+                                            DockPanel.Dock="Right"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="8,0,0,0"/>
+                                    <TextBox x:Name="OutputPathBox"
+                                             Style="{StaticResource FluentTextBox}"/>
+                                </DockPanel>
 
-                        <!-- Log verbosity -->
-                        <TextBlock Text="Log verbosity"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,0,0,4"/>
-                        <ComboBox x:Name="LogVerbosityComboBox"
-                                  Style="{StaticResource FluentComboBox}"
-                                  Margin="0,0,0,16"
-                                  Height="32">
-                            <ComboBoxItem Content="Normal"/>
-                            <ComboBoxItem Content="Verbose"/>
-                        </ComboBox>
+                                <!-- Evergreen apps path (read-only) -->
+                                <TextBlock Text="Evergreen apps path"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,4"/>
+                                <DockPanel Margin="0,0,0,24">
+                                    <Button x:Name="OpenEvergreenAppsFolderButton"
+                                            Content="Open folder"
+                                            DockPanel.Dock="Right"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="8,0,0,0"/>
+                                    <TextBox x:Name="EvergreenAppsPathBox"
+                                             Style="{StaticResource FluentTextBox}"
+                                             IsReadOnly="True"
+                                             Background="{DynamicResource SecondaryButtonBackgroundBrush}"
+                                             Foreground="{DynamicResource TextSecondaryBrush}"
+                                             ToolTip="Path returned by Get-EvergreenAppsPath"/>
+                                </DockPanel>
 
-                        <!-- Theme -->
-                        <TextBlock Text="Theme"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,0,0,4"/>
-                        <ComboBox x:Name="ThemeComboBox"
-                                  Style="{StaticResource FluentComboBox}"
-                                  Margin="0,0,0,16"
-                                  Height="32">
-                            <ComboBoxItem Content="Light"/>
-                            <ComboBoxItem Content="Dark"/>
-                        </ComboBox>
+                                <!-- Log verbosity -->
+                                <TextBlock Text="Log verbosity"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,4"/>
+                                <ComboBox x:Name="LogVerbosityComboBox"
+                                          Style="{StaticResource FluentComboBox}"
+                                          Margin="0,0,0,16"
+                                          Height="32">
+                                    <ComboBoxItem Content="Normal"/>
+                                    <ComboBoxItem Content="Verbose"/>
+                                </ComboBox>
 
-                        <!-- Startup view -->
-                        <TextBlock Text="Startup view"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,0,0,4"/>
-                        <ComboBox x:Name="StartupViewComboBox"
-                                  Style="{StaticResource FluentComboBox}"
-                                  Margin="0,0,0,24"
-                                  Height="32">
-                            <ComboBoxItem Content="Apps"/>
-                            <ComboBoxItem Content="Download"/>
-                            <ComboBoxItem Content="Library"/>
-                            <ComboBoxItem Content="Settings"/>
-                        </ComboBox>
+                                <!-- Theme -->
+                                <TextBlock Text="Theme"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,4"/>
+                                <ComboBox x:Name="ThemeComboBox"
+                                          Style="{StaticResource FluentComboBox}"
+                                          Margin="0,0,0,16"
+                                          Height="32">
+                                    <ComboBoxItem Content="Light"/>
+                                    <ComboBoxItem Content="Dark"/>
+                                </ComboBox>
 
-                        <!-- Cache -->
-                        <TextBlock Text="App version cache"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,0,0,4"/>
-                        <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fetch via Evergreen on next selection."
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   TextWrapping="Wrap"
-                                   Margin="0,0,0,8"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                            <Button x:Name="OpenCacheFolderButton"
-                                    Content="Open cache folder"
-                                    Style="{StaticResource FluentSecondaryButton}"
-                                    Margin="0,0,8,0"/>
-                            <Button x:Name="ClearCacheButton"
-                                    Content="Clear cache"
-                                    Style="{StaticResource FluentSecondaryButton}"/>
-                        </StackPanel>
+                                <!-- Startup view -->
+                                <TextBlock Text="Startup view"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,4"/>
+                                <ComboBox x:Name="StartupViewComboBox"
+                                          Style="{StaticResource FluentComboBox}"
+                                          Margin="0,0,0,24"
+                                          Height="32">
+                                    <ComboBoxItem Content="Apps"/>
+                                    <ComboBoxItem Content="Download"/>
+                                    <ComboBoxItem Content="Library"/>
+                                    <ComboBoxItem Content="Settings"/>
+                                </ComboBox>
+
+                                <!-- Cache -->
+                                <TextBlock Text="App version cache"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fetch via Evergreen on next selection."
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                    <Button x:Name="OpenCacheFolderButton"
+                                            Content="Open cache folder"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="0,0,8,0"/>
+                                    <Button x:Name="ClearCacheButton"
+                                            Content="Clear cache"
+                                            Style="{StaticResource FluentSecondaryButton}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -1280,8 +1293,8 @@
                                 FontSize="12"
                                 Margin="0,0,6,0"/>
                         <ToggleButton x:Name="LogToggleButton"
-                                      Content="Hide progress log"
-                                      IsChecked="True"
+                                      Content="Show progress log"
+                                      IsChecked="False"
                                       Padding="10,3"
                                       FontSize="12"
                                       Cursor="Hand">
