@@ -1,6 +1,10 @@
 name: 'Publish to PowerShell Gallery'
 
 on:
+  workflow_run:
+    workflows: ['Tag on version bump']
+    types:
+      - completed
   push:
     tags:
       - 'v*'
@@ -12,9 +16,12 @@ permissions:
 jobs:
   publish:
     runs-on: windows-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref }}
 
       - name: Install required modules
         shell: pwsh
