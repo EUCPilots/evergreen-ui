@@ -15,8 +15,8 @@
     # Root module
     RootModule        = 'EvergreenUI.psm1'
 
-    # Exports - only Start-EvergreenUI is public
-    FunctionsToExport = @('Start-EvergreenUI')
+    # Exports - only Start-EvergreenWorkbench is public
+    FunctionsToExport = @('Start-EvergreenWorkbench')
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
@@ -31,7 +31,7 @@
         'EvergreenUI.psd1'
         'EvergreenUI.psm1'
         'Resources\EvergreenUI.xaml'
-        'Public\Start-EvergreenUI.ps1'
+        'Public\Start-EvergreenWorkbench.ps1'
         'Private\Get-EvergreenAppList.ps1'
         'Private\Get-FilterableProperties.ps1'
         'Private\Get-UIConfig.ps1'
