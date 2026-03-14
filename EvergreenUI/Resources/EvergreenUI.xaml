@@ -31,6 +31,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding"         Value="16,6"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -121,6 +122,7 @@
                 <Setter.Value>
                     <Style TargetType="ListViewItem">
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="MinHeight"                  Value="32"/>
                         <Setter Property="Padding"                    Value="0"/>
                         <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
                         <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
@@ -348,7 +350,8 @@
                                         Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -516,8 +519,9 @@
                 <RadioButton x:Name="NavLibrary"
                              Content="Library"
                              Style="{StaticResource NavRailRadioButton}"/>
-                <Separator Margin="14,8"
-                           Background="{DynamicResource ControlBorderBrush}"/>
+                <Rectangle Height="1"
+                           Fill="{DynamicResource ControlBorderBrush}"
+                           Margin="14,8"/>
                 <RadioButton x:Name="NavSettings"
                              Content="Settings"
                              Style="{StaticResource NavRailRadioButton}"/>
@@ -785,7 +789,7 @@
                                         <TextBlock x:Name="AppDetailTitle"
                                                    Text=""
                                                    FontSize="13"
-                                                   FontWeight="Bold"
+                                                   FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center"/>
                                     </DockPanel>
@@ -917,8 +921,6 @@
                             Padding="10">
                         <ListView x:Name="DownloadQueueListView"
                                   Style="{StaticResource FluentListView}"
-                                  BorderBrush="{DynamicResource ControlBorderBrush}"
-                                  BorderThickness="1"
                                   SelectionMode="Single">
                             <ListView.Resources>
                                 <Style TargetType="GridViewColumnHeader">
@@ -1051,8 +1053,6 @@
 
                             <ListView x:Name="LibraryContentsListView"
                                       Style="{StaticResource FluentListView}"
-                                      BorderBrush="{DynamicResource ControlBorderBrush}"
-                                      BorderThickness="1"
                                       SelectionMode="Single">
                                 <ListView.Resources>
                                     <Style TargetType="GridViewColumnHeader">
@@ -1099,8 +1099,6 @@
 
                             <ListView x:Name="LibraryDetailsListView"
                                       Style="{StaticResource FluentListView}"
-                                      BorderBrush="{DynamicResource ControlBorderBrush}"
-                                      BorderThickness="1"
                                       SelectionMode="Single">
                                 <ListView.Resources>
                                     <Style TargetType="GridViewColumnHeader">
@@ -1324,6 +1322,12 @@
                                                           VerticalAlignment="Center"/>
                                     </Border>
                                     <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="bd" Property="Background"
+                                                    Value="{DynamicResource AccentLightBrush}"/>
+                                            <Setter TargetName="bd" Property="BorderBrush"
+                                                    Value="{DynamicResource AccentBrush}"/>
+                                        </Trigger>
                                         <Trigger Property="IsMouseOver" Value="True">
                                             <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
                                         </Trigger>
