@@ -50,7 +50,7 @@ Out of scope:
   - Defines default and merged persisted Nerdio settings
 
 - `EvergreenUI/Private/Set-UIConfig.ps1`
-  - Writes config to `%APPDATA%\EvergreenUI\config.json`
+  - Writes config to `%APPDATA%\EvergreenUI\settings.json`
 
 - `EvergreenUI/Resources/EvergreenUI.xaml`
   - Import view and Settings view controls for Nerdio

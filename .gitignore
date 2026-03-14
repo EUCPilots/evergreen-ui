@@ -19,8 +19,8 @@ coverage.xml
 
 # ── Evergreen runtime artefacts ─────────────────────────────────────────────
 # Config written by EvergreenUI at runtime — not committed; each user has their own
-EvergreenUI/Private/config.json
-**/config.json
+EvergreenUI/Private/settings.json
+**/settings.json
 
 # Downloaded installers (the library itself lives outside the repo)
 /downloads/

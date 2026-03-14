@@ -4,7 +4,7 @@
     Reads the EvergreenUI user configuration from disk.
 
 .DESCRIPTION
-    Loads $env:APPDATA\EvergreenUI\config.json and returns a PSCustomObject.
+    Loads $env:APPDATA\EvergreenUI\settings.json and returns a PSCustomObject.
     If the file does not exist or is malformed, returns a default config object.
     Never throws - a missing or corrupt config is treated as first-run.
 
@@ -14,6 +14,7 @@
         LibraryPath  : string  - last-used library path
         Theme        : string  - 'Light' or 'Dark'
         LogVerbosity : string  - 'Normal' or 'Verbose'
+        LogVisible   : bool    - whether the progress log panel is expanded
         LogHeight    : int     - log panel height in pixels
         StartupView  : string  - 'Apps' | 'Download' | 'Library' | 'Settings'
         LastAppName  : string  - last selected app in Apps view
@@ -34,6 +35,7 @@ function Get-UIConfig {
         LibraryPath  = ''
         Theme        = 'Light'
         LogVerbosity = 'Normal'
+        LogVisible   = $false
         LogHeight    = 150
         StartupView  = 'Apps'
         LastAppName  = ''
@@ -41,7 +43,7 @@ function Get-UIConfig {
         WindowHeight = 750
     }
 
-    $configPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI\config.json'
+    $configPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI\settings.json'
 
     if (-not (Test-Path -Path $configPath -PathType Leaf)) {
         return $default

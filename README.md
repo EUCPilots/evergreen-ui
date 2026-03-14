@@ -16,7 +16,7 @@ Evergreen Workbench ships as a separate PowerShell module so it never modifies t
 - **Library management** — inspect and update an Evergreen library on disk using `Start-EvergreenLibraryUpdate` and related cmdlets
 - **Fluent UI design** — light and dark themes aligned to the Evergreen docs brand palette
 - **Real-time log panel** — timestamped progress log with `Info`, `Warning`, and `Error` levels, updated live from background runspaces
-- **Session persistence** — last-used paths, theme, window size, and startup view stored in `$env:APPDATA\EvergreenUI\config.json`
+- **Session persistence** — last-used paths, theme, window size, and startup view stored in `$env:APPDATA\EvergreenUI\settings.json`
 
 ## Requirements
 

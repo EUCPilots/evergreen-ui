@@ -10,7 +10,7 @@ The current Nerdio support is implemented as:
 - Event/state orchestration in `Start-EvergreenWorkbench.ps1`
 - Session connection helper in `Connect-NerdioSession.ps1`
 - Import/prune/list logic in `Invoke-NerdioImport.ps1`
-- Persisted settings in `%APPDATA%\EvergreenUI\config.json` via `Get-UIConfig`/`Set-UIConfig`
+- Persisted settings in `%APPDATA%\EvergreenUI\settings.json` via `Get-UIConfig`/`Set-UIConfig`
 
 The architecture uses STA WPF UI + background runspaces with Dispatcher marshaling for UI updates.
 
@@ -33,7 +33,7 @@ UI refs copied into `syncHash` for background updates:
 ## Persisted Config Contract
 
 Config path:
-- `%APPDATA%\EvergreenUI\config.json`
+- `%APPDATA%\EvergreenUI\settings.json`
 
 Nerdio persisted fields (`Config.NerdioSettings`):
 - `DefinitionsRootPath`

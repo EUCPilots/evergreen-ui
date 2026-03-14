@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     Serialises the provided config object to JSON and writes it to
-    $env:APPDATA\EvergreenUI\config.json. Creates the directory if it does not
+    $env:APPDATA\EvergreenUI\settings.json. Creates the directory if it does not
     exist. Errors are written as warnings and are never terminating - a failed
     config write must not crash the UI.
 
@@ -28,7 +28,7 @@ function Set-UIConfig {
     )
 
     $configDir = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
-    $configPath = Join-Path -Path $configDir   -ChildPath 'config.json'
+    $configPath = Join-Path -Path $configDir -ChildPath 'settings.json'
 
     try {
         if (-not (Test-Path -Path $configDir -PathType Container)) {
