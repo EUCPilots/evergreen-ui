@@ -4,6 +4,8 @@ A WPF-based graphical frontend for the [Evergreen](https://eucpilots.com/evergre
 
 EvergreenUI ships as a separate PowerShell module so it never modifies the core Evergreen module. It targets Windows only, requires no external DLLs, and supports both **PowerShell 5.1** (Desktop) and **PowerShell 7+**.
 
+![](docs/ui.png)
+
 > **Status:** Pre-release — core functionality implemented; published to PSGallery as beta.
 
 ## Features
