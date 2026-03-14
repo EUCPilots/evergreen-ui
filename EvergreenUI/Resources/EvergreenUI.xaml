@@ -897,6 +897,11 @@
                                     Style="{StaticResource FluentSecondaryButton}"
                                     Padding="10,6"
                                     Margin="0,0,6,0"/>
+                            <Button x:Name="OpenDownloadFolderButton"
+                                    Content="Open folder"
+                                    Style="{StaticResource FluentSecondaryButton}"
+                                    Padding="10,6"
+                                    Margin="0,0,6,0"/>
                             <Button x:Name="DownloadAllButton"
                                     Content="Download all"
                                     Style="{StaticResource FluentButton}"

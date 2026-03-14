@@ -127,6 +127,7 @@ $addToQueueButton = $window.FindName('AddToQueueButton')
 
 $removeQueueItemButton = $window.FindName('RemoveQueueItemButton')
 $clearQueueButton = $window.FindName('ClearQueueButton')
+$openDownloadFolderButton = $window.FindName('OpenDownloadFolderButton')
 
 $libraryPathViewBox = $window.FindName('LibraryPathViewBox')
 $libraryBrowseButton = $window.FindName('LibraryBrowseButton')
@@ -1066,6 +1067,18 @@ $clearQueueButton.add_Click({
         $syncHash.DownloadQueue.Clear()
         Write-UILog -SyncHash $syncHash -Message 'Queue cleared.' -Level Info
         & $refreshQueueView
+    })
+
+$openDownloadFolderButton.add_Click({
+        $folderPath = $syncHash.Config.OutputPath
+        if ([string]::IsNullOrWhiteSpace($folderPath)) {
+            Write-UILog -SyncHash $syncHash -Message 'No download output path configured.' -Level Warning
+            return
+        }
+        if (-not (Test-Path -LiteralPath $folderPath)) {
+            $null = New-Item -ItemType Directory -Path $folderPath -Force
+        }
+        Start-Process -FilePath 'explorer.exe' -ArgumentList $folderPath | Out-Null
     })
 
 $syncHash.DownloadAllButton.add_Click({
