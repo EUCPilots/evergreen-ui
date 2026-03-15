@@ -45,17 +45,26 @@ function Get-UIConfig {
             CurrentProvider = 'Nerdio'
         }
         NerdioSettings = [PSCustomObject]@{
-            ModulePath = ''
+            ModulePath        = ''
+            NmeHost           = ''
+            NmeClientId       = ''
+            NmeApiScope       = ''
+            NmeSubscriptionId = ''
+            NmeOAuthTokenUrl  = ''
         }
         IntuneSettings = [PSCustomObject]@{
             DefinitionsPath   = ''
             PackageOutputPath = ''
         }
         AzureAuthSettings = [PSCustomObject]@{
-            TenantId        = ''
-            LastAccountId   = ''
-            LastTenantId    = ''
-            LastSignedInUtc = ''
+            TenantId             = ''
+            LastAccountId        = ''
+            LastTenantId         = ''
+            LastSignedInUtc      = ''
+            NerdioTenantId       = ''
+            NerdioLastAccountId  = ''
+            NerdioLastTenantId   = ''
+            NerdioLastSignedInUtc = ''
         }
     }
 
@@ -86,8 +95,12 @@ function Get-UIConfig {
         if ($null -eq $json.NerdioSettings) {
             $json | Add-Member -NotePropertyName 'NerdioSettings' -NotePropertyValue $default.NerdioSettings -Force
         }
-        elseif ($null -eq $json.NerdioSettings.ModulePath) {
-            $json.NerdioSettings | Add-Member -NotePropertyName 'ModulePath' -NotePropertyValue '' -Force
+        else {
+            foreach ($prop in $default.NerdioSettings.PSObject.Properties.Name) {
+                if ($null -eq $json.NerdioSettings.$prop) {
+                    $json.NerdioSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.NerdioSettings.$prop -Force
+                }
+            }
         }
 
         if ($null -eq $json.IntuneSettings) {

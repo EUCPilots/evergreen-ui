@@ -91,6 +91,24 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingLoadAppName         = $null
         ImportCurrentProvider      = 'Nerdio'
         AzureAuthState             = [PSCustomObject]@{
+            IsAuthenticated    = $false
+            IsAuthInProgress   = $false
+            AccountId          = ''
+            TenantId           = ''
+            SubscriptionName   = ''
+            ErrorMessage       = ''
+            IntuneConnected    = $false
+            IntuneConnectError = ''
+        }
+        NerdioApiAuthState         = [PSCustomObject]@{
+            IsAuthenticated  = $false
+            IsAuthInProgress = $false
+            AccountId        = ''
+            TenantId         = ''
+            ContextName      = ''
+            ErrorMessage     = ''
+        }
+        NerdioAzureAuthState       = [PSCustomObject]@{
             IsAuthenticated  = $false
             IsAuthInProgress = $false
             AccountId        = ''
@@ -207,6 +225,20 @@ $intuneReloadModuleSettingsButton        = $window.FindName('IntuneReloadModuleS
 $intuneSettingsModuleStatusDot           = $window.FindName('IntuneSettingsModuleStatusDot')
 $intuneSettingsModuleStatusLabel         = $window.FindName('IntuneSettingsModuleStatusLabel')
 # Nerdio Shell Apps controls
+$nmeHostBox                  = $window.FindName('NmeHostBox')
+$nmeClientIdBox              = $window.FindName('NmeClientIdBox')
+$nmeApiScopeBox              = $window.FindName('NmeApiScopeBox')
+$nmeOAuthTokenUrlBox         = $window.FindName('NmeOAuthTokenUrlBox')
+$nmeClientSecretBox          = $window.FindName('NmeClientSecretBox')
+$nmeSubscriptionIdBox        = $window.FindName('NmeSubscriptionIdBox')
+$nmeResourceGroupCombo       = $window.FindName('NmeResourceGroupCombo')
+$nmeStorageAccountCombo      = $window.FindName('NmeStorageAccountCombo')
+$nmeContainerCombo           = $window.FindName('NmeContainerCombo')
+$nerdioTenantIdBox           = $window.FindName('NerdioTenantIdBox')
+$nerdioApiAuthStatusDot      = $window.FindName('NerdioApiAuthStatusDot')
+$nerdioApiAuthStatusLabel    = $window.FindName('NerdioApiAuthStatusLabel')
+$nerdioApiSignInButton       = $window.FindName('NerdioApiSignInButton')
+$nerdioApiSignOutButton      = $window.FindName('NerdioApiSignOutButton')
 $nerdioDefinitionsPathBox      = $window.FindName('NerdioDefinitionsPathBox')
 $nerdioBrowseDefinitionsButton = $window.FindName('NerdioBrowseDefinitionsButton')
 $nerdioLoadDefinitionsButton   = $window.FindName('NerdioLoadDefinitionsButton')
@@ -219,10 +251,17 @@ $nerdioAddVersionButton        = $window.FindName('NerdioAddVersionButton')
 $nerdioImportNewButton         = $window.FindName('NerdioImportNewButton')
 $nerdioUseRemoteUrlCheckBox    = $window.FindName('NerdioUseRemoteUrlCheckBox')
 $nerdioActionStatusLabel       = $window.FindName('NerdioActionStatusLabel')
+$nerdioAzureAuthStatusDot      = $window.FindName('NerdioAzureAuthStatusDot')
+$nerdioAzureAuthStatusLabel    = $window.FindName('NerdioAzureAuthStatusLabel')
+$nerdioAzureSignInButton       = $window.FindName('NerdioAzureSignInButton')
+$nerdioAzureSignOutButton      = $window.FindName('NerdioAzureSignOutButton')
 $intunePreviewImportButton = $window.FindName('IntunePreviewImportButton')
 $intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
 # Log row is RowDefinitions[3]; track its height for collapse/restore
 $logRowDef = $rootGrid.RowDefinitions[3]
+
+# Store refs needed by background-runspace callbacks
+$syncHash.ImportTenantIdBox = $importTenantIdBox
 
 # Apply persisted window size with safe minimums
 $window.Width = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
@@ -514,8 +553,9 @@ $refreshImportAuthUi = {
     if ($state.IsAuthenticated) {
         $importAuthStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
         $account = if ([string]::IsNullOrWhiteSpace($state.AccountId)) { 'signed in' } else { $state.AccountId }
-        $tenant = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " (tenant: $($state.TenantId))" }
-        $importAuthStatusLabel.Text = "$account$tenant"
+        $tenant  = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " | tenant: $($state.TenantId)" }
+        $intune  = if ($state.IntuneConnected) { ' | Intune: connected' } else { '' }
+        $importAuthStatusLabel.Text = "$account$tenant$intune"
         $importSignInButton.IsEnabled = $true
         $importSignOutButton.IsEnabled = $true
         return
@@ -532,24 +572,116 @@ $refreshImportAuthUi = {
     $importSignOutButton.IsEnabled = $false
 }
 
+$syncHash.RefreshImportAuthUi = $refreshImportAuthUi
+
+$refreshNerdioApiAuthUi = {
+    $state = $syncHash.NerdioApiAuthState
+    if ($state.IsAuthInProgress) {
+        $nerdioApiAuthStatusDot.Fill = [System.Windows.Media.Brushes]::Gold
+        $nerdioApiAuthStatusLabel.Text = 'Signing in...'
+        $nerdioApiSignInButton.IsEnabled = $false
+        $nerdioApiSignOutButton.IsEnabled = $false
+        return
+    }
+
+    if ($state.IsAuthenticated) {
+        $nerdioApiAuthStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
+        $account = if ([string]::IsNullOrWhiteSpace($state.AccountId)) { 'connected' } else { $state.AccountId }
+        $tenant = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " | tenant: $($state.TenantId)" }
+        $context = if ([string]::IsNullOrWhiteSpace($state.ContextName)) { '' } else { " | host: $($state.ContextName)" }
+        $nerdioApiAuthStatusLabel.Text = "$account$tenant$context"
+        $nerdioApiSignInButton.IsEnabled = $true
+        $nerdioApiSignOutButton.IsEnabled = $true
+        return
+    }
+
+    $nerdioApiAuthStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+    if ([string]::IsNullOrWhiteSpace($state.ErrorMessage)) {
+        $nerdioApiAuthStatusLabel.Text = 'Not signed in'
+    }
+    else {
+        $nerdioApiAuthStatusLabel.Text = 'Sign-in failed'
+    }
+    $nerdioApiSignInButton.IsEnabled = $true
+    $nerdioApiSignOutButton.IsEnabled = $false
+}
+
+$refreshNerdioAzureAuthUi = {
+    $state = $syncHash.NerdioAzureAuthState
+    if ($state.IsAuthInProgress) {
+        $nerdioAzureAuthStatusDot.Fill = [System.Windows.Media.Brushes]::Gold
+        $nerdioAzureAuthStatusLabel.Text = 'Signing in...'
+        $nerdioAzureSignInButton.IsEnabled = $false
+        $nerdioAzureSignOutButton.IsEnabled = $false
+        return
+    }
+
+    if ($state.IsAuthenticated) {
+        $nerdioAzureAuthStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
+        $account = if ([string]::IsNullOrWhiteSpace($state.AccountId)) { 'signed in' } else { $state.AccountId }
+        $tenant = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " | tenant: $($state.TenantId)" }
+        $sub = if ([string]::IsNullOrWhiteSpace($state.SubscriptionName)) { '' } else { " | sub: $($state.SubscriptionName)" }
+        $nerdioAzureAuthStatusLabel.Text = "$account$tenant$sub"
+        $nerdioAzureSignInButton.IsEnabled = $true
+        $nerdioAzureSignOutButton.IsEnabled = $true
+        return
+    }
+
+    $nerdioAzureAuthStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+    if ([string]::IsNullOrWhiteSpace($state.ErrorMessage)) {
+        $nerdioAzureAuthStatusLabel.Text = 'Not signed in'
+    }
+    else {
+        $nerdioAzureAuthStatusLabel.Text = 'Sign-in failed'
+    }
+    $nerdioAzureSignInButton.IsEnabled = $true
+    $nerdioAzureSignOutButton.IsEnabled = $false
+}
+
 $isImportAuthReady = {
     return [bool]$syncHash.AzureAuthState.IsAuthenticated
 }
 
+$isNerdioApiAuthReady = {
+    return [bool]$syncHash.NerdioApiAuthState.IsAuthenticated
+}
+
+$isNerdioAzureAuthReady = {
+    return [bool]$syncHash.NerdioAzureAuthState.IsAuthenticated
+}
+
 $requireImportAuth = {
-    param([string]$ActionName)
+    param(
+        [string]$ActionName,
+        [string]$Provider = 'Intune'
+    )
+
+    if ($Provider -eq 'Nerdio') {
+        if (& $isNerdioApiAuthReady) {
+            return $true
+        }
+
+        Write-UILog -SyncHash $syncHash -Message "$ActionName requires Nerdio Manager API sign-in on the Nerdio Manager tab." -Level Warning
+        return $false
+    }
 
     if (& $isImportAuthReady) {
         return $true
     }
 
-    Write-UILog -SyncHash $syncHash -Message "$ActionName requires Entra/Azure sign-in. Use the Sign in button above the Import tabs." -Level Warning
+        Write-UILog -SyncHash $syncHash -Message "$ActionName requires Entra ID sign-in in the Intune tab." -Level Warning
     return $false
 }
 
 $applyImportTenantToConfig = {
     $tenantText = if ($null -eq $importTenantIdBox) { '' } else { [string]$importTenantIdBox.Text }
     $syncHash.Config.AzureAuthSettings.TenantId = $tenantText.Trim()
+    Set-UIConfig -Config $syncHash.Config
+}
+
+    $applyNerdioTenantToConfig = {
+        $tenantText = if ($null -eq $nerdioTenantIdBox) { '' } else { [string]$nerdioTenantIdBox.Text }
+    $syncHash.Config.AzureAuthSettings.NerdioTenantId = $tenantText.Trim()
     Set-UIConfig -Config $syncHash.Config
 }
 
@@ -658,44 +790,72 @@ $startImportSignIn = {
         return
     }
 
+    # Set in-progress immediately on the UI thread so the Gold dot renders
+    # before the browser auth dialog opens.
     $syncHash.AzureAuthState.IsAuthInProgress = $true
     $syncHash.AzureAuthState.ErrorMessage = ''
     & $refreshImportAuthUi
 
     $tenant = [string]$importTenantIdBox.Text
-    Write-UILog -SyncHash $syncHash -Message 'Starting interactive Microsoft sign-in for Import workflows...' -Level Info
+    Write-UILog -SyncHash $syncHash -Message 'Starting Entra sign-in for Intune workflows...' -Level Info
 
-    $result = Invoke-AzureSignIn -TenantId $tenant
-    if ($null -ne $result -and $result.Succeeded) {
-        $syncHash.AzureAuthState.IsAuthenticated = $true
-        $syncHash.AzureAuthState.AccountId = [string]$result.AccountId
-        $syncHash.AzureAuthState.TenantId = [string]$result.TenantId
-        $syncHash.AzureAuthState.SubscriptionName = [string]$result.SubscriptionName
-        $syncHash.AzureAuthState.ErrorMessage = ''
+    $r = Invoke-AzureSignIn -TenantId $tenant
 
-        if (-not [string]::IsNullOrWhiteSpace([string]$result.TenantId)) {
-            $importTenantIdBox.Text = [string]$result.TenantId
+    if ($null -ne $r -and $r.Succeeded) {
+        $syncHash.AzureAuthState.IsAuthenticated  = $true
+        $syncHash.AzureAuthState.AccountId        = [string]$r.AccountId
+        $syncHash.AzureAuthState.TenantId         = [string]$r.TenantId
+        $syncHash.AzureAuthState.SubscriptionName = [string]$r.SubscriptionName
+        $syncHash.AzureAuthState.ErrorMessage     = ''
+
+        if ($r.PSObject.Properties.Name -contains 'IntuneConnected') {
+            $syncHash.AzureAuthState.IntuneConnected = [bool]$r.IntuneConnected
+        }
+        else {
+            $syncHash.AzureAuthState.IntuneConnected = $false
         }
 
-        $syncHash.Config.AzureAuthSettings.TenantId = [string]$importTenantIdBox.Text
-        $syncHash.Config.AzureAuthSettings.LastAccountId = [string]$result.AccountId
-        $syncHash.Config.AzureAuthSettings.LastTenantId = [string]$result.TenantId
+        if ($r.PSObject.Properties.Name -contains 'IntuneConnectError') {
+            $syncHash.AzureAuthState.IntuneConnectError = [string]$r.IntuneConnectError
+        }
+        else {
+            $syncHash.AzureAuthState.IntuneConnectError = ''
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
+            $syncHash.ImportTenantIdBox.Text = [string]$r.TenantId
+        }
+
+        $syncHash.Config.AzureAuthSettings.TenantId        = [string]$syncHash.ImportTenantIdBox.Text
+        $syncHash.Config.AzureAuthSettings.LastAccountId   = [string]$r.AccountId
+        $syncHash.Config.AzureAuthSettings.LastTenantId    = [string]$r.TenantId
         $syncHash.Config.AzureAuthSettings.LastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
         Set-UIConfig -Config $syncHash.Config
 
-        Write-UILog -SyncHash $syncHash -Message "Signed in as $($result.AccountId) to tenant $($result.TenantId)." -Level Info
+        Write-UILog -SyncHash $syncHash -Message "Signed in as $($r.AccountId) to tenant $($r.TenantId)." -Level Info
+        if ($r.PSObject.Properties.Name -contains 'AuthMethod' -and -not [string]::IsNullOrWhiteSpace([string]$r.AuthMethod)) {
+            Write-UILog -SyncHash $syncHash -Message "Sign-in method: $([string]$r.AuthMethod)." -Level Info
+        }
+        if ($syncHash.AzureAuthState.IntuneConnected) {
+            Write-UILog -SyncHash $syncHash -Message 'Intune Graph token acquisition succeeded.' -Level Info
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($syncHash.AzureAuthState.IntuneConnectError)) {
+            Write-UILog -SyncHash $syncHash -Message "Intune Graph token acquisition failed: $($syncHash.AzureAuthState.IntuneConnectError)" -Level Warning
+        }
     }
     else {
-        $syncHash.AzureAuthState.IsAuthenticated = $false
-        $syncHash.AzureAuthState.AccountId = ''
-        $syncHash.AzureAuthState.TenantId = ''
-        $syncHash.AzureAuthState.SubscriptionName = ''
-        $syncHash.AzureAuthState.ErrorMessage = if ($null -eq $result) { 'Unknown sign-in error.' } else { [string]$result.ErrorMessage }
+        $syncHash.AzureAuthState.IsAuthenticated    = $false
+        $syncHash.AzureAuthState.AccountId          = ''
+        $syncHash.AzureAuthState.TenantId           = ''
+        $syncHash.AzureAuthState.SubscriptionName   = ''
+        $syncHash.AzureAuthState.IntuneConnected    = $false
+        $syncHash.AzureAuthState.IntuneConnectError = ''
+        $syncHash.AzureAuthState.ErrorMessage       = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
         Write-UILog -SyncHash $syncHash -Message "Sign-in failed: $($syncHash.AzureAuthState.ErrorMessage)" -Level Error
     }
 
     $syncHash.AzureAuthState.IsAuthInProgress = $false
-    & $refreshImportAuthUi
+    & $syncHash.RefreshImportAuthUi
 }
 
 $startImportSignOut = {
@@ -707,9 +867,186 @@ $startImportSignOut = {
     $syncHash.AzureAuthState.TenantId = ''
     $syncHash.AzureAuthState.SubscriptionName = ''
     $syncHash.AzureAuthState.ErrorMessage = ''
+    $syncHash.AzureAuthState.IntuneConnected = $false
+    $syncHash.AzureAuthState.IntuneConnectError = ''
     & $refreshImportAuthUi
 
-    Write-UILog -SyncHash $syncHash -Message 'Signed out of Azure session for Import workflows.' -Level Info
+    Write-UILog -SyncHash $syncHash -Message 'Signed out of Entra session for Import workflows.' -Level Info
+}
+
+$startNerdioApiSignIn = {
+    if ($syncHash.NerdioApiAuthState.IsAuthInProgress) {
+        return
+    }
+
+    if (-not (& $loadNerdioShellAppsModule)) {
+        $syncHash.NerdioApiAuthState.ErrorMessage = 'NerdioShellApps module is not loaded.'
+        & $refreshNerdioApiAuthUi
+        return
+    }
+
+    $tenant = [string]$nerdioTenantIdBox.Text
+    $host = [string]$nmeHostBox.Text
+    $clientId = [string]$nmeClientIdBox.Text
+    $apiScope = [string]$nmeApiScopeBox.Text
+    $oAuthTokenUrl = [string]$nmeOAuthTokenUrlBox.Text
+    $clientSecret = [string]$nmeClientSecretBox.Password
+    $subscriptionId = [string]$nmeSubscriptionIdBox.Text
+    $resourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
+    $storageAccount = [string]$nmeStorageAccountCombo.SelectedItem
+    $container      = [string]$nmeContainerCombo.SelectedItem
+
+    foreach ($required in @(
+            @{ Name = 'Tenant ID'; Value = $tenant },
+            @{ Name = 'NME Host'; Value = $host },
+            @{ Name = 'Client ID'; Value = $clientId },
+            @{ Name = 'API Scope'; Value = $apiScope },
+            @{ Name = 'Client Secret'; Value = $clientSecret }
+        )) {
+        if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
+            $syncHash.NerdioApiAuthState.ErrorMessage = "$($required.Name) is required."
+            & $refreshNerdioApiAuthUi
+            Write-UILog -SyncHash $syncHash -Message "Nerdio API sign-in failed: $($required.Name) is required." -Level Warning
+            return
+        }
+    }
+
+    $syncHash.NerdioApiAuthState.IsAuthInProgress = $true
+    $syncHash.NerdioApiAuthState.ErrorMessage = ''
+    & $refreshNerdioApiAuthUi
+
+    try {
+        Set-NmeCredentials -ClientId $clientId -ClientSecret $clientSecret -TenantId $tenant -ApiScope $apiScope -OAuthToken $oAuthTokenUrl -SubscriptionId $subscriptionId -ResourceGroupName $resourceGroup -StorageAccountName $storageAccount -ContainerName $container -NmeHost $host
+        $null = Connect-Nme -PassThru
+
+        $syncHash.NerdioApiAuthState.IsAuthenticated = $true
+        $syncHash.NerdioApiAuthState.AccountId = $clientId
+        $syncHash.NerdioApiAuthState.TenantId = $tenant.Trim()
+        $syncHash.NerdioApiAuthState.ContextName = $host.Trim()
+        $syncHash.NerdioApiAuthState.ErrorMessage = ''
+
+        $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$tenant.Trim()
+        Set-UIConfig -Config $syncHash.Config
+
+        Write-UILog -SyncHash $syncHash -Message "Nerdio Manager API sign-in succeeded for host $host." -Level Info
+    }
+    catch {
+        $syncHash.NerdioApiAuthState.IsAuthenticated = $false
+        $syncHash.NerdioApiAuthState.AccountId = ''
+        $syncHash.NerdioApiAuthState.TenantId = ''
+        $syncHash.NerdioApiAuthState.ContextName = ''
+        $syncHash.NerdioApiAuthState.ErrorMessage = $_.Exception.Message
+        Write-UILog -SyncHash $syncHash -Message "Nerdio API sign-in failed: $($syncHash.NerdioApiAuthState.ErrorMessage)" -Level Error
+    }
+    finally {
+        $syncHash.NerdioApiAuthState.IsAuthInProgress = $false
+        & $refreshNerdioApiAuthUi
+    }
+}
+
+$startNerdioApiSignOut = {
+    try {
+        if (Get-Command -Name Remove-NerdioManagerSecretsFromMemory -ErrorAction SilentlyContinue) {
+            Remove-NerdioManagerSecretsFromMemory | Out-Null
+        }
+    }
+    catch {}
+
+    $syncHash.NerdioApiAuthState.IsAuthenticated = $false
+    $syncHash.NerdioApiAuthState.IsAuthInProgress = $false
+    $syncHash.NerdioApiAuthState.AccountId = ''
+    $syncHash.NerdioApiAuthState.TenantId = ''
+    $syncHash.NerdioApiAuthState.ContextName = ''
+    $syncHash.NerdioApiAuthState.ErrorMessage = ''
+    & $refreshNerdioApiAuthUi
+
+    Write-UILog -SyncHash $syncHash -Message 'Signed out of Nerdio Manager API session.' -Level Info
+}
+
+$startNerdioAzureSignIn = {
+    if ($syncHash.NerdioAzureAuthState.IsAuthInProgress) {
+        return
+    }
+
+    $subscriptionId = [string]$nmeSubscriptionIdBox.Text
+    if ([string]::IsNullOrWhiteSpace($subscriptionId)) {
+        Write-UILog -SyncHash $syncHash -Message 'Azure sign-in requires a Subscription ID.' -Level Warning
+        return
+    }
+
+    $syncHash.NerdioAzureAuthState.IsAuthInProgress = $true
+    $syncHash.NerdioAzureAuthState.ErrorMessage = ''
+    & $refreshNerdioAzureAuthUi
+
+    $tenant = [string]$nerdioTenantIdBox.Text
+    Write-UILog -SyncHash $syncHash -Message "Starting Azure sign-in for Nerdio workflows (subscription: $subscriptionId)..." -Level Info
+
+    $r = Invoke-NerdioAzureSignIn -SubscriptionId $subscriptionId -TenantId $tenant
+    if ($null -ne $r -and $r.Succeeded) {
+        $syncHash.NerdioAzureAuthState.IsAuthenticated   = $true
+        $syncHash.NerdioAzureAuthState.AccountId         = [string]$r.AccountId
+        $syncHash.NerdioAzureAuthState.TenantId          = [string]$r.TenantId
+        $syncHash.NerdioAzureAuthState.SubscriptionName  = [string]$r.SubscriptionName
+        $syncHash.NerdioAzureAuthState.ErrorMessage      = ''
+
+        if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
+            $nerdioTenantIdBox.Text = [string]$r.TenantId
+        }
+
+        $syncHash.Config.AzureAuthSettings.NerdioTenantId         = [string]$nerdioTenantIdBox.Text
+        $syncHash.Config.AzureAuthSettings.NerdioLastAccountId    = [string]$r.AccountId
+        $syncHash.Config.AzureAuthSettings.NerdioLastTenantId     = [string]$r.TenantId
+        $syncHash.Config.AzureAuthSettings.NerdioLastSignedInUtc  = (Get-Date).ToUniversalTime().ToString('o')
+        Set-UIConfig -Config $syncHash.Config
+
+        Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in succeeded as $($r.AccountId) (subscription: $($r.SubscriptionName), tenant: $($r.TenantId))." -Level Info
+
+        # Populate the Resource Group dropdown from the target subscription
+        Write-UILog -SyncHash $syncHash -Message 'Loading resource groups...' -Level Info
+        $nmeResourceGroupCombo.Items.Clear()
+        $nmeStorageAccountCombo.Items.Clear()
+        $nmeContainerCombo.Items.Clear()
+        $nmeStorageAccountCombo.IsEnabled = $false
+        $nmeContainerCombo.IsEnabled      = $false
+
+        $rgs = Get-NerdioAzureResourceGroups
+        foreach ($rg in $rgs) { [void]$nmeResourceGroupCombo.Items.Add($rg) }
+        $nmeResourceGroupCombo.IsEnabled = ($nmeResourceGroupCombo.Items.Count -gt 0)
+        Write-UILog -SyncHash $syncHash -Message "$($nmeResourceGroupCombo.Items.Count) resource group(s) loaded." -Level Info
+    }
+    else {
+        $syncHash.NerdioAzureAuthState.IsAuthenticated   = $false
+        $syncHash.NerdioAzureAuthState.AccountId         = ''
+        $syncHash.NerdioAzureAuthState.TenantId          = ''
+        $syncHash.NerdioAzureAuthState.SubscriptionName  = ''
+        $syncHash.NerdioAzureAuthState.ErrorMessage      = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+        Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in failed: $($syncHash.NerdioAzureAuthState.ErrorMessage)" -Level Error
+    }
+
+    $syncHash.NerdioAzureAuthState.IsAuthInProgress = $false
+    & $refreshNerdioAzureAuthUi
+}
+
+$startNerdioAzureSignOut = {
+    Invoke-NerdioAzureSignOut
+
+    $syncHash.NerdioAzureAuthState.IsAuthenticated  = $false
+    $syncHash.NerdioAzureAuthState.IsAuthInProgress = $false
+    $syncHash.NerdioAzureAuthState.AccountId        = ''
+    $syncHash.NerdioAzureAuthState.TenantId         = ''
+    $syncHash.NerdioAzureAuthState.SubscriptionName = ''
+    $syncHash.NerdioAzureAuthState.ErrorMessage     = ''
+
+    # Clear and disable the storage dropdowns
+    $nmeResourceGroupCombo.Items.Clear()
+    $nmeStorageAccountCombo.Items.Clear()
+    $nmeContainerCombo.Items.Clear()
+    $nmeResourceGroupCombo.IsEnabled  = $false
+    $nmeStorageAccountCombo.IsEnabled = $false
+    $nmeContainerCombo.IsEnabled      = $false
+
+    & $refreshNerdioAzureAuthUi
+    Write-UILog -SyncHash $syncHash -Message 'Signed out of Azure session for Nerdio workflows.' -Level Info
 }
 
 $registerBackgroundOperation = {
@@ -1097,12 +1434,20 @@ $window.add_Loaded({
         & $refreshQueueView
         $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
         $importTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.TenantId
+        $nerdioTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.NerdioTenantId
         $nerdioModulePathSettingsBox.Text = [string]$syncHash.Config.NerdioSettings.ModulePath
+        $nmeHostBox.Text           = [string]$syncHash.Config.NerdioSettings.NmeHost
+        $nmeClientIdBox.Text       = [string]$syncHash.Config.NerdioSettings.NmeClientId
+        $nmeApiScopeBox.Text       = [string]$syncHash.Config.NerdioSettings.NmeApiScope
+        $nmeOAuthTokenUrlBox.Text  = [string]$syncHash.Config.NerdioSettings.NmeOAuthTokenUrl
+        $nmeSubscriptionIdBox.Text = [string]$syncHash.Config.NerdioSettings.NmeSubscriptionId
         $intuneDefinitionsPathBox.Text    = [string]$syncHash.Config.IntuneSettings.DefinitionsPath
         $intunePackageOutputPathBox.Text  = [string]$syncHash.Config.IntuneSettings.PackageOutputPath
         [void](& $loadNerdioShellAppsModule)
         [void](& $loadIntuneWin32AppModule)
         & $refreshImportAuthUi
+        & $refreshNerdioApiAuthUi
+        & $refreshNerdioAzureAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
 
         switch ([string]$syncHash.Config.StartupView) {
@@ -1284,6 +1629,8 @@ $navLibrary.add_Checked({
 
 $navImport.add_Checked({
         & $refreshImportAuthUi
+    & $refreshNerdioApiAuthUi
+    & $refreshNerdioAzureAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
     })
 
@@ -1309,6 +1656,84 @@ $importTenantIdBox.add_LostFocus({
         & $applyImportTenantToConfig
     })
 
+$nerdioApiSignInButton.add_Click({
+        & $applyNerdioTenantToConfig
+        & $startNerdioApiSignIn
+    })
+
+$nerdioApiSignOutButton.add_Click({
+        & $startNerdioApiSignOut
+    })
+
+$nerdioAzureSignInButton.add_Click({
+        & $applyNerdioTenantToConfig
+        & $startNerdioAzureSignIn
+    })
+
+$nerdioAzureSignOutButton.add_Click({
+        & $startNerdioAzureSignOut
+    })
+
+# Enable/disable the Azure sign-in button based on whether Subscription ID is provided
+$nmeSubscriptionIdBox.add_TextChanged({
+        $nerdioAzureSignInButton.IsEnabled = -not [string]::IsNullOrWhiteSpace($nmeSubscriptionIdBox.Text)
+        $syncHash.Config.NerdioSettings.NmeSubscriptionId = [string]$nmeSubscriptionIdBox.Text
+        Set-UIConfig -Config $syncHash.Config
+    })
+
+$nmeHostBox.add_TextChanged({
+        $syncHash.Config.NerdioSettings.NmeHost = [string]$nmeHostBox.Text
+        Set-UIConfig -Config $syncHash.Config
+    })
+
+$nmeClientIdBox.add_TextChanged({
+        $syncHash.Config.NerdioSettings.NmeClientId = [string]$nmeClientIdBox.Text
+        Set-UIConfig -Config $syncHash.Config
+    })
+
+$nmeApiScopeBox.add_TextChanged({
+        $syncHash.Config.NerdioSettings.NmeApiScope = [string]$nmeApiScopeBox.Text
+        Set-UIConfig -Config $syncHash.Config
+    })
+
+$nmeOAuthTokenUrlBox.add_TextChanged({
+        $syncHash.Config.NerdioSettings.NmeOAuthTokenUrl = [string]$nmeOAuthTokenUrlBox.Text
+        Set-UIConfig -Config $syncHash.Config
+    })
+
+# When a resource group is selected, populate the Storage Account dropdown
+$nmeResourceGroupCombo.add_SelectionChanged({
+        $rg = [string]$nmeResourceGroupCombo.SelectedItem
+        $nmeStorageAccountCombo.Items.Clear()
+        $nmeContainerCombo.Items.Clear()
+        $nmeStorageAccountCombo.IsEnabled = $false
+        $nmeContainerCombo.IsEnabled      = $false
+        if ([string]::IsNullOrWhiteSpace($rg)) { return }
+        Write-UILog -SyncHash $syncHash -Message "Loading storage accounts for '$rg'..." -Level Info
+        $accounts = Get-NerdioAzureStorageAccounts -ResourceGroupName $rg
+        foreach ($sa in $accounts) { [void]$nmeStorageAccountCombo.Items.Add($sa) }
+        $nmeStorageAccountCombo.IsEnabled = ($nmeStorageAccountCombo.Items.Count -gt 0)
+        Write-UILog -SyncHash $syncHash -Message "$($nmeStorageAccountCombo.Items.Count) storage account(s) loaded." -Level Info
+    })
+
+# When a storage account is selected, populate the Container dropdown
+$nmeStorageAccountCombo.add_SelectionChanged({
+        $rg = [string]$nmeResourceGroupCombo.SelectedItem
+        $sa = [string]$nmeStorageAccountCombo.SelectedItem
+        $nmeContainerCombo.Items.Clear()
+        $nmeContainerCombo.IsEnabled = $false
+        if ([string]::IsNullOrWhiteSpace($rg) -or [string]::IsNullOrWhiteSpace($sa)) { return }
+        Write-UILog -SyncHash $syncHash -Message "Loading containers for '$sa'..." -Level Info
+        $containers = Get-NerdioAzureStorageContainers -ResourceGroupName $rg -StorageAccountName $sa
+        foreach ($c in $containers) { [void]$nmeContainerCombo.Items.Add($c) }
+        $nmeContainerCombo.IsEnabled = ($nmeContainerCombo.Items.Count -gt 0)
+        Write-UILog -SyncHash $syncHash -Message "$($nmeContainerCombo.Items.Count) container(s) loaded." -Level Info
+    })
+
+$nerdioTenantIdBox.add_LostFocus({
+    & $applyNerdioTenantToConfig
+    })
+
 $nerdioBrowseDefinitionsButton.add_Click({
         $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
         $dlg.Description = 'Select Shell App definitions folder'
@@ -1325,17 +1750,17 @@ $nerdioLoadDefinitionsButton.add_Click({
     })
 
 $nerdioListShellAppsButton.add_Click({
-        if (-not (& $requireImportAuth -ActionName 'List Shell Apps')) { return }
+        if (-not (& $requireImportAuth -ActionName 'List Shell Apps' -Provider 'Nerdio')) { return }
         Write-UILog -SyncHash $syncHash -Message 'Nerdio: listing Shell Apps from Nerdio Manager is not implemented yet.' -Level Info
     })
 
 $nerdioAddVersionButton.add_Click({
-        if (-not (& $requireImportAuth -ActionName 'Add Shell App version')) { return }
+        if (-not (& $requireImportAuth -ActionName 'Add Shell App version' -Provider 'Nerdio')) { return }
         Write-UILog -SyncHash $syncHash -Message 'Nerdio: add version to existing Shell App is not implemented yet.' -Level Info
     })
 
 $nerdioImportNewButton.add_Click({
-        if (-not (& $requireImportAuth -ActionName 'Import new Shell App')) { return }
+        if (-not (& $requireImportAuth -ActionName 'Import new Shell App' -Provider 'Nerdio')) { return }
         Write-UILog -SyncHash $syncHash -Message 'Nerdio: import as new Shell App is not implemented yet.' -Level Info
     })
 
