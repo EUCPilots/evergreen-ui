@@ -1685,12 +1685,6 @@
                                                     Padding="12,8"
                                                     Background="{DynamicResource ControlBackgroundBrush}">
                                                 <DockPanel LastChildFill="False">
-                                                    <TextBlock Text="SHELL APP DEFINITIONS"
-                                                               FontSize="11"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               VerticalAlignment="Center"
-                                                               DockPanel.Dock="Left"/>
                                                     <TextBlock x:Name="NerdioDefinitionsCountLabel"
                                                                Text="0 loaded"
                                                                FontSize="11"
@@ -1721,7 +1715,11 @@
                                                     <ListView.View>
                                                         <GridView>
                                                             <GridViewColumn Header="Publisher"        DisplayMemberBinding="{Binding Publisher}"       Width="170"/>
-                                                            <GridViewColumn Header="Name"             DisplayMemberBinding="{Binding AppName}"         Width="500"/>
+                                                            <GridViewColumn Header="Name"             DisplayMemberBinding="{Binding AppName}"         Width="250"/>
+                                                            <GridViewColumn Header="Match Status"     DisplayMemberBinding="{Binding MatchStatus}"     Width="170"/>
+                                                            <GridViewColumn Header="Nerdio Version"   DisplayMemberBinding="{Binding NerdioVersion}"   Width="120"/>
+                                                            <GridViewColumn Header="Evergreen Version" DisplayMemberBinding="{Binding EvergreenVersion}" Width="130"/>
+                                                            <GridViewColumn Header="Update Needed"    DisplayMemberBinding="{Binding UpdateNeeded}"    Width="120"/>
                                                         </GridView>
                                                     </ListView.View>
                                                 </ListView>
@@ -1775,12 +1773,6 @@
                                                     Padding="12,8"
                                                     Background="{DynamicResource ControlBackgroundBrush}">
                                                 <DockPanel LastChildFill="False">
-                                                    <TextBlock Text="SHELL APPS IN NERDIO MANAGER"
-                                                               FontSize="11"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               VerticalAlignment="Center"
-                                                               DockPanel.Dock="Left"/>
                                                     <StackPanel Orientation="Horizontal"
                                                                 DockPanel.Dock="Right">
                                                         <TextBlock x:Name="NerdioShellAppsCountLabel"
@@ -1893,6 +1885,11 @@
                                     <DockPanel LastChildFill="True">
                                         <StackPanel Orientation="Horizontal"
                                                     DockPanel.Dock="Right">
+                                            <Button x:Name="NerdioCompareUpdatesButton"
+                                                Content="Compare updates"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="12,6"
+                                                Margin="0,0,8,0"/>
                                             <Button x:Name="NerdioAddVersionButton"
                                                     Content="Add version to existing"
                                                     Style="{StaticResource FluentSecondaryButton}"
@@ -1905,11 +1902,6 @@
                                                     Padding="12,6"
                                                     IsEnabled="False"/>
                                         </StackPanel>
-                                        <CheckBox x:Name="NerdioUseRemoteUrlCheckBox"
-                                                  Content="Use remote URL (skip Azure Storage upload)"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,0,16,0"/>
                                         <TextBlock x:Name="NerdioActionStatusLabel"
                                                    Text=""
                                                    Foreground="{DynamicResource TextSecondaryBrush}"

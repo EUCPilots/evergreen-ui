@@ -106,6 +106,9 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingNerdioShellAppsRunspace = $null
         PendingNerdioShellAppsAsync    = $null
         IsNerdioShellAppsLoading       = $false
+        NerdioDefinitionRows           = @()
+        NerdioShellAppRows             = @()
+        NerdioComparisonRows           = @()
         ImportCurrentProvider      = 'Nerdio'
         AzureAuthState             = [PSCustomObject]@{
             IsAuthenticated    = $false
@@ -272,7 +275,7 @@ $nerdioShellAppsLoadingLabel   = $window.FindName('NerdioShellAppsLoadingLabel')
 $nerdioShellAppsProgressBar    = $window.FindName('NerdioShellAppsProgressBar')
 $nerdioAddVersionButton        = $window.FindName('NerdioAddVersionButton')
 $nerdioImportNewButton         = $window.FindName('NerdioImportNewButton')
-$nerdioUseRemoteUrlCheckBox    = $window.FindName('NerdioUseRemoteUrlCheckBox')
+$nerdioCompareUpdatesButton    = $window.FindName('NerdioCompareUpdatesButton')
 $nerdioActionStatusLabel       = $window.FindName('NerdioActionStatusLabel')
 $nerdioAzureAuthStatusDot      = $window.FindName('NerdioAzureAuthStatusDot')
 $nerdioAzureAuthStatusLabel    = $window.FindName('NerdioAzureAuthStatusLabel')
@@ -296,6 +299,10 @@ $setNerdioShellAppsLoadingState = {
 
     if ($null -ne $nerdioListShellAppsButton) {
         $nerdioListShellAppsButton.IsEnabled = -not $IsLoading
+    }
+
+    if ($null -ne $nerdioCompareUpdatesButton) {
+        $nerdioCompareUpdatesButton.IsEnabled = -not $IsLoading
     }
 
     if ($null -ne $nerdioShellAppsLoadingPanel) {
@@ -1026,21 +1033,271 @@ $getNerdioShellAppsCommand = {
     return (Get-Command -Name $Name -Module NerdioShellApps -ErrorAction SilentlyContinue)
 }
 
+$parseComparableVersion = {
+    param(
+        [AllowNull()]
+        [string]$VersionText
+    )
+
+    $raw = if ($null -eq $VersionText) { '' } else { [string]$VersionText }
+    $trimmed = $raw.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed)) {
+        return [PSCustomObject]@{
+            Success    = $false
+            Raw        = $raw
+            Normalized = ''
+            Parsed     = $null
+            Error      = 'Version is empty.'
+        }
+    }
+
+    $match = [regex]::Match($trimmed, '\d+(\.\d+){0,3}')
+    $normalized = ''
+    if ($match.Success) {
+        $normalized = $match.Value
+    }
+    else {
+        $normalized = ($trimmed -replace '[^0-9\.]', '').Trim('.')
+    }
+
+    if ([string]::IsNullOrWhiteSpace($normalized)) {
+        return [PSCustomObject]@{
+            Success    = $false
+            Raw        = $raw
+            Normalized = ''
+            Parsed     = $null
+            Error      = 'Version has no numeric segments.'
+        }
+    }
+
+    $segments = @($normalized.Split('.') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($segments.Count -eq 0) {
+        return [PSCustomObject]@{
+            Success    = $false
+            Raw        = $raw
+            Normalized = ''
+            Parsed     = $null
+            Error      = 'Version has no valid numeric segments.'
+        }
+    }
+
+    if ($segments.Count -gt 4) {
+        $segments = @($segments | Select-Object -First 4)
+    }
+
+    $normalized = ($segments -join '.')
+    try {
+        return [PSCustomObject]@{
+            Success    = $true
+            Raw        = $raw
+            Normalized = $normalized
+            Parsed     = [version]$normalized
+            Error      = ''
+        }
+    }
+    catch {
+        return [PSCustomObject]@{
+            Success    = $false
+            Raw        = $raw
+            Normalized = $normalized
+            Parsed     = $null
+            Error      = $_.Exception.Message
+        }
+    }
+}
+
+$getEvergreenMetadataForDefinition = {
+    param(
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$DefinitionRow
+    )
+
+    if ($null -eq $DefinitionRow.DefinitionObject) {
+        return $null
+    }
+
+    $getAppMetadataCommand = & $getNerdioShellAppsCommand -Name 'Get-AppMetadata'
+    if ($null -eq $getAppMetadataCommand) {
+        throw 'Required command Get-AppMetadata was not found in NerdioShellApps module.'
+    }
+
+    return (& $getAppMetadataCommand -Definition $DefinitionRow.DefinitionObject)
+}
+
+$refreshNerdioComparison = {
+    $definitionRows = @($syncHash.NerdioDefinitionRows)
+    $shellAppRows = @($syncHash.NerdioShellAppRows)
+
+    if ($definitionRows.Count -eq 0) {
+        $syncHash.NerdioComparisonRows = @()
+        $nerdioDefinitionsListView.ItemsSource = @()
+        $nerdioDefinitionsCountLabel.Text = '0 loaded'
+        if ($null -ne $nerdioActionStatusLabel) {
+            $nerdioActionStatusLabel.Text = ''
+        }
+        return
+    }
+
+    $evergreenCache = @{}
+    $comparisonRows = [System.Collections.Generic.List[object]]::new()
+
+    $matchedCount = 0
+    $updateCount = 0
+    $compareUnavailableCount = 0
+    $unmatchedCount = 0
+
+    foreach ($definitionRow in $definitionRows) {
+        $publisher = [string]$definitionRow.Publisher
+        $appName = [string]$definitionRow.AppName
+        $definitionValid = [string]$definitionRow.DefinitionValid
+        $sourceType = [string]$definitionRow.SourceType
+
+        $baseRow = [PSCustomObject]@{
+            DefinitionPath    = $definitionRow.DefinitionPath
+            Publisher         = $publisher
+            AppName           = $appName
+            DefinitionValid   = $definitionValid
+            MatchStatus       = '-'
+            NerdioVersion     = '-'
+            EvergreenVersion  = '-'
+            UpdateNeeded      = '-'
+            CompareMessage    = ''
+            MatchedShellAppId = ''
+        }
+
+        if ($definitionValid -ne 'Yes') {
+            $baseRow.MatchStatus = 'Invalid definition'
+            $comparisonRows.Add($baseRow)
+            continue
+        }
+
+        if ($sourceType -ine 'Evergreen') {
+            $baseRow.MatchStatus = 'Unsupported source type'
+            $baseRow.CompareMessage = "Source type '$sourceType' is not supported for compare."
+            $comparisonRows.Add($baseRow)
+            continue
+        }
+
+        $matches = @(
+            $shellAppRows | Where-Object {
+                [string]$_.Publisher -ieq $publisher -and [string]$_.Name -ieq $appName
+            }
+        )
+
+        if ($matches.Count -eq 0) {
+            $baseRow.MatchStatus = 'No matching Shell App'
+            $baseRow.CompareMessage = 'No existing Shell App matched by publisher and name.'
+            $comparisonRows.Add($baseRow)
+            $unmatchedCount++
+            continue
+        }
+
+        if ($matches.Count -gt 1) {
+            $baseRow.MatchStatus = 'Duplicate matches'
+            $baseRow.CompareMessage = 'More than one Shell App matched by publisher and name.'
+            $comparisonRows.Add($baseRow)
+            $unmatchedCount++
+            continue
+        }
+
+        $matchedShellApp = $matches[0]
+        $baseRow.MatchStatus = 'Matched'
+        $baseRow.MatchedShellAppId = [string]$matchedShellApp.Id
+        $baseRow.NerdioVersion = [string]$matchedShellApp.LatestVersion
+        $matchedCount++
+
+        $cacheKey = "{0}|{1}" -f ([string]$definitionRow.SourceApp).Trim(), ([string]$definitionRow.SourceFilter).Trim()
+        $evergreenMetadata = $null
+        if ($evergreenCache.ContainsKey($cacheKey)) {
+            $evergreenMetadata = $evergreenCache[$cacheKey]
+        }
+        else {
+            try {
+                $evergreenMetadata = & $getEvergreenMetadataForDefinition -DefinitionRow $definitionRow
+                $evergreenCache[$cacheKey] = $evergreenMetadata
+            }
+            catch {
+                $baseRow.CompareMessage = "Evergreen lookup failed: $($_.Exception.Message)"
+                $baseRow.UpdateNeeded = 'Compare unavailable'
+                $comparisonRows.Add($baseRow)
+                $compareUnavailableCount++
+                continue
+            }
+        }
+
+        if ($null -eq $evergreenMetadata -or [string]::IsNullOrWhiteSpace([string]$evergreenMetadata.Version)) {
+            $baseRow.CompareMessage = 'Evergreen lookup returned no version.'
+            $baseRow.UpdateNeeded = 'Compare unavailable'
+            $comparisonRows.Add($baseRow)
+            $compareUnavailableCount++
+            continue
+        }
+
+        $baseRow.EvergreenVersion = [string]$evergreenMetadata.Version
+
+        $nerdioParsed = & $parseComparableVersion -VersionText ([string]$baseRow.NerdioVersion)
+        $evergreenParsed = & $parseComparableVersion -VersionText ([string]$baseRow.EvergreenVersion)
+
+        if (-not $nerdioParsed.Success -or -not $evergreenParsed.Success) {
+            $baseRow.UpdateNeeded = 'Compare unavailable'
+            $baseRow.CompareMessage = "Unable to parse versions. Nerdio='$($baseRow.NerdioVersion)' Evergreen='$($baseRow.EvergreenVersion)'"
+            $comparisonRows.Add($baseRow)
+            $compareUnavailableCount++
+            continue
+        }
+
+        if ($evergreenParsed.Parsed -gt $nerdioParsed.Parsed) {
+            $baseRow.UpdateNeeded = 'Yes'
+            $baseRow.CompareMessage = 'Evergreen version is newer than Nerdio latest version.'
+            $updateCount++
+        }
+        else {
+            $baseRow.UpdateNeeded = 'No'
+            $baseRow.CompareMessage = 'Nerdio latest version is current.'
+        }
+
+        $comparisonRows.Add($baseRow)
+    }
+
+    $sortedRows = @($comparisonRows | Sort-Object -Property Publisher, AppName, DefinitionPath)
+    $syncHash.NerdioComparisonRows = $sortedRows
+    $nerdioDefinitionsListView.ItemsSource = $sortedRows
+
+    $validCount = @($sortedRows | Where-Object { $_.DefinitionValid -eq 'Yes' }).Count
+    $nerdioDefinitionsCountLabel.Text = "$($sortedRows.Count) loaded ($validCount valid, $matchedCount matched, $updateCount update needed)"
+
+    if ($null -ne $nerdioActionStatusLabel) {
+        $nerdioActionStatusLabel.Text = "Compared $($sortedRows.Count) definition(s): $matchedCount matched, $updateCount update needed, $compareUnavailableCount compare unavailable, $unmatchedCount unmatched."
+    }
+
+    Write-UILog -SyncHash $syncHash -Message "Nerdio compare complete: $($sortedRows.Count) definition(s), $matchedCount matched, $updateCount update needed, $compareUnavailableCount compare unavailable, $unmatchedCount unmatched." -Level Info
+}
+
 $loadNerdioDefinitions = {
     $definitionsRoot = & $normalizeDirectoryPath -PathValue ([string]$nerdioDefinitionsPathBox.Text)
     $nerdioDefinitionsPathBox.Text = $definitionsRoot
     & $applyNerdioDefinitionsPathToConfig
 
     if ([string]::IsNullOrWhiteSpace($definitionsRoot)) {
+        $syncHash.NerdioDefinitionRows = @()
+        $syncHash.NerdioComparisonRows = @()
         $nerdioDefinitionsListView.ItemsSource = @()
         $nerdioDefinitionsCountLabel.Text = '0 loaded'
+        if ($null -ne $nerdioActionStatusLabel) {
+            $nerdioActionStatusLabel.Text = ''
+        }
         Write-UILog -SyncHash $syncHash -Message 'Nerdio: provide a definitions folder path first.' -Level Warning
         return
     }
 
     if (-not (Test-Path -LiteralPath $definitionsRoot -PathType Container)) {
+        $syncHash.NerdioDefinitionRows = @()
+        $syncHash.NerdioComparisonRows = @()
         $nerdioDefinitionsListView.ItemsSource = @()
         $nerdioDefinitionsCountLabel.Text = '0 loaded'
+        if ($null -ne $nerdioActionStatusLabel) {
+            $nerdioActionStatusLabel.Text = ''
+        }
         Write-UILog -SyncHash $syncHash -Message "Nerdio: definitions path does not exist: $definitionsRoot" -Level Warning
         return
     }
@@ -1059,8 +1316,13 @@ $loadNerdioDefinitions = {
         }
     }
     catch {
+        $syncHash.NerdioDefinitionRows = @()
+        $syncHash.NerdioComparisonRows = @()
         $nerdioDefinitionsListView.ItemsSource = @()
         $nerdioDefinitionsCountLabel.Text = '0 loaded'
+        if ($null -ne $nerdioActionStatusLabel) {
+            $nerdioActionStatusLabel.Text = ''
+        }
         Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to enumerate definitions: $($_.Exception.Message)" -Level Error
         return
     }
@@ -1072,9 +1334,14 @@ $loadNerdioDefinitions = {
         $publisher = '-'
         $appName = [string](Split-Path -Path $definitionFile.DirectoryName -Leaf)
         $definitionValid = 'No'
+        $sourceType = ''
+        $sourceApp = ''
+        $sourceFilter = ''
+        $definitionObject = $null
 
         try {
             $definition = Get-Content -LiteralPath $definitionFile.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $definitionObject = $definition
 
             $publisherProperty = @(
                 $definition.PSObject.Properties['publisher'],
@@ -1105,6 +1372,12 @@ $loadNerdioDefinitions = {
             else {
                 $definitionValid = 'No (missing JSON properties)'
             }
+
+            if ($definition.PSObject.Properties.Name -contains 'source' -and $null -ne $definition.source) {
+                $sourceType = [string]$definition.source.type
+                $sourceApp = [string]$definition.source.app
+                $sourceFilter = [string]$definition.source.filter
+            }
         }
         catch {
             $definitionValid = 'No (invalid JSON)'
@@ -1115,13 +1388,18 @@ $loadNerdioDefinitions = {
                 Publisher       = $publisher
                 AppName         = $appName
                 DefinitionValid = $definitionValid
+                SourceType      = $sourceType
+                SourceApp       = $sourceApp
+                SourceFilter    = $sourceFilter
+                DefinitionObject = $definitionObject
             })
     }
 
     $sortedRows = @($rows | Sort-Object -Property DefinitionPath, Publisher, AppName)
-    $nerdioDefinitionsListView.ItemsSource = $sortedRows
+    $syncHash.NerdioDefinitionRows = $sortedRows
+    & $refreshNerdioComparison
+
     $validCount = @($sortedRows | Where-Object { $_.DefinitionValid -eq 'Yes' }).Count
-    $nerdioDefinitionsCountLabel.Text = "$($sortedRows.Count) loaded ($validCount valid)"
 
     if ($sortedRows.Count -eq 0) {
         Write-UILog -SyncHash $syncHash -Message "Nerdio: no definition.json files found under sub-directories of '$definitionsRoot'." -Level Warning
@@ -1137,8 +1415,10 @@ $loadNerdioShellApps = {
     }
 
     if (-not (& $loadNerdioShellAppsModule)) {
+        $syncHash.NerdioShellAppRows = @()
         $nerdioShellAppsListView.ItemsSource = @()
         $nerdioShellAppsCountLabel.Text = '0 apps'
+        & $refreshNerdioComparison
         return
     }
 
@@ -1153,9 +1433,11 @@ $loadNerdioShellApps = {
 
     $modulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
     if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
+        $syncHash.NerdioShellAppRows = @()
         $nerdioShellAppsListView.ItemsSource = @()
         $nerdioShellAppsCountLabel.Text = '0 apps'
         Write-UILog -SyncHash $syncHash -Message 'Nerdio: module path is not configured or does not exist.' -Level Error
+        & $refreshNerdioComparison
         return
     }
 
@@ -1387,6 +1669,7 @@ $loadNerdioShellApps = {
 
             try {
                 if ($null -eq $result -or -not $result.Success) {
+                    $syncHash.NerdioShellAppRows = @()
                     $nerdioShellAppsListView.ItemsSource = @()
                     $nerdioShellAppsCountLabel.Text = '0 apps'
                     $errorMessage = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown error occurred while listing Shell Apps.' } else { [string]$result.Error }
@@ -1394,10 +1677,13 @@ $loadNerdioShellApps = {
                 }
                 else {
                     $rows = @($result.Rows)
+                    $syncHash.NerdioShellAppRows = $rows
                     $nerdioShellAppsListView.ItemsSource = $rows
                     $nerdioShellAppsCountLabel.Text = "$($rows.Count) apps"
                     Write-UILog -SyncHash $syncHash -Message "Nerdio: loaded $($rows.Count) Shell App(s) from Nerdio Manager." -Level Info
                 }
+
+                & $refreshNerdioComparison
             }
             finally {
                 & $setNerdioShellAppsLoadingState -IsLoading $false
@@ -2450,6 +2736,20 @@ $nerdioLoadDefinitionsButton.add_Click({
 $nerdioListShellAppsButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'List Shell Apps' -Provider 'Nerdio')) { return }
     & $loadNerdioShellApps
+    })
+
+$nerdioCompareUpdatesButton.add_Click({
+        try {
+            if (-not (& $loadNerdioShellAppsModule)) {
+                Write-UILog -SyncHash $syncHash -Message 'Nerdio: cannot compare updates because NerdioShellApps module is not loaded.' -Level Warning
+                return
+            }
+
+            & $refreshNerdioComparison
+        }
+        catch {
+            Write-UILog -SyncHash $syncHash -Message "Nerdio: compare updates failed: $($_.Exception.Message)" -Level Error
+        }
     })
 
 $nerdioAddVersionButton.add_Click({
