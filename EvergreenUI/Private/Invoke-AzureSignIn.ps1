@@ -122,6 +122,18 @@ function Invoke-NerdioAzureSignIn {
         $sub    = $SubscriptionId.Trim()
         $tenant = if ([string]::IsNullOrWhiteSpace($TenantId)) { $null } else { $TenantId.Trim() }
 
+        if (Get-Command -Name Update-AzConfig -ErrorAction SilentlyContinue) {
+            try {
+                Update-AzConfig -EnableLoginByWam $false -Scope Process -AppliesTo Az -ErrorAction Stop | Out-Null
+                Update-AzConfig -LoginExperienceV2 Off -Scope Process -AppliesTo Az -ErrorAction Stop | Out-Null
+                Update-AzConfig -DefaultSubscriptionForLogin $sub -Scope Process -AppliesTo Az -ErrorAction Stop | Out-Null
+            }
+            catch {
+                # Config updates are best-effort. Sign-in can continue even if an older Az.Accounts build
+                # does not support one or more process-scoped settings.
+            }
+        }
+
         # Passing -Subscription avoids the interactive subscription-picker prompt
         # that would otherwise block the UI thread.
         $connectParams = @{
