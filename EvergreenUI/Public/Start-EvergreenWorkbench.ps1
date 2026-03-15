@@ -101,6 +101,9 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingIntuneImportAsync       = $null
         IsIntuneImportLoading          = $false
         IntuneActionButtonStates       = @{}
+        IntuneDefinitionRows           = @()
+        IntuneWin32Rows                = @()
+        IntuneComparisonRows           = @()
         PendingNerdioShellAppsTimer    = $null
         PendingNerdioShellAppsPS       = $null
         PendingNerdioShellAppsRunspace = $null
@@ -235,11 +238,11 @@ $intuneDefinitionsPathBox                = $window.FindName('IntuneDefinitionsPa
 $intuneBrowseDefinitionsButton           = $window.FindName('IntuneBrowseDefinitionsButton')
 $intuneLoadDefinitionsButton             = $window.FindName('IntuneLoadDefinitionsButton')
 $intuneDefinitionsCountLabel             = $window.FindName('IntuneDefinitionsCountLabel')
-$intuneDefinitionsListView               = $window.FindName('IntuneDefinitionsListView')
 $intuneWin32AppsCountLabel               = $window.FindName('IntuneWin32AppsCountLabel')
+$intuneConnectionStatusDot               = $window.FindName('IntuneConnectionStatusDot')
+$intuneConnectionStatusLabel             = $window.FindName('IntuneConnectionStatusLabel')
 $intuneWin32AppsListView                 = $window.FindName('IntuneWin32AppsListView')
 $intunePackageButton                     = $window.FindName('IntunePackageButton')
-$intuneOnlyUnpackagedCheckBox            = $window.FindName('IntuneOnlyUnpackagedCheckBox')
 $intuneActionStatusLabel                 = $window.FindName('IntuneActionStatusLabel')
 $intuneImportLoadingPanel                = $window.FindName('IntuneImportLoadingPanel')
 $intuneImportLoadingLabel                = $window.FindName('IntuneImportLoadingLabel')
@@ -282,7 +285,6 @@ $nerdioAzureAuthStatusDot      = $window.FindName('NerdioAzureAuthStatusDot')
 $nerdioAzureAuthStatusLabel    = $window.FindName('NerdioAzureAuthStatusLabel')
 $nerdioAzureSignInButton       = $window.FindName('NerdioAzureSignInButton')
 $nerdioAzureSignOutButton      = $window.FindName('NerdioAzureSignOutButton')
-$intunePreviewImportButton = $window.FindName('IntunePreviewImportButton')
 $intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
 # Log row is RowDefinitions[3]; track its height for collapse/restore
 $logRowDef = $rootGrid.RowDefinitions[3]
@@ -360,7 +362,7 @@ $setIntuneImportLoadingState = {
 
     $syncHash.IsIntuneImportLoading = $IsLoading
 
-    foreach ($button in @($intuneRefreshCatalogButton, $intunePreviewImportButton, $intuneApplyImportButton)) {
+    foreach ($button in @($intuneRefreshCatalogButton, $intuneApplyImportButton)) {
         if ($null -eq $button) {
             continue
         }
@@ -829,9 +831,26 @@ $persistUiSettingsSnapshot = {
 
 $refreshImportAuthUi = {
     $state = $syncHash.AzureAuthState
+
+    $setIntuneConnectionStatus = {
+        param(
+            [System.Windows.Media.Brush]$Brush,
+            [string]$Text
+        )
+
+        if ($null -ne $intuneConnectionStatusDot) {
+            $intuneConnectionStatusDot.Fill = $Brush
+        }
+
+        if ($null -ne $intuneConnectionStatusLabel) {
+            $intuneConnectionStatusLabel.Text = $Text
+        }
+    }
+
     if ($state.IsAuthInProgress) {
         $importAuthStatusDot.Fill = [System.Windows.Media.Brushes]::Gold
         $importAuthStatusLabel.Text = 'Signing in...'
+        & $setIntuneConnectionStatus -Brush ([System.Windows.Media.Brushes]::Gold) -Text 'Signing in...'
         $importSignInButton.IsEnabled = $false
         $importSignOutButton.IsEnabled = $false
         return
@@ -843,12 +862,21 @@ $refreshImportAuthUi = {
         $tenant  = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " | tenant: $($state.TenantId)" }
         $intune  = if ($state.IntuneConnected) { ' | Intune: connected' } else { '' }
         $importAuthStatusLabel.Text = "$account$tenant$intune"
+
+        if ($state.IntuneConnected) {
+            & $setIntuneConnectionStatus -Brush ([System.Windows.Media.Brushes]::LightGreen) -Text 'Connected'
+        }
+        else {
+            & $setIntuneConnectionStatus -Brush ([System.Windows.Media.Brushes]::OrangeRed) -Text 'Signed in, Intune token failed'
+        }
+
         $importSignInButton.IsEnabled = $true
         $importSignOutButton.IsEnabled = $true
         return
     }
 
     $importAuthStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+    & $setIntuneConnectionStatus -Brush ([System.Windows.Media.Brushes]::OrangeRed) -Text 'Not signed in'
     if ([string]::IsNullOrWhiteSpace($state.ErrorMessage)) {
         $importAuthStatusLabel.Text = 'Not signed in'
     }
@@ -1149,6 +1177,487 @@ $parseComparableVersion = {
             Error      = $_.Exception.Message
         }
     }
+}
+
+$refreshIntuneComparison = {
+    $definitionRows = @($syncHash.IntuneDefinitionRows)
+    $intuneRows = @($syncHash.IntuneWin32Rows)
+
+    $definitionLookup = @{}
+    foreach ($definitionRow in $definitionRows) {
+        if ([string]$definitionRow.DefinitionValid -ne 'Yes') {
+            continue
+        }
+
+        $guidText = [string]$definitionRow.PSPackageFactoryGuid
+        if ([string]::IsNullOrWhiteSpace($guidText)) {
+            continue
+        }
+
+        $lookupKey = $guidText.Trim().ToLowerInvariant()
+        if (-not $definitionLookup.ContainsKey($lookupKey)) {
+            $definitionLookup[$lookupKey] = [System.Collections.Generic.List[object]]::new()
+        }
+
+        $definitionLookup[$lookupKey].Add($definitionRow)
+    }
+
+    $matchedDefinitionIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $comparisonRows = [System.Collections.Generic.List[object]]::new()
+
+    $matchedCount = 0
+    $updateRequiredCount = 0
+    $unknownCount = 0
+    $definitionOnlyCount = 0
+    $intuneOnlyCount = 0
+
+    foreach ($intuneRow in $intuneRows) {
+        $guidText = [string]$intuneRow.NotesGuid
+        $lookupKey = if ([string]::IsNullOrWhiteSpace($guidText)) { '' } else { $guidText.Trim().ToLowerInvariant() }
+
+        $baseRow = [PSCustomObject]@{
+            RowType                 = 'Intune'
+            IntuneAppId             = [string]$intuneRow.IntuneAppId
+            IntuneDisplayName       = [string]$intuneRow.DisplayName
+            DefinitionDisplayName   = '-'
+            DisplayPublisher        = [string]$intuneRow.Publisher
+            IntuneVersion           = [string]$intuneRow.DisplayVersion
+            DefinitionVersion       = '-'
+            PSPackageFactoryGuid    = if ([string]::IsNullOrWhiteSpace($guidText)) { '-' } else { $guidText }
+            IsMatched               = 'No'
+            UpdateRequired          = 'Unknown'
+            MatchStatus             = 'No local definition'
+            ImportAction            = '-'
+        }
+
+        if ([string]$intuneRow.NotesValid -ne 'Yes') {
+            $baseRow.MatchStatus = 'Invalid notes JSON'
+            $baseRow.ImportAction = 'Needs review'
+            $comparisonRows.Add($baseRow)
+            $unknownCount++
+            $intuneOnlyCount++
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace($lookupKey)) {
+            $baseRow.MatchStatus = 'Missing GUID in notes'
+            $baseRow.ImportAction = 'Needs review'
+            $comparisonRows.Add($baseRow)
+            $unknownCount++
+            $intuneOnlyCount++
+            continue
+        }
+
+        $matchedDefinitions = @()
+        if ($definitionLookup.ContainsKey($lookupKey)) {
+            $matchedDefinitions = @($definitionLookup[$lookupKey])
+        }
+
+        if ($matchedDefinitions.Count -eq 0) {
+            $baseRow.MatchStatus = 'No local definition'
+            $comparisonRows.Add($baseRow)
+            $intuneOnlyCount++
+            continue
+        }
+
+        if ($matchedDefinitions.Count -gt 1) {
+            $baseRow.MatchStatus = 'Duplicate definition GUID'
+            $baseRow.ImportAction = 'Fix definitions'
+            $comparisonRows.Add($baseRow)
+            $unknownCount++
+            continue
+        }
+
+        $definitionRow = $matchedDefinitions[0]
+        $null = $matchedDefinitionIds.Add([string]$definitionRow.DefinitionId)
+
+        $baseRow.IsMatched = 'Yes'
+        $baseRow.DefinitionDisplayName = [string]$definitionRow.Name
+        $baseRow.DefinitionVersion = [string]$definitionRow.Version
+        if ([string]::IsNullOrWhiteSpace($baseRow.DisplayPublisher) -or $baseRow.DisplayPublisher -eq '-') {
+            $baseRow.DisplayPublisher = [string]$definitionRow.Publisher
+        }
+
+        $intuneParsed = & $parseComparableVersion -VersionText ([string]$baseRow.IntuneVersion)
+        $definitionParsed = & $parseComparableVersion -VersionText ([string]$baseRow.DefinitionVersion)
+
+        if (-not $intuneParsed.Success -or -not $definitionParsed.Success) {
+            $baseRow.UpdateRequired = 'Unknown'
+            $baseRow.MatchStatus = 'Matched (needs review)'
+            $baseRow.ImportAction = 'Needs review'
+            $comparisonRows.Add($baseRow)
+            $matchedCount++
+            $unknownCount++
+            continue
+        }
+
+        if ($definitionParsed.Parsed -gt $intuneParsed.Parsed) {
+            $baseRow.UpdateRequired = 'Yes'
+            $baseRow.MatchStatus = 'Matched (update required)'
+            $baseRow.ImportAction = 'Update app'
+            $updateRequiredCount++
+        }
+        else {
+            $baseRow.UpdateRequired = 'No'
+            $baseRow.MatchStatus = 'Matched (current)'
+            $baseRow.ImportAction = '-'
+        }
+
+        $comparisonRows.Add($baseRow)
+        $matchedCount++
+    }
+
+    foreach ($definitionRow in $definitionRows) {
+        $definitionId = [string]$definitionRow.DefinitionId
+        if ($matchedDefinitionIds.Contains($definitionId)) {
+            continue
+        }
+
+        $status = [string]$definitionRow.DefinitionValid
+        $isValid = ($status -eq 'Yes')
+        $isDuplicateGuid = $false
+        if ($isValid) {
+            $guidText = [string]$definitionRow.PSPackageFactoryGuid
+            if (-not [string]::IsNullOrWhiteSpace($guidText)) {
+                $lookupKey = $guidText.Trim().ToLowerInvariant()
+                if ($definitionLookup.ContainsKey($lookupKey) -and @($definitionLookup[$lookupKey]).Count -gt 1) {
+                    $isDuplicateGuid = $true
+                }
+            }
+        }
+
+        $matchStatus = 'Definition not in Intune'
+        $importAction = 'Import as new app'
+        $updateRequired = 'Unknown'
+
+        if (-not $isValid) {
+            $matchStatus = if ([string]::IsNullOrWhiteSpace($status)) { 'Invalid definition' } else { $status }
+            $importAction = 'Fix definition'
+        }
+        elseif ($isDuplicateGuid) {
+            $matchStatus = 'Duplicate definition GUID'
+            $importAction = 'Fix definitions'
+        }
+
+        $comparisonRows.Add([PSCustomObject]@{
+                RowType                 = 'Definition'
+                IntuneAppId             = ''
+                IntuneDisplayName       = '-'
+                DefinitionDisplayName   = [string]$definitionRow.Name
+                DisplayPublisher        = [string]$definitionRow.Publisher
+                IntuneVersion           = '-'
+                DefinitionVersion       = [string]$definitionRow.Version
+                PSPackageFactoryGuid    = [string]$definitionRow.PSPackageFactoryGuid
+                IsMatched               = 'No'
+                UpdateRequired          = $updateRequired
+                MatchStatus             = $matchStatus
+                ImportAction            = $importAction
+            })
+
+        if ($isValid -and -not $isDuplicateGuid) {
+            $definitionOnlyCount++
+        }
+        else {
+            $unknownCount++
+        }
+    }
+
+    $sortedRows = @(
+        $comparisonRows | Sort-Object -Property `
+            @{ Expression = {
+                    if ([string]$_.ImportAction -eq 'Import as new app') { return 0 }
+                    if ([string]$_.UpdateRequired -eq 'Yes') { return 1 }
+                    if ([string]$_.UpdateRequired -eq 'Unknown') { return 2 }
+                    if ([string]$_.RowType -eq 'Intune') { return 3 }
+                    return 4
+                } },
+            DisplayPublisher,
+            DefinitionDisplayName,
+            IntuneDisplayName,
+            PSPackageFactoryGuid
+    )
+
+    $syncHash.IntuneComparisonRows = $sortedRows
+    if ($null -ne $intuneWin32AppsListView) {
+        $intuneWin32AppsListView.ItemsSource = $sortedRows
+    }
+
+    if ($null -ne $intuneWin32AppsCountLabel) {
+        $intuneWin32AppsCountLabel.Text = "$($intuneRows.Count) apps | $($sortedRows.Count) rows"
+    }
+
+    if ($null -ne $intuneActionStatusLabel) {
+        $intuneActionStatusLabel.Text = "Matched: $matchedCount | Update required: $updateRequiredCount | New imports: $definitionOnlyCount | Intune only: $intuneOnlyCount | Needs review: $unknownCount"
+    }
+
+    Write-UILog -SyncHash $syncHash -Message "Intune compare complete: rows=$($sortedRows.Count), matched=$matchedCount, update required=$updateRequiredCount, new imports=$definitionOnlyCount, intune only=$intuneOnlyCount, needs review=$unknownCount." -Level Info
+}
+
+$loadIntuneDefinitions = {
+    $definitionsRoot = & $normalizeDirectoryPath -PathValue ([string]$intuneDefinitionsPathBox.Text)
+    $intuneDefinitionsPathBox.Text = $definitionsRoot
+    & $applyIntunePathsToConfig
+
+    if ([string]::IsNullOrWhiteSpace($definitionsRoot)) {
+        $syncHash.IntuneDefinitionRows = @()
+        if ($null -ne $intuneDefinitionsCountLabel) {
+            $intuneDefinitionsCountLabel.Text = '0 loaded'
+        }
+        & $refreshIntuneComparison
+        Write-UILog -SyncHash $syncHash -Message 'Intune: provide a package definitions folder path first.' -Level Warning
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $definitionsRoot -PathType Container)) {
+        $syncHash.IntuneDefinitionRows = @()
+        if ($null -ne $intuneDefinitionsCountLabel) {
+            $intuneDefinitionsCountLabel.Text = '0 loaded'
+        }
+        & $refreshIntuneComparison
+        Write-UILog -SyncHash $syncHash -Message "Intune: definitions path does not exist: $definitionsRoot" -Level Warning
+        return
+    }
+
+    $definitionFiles = @()
+    try {
+        $definitionFiles = @(Get-ChildItem -LiteralPath $definitionsRoot -Recurse -File -ErrorAction Stop | Where-Object { $_.Name -ieq 'App.json' })
+    }
+    catch {
+        $syncHash.IntuneDefinitionRows = @()
+        if ($null -ne $intuneDefinitionsCountLabel) {
+            $intuneDefinitionsCountLabel.Text = '0 loaded'
+        }
+        & $refreshIntuneComparison
+        Write-UILog -SyncHash $syncHash -Message "Intune: failed to enumerate App.json files: $($_.Exception.Message)" -Level Error
+        return
+    }
+
+    $rows = [System.Collections.Generic.List[object]]::new()
+    foreach ($definitionFile in $definitionFiles) {
+        $definitionObject = $null
+        $name = [string](Split-Path -Path $definitionFile.DirectoryName -Leaf)
+        $publisher = '-'
+        $version = '-'
+        $guidText = ''
+        $status = 'Invalid JSON'
+
+        try {
+            $definitionObject = Get-Content -LiteralPath $definitionFile.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+
+            if ($null -ne $definitionObject.Information) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$definitionObject.Information.DisplayName)) {
+                    $name = ([string]$definitionObject.Information.DisplayName).Trim()
+                }
+                if (-not [string]::IsNullOrWhiteSpace([string]$definitionObject.Information.Publisher)) {
+                    $publisher = ([string]$definitionObject.Information.Publisher).Trim()
+                }
+                $guidText = ([string]$definitionObject.Information.PSPackageFactoryGuid).Trim()
+            }
+
+            if ($null -ne $definitionObject.PackageInformation -and -not [string]::IsNullOrWhiteSpace([string]$definitionObject.PackageInformation.Version)) {
+                $version = ([string]$definitionObject.PackageInformation.Version).Trim()
+            }
+
+            if ([string]::IsNullOrWhiteSpace($guidText)) {
+                $status = 'Missing PSPackageFactoryGuid'
+            }
+            else {
+                try {
+                    [void][guid]$guidText
+                    $status = 'Yes'
+                }
+                catch {
+                    $status = 'Invalid PSPackageFactoryGuid'
+                }
+            }
+        }
+        catch {
+            $status = 'Invalid JSON'
+        }
+
+        $rows.Add([PSCustomObject]@{
+                DefinitionId         = [string]$definitionFile.FullName
+                DefinitionPath       = [string]$definitionFile.FullName
+                Name                 = $name
+                Publisher            = $publisher
+                Version              = $version
+                Status               = if ($status -eq 'Yes') { 'Valid' } else { $status }
+                DefinitionValid      = $status
+                PSPackageFactoryGuid = $guidText
+                DefinitionObject     = $definitionObject
+            })
+    }
+
+    $sortedRows = @($rows | Sort-Object -Property Publisher, Name, DefinitionPath)
+    $syncHash.IntuneDefinitionRows = $sortedRows
+
+    if ($null -ne $intuneDefinitionsCountLabel) {
+        $validCount = @($sortedRows | Where-Object { [string]$_.DefinitionValid -eq 'Yes' }).Count
+        $intuneDefinitionsCountLabel.Text = "$($sortedRows.Count) loaded ($validCount valid)"
+    }
+
+    & $refreshIntuneComparison
+
+    if ($sortedRows.Count -eq 0) {
+        Write-UILog -SyncHash $syncHash -Message "Intune: no App.json files found under '$definitionsRoot'." -Level Warning
+    }
+    else {
+        $validCount = @($sortedRows | Where-Object { [string]$_.DefinitionValid -eq 'Yes' }).Count
+        Write-UILog -SyncHash $syncHash -Message "Intune: loaded $($sortedRows.Count) definitions from App.json files ($validCount valid)." -Level Info
+    }
+}
+
+$loadIntuneWin32Apps = {
+    if ($syncHash.IsIntuneImportLoading) {
+        return
+    }
+
+    if (-not (& $loadIntuneWin32AppModule)) {
+        $syncHash.IntuneWin32Rows = @()
+        & $refreshIntuneComparison
+        return
+    }
+
+    if ($null -ne $syncHash.PendingIntuneImportTimer -and $syncHash.PendingIntuneImportTimer.IsEnabled) {
+        $syncHash.PendingIntuneImportTimer.Stop()
+        $syncHash.PendingIntuneImportTimer = $null
+    }
+
+    foreach ($pendingOp in @('PendingIntuneImportPS', 'PendingIntuneImportRunspace', 'PendingIntuneImportAsync')) {
+        $syncHash[$pendingOp] = $null
+    }
+
+    & $setIntuneImportLoadingState -IsLoading $true -Message 'Listing Win32 apps from Microsoft Intune...'
+    Write-UILog -SyncHash $syncHash -Message 'Intune: retrieving Win32 apps from Microsoft Intune...' -Level Info
+
+    $rs = New-WpfRunspace -SyncHash $syncHash
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
+
+    [void]$ps.AddScript({
+            $result = [PSCustomObject]@{
+                Success = $false
+                Rows    = @()
+                Error   = ''
+            }
+
+            try {
+                Import-Module -Name IntuneWin32App -ErrorAction Stop | Out-Null
+                $getWin32Command = Get-Command -Name 'IntuneWin32App\Get-IntuneWin32App' -ErrorAction SilentlyContinue
+                if ($null -eq $getWin32Command) {
+                    $getWin32Command = Get-Command -Name 'Get-IntuneWin32App' -ErrorAction SilentlyContinue
+                }
+
+                if ($null -eq $getWin32Command) {
+                    throw 'Required command Get-IntuneWin32App was not found in IntuneWin32App module.'
+                }
+
+                $rawApps = @(& $getWin32Command)
+                $rows = [System.Collections.Generic.List[object]]::new()
+
+                foreach ($application in $rawApps) {
+                    if ($null -eq $application) {
+                        continue
+                    }
+
+                    $notesText = [string]$application.notes
+                    $notesJson = $null
+                    $notesValid = 'No'
+
+                    if (-not [string]::IsNullOrWhiteSpace($notesText)) {
+                        try {
+                            $notesJson = $notesText | ConvertFrom-Json -ErrorAction Stop
+                            $notesValid = 'Yes'
+                        }
+                        catch {
+                            $notesValid = 'No'
+                        }
+                    }
+
+                    $createdBy = if ($null -ne $notesJson -and $notesJson.PSObject.Properties.Name -contains 'CreatedBy') { [string]$notesJson.CreatedBy } else { '' }
+                    $guidText = if ($null -ne $notesJson -and $notesJson.PSObject.Properties.Name -contains 'Guid') { [string]$notesJson.Guid } else { '' }
+                    $isPspackageFactoryApp = ($notesText -match 'PSPackageFactory') -or ($createdBy -ieq 'PSPackageFactory')
+
+                    if (-not $isPspackageFactoryApp) {
+                        continue
+                    }
+
+                    $rows.Add([PSCustomObject]@{
+                            IntuneAppId    = [string]$application.id
+                            DisplayName    = [string]$application.displayName
+                            Publisher      = [string]$application.publisher
+                            DisplayVersion = [string]$application.displayVersion
+                            NotesGuid      = $guidText
+                            NotesValid     = $notesValid
+                        })
+                }
+
+                $result.Success = $true
+                $result.Rows = @($rows | Sort-Object -Property Publisher, DisplayName, IntuneAppId)
+            }
+            catch {
+                $result.Error = $_.Exception.Message
+            }
+
+            return $result
+        })
+
+    $syncHash.PendingIntuneImportPS = $ps
+    $syncHash.PendingIntuneImportRunspace = $rs
+    $syncHash.PendingIntuneImportAsync = $ps.BeginInvoke()
+
+    $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+    $syncHash.PendingIntuneImportTimer = $pollTimer
+
+    $pollTimer.add_Tick({
+            if ($null -eq $syncHash.PendingIntuneImportAsync -or -not $syncHash.PendingIntuneImportAsync.IsCompleted) {
+                return
+            }
+
+            if ($null -ne $syncHash.PendingIntuneImportTimer) {
+                $syncHash.PendingIntuneImportTimer.Stop()
+                $syncHash.PendingIntuneImportTimer = $null
+            }
+
+            $result = $null
+            try {
+                $output = $syncHash.PendingIntuneImportPS.EndInvoke($syncHash.PendingIntuneImportAsync)
+                if ($null -ne $output -and $output.Count -gt 0) {
+                    $result = $output[$output.Count - 1]
+                }
+            }
+            catch {
+                $result = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $_.Exception.Message }
+            }
+            finally {
+                try { $syncHash.PendingIntuneImportPS.Dispose() } catch {}
+                try { $syncHash.PendingIntuneImportRunspace.Dispose() } catch {}
+                $syncHash.PendingIntuneImportPS = $null
+                $syncHash.PendingIntuneImportRunspace = $null
+                $syncHash.PendingIntuneImportAsync = $null
+            }
+
+            try {
+                if ($null -eq $result -or -not $result.Success) {
+                    $syncHash.IntuneWin32Rows = @()
+                    $errorMessage = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown error occurred while listing Win32 apps.' } else { [string]$result.Error }
+                    Write-UILog -SyncHash $syncHash -Message "Intune: failed to list Win32 apps: $errorMessage" -Level Error
+                }
+                else {
+                    $rows = @($result.Rows)
+                    $syncHash.IntuneWin32Rows = $rows
+                    Write-UILog -SyncHash $syncHash -Message "Intune: loaded $($rows.Count) Win32 app(s) tagged by PSPackageFactory." -Level Info
+                }
+
+                & $refreshIntuneComparison
+            }
+            finally {
+                & $setIntuneImportLoadingState -IsLoading $false
+            }
+        })
+
+    $pollTimer.Start()
 }
 
 $getEvergreenMetadataForDefinition = {
@@ -2854,7 +3363,7 @@ $nerdioImportNewButton.add_Click({
 
 $intuneRefreshCatalogButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'List Intune Win32 apps')) { return }
-    & $startIntuneImportOperation -ActionName 'List Intune Win32 apps' -LoadingMessage 'Listing Win32 apps from Microsoft Intune...' -CompletionMessage 'Intune: listing Win32 apps from Microsoft Intune is not implemented yet.'
+    & $loadIntuneWin32Apps
     })
 
 $intuneBrowseDefinitionsButton.add_Click({
@@ -2872,7 +3381,7 @@ $intuneBrowseDefinitionsButton.add_Click({
     })
 
 $intuneLoadDefinitionsButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Intune: load package definitions is not implemented yet.' -Level Info
+    & $loadIntuneDefinitions
     })
 
 $intuneBrowsePackageOutputButton.add_Click({
@@ -2902,17 +3411,12 @@ $intunePackageOutputPathBox.add_LostFocus({
     })
 
 $intunePackageButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Intune: package selected apps is not implemented yet.' -Level Info
-    })
-
-$intunePreviewImportButton.add_Click({
-        if (-not (& $requireImportAuth -ActionName 'Intune preview import')) { return }
-    & $startIntuneImportOperation -ActionName 'Preview import' -LoadingMessage 'Preparing Intune import preview...' -CompletionMessage 'Intune: preview import is not implemented yet.'
+    Write-UILog -SyncHash $syncHash -Message 'Intune: package selected apps is currently out of scope for this workflow update.' -Level Info
     })
 
 $intuneApplyImportButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'Intune apply import')) { return }
-    & $startIntuneImportOperation -ActionName 'Apply import' -LoadingMessage 'Applying Intune import...' -CompletionMessage 'Intune: apply import is not implemented yet.'
+    & $startIntuneImportOperation -ActionName 'Apply import' -LoadingMessage 'Applying Intune import...' -CompletionMessage 'Intune: apply import remains out of scope for this workflow update.'
     })
 
 $intuneReloadModuleSettingsButton.add_Click({
