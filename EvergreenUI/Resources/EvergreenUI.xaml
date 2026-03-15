@@ -659,6 +659,9 @@
                 <RadioButton x:Name="NavSettings"
                              Content="Settings"
                              Style="{StaticResource NavRailRadioButton}"/>
+                <RadioButton x:Name="NavAbout"
+                             Content="About"
+                             Style="{StaticResource NavRailRadioButton}"/>
             </StackPanel>
         </Border>
 
@@ -2269,6 +2272,7 @@
                                     <ComboBoxItem Content="Library"/>
                                     <ComboBoxItem Content="Import"/>
                                     <ComboBoxItem Content="Settings"/>
+                                    <ComboBoxItem Content="About"/>
                                 </ComboBox>
 
                                 <!-- Cache -->
@@ -2384,6 +2388,120 @@
                                              Style="{StaticResource FluentTextBox}"
                                              ToolTip="Folder where .intunewin packages are written during the Package step"/>
                                 </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- About view -->
+            <Grid x:Name="AboutPanel"
+                  Visibility="Collapsed"
+                  Background="{DynamicResource WindowBackgroundBrush}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="22,18,22,12" MaxWidth="760" HorizontalAlignment="Left">
+
+                        <TextBlock Text="About"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Module"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="AboutNameValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Version"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="AboutVersionValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Prerelease"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="AboutPrereleaseValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Author"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="AboutAuthorValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Company"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="AboutCompanyValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Copyright"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="AboutCopyrightValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="License"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="AboutLicenseValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="Project"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="7" Grid.Column="1" x:Name="AboutProjectUriValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            </Grid>
+                        </Border>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14"
+                                Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Description"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock x:Name="AboutDescriptionValue"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 

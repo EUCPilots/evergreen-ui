@@ -3,10 +3,10 @@
     # Module identity
     ModuleVersion     = '1.0.5'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
-    Author            = 'Aaron Parker'
+    Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
     Copyright         = '(c) 2026 EUC Pilots. Licensed under the MIT Licence.'
-    Description       = 'WPF graphical frontend for the Evergreen PowerShell module. Provides a Windows-only GUI for Find-EvergreenApp, Get-EvergreenApp, Save-EvergreenApp, and Evergreen library management cmdlets.'
+    Description       = 'The Evergreen Workbench is WPF graphical frontend for the Evergreen PowerShell module. Provides a Windows-only GUI for Find-EvergreenApp, Get-EvergreenApp, Save-EvergreenApp, and Evergreen library management cmdlets.'
 
     # Compatibility
     PowerShellVersion = '5.1'

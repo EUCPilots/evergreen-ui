@@ -60,6 +60,66 @@ Add-Type -AssemblyName System.Windows.Forms
 # Load saved config
 $config = Get-UIConfig
 
+$moduleManifestPath = (Resolve-Path -Path (Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'EvergreenUI.psd1')).Path
+$moduleMetadata = [ordered]@{
+    Name              = 'EvergreenUI'
+    Version           = ''
+    Prerelease        = ''
+    Author            = ''
+    CompanyName       = ''
+    Copyright         = ''
+    License           = ''
+    ProjectUri        = ''
+    Description       = ''
+    PowerShellVersion = ''
+    RootModule        = ''
+    Guid              = ''
+    ManifestPath      = $moduleManifestPath
+}
+
+try {
+    $moduleManifest = Test-ModuleManifest -Path $moduleManifestPath -ErrorAction Stop
+
+    $moduleMetadata.Name = [string]$moduleManifest.Name
+    $moduleMetadata.Version = [string]$moduleManifest.Version
+    $moduleMetadata.Author = [string]$moduleManifest.Author
+    $moduleMetadata.CompanyName = [string]$moduleManifest.CompanyName
+    $moduleMetadata.Copyright = [string]$moduleManifest.Copyright
+    $moduleMetadata.Description = [string]$moduleManifest.Description
+    $moduleMetadata.PowerShellVersion = [string]$moduleManifest.PowerShellVersion
+    $moduleMetadata.RootModule = [string]$moduleManifest.RootModule
+    $moduleMetadata.Guid = [string]$moduleManifest.Guid
+
+    $psData = $null
+    if ($moduleManifest.PrivateData -is [hashtable]) {
+        if ($moduleManifest.PrivateData.ContainsKey('PSData')) {
+            $psData = $moduleManifest.PrivateData.PSData
+        }
+    }
+    elseif ($null -ne $moduleManifest.PrivateData) {
+        $psData = $moduleManifest.PrivateData.PSData
+    }
+
+    if ($null -ne $psData) {
+        if ($null -ne $psData.Prerelease) {
+            $moduleMetadata.Prerelease = [string]$psData.Prerelease
+        }
+        if ($null -ne $psData.LicenseUri) {
+            $moduleMetadata.License = [string]$psData.LicenseUri
+        }
+        if ($null -ne $psData.ProjectUri) {
+            $moduleMetadata.ProjectUri = [string]$psData.ProjectUri
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$moduleMetadata.License)) {
+        $moduleMetadata.License = [string]$moduleMetadata.Copyright
+    }
+}
+catch {
+    # About panel metadata is best-effort only.
+}
+
 # Shared state
 $syncHash = [hashtable]::Synchronized(@{
         Window                     = $null
@@ -163,12 +223,14 @@ $navDownload = $window.FindName('NavDownload')
 $navLibrary = $window.FindName('NavLibrary')
 $navImport = $window.FindName('NavImport')
 $navSettings = $window.FindName('NavSettings')
+$navAbout = $window.FindName('NavAbout')
 
 $appsPanel = $window.FindName('AppsPanel')
 $downloadPanel = $window.FindName('DownloadPanel')
 $libraryPanel = $window.FindName('LibraryPanel')
 $importPanel = $window.FindName('ImportPanel')
 $settingsPanel = $window.FindName('SettingsPanel')
+$aboutPanel = $window.FindName('AboutPanel')
 
 $refreshAppsButton = $window.FindName('RefreshAppsButton')
 $appSearchBox = $window.FindName('AppSearchBox')
@@ -223,6 +285,15 @@ $nerdioModulePathSettingsBox = $window.FindName('NerdioModulePathSettingsBox')
 $nerdioBrowseModulePathSettingsButton = $window.FindName('NerdioBrowseModulePathSettingsButton')
 $nerdioReloadModuleSettingsButton = $window.FindName('NerdioReloadModuleSettingsButton')
 $nerdioModuleStatusLabel = $window.FindName('NerdioModuleStatusLabel')
+$aboutNameValue = $window.FindName('AboutNameValue')
+$aboutVersionValue = $window.FindName('AboutVersionValue')
+$aboutPrereleaseValue = $window.FindName('AboutPrereleaseValue')
+$aboutAuthorValue = $window.FindName('AboutAuthorValue')
+$aboutCompanyValue = $window.FindName('AboutCompanyValue')
+$aboutCopyrightValue = $window.FindName('AboutCopyrightValue')
+$aboutLicenseValue = $window.FindName('AboutLicenseValue')
+$aboutProjectUriValue = $window.FindName('AboutProjectUriValue')
+$aboutDescriptionValue = $window.FindName('AboutDescriptionValue')
 
 $importProviderTabControl = $window.FindName('ImportProviderTabControl')
 $importTenantIdBox = $window.FindName('ImportTenantIdBox')
@@ -291,6 +362,16 @@ $logRowDef = $rootGrid.RowDefinitions[3]
 
 # Store refs needed by background-runspace callbacks
 $syncHash.ImportTenantIdBox = $importTenantIdBox
+
+$aboutNameValue.Text = [string]$moduleMetadata.Name
+$aboutVersionValue.Text = [string]$moduleMetadata.Version
+$aboutPrereleaseValue.Text = if ([string]::IsNullOrWhiteSpace([string]$moduleMetadata.Prerelease)) { 'n/a' } else { [string]$moduleMetadata.Prerelease }
+$aboutAuthorValue.Text = [string]$moduleMetadata.Author
+$aboutCompanyValue.Text = [string]$moduleMetadata.CompanyName
+$aboutCopyrightValue.Text = [string]$moduleMetadata.Copyright
+$aboutLicenseValue.Text = [string]$moduleMetadata.License
+$aboutProjectUriValue.Text = [string]$moduleMetadata.ProjectUri
+$aboutDescriptionValue.Text = [string]$moduleMetadata.Description
 
 $setNerdioShellAppsLoadingState = {
     param(
@@ -777,6 +858,9 @@ $getCurrentStartupView = {
     }
     elseif ($navSettings.IsChecked) {
         return 'Settings'
+    }
+    elseif ($navAbout.IsChecked) {
+        return 'About'
     }
 
     return 'Apps'
@@ -3055,6 +3139,9 @@ $window.add_Loaded({
             'Settings' {
                 $navSettings.IsChecked = $true
             }
+            'About' {
+                $navAbout.IsChecked = $true
+            }
             default {
                 $navApps.IsChecked = $true
             }
@@ -3174,6 +3261,7 @@ $panelMap = @{
     NavLibrary  = $libraryPanel
     NavImport   = $importPanel
     NavSettings = $settingsPanel
+    NavAbout    = $aboutPanel
 }
 
 $navCheckedHandler = {
@@ -3188,7 +3276,7 @@ $navCheckedHandler = {
     }
 }
 
-foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navSettings)) {
+foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navSettings, $navAbout)) {
     $navBtn.add_Checked($navCheckedHandler)
 }
 
@@ -3770,6 +3858,7 @@ $navSettings.add_Checked({
             'Library' { $startupViewComboBox.SelectedIndex = 2 }
             'Import' { $startupViewComboBox.SelectedIndex = 3 }
             'Settings' { $startupViewComboBox.SelectedIndex = 4 }
+            'About' { $startupViewComboBox.SelectedIndex = 5 }
             default { $startupViewComboBox.SelectedIndex = 0 }
         }
     })
