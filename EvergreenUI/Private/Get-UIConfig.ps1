@@ -51,6 +51,7 @@ function Get-UIConfig {
             NmeApiScope       = ''
             NmeSubscriptionId = ''
             NmeOAuthTokenUrl  = ''
+            DefinitionsPath   = ''
         }
         IntuneSettings = [PSCustomObject]@{
             DefinitionsPath   = ''
