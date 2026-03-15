@@ -1153,6 +1153,22 @@ $refreshNerdioModuleStatus = {
     $nerdioModuleStatusLabel.Text = $Message
 }
 
+$setNerdioModuleQuietLogging = {
+    param(
+        [string]$Preference = 'SilentlyContinue'
+    )
+
+    try {
+        $module = Get-Module -Name NerdioShellApps -ErrorAction SilentlyContinue
+        if ($null -ne $module -and $null -ne $module.SessionState -and $null -ne $module.SessionState.PSVariable) {
+            $module.SessionState.PSVariable.Set('InformationPreference', $Preference)
+        }
+    }
+    catch {
+        # Best effort only. If this fails, Nerdio operations should still continue.
+    }
+}
+
 $loadNerdioShellAppsModule = {
     param([switch]$Force)
 
@@ -1179,6 +1195,7 @@ $loadNerdioShellAppsModule = {
         }
 
         Import-Module -Name $path -Force:$Force -ErrorAction Stop | Out-Null
+        & $setNerdioModuleQuietLogging -Preference 'SilentlyContinue'
         & $refreshNerdioModuleStatus -IsLoaded $true -Message "Loaded module: $path"
         Write-UILog -SyncHash $syncHash -Message "Loaded NerdioShellApps module from '$path'." -Level Info
         return $true
@@ -2185,6 +2202,11 @@ $loadNerdioShellApps = {
 
             try {
                 Import-Module -Name $ModulePath -Force -ErrorAction Stop | Out-Null
+
+                $module = Get-Module -Name NerdioShellApps -ErrorAction SilentlyContinue
+                if ($null -ne $module -and $null -ne $module.SessionState -and $null -ne $module.SessionState.PSVariable) {
+                    $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
+                }
 
                 $setNmeCredentialsCommand = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials' -ErrorAction SilentlyContinue
                 $connectNmeCommand = Get-Command -Name 'NerdioShellApps\Connect-Nme' -ErrorAction SilentlyContinue
