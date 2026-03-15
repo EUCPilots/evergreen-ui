@@ -423,6 +423,7 @@
                                     <RowDefinition Height="2"/>
                                 </Grid.RowDefinitions>
                                 <ContentPresenter Grid.Row="0"
+                                                  x:Name="HeaderContentPresenter"
                                                   ContentSource="Header"
                                                   Margin="0"
                                                   HorizontalAlignment="Center"
@@ -438,7 +439,9 @@
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter Property="Foreground"
                                         Value="{DynamicResource AccentBrush}"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="HeaderContentPresenter"
+                                    Property="TextElement.FontWeight"
+                                    Value="SemiBold"/>
                                 <Setter TargetName="underline" Property="Background"
                                         Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
@@ -1261,7 +1264,6 @@
             <!-- Import view -->
             <Grid x:Name="ImportPanel"
                   Visibility="Collapsed"
-                TextElement.FontWeight="Normal"
                   Background="{DynamicResource WindowBackgroundBrush}">
                 <Grid Margin="22,18,22,12">
                     <Grid.RowDefinitions>
