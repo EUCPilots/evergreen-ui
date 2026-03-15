@@ -35,7 +35,8 @@ $ProgressPreference = 'SilentlyContinue'
 if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
     Write-Verbose 'Current thread is MTA - restarting on an STA thread.'
     $sta = [powershell]::Create()
-    $sta.AddScript({ Import-Module EvergreenUI; Start-EvergreenUI }) | Out-Null
+    $psd1 = (Resolve-Path -Path (Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'EvergreenUI.psd1')).Path
+    $sta.AddScript([scriptblock]::Create("Import-Module '$psd1'; Start-EvergreenWorkbench")) | Out-Null
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = 'STA'
     $runspace.ThreadOptions = 'ReuseThread'
@@ -89,6 +90,14 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingLoadAsync           = $null
         PendingLoadAppName         = $null
         ImportCurrentProvider      = 'Nerdio'
+        AzureAuthState             = [PSCustomObject]@{
+            IsAuthenticated  = $false
+            IsAuthInProgress = $false
+            AccountId        = ''
+            TenantId         = ''
+            SubscriptionName = ''
+            ErrorMessage     = ''
+        }
     })
 
 # Load XAML layout
@@ -170,10 +179,25 @@ $clearCacheButton = $window.FindName('ClearCacheButton')
 $openCacheFolderButton = $window.FindName('OpenCacheFolderButton')
 
 $importProviderTabControl = $window.FindName('ImportProviderTabControl')
-$nerdioRefreshDefinitionsButton = $window.FindName('NerdioRefreshDefinitionsButton')
-$nerdioPreviewImportButton = $window.FindName('NerdioPreviewImportButton')
-$nerdioApplyImportButton = $window.FindName('NerdioApplyImportButton')
+$importTenantIdBox = $window.FindName('ImportTenantIdBox')
+$importAuthStatusDot = $window.FindName('ImportAuthStatusDot')
+$importAuthStatusLabel = $window.FindName('ImportAuthStatusLabel')
+$importSignInButton = $window.FindName('ImportSignInButton')
+$importSignOutButton = $window.FindName('ImportSignOutButton')
 $intuneRefreshCatalogButton = $window.FindName('IntuneRefreshCatalogButton')
+# Nerdio Shell Apps controls
+$nerdioDefinitionsPathBox      = $window.FindName('NerdioDefinitionsPathBox')
+$nerdioBrowseDefinitionsButton = $window.FindName('NerdioBrowseDefinitionsButton')
+$nerdioLoadDefinitionsButton   = $window.FindName('NerdioLoadDefinitionsButton')
+$nerdioListShellAppsButton     = $window.FindName('NerdioListShellAppsButton')
+$nerdioDefinitionsListView     = $window.FindName('NerdioDefinitionsListView')
+$nerdioShellAppsListView       = $window.FindName('NerdioShellAppsListView')
+$nerdioDefinitionsCountLabel   = $window.FindName('NerdioDefinitionsCountLabel')
+$nerdioShellAppsCountLabel     = $window.FindName('NerdioShellAppsCountLabel')
+$nerdioAddVersionButton        = $window.FindName('NerdioAddVersionButton')
+$nerdioImportNewButton         = $window.FindName('NerdioImportNewButton')
+$nerdioUseRemoteUrlCheckBox    = $window.FindName('NerdioUseRemoteUrlCheckBox')
+$nerdioActionStatusLabel       = $window.FindName('NerdioActionStatusLabel')
 $intunePreviewImportButton = $window.FindName('IntunePreviewImportButton')
 $intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
 # Log row is RowDefinitions[3]; track its height for collapse/restore
@@ -454,6 +478,117 @@ $normalizeDirectoryPath = {
     }
 
     return $PathValue.Trim().Trim('"')
+}
+
+$refreshImportAuthUi = {
+    $state = $syncHash.AzureAuthState
+    if ($state.IsAuthInProgress) {
+        $importAuthStatusDot.Fill = [System.Windows.Media.Brushes]::Gold
+        $importAuthStatusLabel.Text = 'Signing in...'
+        $importSignInButton.IsEnabled = $false
+        $importSignOutButton.IsEnabled = $false
+        return
+    }
+
+    if ($state.IsAuthenticated) {
+        $importAuthStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
+        $account = if ([string]::IsNullOrWhiteSpace($state.AccountId)) { 'signed in' } else { $state.AccountId }
+        $tenant = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " (tenant: $($state.TenantId))" }
+        $importAuthStatusLabel.Text = "$account$tenant"
+        $importSignInButton.IsEnabled = $true
+        $importSignOutButton.IsEnabled = $true
+        return
+    }
+
+    $importAuthStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+    if ([string]::IsNullOrWhiteSpace($state.ErrorMessage)) {
+        $importAuthStatusLabel.Text = 'Not signed in'
+    }
+    else {
+        $importAuthStatusLabel.Text = 'Sign-in failed'
+    }
+    $importSignInButton.IsEnabled = $true
+    $importSignOutButton.IsEnabled = $false
+}
+
+$isImportAuthReady = {
+    return [bool]$syncHash.AzureAuthState.IsAuthenticated
+}
+
+$requireImportAuth = {
+    param([string]$ActionName)
+
+    if (& $isImportAuthReady) {
+        return $true
+    }
+
+    Write-UILog -SyncHash $syncHash -Message "$ActionName requires Entra/Azure sign-in. Use the Sign in button above the Import tabs." -Level Warning
+    return $false
+}
+
+$applyImportTenantToConfig = {
+    $tenantText = if ($null -eq $importTenantIdBox) { '' } else { [string]$importTenantIdBox.Text }
+    $syncHash.Config.AzureAuthSettings.TenantId = $tenantText.Trim()
+    Set-UIConfig -Config $syncHash.Config
+}
+
+$startImportSignIn = {
+    if ($syncHash.AzureAuthState.IsAuthInProgress) {
+        return
+    }
+
+    $syncHash.AzureAuthState.IsAuthInProgress = $true
+    $syncHash.AzureAuthState.ErrorMessage = ''
+    & $refreshImportAuthUi
+
+    $tenant = [string]$importTenantIdBox.Text
+    Write-UILog -SyncHash $syncHash -Message 'Starting interactive Microsoft sign-in for Import workflows...' -Level Info
+
+    $result = Invoke-AzureSignIn -TenantId $tenant
+    if ($null -ne $result -and $result.Succeeded) {
+        $syncHash.AzureAuthState.IsAuthenticated = $true
+        $syncHash.AzureAuthState.AccountId = [string]$result.AccountId
+        $syncHash.AzureAuthState.TenantId = [string]$result.TenantId
+        $syncHash.AzureAuthState.SubscriptionName = [string]$result.SubscriptionName
+        $syncHash.AzureAuthState.ErrorMessage = ''
+
+        if (-not [string]::IsNullOrWhiteSpace([string]$result.TenantId)) {
+            $importTenantIdBox.Text = [string]$result.TenantId
+        }
+
+        $syncHash.Config.AzureAuthSettings.TenantId = [string]$importTenantIdBox.Text
+        $syncHash.Config.AzureAuthSettings.LastAccountId = [string]$result.AccountId
+        $syncHash.Config.AzureAuthSettings.LastTenantId = [string]$result.TenantId
+        $syncHash.Config.AzureAuthSettings.LastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
+        Set-UIConfig -Config $syncHash.Config
+
+        Write-UILog -SyncHash $syncHash -Message "Signed in as $($result.AccountId) to tenant $($result.TenantId)." -Level Info
+    }
+    else {
+        $syncHash.AzureAuthState.IsAuthenticated = $false
+        $syncHash.AzureAuthState.AccountId = ''
+        $syncHash.AzureAuthState.TenantId = ''
+        $syncHash.AzureAuthState.SubscriptionName = ''
+        $syncHash.AzureAuthState.ErrorMessage = if ($null -eq $result) { 'Unknown sign-in error.' } else { [string]$result.ErrorMessage }
+        Write-UILog -SyncHash $syncHash -Message "Sign-in failed: $($syncHash.AzureAuthState.ErrorMessage)" -Level Error
+    }
+
+    $syncHash.AzureAuthState.IsAuthInProgress = $false
+    & $refreshImportAuthUi
+}
+
+$startImportSignOut = {
+    Invoke-AzureSignOut
+
+    $syncHash.AzureAuthState.IsAuthenticated = $false
+    $syncHash.AzureAuthState.IsAuthInProgress = $false
+    $syncHash.AzureAuthState.AccountId = ''
+    $syncHash.AzureAuthState.TenantId = ''
+    $syncHash.AzureAuthState.SubscriptionName = ''
+    $syncHash.AzureAuthState.ErrorMessage = ''
+    & $refreshImportAuthUi
+
+    Write-UILog -SyncHash $syncHash -Message 'Signed out of Azure session for Import workflows.' -Level Info
 }
 
 $registerBackgroundOperation = {
@@ -840,6 +975,8 @@ $window.add_Loaded({
 
         & $refreshQueueView
         $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
+        $importTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.TenantId
+        & $refreshImportAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
 
         switch ([string]$syncHash.Config.StartupView) {
@@ -1020,6 +1157,7 @@ $navLibrary.add_Checked({
     })
 
 $navImport.add_Checked({
+        & $refreshImportAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
     })
 
@@ -1032,27 +1170,61 @@ $importProviderTabControl.add_SelectionChanged({
         Write-UILog -SyncHash $syncHash -Message "Import workflow switched to $label placeholder." -Level Info
     })
 
-$nerdioRefreshDefinitionsButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Nerdio placeholder action: refresh definitions is not implemented yet.' -Level Info
+$importSignInButton.add_Click({
+        & $applyImportTenantToConfig
+        & $startImportSignIn
     })
 
-$nerdioPreviewImportButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Nerdio placeholder action: preview import is not implemented yet.' -Level Info
+$importSignOutButton.add_Click({
+        & $startImportSignOut
     })
 
-$nerdioApplyImportButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Nerdio placeholder action: apply import is not implemented yet.' -Level Info
+$importTenantIdBox.add_LostFocus({
+        & $applyImportTenantToConfig
+    })
+
+$nerdioBrowseDefinitionsButton.add_Click({
+        $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+        $dlg.Description = 'Select Shell App definitions folder'
+        if (-not [string]::IsNullOrWhiteSpace($nerdioDefinitionsPathBox.Text)) {
+            $dlg.SelectedPath = $nerdioDefinitionsPathBox.Text
+        }
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $nerdioDefinitionsPathBox.Text = $dlg.SelectedPath
+        }
+    })
+
+$nerdioLoadDefinitionsButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: loading Shell App definitions is not implemented yet.' -Level Info
+    })
+
+$nerdioListShellAppsButton.add_Click({
+        if (-not (& $requireImportAuth -ActionName 'List Shell Apps')) { return }
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: listing Shell Apps from Nerdio Manager is not implemented yet.' -Level Info
+    })
+
+$nerdioAddVersionButton.add_Click({
+        if (-not (& $requireImportAuth -ActionName 'Add Shell App version')) { return }
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: add version to existing Shell App is not implemented yet.' -Level Info
+    })
+
+$nerdioImportNewButton.add_Click({
+        if (-not (& $requireImportAuth -ActionName 'Import new Shell App')) { return }
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: import as new Shell App is not implemented yet.' -Level Info
     })
 
 $intuneRefreshCatalogButton.add_Click({
+        if (-not (& $requireImportAuth -ActionName 'Intune refresh catalog')) { return }
         Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: refresh catalog is not implemented yet.' -Level Info
     })
 
 $intunePreviewImportButton.add_Click({
+        if (-not (& $requireImportAuth -ActionName 'Intune preview import')) { return }
         Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: preview import is not implemented yet.' -Level Info
     })
 
 $intuneApplyImportButton.add_Click({
+        if (-not (& $requireImportAuth -ActionName 'Intune apply import')) { return }
         Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: apply import is not implemented yet.' -Level Info
     })
 

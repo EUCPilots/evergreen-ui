@@ -35,6 +35,7 @@
         'Private\Get-EvergreenAppList.ps1'
         'Private\Get-FilterableProperties.ps1'
         'Private\Get-UIConfig.ps1'
+        'Private\Invoke-AzureSignIn.ps1'
         'Private\Invoke-AppDownload.ps1'
         'Private\Invoke-FilterUpdate.ps1'
         'Private\Invoke-LibraryUpdate.ps1'

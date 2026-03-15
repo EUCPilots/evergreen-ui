@@ -44,6 +44,12 @@ function Get-UIConfig {
         ImportSettings = [PSCustomObject]@{
             CurrentProvider = 'Nerdio'
         }
+        AzureAuthSettings = [PSCustomObject]@{
+            TenantId        = ''
+            LastAccountId   = ''
+            LastTenantId    = ''
+            LastSignedInUtc = ''
+        }
     }
 
     $configPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI\settings.json'
@@ -68,6 +74,17 @@ function Get-UIConfig {
         }
         elseif ($null -eq $json.ImportSettings.CurrentProvider -or [string]::IsNullOrWhiteSpace([string]$json.ImportSettings.CurrentProvider)) {
             $json.ImportSettings | Add-Member -NotePropertyName 'CurrentProvider' -NotePropertyValue 'Nerdio' -Force
+        }
+
+        if ($null -eq $json.AzureAuthSettings) {
+            $json | Add-Member -NotePropertyName 'AzureAuthSettings' -NotePropertyValue $default.AzureAuthSettings -Force
+        }
+        else {
+            foreach ($prop in $default.AzureAuthSettings.PSObject.Properties.Name) {
+                if ($null -eq $json.AzureAuthSettings.$prop) {
+                    $json.AzureAuthSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.AzureAuthSettings.$prop -Force
+                }
+            }
         }
 
         return $json
