@@ -324,3 +324,16 @@ Failure-path checks:
 - Connection is validated for this UI session, but each action runspace reconnects independently.
 - `NerdioOauthToken` is persisted as text in current implementation; secret is session-only.
 - Apply buttons are never manually enabled outside plan-result logic.
+
+## Next Steps: Shared Entra Sign-In
+
+These steps track the follow-up work after introducing a common Import auth bar shared by Intune and Nerdio workflows.
+
+1. Wire tenant-aware token acquisition for both Microsoft Graph (Intune) and Azure management scopes from the shared sign-in session state.
+2. Connect the first real Intune action (catalog refresh) to Graph using the shared auth state and maintain existing action gating.
+3. Connect Nerdio list/import/version operations to use the shared auth state plus Nerdio API fields already present in the Nerdio tab.
+4. Add a tenant mismatch guard: if a Nerdio definition/workflow requires a different tenant than the shared sign-in tenant, show a clear warning and block the action.
+5. Add token-expiry handling: detect expired session context before protected actions and prompt for re-authentication without breaking UI state.
+6. Add auth telemetry in UI logs for sign-in start/success/failure/sign-out and include tenant/account hints (non-secret).
+7. Add validation tests for protected actions on both tabs to ensure unsigned users can browse but cannot execute protected operations.
+8. Add a regression test pass to ensure no secret/token material is persisted to config and that only non-secret hints remain under `AzureAuthSettings`.
