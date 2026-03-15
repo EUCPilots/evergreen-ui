@@ -47,6 +47,10 @@ function Get-UIConfig {
         NerdioSettings = [PSCustomObject]@{
             ModulePath = ''
         }
+        IntuneSettings = [PSCustomObject]@{
+            DefinitionsPath   = ''
+            PackageOutputPath = ''
+        }
         AzureAuthSettings = [PSCustomObject]@{
             TenantId        = ''
             LastAccountId   = ''
@@ -84,6 +88,17 @@ function Get-UIConfig {
         }
         elseif ($null -eq $json.NerdioSettings.ModulePath) {
             $json.NerdioSettings | Add-Member -NotePropertyName 'ModulePath' -NotePropertyValue '' -Force
+        }
+
+        if ($null -eq $json.IntuneSettings) {
+            $json | Add-Member -NotePropertyName 'IntuneSettings' -NotePropertyValue $default.IntuneSettings -Force
+        }
+        else {
+            foreach ($prop in $default.IntuneSettings.PSObject.Properties.Name) {
+                if ($null -eq $json.IntuneSettings.$prop) {
+                    $json.IntuneSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.IntuneSettings.$prop -Force
+                }
+            }
         }
 
         if ($null -eq $json.AzureAuthSettings) {

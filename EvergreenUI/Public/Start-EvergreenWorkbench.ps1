@@ -189,6 +189,23 @@ $importAuthStatusLabel = $window.FindName('ImportAuthStatusLabel')
 $importSignInButton = $window.FindName('ImportSignInButton')
 $importSignOutButton = $window.FindName('ImportSignOutButton')
 $intuneRefreshCatalogButton = $window.FindName('IntuneRefreshCatalogButton')
+# Microsoft Intune controls
+$intunePackageOutputPathBox              = $window.FindName('IntunePackageOutputPathBox')
+$intuneBrowsePackageOutputButton         = $window.FindName('IntuneBrowsePackageOutputButton')
+$intuneDefinitionsPathBox                = $window.FindName('IntuneDefinitionsPathBox')
+$intuneBrowseDefinitionsButton           = $window.FindName('IntuneBrowseDefinitionsButton')
+$intuneLoadDefinitionsButton             = $window.FindName('IntuneLoadDefinitionsButton')
+$intuneDefinitionsCountLabel             = $window.FindName('IntuneDefinitionsCountLabel')
+$intuneDefinitionsListView               = $window.FindName('IntuneDefinitionsListView')
+$intuneWin32AppsCountLabel               = $window.FindName('IntuneWin32AppsCountLabel')
+$intuneWin32AppsListView                 = $window.FindName('IntuneWin32AppsListView')
+$intunePackageButton                     = $window.FindName('IntunePackageButton')
+$intuneOnlyUnpackagedCheckBox            = $window.FindName('IntuneOnlyUnpackagedCheckBox')
+$intuneActionStatusLabel                 = $window.FindName('IntuneActionStatusLabel')
+# Intune Settings controls
+$intuneReloadModuleSettingsButton        = $window.FindName('IntuneReloadModuleSettingsButton')
+$intuneSettingsModuleStatusDot           = $window.FindName('IntuneSettingsModuleStatusDot')
+$intuneSettingsModuleStatusLabel         = $window.FindName('IntuneSettingsModuleStatusLabel')
 # Nerdio Shell Apps controls
 $nerdioDefinitionsPathBox      = $window.FindName('NerdioDefinitionsPathBox')
 $nerdioBrowseDefinitionsButton = $window.FindName('NerdioBrowseDefinitionsButton')
@@ -587,6 +604,51 @@ $loadNerdioShellAppsModule = {
     catch {
         & $refreshNerdioModuleStatus -IsLoaded $false -Message "Failed to load module: $($_.Exception.Message)"
         Write-UILog -SyncHash $syncHash -Message "Failed to load NerdioShellApps module: $($_.Exception.Message)" -Level Error
+        return $false
+    }
+}
+
+$refreshIntuneModuleStatus = {
+    param(
+        [bool]$IsLoaded,
+        [string]$Message
+    )
+
+    if ($null -eq $intuneSettingsModuleStatusLabel) { return }
+
+    if ($IsLoaded) {
+        $intuneSettingsModuleStatusLabel.Foreground = [System.Windows.Media.Brushes]::LightGreen
+        if ($null -ne $intuneSettingsModuleStatusDot) {
+            $intuneSettingsModuleStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
+        }
+    }
+    else {
+        $intuneSettingsModuleStatusLabel.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+        if ($null -ne $intuneSettingsModuleStatusDot) {
+            $intuneSettingsModuleStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+        }
+    }
+
+    $intuneSettingsModuleStatusLabel.Text = $Message
+}
+
+$loadIntuneWin32AppModule = {
+    param([switch]$Force)
+
+    try {
+        if ($Force) {
+            Remove-Module -Name IntuneWin32App -ErrorAction SilentlyContinue
+        }
+
+        Import-Module -Name IntuneWin32App -Force:$Force -ErrorAction Stop | Out-Null
+        $ver = (Get-Module -Name IntuneWin32App).Version
+        & $refreshIntuneModuleStatus -IsLoaded $true -Message "IntuneWin32App v$ver loaded."
+        Write-UILog -SyncHash $syncHash -Message "IntuneWin32App module v$ver loaded successfully." -Level Info
+        return $true
+    }
+    catch {
+        & $refreshIntuneModuleStatus -IsLoaded $false -Message "Failed to load module: $($_.Exception.Message)"
+        Write-UILog -SyncHash $syncHash -Message "Failed to load IntuneWin32App module: $($_.Exception.Message)" -Level Error
         return $false
     }
 }
@@ -1036,7 +1098,10 @@ $window.add_Loaded({
         $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
         $importTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.TenantId
         $nerdioModulePathSettingsBox.Text = [string]$syncHash.Config.NerdioSettings.ModulePath
+        $intuneDefinitionsPathBox.Text    = [string]$syncHash.Config.IntuneSettings.DefinitionsPath
+        $intunePackageOutputPathBox.Text  = [string]$syncHash.Config.IntuneSettings.PackageOutputPath
         [void](& $loadNerdioShellAppsModule)
+        [void](& $loadIntuneWin32AppModule)
         & $refreshImportAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
 
@@ -1275,18 +1340,38 @@ $nerdioImportNewButton.add_Click({
     })
 
 $intuneRefreshCatalogButton.add_Click({
-        if (-not (& $requireImportAuth -ActionName 'Intune refresh catalog')) { return }
-        Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: refresh catalog is not implemented yet.' -Level Info
+        if (-not (& $requireImportAuth -ActionName 'List Intune Win32 apps')) { return }
+        Write-UILog -SyncHash $syncHash -Message 'Intune: listing Win32 apps from Microsoft Intune is not implemented yet.' -Level Info
+    })
+
+$intuneBrowseDefinitionsButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Intune: browse for definitions path is not implemented yet.' -Level Info
+    })
+
+$intuneLoadDefinitionsButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Intune: load package definitions is not implemented yet.' -Level Info
+    })
+
+$intuneBrowsePackageOutputButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Intune: browse for package output path is not implemented yet.' -Level Info
+    })
+
+$intunePackageButton.add_Click({
+        Write-UILog -SyncHash $syncHash -Message 'Intune: package selected apps is not implemented yet.' -Level Info
     })
 
 $intunePreviewImportButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'Intune preview import')) { return }
-        Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: preview import is not implemented yet.' -Level Info
+        Write-UILog -SyncHash $syncHash -Message 'Intune: preview import is not implemented yet.' -Level Info
     })
 
 $intuneApplyImportButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'Intune apply import')) { return }
-        Write-UILog -SyncHash $syncHash -Message 'Intune placeholder action: apply import is not implemented yet.' -Level Info
+        Write-UILog -SyncHash $syncHash -Message 'Intune: apply import is not implemented yet.' -Level Info
+    })
+
+$intuneReloadModuleSettingsButton.add_Click({
+        [void](& $loadIntuneWin32AppModule -Force)
     })
 
 $refreshAppsButton.add_Click({
@@ -1616,6 +1701,14 @@ $navSettings.add_Checked({
         }
         else {
             & $refreshNerdioModuleStatus -IsLoaded $false -Message 'NerdioShellApps module not loaded. Select a module path and click Reload.'
+        }
+
+        $intuneLoaded = $null -ne (Get-Module -Name IntuneWin32App)
+        if ($intuneLoaded) {
+            & $refreshIntuneModuleStatus -IsLoaded $true -Message 'IntuneWin32App module is loaded.'
+        }
+        else {
+            & $refreshIntuneModuleStatus -IsLoaded $false -Message 'IntuneWin32App module not loaded. Install from the PowerShell Gallery and click Reload.'
         }
 
         $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
