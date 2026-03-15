@@ -109,9 +109,33 @@ Describe 'Get-UIConfig' {
                 $config.LogVerbosity | Should -Be 'Normal'
                 $config.LogHeight    | Should -Be 150
                 $config.ImportSettings.CurrentProvider | Should -Be 'Nerdio'
+                $config.NerdioSettings.NmeResourceGroup | Should -Be ''
+                $config.NerdioSettings.NmeStorageAccount | Should -Be ''
+                $config.NerdioSettings.NmeContainer | Should -Be ''
             }
             finally {
                 $env:APPDATA = $originalAppData
+            }
+        }
+    }
+
+    It 'Falls back to default OutputPath when persisted OutputPath is blank' {
+        InModuleScope EvergreenUI {
+            $tempAppData = Join-Path $env:TEMP "EvergreenUI_TestBlankOutputPath_$(Get-Random)"
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = $tempAppData
+            try {
+                $config = Get-UIConfig
+                $config.OutputPath = ''
+                Set-UIConfig -Config $config
+
+                $loaded = Get-UIConfig
+                $expectedDefault = Join-Path -Path ([System.Environment]::GetFolderPath('UserProfile')) -ChildPath 'Downloads'
+                $loaded.OutputPath | Should -Be $expectedDefault
+            }
+            finally {
+                $env:APPDATA = $originalAppData
+                Remove-Item -Path $tempAppData -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
     }
@@ -128,12 +152,18 @@ Describe 'Set-UIConfig and Get-UIConfig round-trip' {
                 $config.Theme = 'Dark'
                 $config.OutputPath = 'C:\TestOutput'
                 $config.ImportSettings.CurrentProvider = 'Intune'
+                $config.NerdioSettings.NmeResourceGroup = 'rg-ops'
+                $config.NerdioSettings.NmeStorageAccount = 'stgapps01'
+                $config.NerdioSettings.NmeContainer = 'shellapps'
                 Set-UIConfig -Config $config
 
                 $loaded = Get-UIConfig
                 $loaded.Theme      | Should -Be 'Dark'
                 $loaded.OutputPath | Should -Be 'C:\TestOutput'
                 $loaded.ImportSettings.CurrentProvider | Should -Be 'Intune'
+                $loaded.NerdioSettings.NmeResourceGroup | Should -Be 'rg-ops'
+                $loaded.NerdioSettings.NmeStorageAccount | Should -Be 'stgapps01'
+                $loaded.NerdioSettings.NmeContainer | Should -Be 'shellapps'
             }
             finally {
                 $env:APPDATA = $originalAppData

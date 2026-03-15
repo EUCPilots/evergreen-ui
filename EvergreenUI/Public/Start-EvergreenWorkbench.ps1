@@ -891,6 +891,21 @@ $persistUiSettingsSnapshot = {
     $syncHash.Config.NerdioSettings.NmeApiScope = [string]$nmeApiScopeBox.Text
     $syncHash.Config.NerdioSettings.NmeOAuthTokenUrl = [string]$nmeOAuthTokenUrlBox.Text
     $syncHash.Config.NerdioSettings.NmeSubscriptionId = [string]$nmeSubscriptionIdBox.Text
+    $selectedNmeResourceGroup = [string]$nmeResourceGroupCombo.SelectedItem
+    if (-not [string]::IsNullOrWhiteSpace($selectedNmeResourceGroup)) {
+        $syncHash.Config.NerdioSettings.NmeResourceGroup = $selectedNmeResourceGroup
+    }
+
+    $selectedNmeStorageAccount = [string]$nmeStorageAccountCombo.SelectedItem
+    if (-not [string]::IsNullOrWhiteSpace($selectedNmeStorageAccount)) {
+        $syncHash.Config.NerdioSettings.NmeStorageAccount = $selectedNmeStorageAccount
+    }
+
+    $selectedNmeContainer = [string]$nmeContainerCombo.SelectedItem
+    if (-not [string]::IsNullOrWhiteSpace($selectedNmeContainer)) {
+        $syncHash.Config.NerdioSettings.NmeContainer = $selectedNmeContainer
+    }
+
     $syncHash.Config.NerdioSettings.DefinitionsPath = & $normalizeDirectoryPath -PathValue ([string]$nerdioDefinitionsPathBox.Text)
 
     $syncHash.Config.IntuneSettings.DefinitionsPath = & $normalizeDirectoryPath -PathValue ([string]$intuneDefinitionsPathBox.Text)
@@ -2670,6 +2685,32 @@ $startNerdioAzureSignIn = {
         foreach ($rg in $rgs) { [void]$nmeResourceGroupCombo.Items.Add($rg) }
         $nmeResourceGroupCombo.IsEnabled = ($nmeResourceGroupCombo.Items.Count -gt 0)
         Write-UILog -SyncHash $syncHash -Message "$($nmeResourceGroupCombo.Items.Count) resource group(s) loaded." -Level Info
+
+        # Restore saved storage selections (if they still exist in the subscription).
+        $savedResourceGroup = [string]$syncHash.Config.NerdioSettings.NmeResourceGroup
+        $savedStorageAccount = [string]$syncHash.Config.NerdioSettings.NmeStorageAccount
+        $savedContainer = [string]$syncHash.Config.NerdioSettings.NmeContainer
+
+        if (-not [string]::IsNullOrWhiteSpace($savedResourceGroup)) {
+            $matchedResourceGroup = @($nmeResourceGroupCombo.Items | Where-Object { [string]$_ -eq $savedResourceGroup } | Select-Object -First 1)
+            if ($matchedResourceGroup.Count -gt 0) {
+                $nmeResourceGroupCombo.SelectedItem = $matchedResourceGroup[0]
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($savedStorageAccount)) {
+            $matchedStorageAccount = @($nmeStorageAccountCombo.Items | Where-Object { [string]$_ -eq $savedStorageAccount } | Select-Object -First 1)
+            if ($matchedStorageAccount.Count -gt 0) {
+                $nmeStorageAccountCombo.SelectedItem = $matchedStorageAccount[0]
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($savedContainer)) {
+            $matchedContainer = @($nmeContainerCombo.Items | Where-Object { [string]$_ -eq $savedContainer } | Select-Object -First 1)
+            if ($matchedContainer.Count -gt 0) {
+                $nmeContainerCombo.SelectedItem = $matchedContainer[0]
+            }
+        }
     }
     else {
         $syncHash.NerdioAzureAuthState.IsAuthenticated   = $false
@@ -3383,6 +3424,15 @@ $nmeResourceGroupCombo.add_SelectionChanged({
         $nmeStorageAccountCombo.IsEnabled = $false
         $nmeContainerCombo.IsEnabled      = $false
         if ([string]::IsNullOrWhiteSpace($rg)) { return }
+
+        $existingResourceGroup = [string]$syncHash.Config.NerdioSettings.NmeResourceGroup
+        $syncHash.Config.NerdioSettings.NmeResourceGroup = $rg
+        if ($rg -ne $existingResourceGroup) {
+            $syncHash.Config.NerdioSettings.NmeStorageAccount = ''
+            $syncHash.Config.NerdioSettings.NmeContainer = ''
+        }
+        Set-UIConfig -Config $syncHash.Config
+
         Write-UILog -SyncHash $syncHash -Message "Loading storage accounts for '$rg'..." -Level Info
         $accounts = Get-NerdioAzureStorageAccounts -ResourceGroupName $rg
         foreach ($sa in $accounts) { [void]$nmeStorageAccountCombo.Items.Add($sa) }
@@ -3397,11 +3447,32 @@ $nmeStorageAccountCombo.add_SelectionChanged({
         $nmeContainerCombo.Items.Clear()
         $nmeContainerCombo.IsEnabled = $false
         if ([string]::IsNullOrWhiteSpace($rg) -or [string]::IsNullOrWhiteSpace($sa)) { return }
+
+        $existingStorageAccount = [string]$syncHash.Config.NerdioSettings.NmeStorageAccount
+        $syncHash.Config.NerdioSettings.NmeResourceGroup = $rg
+        $syncHash.Config.NerdioSettings.NmeStorageAccount = $sa
+        if ($sa -ne $existingStorageAccount) {
+            $syncHash.Config.NerdioSettings.NmeContainer = ''
+        }
+        Set-UIConfig -Config $syncHash.Config
+
         Write-UILog -SyncHash $syncHash -Message "Loading containers for '$sa'..." -Level Info
         $containers = Get-NerdioAzureStorageContainers -ResourceGroupName $rg -StorageAccountName $sa
         foreach ($c in $containers) { [void]$nmeContainerCombo.Items.Add($c) }
         $nmeContainerCombo.IsEnabled = ($nmeContainerCombo.Items.Count -gt 0)
         Write-UILog -SyncHash $syncHash -Message "$($nmeContainerCombo.Items.Count) container(s) loaded." -Level Info
+    })
+
+$nmeContainerCombo.add_SelectionChanged({
+        $rg = [string]$nmeResourceGroupCombo.SelectedItem
+        $sa = [string]$nmeStorageAccountCombo.SelectedItem
+        $container = [string]$nmeContainerCombo.SelectedItem
+        if ([string]::IsNullOrWhiteSpace($rg) -or [string]::IsNullOrWhiteSpace($sa) -or [string]::IsNullOrWhiteSpace($container)) { return }
+
+        $syncHash.Config.NerdioSettings.NmeResourceGroup = $rg
+        $syncHash.Config.NerdioSettings.NmeStorageAccount = $sa
+        $syncHash.Config.NerdioSettings.NmeContainer = $container
+        Set-UIConfig -Config $syncHash.Config
     })
 
 $nerdioTenantIdBox.add_LostFocus({

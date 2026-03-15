@@ -51,6 +51,9 @@ function Get-UIConfig {
             NmeApiScope       = ''
             NmeSubscriptionId = ''
             NmeOAuthTokenUrl  = ''
+            NmeResourceGroup  = ''
+            NmeStorageAccount = ''
+            NmeContainer      = ''
             DefinitionsPath   = ''
         }
         IntuneSettings = [PSCustomObject]@{
@@ -124,6 +127,10 @@ function Get-UIConfig {
                     $json.AzureAuthSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.AzureAuthSettings.$prop -Force
                 }
             }
+        }
+
+        if ([string]::IsNullOrWhiteSpace([string]$json.OutputPath)) {
+            $json.OutputPath = [string]$default.OutputPath
         }
 
         return $json
