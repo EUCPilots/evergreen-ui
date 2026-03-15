@@ -65,20 +65,20 @@ function Set-NmeCredentials {
     )
 
     $script:creds = [PSCustomObject] @{
-        ClientId       = $ClientId
-        ClientSecret   = $ClientSecret
-        TenantId       = $TenantId
-        ApiScope       = $ApiScope
+        ClientId       = [string]::IsNullOrWhiteSpace($ClientId) ? $null : $ClientId.Trim()
+        ClientSecret   = [string]::IsNullOrWhiteSpace($ClientSecret) ? $null : $ClientSecret.Trim()
+        TenantId       = [string]::IsNullOrWhiteSpace($TenantId) ? $null : $TenantId.Trim()
+        ApiScope       = [string]::IsNullOrWhiteSpace($ApiScope) ? $null : $ApiScope.Trim()
         NmeUri         = $null
-        SubscriptionId = $SubscriptionId
-        OAuthToken     = $OAuthToken
+        SubscriptionId = [string]::IsNullOrWhiteSpace($SubscriptionId) ? $null : $SubscriptionId.Trim()
+        OAuthToken     = [string]::IsNullOrWhiteSpace($OAuthToken) ? $null : $OAuthToken.Trim()
     }
 
     $script:env = [PSCustomObject] @{
-        resourceGroupName  = $ResourceGroupName
-        storageAccountName = $StorageAccountName
-        containerName      = $ContainerName
-        nmeHost            = $NmeHost
+        resourceGroupName  = [string]::IsNullOrWhiteSpace($ResourceGroupName) ? $null : $ResourceGroupName.Trim()
+        storageAccountName = [string]::IsNullOrWhiteSpace($StorageAccountName) ? $null : $StorageAccountName.Trim()
+        containerName      = [string]::IsNullOrWhiteSpace($ContainerName) ? $null : $ContainerName.Trim()
+        nmeHost            = [string]::IsNullOrWhiteSpace($NmeHost) ? $null : $NmeHost.Trim().TrimEnd('/')
     }
 }
 
@@ -89,8 +89,19 @@ function Connect-Nme {
         [System.Management.Automation.SwitchParameter] $PassThru
     )
     try {
+        $tokenUri = if ([string]::IsNullOrWhiteSpace($script:creds.OAuthToken)) {
+            "https://login.microsoftonline.com/$($script:creds.TenantId)/oauth2/v2.0/token"
+        }
+        else {
+            $script:creds.OAuthToken
+        }
+
+        if (-not [System.Uri]::IsWellFormedUriString($tokenUri, [System.UriKind]::Absolute)) {
+            throw "Invalid OAuth token endpoint URI: '$tokenUri'"
+        }
+
         $params = @{
-            Uri             = "https://login.microsoftonline.com/$($script:creds.TenantId)/oauth2/v2.0/token"
+            Uri             = $tokenUri
             Body            = @{
                 "grant_type"  = "client_credentials"
                 scope         = $script:creds.ApiScope

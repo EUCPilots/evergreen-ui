@@ -81,6 +81,8 @@ $syncHash = [hashtable]::Synchronized(@{
         LibraryData                = @()
         ActiveBackgroundOperations = [System.Collections.Generic.List[object]]::new()
         BackgroundOperationsTimer  = $null
+        SettingsAutoSaveTimer      = $null
+        SettingsLastSavedJson      = ''
         DownloadQueue              = [System.Collections.Generic.List[PSCustomObject]]::new()
         EvergreenVersion           = ''
         Config                     = $config
@@ -89,6 +91,10 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingLoadRunspace        = $null
         PendingLoadAsync           = $null
         PendingLoadAppName         = $null
+        PendingNerdioAzureAuthTimer    = $null
+        PendingNerdioAzureAuthPS       = $null
+        PendingNerdioAzureAuthRunspace = $null
+        PendingNerdioAzureAuthAsync    = $null
         ImportCurrentProvider      = 'Nerdio'
         AzureAuthState             = [PSCustomObject]@{
             IsAuthenticated    = $false
@@ -540,6 +546,70 @@ $normalizeDirectoryPath = {
     return $PathValue.Trim().Trim('"')
 }
 
+$getCurrentStartupView = {
+    if ($navDownload.IsChecked) {
+        return 'Download'
+    }
+    elseif ($navLibrary.IsChecked) {
+        return 'Library'
+    }
+    elseif ($navImport.IsChecked) {
+        return 'Import'
+    }
+    elseif ($navSettings.IsChecked) {
+        return 'Settings'
+    }
+
+    return 'Apps'
+}
+
+$persistUiSettingsSnapshot = {
+    param([switch]$ForceWrite)
+
+    $syncHash.Config.OutputPath = & $normalizeDirectoryPath -PathValue ([string]$outputPathBox.Text)
+    $syncHash.Config.LibraryPath = & $normalizeDirectoryPath -PathValue ([string]$libraryPathViewBox.Text)
+    $syncHash.Config.Theme = if ($themeComboBox.SelectedIndex -eq 1) { 'Dark' } else { 'Light' }
+    $syncHash.Config.WindowWidth = [int]$window.Width
+    $syncHash.Config.WindowHeight = [int]$window.Height
+    $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
+    $syncHash.Config.StartupView = & $getCurrentStartupView
+    $syncHash.Config.LogVisible = [bool]$logToggleButton.IsChecked
+
+    if ($syncHash.Config.LogVisible) {
+        $currentLogHeight = [int]$logRowDef.Height.Value - 40
+        if ($currentLogHeight -gt 0) {
+            $syncHash.Config.LogHeight = $currentLogHeight
+        }
+    }
+
+    $syncHash.Config.NerdioSettings.ModulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
+    $syncHash.Config.NerdioSettings.NmeHost = [string]$nmeHostBox.Text
+    $syncHash.Config.NerdioSettings.NmeClientId = [string]$nmeClientIdBox.Text
+    $syncHash.Config.NerdioSettings.NmeApiScope = [string]$nmeApiScopeBox.Text
+    $syncHash.Config.NerdioSettings.NmeOAuthTokenUrl = [string]$nmeOAuthTokenUrlBox.Text
+    $syncHash.Config.NerdioSettings.NmeSubscriptionId = [string]$nmeSubscriptionIdBox.Text
+    $syncHash.Config.NerdioSettings.DefinitionsPath = & $normalizeDirectoryPath -PathValue ([string]$nerdioDefinitionsPathBox.Text)
+
+    $syncHash.Config.IntuneSettings.DefinitionsPath = & $normalizeDirectoryPath -PathValue ([string]$intuneDefinitionsPathBox.Text)
+    $syncHash.Config.IntuneSettings.PackageOutputPath = & $normalizeDirectoryPath -PathValue ([string]$intunePackageOutputPathBox.Text)
+
+    $syncHash.Config.AzureAuthSettings.TenantId = [string]$importTenantIdBox.Text
+    $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$nerdioTenantIdBox.Text
+
+    if ($null -eq $syncHash.Config.ImportSettings) {
+        $syncHash.Config | Add-Member -NotePropertyName 'ImportSettings' -NotePropertyValue ([PSCustomObject]@{ CurrentProvider = $syncHash.ImportCurrentProvider }) -Force
+    }
+    else {
+        $syncHash.Config.ImportSettings.CurrentProvider = $syncHash.ImportCurrentProvider
+    }
+
+    $snapshotJson = $syncHash.Config | ConvertTo-Json -Depth 5
+    if ($ForceWrite -or $snapshotJson -ne $syncHash.SettingsLastSavedJson) {
+        Set-UIConfig -Config $syncHash.Config
+        $syncHash.SettingsLastSavedJson = $snapshotJson
+    }
+}
+
 $refreshImportAuthUi = {
     $state = $syncHash.AzureAuthState
     if ($state.IsAuthInProgress) {
@@ -586,10 +656,11 @@ $refreshNerdioApiAuthUi = {
 
     if ($state.IsAuthenticated) {
         $nerdioApiAuthStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
-        $account = if ([string]::IsNullOrWhiteSpace($state.AccountId)) { 'connected' } else { $state.AccountId }
-        $tenant = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " | tenant: $($state.TenantId)" }
-        $context = if ([string]::IsNullOrWhiteSpace($state.ContextName)) { '' } else { " | host: $($state.ContextName)" }
-        $nerdioApiAuthStatusLabel.Text = "$account$tenant$context"
+        $hostName = [string]$state.ContextName
+        if ([string]::IsNullOrWhiteSpace($hostName)) {
+            $hostName = [string]$nmeHostBox.Text
+        }
+        $nerdioApiAuthStatusLabel.Text = if ([string]::IsNullOrWhiteSpace($hostName)) { 'Connected' } else { $hostName }
         $nerdioApiSignInButton.IsEnabled = $true
         $nerdioApiSignOutButton.IsEnabled = $true
         return
@@ -679,9 +750,24 @@ $applyImportTenantToConfig = {
     Set-UIConfig -Config $syncHash.Config
 }
 
-    $applyNerdioTenantToConfig = {
-        $tenantText = if ($null -eq $nerdioTenantIdBox) { '' } else { [string]$nerdioTenantIdBox.Text }
+$applyNerdioTenantToConfig = {
+    $tenantText = if ($null -eq $nerdioTenantIdBox) { '' } else { [string]$nerdioTenantIdBox.Text }
     $syncHash.Config.AzureAuthSettings.NerdioTenantId = $tenantText.Trim()
+    Set-UIConfig -Config $syncHash.Config
+}
+
+$applyNerdioDefinitionsPathToConfig = {
+    $definitionsPath = if ($null -eq $nerdioDefinitionsPathBox) { '' } else { [string]$nerdioDefinitionsPathBox.Text }
+    $syncHash.Config.NerdioSettings.DefinitionsPath = (& $normalizeDirectoryPath -PathValue $definitionsPath)
+    Set-UIConfig -Config $syncHash.Config
+}
+
+$applyIntunePathsToConfig = {
+    $definitionsPath = if ($null -eq $intuneDefinitionsPathBox) { '' } else { [string]$intuneDefinitionsPathBox.Text }
+    $packageOutputPath = if ($null -eq $intunePackageOutputPathBox) { '' } else { [string]$intunePackageOutputPathBox.Text }
+
+    $syncHash.Config.IntuneSettings.DefinitionsPath = (& $normalizeDirectoryPath -PathValue $definitionsPath)
+    $syncHash.Config.IntuneSettings.PackageOutputPath = (& $normalizeDirectoryPath -PathValue $packageOutputPath)
     Set-UIConfig -Config $syncHash.Config
 }
 
@@ -737,6 +823,225 @@ $loadNerdioShellAppsModule = {
         & $refreshNerdioModuleStatus -IsLoaded $false -Message "Failed to load module: $($_.Exception.Message)"
         Write-UILog -SyncHash $syncHash -Message "Failed to load NerdioShellApps module: $($_.Exception.Message)" -Level Error
         return $false
+    }
+}
+
+$getNerdioShellAppsCommand = {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    $qualifiedName = "NerdioShellApps\$Name"
+    $cmd = Get-Command -Name $qualifiedName -ErrorAction SilentlyContinue
+    if ($null -ne $cmd) {
+        return $cmd
+    }
+
+    return (Get-Command -Name $Name -Module NerdioShellApps -ErrorAction SilentlyContinue)
+}
+
+$loadNerdioDefinitions = {
+    $definitionsRoot = & $normalizeDirectoryPath -PathValue ([string]$nerdioDefinitionsPathBox.Text)
+    $nerdioDefinitionsPathBox.Text = $definitionsRoot
+    & $applyNerdioDefinitionsPathToConfig
+
+    if ([string]::IsNullOrWhiteSpace($definitionsRoot)) {
+        $nerdioDefinitionsListView.ItemsSource = @()
+        $nerdioDefinitionsCountLabel.Text = '0 loaded'
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: provide a definitions folder path first.' -Level Warning
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $definitionsRoot -PathType Container)) {
+        $nerdioDefinitionsListView.ItemsSource = @()
+        $nerdioDefinitionsCountLabel.Text = '0 loaded'
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: definitions path does not exist: $definitionsRoot" -Level Warning
+        return
+    }
+
+    try {
+        $topLevelDirectories = @(Get-ChildItem -LiteralPath $definitionsRoot -Directory -ErrorAction Stop)
+        $definitionFiles = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
+
+        foreach ($directory in $topLevelDirectories) {
+            $definitionMatches = @(Get-ChildItem -LiteralPath $directory.FullName -Recurse -File -ErrorAction Stop |
+                    Where-Object { $_.Name -ieq 'definition.json' })
+
+            foreach ($match in $definitionMatches) {
+                $definitionFiles.Add($match)
+            }
+        }
+    }
+    catch {
+        $nerdioDefinitionsListView.ItemsSource = @()
+        $nerdioDefinitionsCountLabel.Text = '0 loaded'
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to enumerate definitions: $($_.Exception.Message)" -Level Error
+        return
+    }
+
+    $rows = [System.Collections.Generic.List[object]]::new()
+
+    foreach ($definitionFile in $definitionFiles) {
+        $definitionPath = [string](Split-Path -Path $definitionFile.FullName -Parent)
+        $publisher = '-'
+        $appName = [string](Split-Path -Path $definitionFile.DirectoryName -Leaf)
+        $definitionValid = 'No'
+
+        try {
+            $definition = Get-Content -LiteralPath $definitionFile.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+
+            $publisherProperty = @(
+                $definition.PSObject.Properties['publisher'],
+                $definition.PSObject.Properties['Publisher'],
+                $definition.PSObject.Properties['vendor'],
+                $definition.PSObject.Properties['manufacturer']
+            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+            $appNameProperty = @(
+                $definition.PSObject.Properties['name'],
+                $definition.PSObject.Properties['Name'],
+                $definition.PSObject.Properties['displayName'],
+                $definition.PSObject.Properties['appName'],
+                $definition.PSObject.Properties['title']
+            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+            if ($null -ne $publisherProperty) {
+                $publisher = ([string]$publisherProperty.Value).Trim()
+            }
+
+            if ($null -ne $appNameProperty) {
+                $appName = ([string]$appNameProperty.Value).Trim()
+            }
+
+            if ($null -ne $publisherProperty -and $null -ne $appNameProperty) {
+                $definitionValid = 'Yes'
+            }
+            else {
+                $definitionValid = 'No (missing JSON properties)'
+            }
+        }
+        catch {
+            $definitionValid = 'No (invalid JSON)'
+        }
+
+        $rows.Add([PSCustomObject]@{
+                DefinitionPath  = $definitionPath
+                Publisher       = $publisher
+                AppName         = $appName
+                DefinitionValid = $definitionValid
+            })
+    }
+
+    $sortedRows = @($rows | Sort-Object -Property DefinitionPath, Publisher, AppName)
+    $nerdioDefinitionsListView.ItemsSource = $sortedRows
+    $validCount = @($sortedRows | Where-Object { $_.DefinitionValid -eq 'Yes' }).Count
+    $nerdioDefinitionsCountLabel.Text = "$($sortedRows.Count) loaded ($validCount valid)"
+
+    if ($sortedRows.Count -eq 0) {
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: no definition.json files found under sub-directories of '$definitionsRoot'." -Level Warning
+    }
+    else {
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: loaded $($sortedRows.Count) Shell App definitions ($validCount valid)." -Level Info
+    }
+}
+
+$loadNerdioShellApps = {
+    if (-not (& $loadNerdioShellAppsModule)) {
+        $nerdioShellAppsListView.ItemsSource = @()
+        $nerdioShellAppsCountLabel.Text = '0 apps'
+        return
+    }
+
+    $getShellAppsCommand = & $getNerdioShellAppsCommand -Name 'Get-ShellApps'
+    if ($null -eq $getShellAppsCommand) {
+        $getShellAppsCommand = & $getNerdioShellAppsCommand -Name 'Get-ShellApp'
+    }
+
+    if ($null -eq $getShellAppsCommand) {
+        $nerdioShellAppsListView.ItemsSource = @()
+        $nerdioShellAppsCountLabel.Text = '0 apps'
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: required command Get-ShellApps was not found in NerdioShellApps module.' -Level Error
+        return
+    }
+
+    try {
+        $rawApps = @(& $getShellAppsCommand)
+        $getShellAppVersionCommand = & $getNerdioShellAppsCommand -Name 'Get-ShellAppVersion'
+        $rows = [System.Collections.Generic.List[object]]::new()
+
+        foreach ($app in $rawApps) {
+            if ($null -eq $app) { continue }
+
+            $publisher = @(
+                $app.PSObject.Properties['Publisher'],
+                $app.PSObject.Properties['publisher'],
+                $app.PSObject.Properties['Vendor'],
+                $app.PSObject.Properties['vendor'],
+                $app.PSObject.Properties['Manufacturer'],
+                $app.PSObject.Properties['manufacturer']
+            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+            $name = @(
+                $app.PSObject.Properties['Name'],
+                $app.PSObject.Properties['name'],
+                $app.PSObject.Properties['displayName'],
+                $app.PSObject.Properties['cachedName']
+            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+            $id = @(
+                $app.PSObject.Properties['Id'],
+                $app.PSObject.Properties['id'],
+                $app.PSObject.Properties['publicId'],
+                $app.PSObject.Properties['externalId']
+            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+            $description = @(
+                $app.PSObject.Properties['Description'],
+                $app.PSObject.Properties['description'],
+                $app.PSObject.Properties['details']
+            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+            $versionCount = @(
+                $app.PSObject.Properties['VersionCount'],
+                $app.PSObject.Properties['versionCount'],
+                $app.PSObject.Properties['VersionsCount'],
+                $app.PSObject.Properties['versionsCount']
+            ) | Where-Object { $null -ne $_ -and $null -ne $_.Value -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+            $resolvedVersionCount = '-'
+            if ($null -ne $versionCount) {
+                $resolvedVersionCount = [string]$versionCount.Value
+            }
+            elseif ($null -ne $getShellAppVersionCommand -and $null -ne $id) {
+                try {
+                    $versions = @(& $getShellAppVersionCommand -Id ([string]$id.Value))
+                    $resolvedVersionCount = [string]$versions.Count
+                }
+                catch {
+                    $resolvedVersionCount = '-'
+                }
+            }
+
+            $rows.Add([PSCustomObject]@{
+                    Publisher    = if ($null -ne $publisher) { [string]$publisher.Value } else { '-' }
+                    Name         = if ($null -ne $name) { [string]$name.Value } else { '-' }
+                    VersionCount = $resolvedVersionCount
+                    Description  = if ($null -ne $description) { [string]$description.Value } else { '-' }
+                    Id           = if ($null -ne $id) { [string]$id.Value } else { '-' }
+                })
+        }
+
+        $sortedRows = @($rows | Sort-Object -Property Publisher, Name, Id)
+        $nerdioShellAppsListView.ItemsSource = $sortedRows
+        $nerdioShellAppsCountLabel.Text = "$($sortedRows.Count) apps"
+
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: loaded $($sortedRows.Count) Shell App(s) from Nerdio Manager." -Level Info
+    }
+    catch {
+        $nerdioShellAppsListView.ItemsSource = @()
+        $nerdioShellAppsCountLabel.Text = '0 apps'
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to list Shell Apps: $($_.Exception.Message)" -Level Error
     }
 }
 
@@ -885,8 +1190,18 @@ $startNerdioApiSignIn = {
         return
     }
 
+    $setNmeCredentialsCommand = & $getNerdioShellAppsCommand -Name 'Set-NmeCredentials'
+    $connectNmeCommand = & $getNerdioShellAppsCommand -Name 'Connect-Nme'
+
+    if ($null -eq $setNmeCredentialsCommand -or $null -eq $connectNmeCommand) {
+        $syncHash.NerdioApiAuthState.ErrorMessage = 'Required NerdioShellApps commands were not found.'
+        & $refreshNerdioApiAuthUi
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio API sign-in failed: required NerdioShellApps commands were not found.' -Level Error
+        return
+    }
+
     $tenant = [string]$nerdioTenantIdBox.Text
-    $host = [string]$nmeHostBox.Text
+    $nmeHost = [string]$nmeHostBox.Text
     $clientId = [string]$nmeClientIdBox.Text
     $apiScope = [string]$nmeApiScopeBox.Text
     $oAuthTokenUrl = [string]$nmeOAuthTokenUrlBox.Text
@@ -898,7 +1213,7 @@ $startNerdioApiSignIn = {
 
     foreach ($required in @(
             @{ Name = 'Tenant ID'; Value = $tenant },
-            @{ Name = 'NME Host'; Value = $host },
+            @{ Name = 'NME Host'; Value = $nmeHost },
             @{ Name = 'Client ID'; Value = $clientId },
             @{ Name = 'API Scope'; Value = $apiScope },
             @{ Name = 'Client Secret'; Value = $clientSecret }
@@ -916,19 +1231,19 @@ $startNerdioApiSignIn = {
     & $refreshNerdioApiAuthUi
 
     try {
-        Set-NmeCredentials -ClientId $clientId -ClientSecret $clientSecret -TenantId $tenant -ApiScope $apiScope -OAuthToken $oAuthTokenUrl -SubscriptionId $subscriptionId -ResourceGroupName $resourceGroup -StorageAccountName $storageAccount -ContainerName $container -NmeHost $host
-        $null = Connect-Nme -PassThru
+        & $setNmeCredentialsCommand -ClientId $clientId -ClientSecret $clientSecret -TenantId $tenant -ApiScope $apiScope -OAuthToken $oAuthTokenUrl -SubscriptionId $subscriptionId -ResourceGroupName $resourceGroup -StorageAccountName $storageAccount -ContainerName $container -NmeHost $nmeHost
+        $null = & $connectNmeCommand -PassThru
 
         $syncHash.NerdioApiAuthState.IsAuthenticated = $true
         $syncHash.NerdioApiAuthState.AccountId = $clientId
         $syncHash.NerdioApiAuthState.TenantId = $tenant.Trim()
-        $syncHash.NerdioApiAuthState.ContextName = $host.Trim()
+        $syncHash.NerdioApiAuthState.ContextName = $nmeHost.Trim()
         $syncHash.NerdioApiAuthState.ErrorMessage = ''
 
         $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$tenant.Trim()
         Set-UIConfig -Config $syncHash.Config
 
-        Write-UILog -SyncHash $syncHash -Message "Nerdio Manager API sign-in succeeded for host $host." -Level Info
+        Write-UILog -SyncHash $syncHash -Message "Nerdio Manager API sign-in succeeded for host $nmeHost." -Level Info
     }
     catch {
         $syncHash.NerdioApiAuthState.IsAuthenticated = $false
@@ -946,8 +1261,9 @@ $startNerdioApiSignIn = {
 
 $startNerdioApiSignOut = {
     try {
-        if (Get-Command -Name Remove-NerdioManagerSecretsFromMemory -ErrorAction SilentlyContinue) {
-            Remove-NerdioManagerSecretsFromMemory | Out-Null
+        $clearSecretsCommand = & $getNerdioShellAppsCommand -Name 'Remove-NerdioManagerSecretsFromMemory'
+        if ($null -ne $clearSecretsCommand) {
+            & $clearSecretsCommand | Out-Null
         }
     }
     catch {}
@@ -1441,6 +1757,7 @@ $window.add_Loaded({
         $nmeApiScopeBox.Text       = [string]$syncHash.Config.NerdioSettings.NmeApiScope
         $nmeOAuthTokenUrlBox.Text  = [string]$syncHash.Config.NerdioSettings.NmeOAuthTokenUrl
         $nmeSubscriptionIdBox.Text = [string]$syncHash.Config.NerdioSettings.NmeSubscriptionId
+        $nerdioDefinitionsPathBox.Text = [string]$syncHash.Config.NerdioSettings.DefinitionsPath
         $intuneDefinitionsPathBox.Text    = [string]$syncHash.Config.IntuneSettings.DefinitionsPath
         $intunePackageOutputPathBox.Text  = [string]$syncHash.Config.IntuneSettings.PackageOutputPath
         [void](& $loadNerdioShellAppsModule)
@@ -1449,6 +1766,24 @@ $window.add_Loaded({
         & $refreshNerdioApiAuthUi
         & $refreshNerdioAzureAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
+
+        $syncHash.SettingsLastSavedJson = $syncHash.Config | ConvertTo-Json -Depth 5
+        if ($null -eq $syncHash.SettingsAutoSaveTimer) {
+            $settingsTimer = [System.Windows.Threading.DispatcherTimer]::new()
+            $settingsTimer.Interval = [TimeSpan]::FromSeconds(5)
+            $settingsTimer.add_Tick({
+                    try {
+                        & $persistUiSettingsSnapshot
+                    }
+                    catch {
+                        # Best effort only - autosave must never destabilize the UI.
+                    }
+                })
+            $syncHash.SettingsAutoSaveTimer = $settingsTimer
+        }
+        if (-not $syncHash.SettingsAutoSaveTimer.IsEnabled) {
+            $syncHash.SettingsAutoSaveTimer.Start()
+        }
 
         switch ([string]$syncHash.Config.StartupView) {
             'Download' {
@@ -1472,35 +1807,11 @@ $window.add_Loaded({
 # Event: Window.Closing - persist config
 $window.add_Closing({
         try {
-            $syncHash.Config.LogVisible = [bool]$logToggleButton.IsChecked
-            if ($syncHash.Config.LogVisible) {
-                $currentLogHeight = [int]$logRowDef.Height.Value - 40
-                if ($currentLogHeight -gt 0) {
-                    $syncHash.Config.LogHeight = $currentLogHeight
-                }
-            }
-            $syncHash.Config.Theme = if ($themeComboBox.SelectedIndex -eq 1) { 'Dark' } else { 'Light' }
-            $syncHash.Config.WindowWidth = [int]$window.Width
-            $syncHash.Config.WindowHeight = [int]$window.Height
-            $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
+            & $persistUiSettingsSnapshot -ForceWrite
 
-            $syncHash.Config.StartupView = if ($navDownload.IsChecked) {
-                'Download'
+            if ($null -ne $syncHash.SettingsAutoSaveTimer -and $syncHash.SettingsAutoSaveTimer.IsEnabled) {
+                $syncHash.SettingsAutoSaveTimer.Stop()
             }
-            elseif ($navLibrary.IsChecked) {
-                'Library'
-            }
-            elseif ($navImport.IsChecked) {
-                'Import'
-            }
-            elseif ($navSettings.IsChecked) {
-                'Settings'
-            }
-            else {
-                'Apps'
-            }
-
-            Set-UIConfig -Config $syncHash.Config
 
             if ($null -ne $syncHash.BackgroundOperationsTimer -and $syncHash.BackgroundOperationsTimer.IsEnabled) {
                 $syncHash.BackgroundOperationsTimer.Stop()
@@ -1637,6 +1948,8 @@ $navImport.add_Checked({
 $importProviderTabControl.add_SelectionChanged({
         param($s, $e)
         if ($s -ne $importProviderTabControl) { return }
+        # Index 2 is the shared Authentication tab — not a provider workflow, nothing to switch
+        if ($importProviderTabControl.SelectedIndex -eq 2) { return }
     $provider = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Intune' } else { 'Nerdio' }
         & $setImportProvider -Provider $provider -Persist
     $label = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Microsoft Intune Win32 Apps' } else { 'Nerdio Manager Shell Apps' }
@@ -1734,6 +2047,12 @@ $nerdioTenantIdBox.add_LostFocus({
     & $applyNerdioTenantToConfig
     })
 
+$nerdioDefinitionsPathBox.add_LostFocus({
+        $normalised = & $normalizeDirectoryPath -PathValue $nerdioDefinitionsPathBox.Text
+        $nerdioDefinitionsPathBox.Text = $normalised
+        & $applyNerdioDefinitionsPathToConfig
+    })
+
 $nerdioBrowseDefinitionsButton.add_Click({
         $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
         $dlg.Description = 'Select Shell App definitions folder'
@@ -1742,16 +2061,17 @@ $nerdioBrowseDefinitionsButton.add_Click({
         }
         if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $nerdioDefinitionsPathBox.Text = $dlg.SelectedPath
+            & $applyNerdioDefinitionsPathToConfig
         }
     })
 
 $nerdioLoadDefinitionsButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Nerdio: loading Shell App definitions is not implemented yet.' -Level Info
+    & $loadNerdioDefinitions
     })
 
 $nerdioListShellAppsButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'List Shell Apps' -Provider 'Nerdio')) { return }
-        Write-UILog -SyncHash $syncHash -Message 'Nerdio: listing Shell Apps from Nerdio Manager is not implemented yet.' -Level Info
+    & $loadNerdioShellApps
     })
 
 $nerdioAddVersionButton.add_Click({
@@ -1770,7 +2090,17 @@ $intuneRefreshCatalogButton.add_Click({
     })
 
 $intuneBrowseDefinitionsButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Intune: browse for definitions path is not implemented yet.' -Level Info
+        $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+        $dlg.Description = 'Select Intune package definitions folder'
+        if (-not [string]::IsNullOrWhiteSpace($intuneDefinitionsPathBox.Text)) {
+            $dlg.SelectedPath = $intuneDefinitionsPathBox.Text
+        }
+
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+            $intuneDefinitionsPathBox.Text = $normalised
+            & $applyIntunePathsToConfig
+        }
     })
 
 $intuneLoadDefinitionsButton.add_Click({
@@ -1778,7 +2108,29 @@ $intuneLoadDefinitionsButton.add_Click({
     })
 
 $intuneBrowsePackageOutputButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Intune: browse for package output path is not implemented yet.' -Level Info
+        $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+        $dlg.Description = 'Select Intune package output folder'
+        if (-not [string]::IsNullOrWhiteSpace($intunePackageOutputPathBox.Text)) {
+            $dlg.SelectedPath = $intunePackageOutputPathBox.Text
+        }
+
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+            $intunePackageOutputPathBox.Text = $normalised
+            & $applyIntunePathsToConfig
+        }
+    })
+
+$intuneDefinitionsPathBox.add_LostFocus({
+        $normalised = & $normalizeDirectoryPath -PathValue $intuneDefinitionsPathBox.Text
+        $intuneDefinitionsPathBox.Text = $normalised
+        & $applyIntunePathsToConfig
+    })
+
+$intunePackageOutputPathBox.add_LostFocus({
+        $normalised = & $normalizeDirectoryPath -PathValue $intunePackageOutputPathBox.Text
+        $intunePackageOutputPathBox.Text = $normalised
+        & $applyIntunePathsToConfig
     })
 
 $intunePackageButton.add_Click({
