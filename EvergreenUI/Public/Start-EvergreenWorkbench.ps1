@@ -95,6 +95,17 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingNerdioAzureAuthPS       = $null
         PendingNerdioAzureAuthRunspace = $null
         PendingNerdioAzureAuthAsync    = $null
+        PendingIntuneImportTimer       = $null
+        PendingIntuneImportPS          = $null
+        PendingIntuneImportRunspace    = $null
+        PendingIntuneImportAsync       = $null
+        IsIntuneImportLoading          = $false
+        IntuneActionButtonStates       = @{}
+        PendingNerdioShellAppsTimer    = $null
+        PendingNerdioShellAppsPS       = $null
+        PendingNerdioShellAppsRunspace = $null
+        PendingNerdioShellAppsAsync    = $null
+        IsNerdioShellAppsLoading       = $false
         ImportCurrentProvider      = 'Nerdio'
         AzureAuthState             = [PSCustomObject]@{
             IsAuthenticated    = $false
@@ -226,6 +237,9 @@ $intuneWin32AppsListView                 = $window.FindName('IntuneWin32AppsList
 $intunePackageButton                     = $window.FindName('IntunePackageButton')
 $intuneOnlyUnpackagedCheckBox            = $window.FindName('IntuneOnlyUnpackagedCheckBox')
 $intuneActionStatusLabel                 = $window.FindName('IntuneActionStatusLabel')
+$intuneImportLoadingPanel                = $window.FindName('IntuneImportLoadingPanel')
+$intuneImportLoadingLabel                = $window.FindName('IntuneImportLoadingLabel')
+$intuneImportProgressBar                 = $window.FindName('IntuneImportProgressBar')
 # Intune Settings controls
 $intuneReloadModuleSettingsButton        = $window.FindName('IntuneReloadModuleSettingsButton')
 $intuneSettingsModuleStatusDot           = $window.FindName('IntuneSettingsModuleStatusDot')
@@ -253,6 +267,9 @@ $nerdioDefinitionsListView     = $window.FindName('NerdioDefinitionsListView')
 $nerdioShellAppsListView       = $window.FindName('NerdioShellAppsListView')
 $nerdioDefinitionsCountLabel   = $window.FindName('NerdioDefinitionsCountLabel')
 $nerdioShellAppsCountLabel     = $window.FindName('NerdioShellAppsCountLabel')
+$nerdioShellAppsLoadingPanel   = $window.FindName('NerdioShellAppsLoadingPanel')
+$nerdioShellAppsLoadingLabel   = $window.FindName('NerdioShellAppsLoadingLabel')
+$nerdioShellAppsProgressBar    = $window.FindName('NerdioShellAppsProgressBar')
 $nerdioAddVersionButton        = $window.FindName('NerdioAddVersionButton')
 $nerdioImportNewButton         = $window.FindName('NerdioImportNewButton')
 $nerdioUseRemoteUrlCheckBox    = $window.FindName('NerdioUseRemoteUrlCheckBox')
@@ -268,6 +285,174 @@ $logRowDef = $rootGrid.RowDefinitions[3]
 
 # Store refs needed by background-runspace callbacks
 $syncHash.ImportTenantIdBox = $importTenantIdBox
+
+$setNerdioShellAppsLoadingState = {
+    param(
+        [bool]$IsLoading,
+        [string]$Message = ''
+    )
+
+    $syncHash.IsNerdioShellAppsLoading = $IsLoading
+
+    if ($null -ne $nerdioListShellAppsButton) {
+        $nerdioListShellAppsButton.IsEnabled = -not $IsLoading
+    }
+
+    if ($null -ne $nerdioShellAppsLoadingPanel) {
+        $nerdioShellAppsLoadingPanel.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+    }
+
+    if ($null -ne $nerdioShellAppsLoadingLabel) {
+        if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
+            $nerdioShellAppsLoadingLabel.Text = $Message
+        }
+        elseif (-not $IsLoading) {
+            $nerdioShellAppsLoadingLabel.Text = 'Loading Shell Apps from Nerdio Manager...'
+        }
+    }
+
+    if ($null -ne $nerdioShellAppsProgressBar) {
+        $nerdioShellAppsProgressBar.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+    }
+
+    if ($IsLoading -and $null -ne $nerdioShellAppsCountLabel) {
+        $nerdioShellAppsCountLabel.Text = 'Loading...'
+    }
+}
+
+$setIntuneImportLoadingState = {
+    param(
+        [bool]$IsLoading,
+        [string]$Message = ''
+    )
+
+    $syncHash.IsIntuneImportLoading = $IsLoading
+
+    foreach ($button in @($intuneRefreshCatalogButton, $intunePreviewImportButton, $intuneApplyImportButton)) {
+        if ($null -eq $button) {
+            continue
+        }
+
+        if ($IsLoading) {
+            $syncHash.IntuneActionButtonStates[$button.Name] = [bool]$button.IsEnabled
+            $button.IsEnabled = $false
+        }
+        else {
+            if ($syncHash.IntuneActionButtonStates.ContainsKey($button.Name)) {
+                $button.IsEnabled = [bool]$syncHash.IntuneActionButtonStates[$button.Name]
+            }
+        }
+    }
+
+    if (-not $IsLoading) {
+        $syncHash.IntuneActionButtonStates.Clear()
+    }
+
+    if ($null -ne $intuneImportLoadingPanel) {
+        $intuneImportLoadingPanel.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+    }
+
+    if ($null -ne $intuneImportLoadingLabel) {
+        if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
+            $intuneImportLoadingLabel.Text = $Message
+        }
+        elseif (-not $IsLoading) {
+            $intuneImportLoadingLabel.Text = 'Working...'
+        }
+    }
+
+    if ($null -ne $intuneImportProgressBar) {
+        $intuneImportProgressBar.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+    }
+
+    if ($null -ne $intuneActionStatusLabel) {
+        if ($IsLoading) {
+            $intuneActionStatusLabel.Text = if ([string]::IsNullOrWhiteSpace($Message)) { 'Working...' } else { $Message }
+        }
+        else {
+            $intuneActionStatusLabel.Text = ''
+        }
+    }
+}
+
+$startIntuneImportOperation = {
+    param(
+        [Parameter(Mandatory = $true)][string]$ActionName,
+        [Parameter(Mandatory = $true)][string]$LoadingMessage,
+        [Parameter(Mandatory = $true)][string]$CompletionMessage
+    )
+
+    if ($syncHash.IsIntuneImportLoading) {
+        Write-UILog -SyncHash $syncHash -Message "Intune: another import action is already in progress." -Level Warning
+        return
+    }
+
+    if ($null -ne $syncHash.PendingIntuneImportTimer -and $syncHash.PendingIntuneImportTimer.IsEnabled) {
+        $syncHash.PendingIntuneImportTimer.Stop()
+        $syncHash.PendingIntuneImportTimer = $null
+    }
+
+    foreach ($pendingOp in @('PendingIntuneImportPS', 'PendingIntuneImportRunspace', 'PendingIntuneImportAsync')) {
+        $syncHash[$pendingOp] = $null
+    }
+
+    & $setIntuneImportLoadingState -IsLoading $true -Message $LoadingMessage
+    Write-UILog -SyncHash $syncHash -Message "Intune: $ActionName started." -Level Info
+
+    $rs = New-WpfRunspace -SyncHash $syncHash
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
+
+    [void]$ps.AddScript({
+            param([string]$OperationName)
+
+            Start-Sleep -Milliseconds 1200
+
+            return [PSCustomObject]@{
+                Success = $true
+                Action  = $OperationName
+            }
+        }).AddArgument($ActionName)
+
+    $syncHash.PendingIntuneImportPS = $ps
+    $syncHash.PendingIntuneImportRunspace = $rs
+    $syncHash.PendingIntuneImportAsync = $ps.BeginInvoke()
+
+    $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+    $syncHash.PendingIntuneImportTimer = $pollTimer
+
+    $pollTimer.add_Tick({
+            if ($null -eq $syncHash.PendingIntuneImportAsync -or -not $syncHash.PendingIntuneImportAsync.IsCompleted) {
+                return
+            }
+
+            if ($null -ne $syncHash.PendingIntuneImportTimer) {
+                $syncHash.PendingIntuneImportTimer.Stop()
+                $syncHash.PendingIntuneImportTimer = $null
+            }
+
+            try {
+                [void]$syncHash.PendingIntuneImportPS.EndInvoke($syncHash.PendingIntuneImportAsync)
+                Write-UILog -SyncHash $syncHash -Message $CompletionMessage -Level Info
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Intune: $ActionName failed: $($_.Exception.Message)" -Level Error
+            }
+            finally {
+                try { $syncHash.PendingIntuneImportPS.Dispose() } catch {}
+                try { $syncHash.PendingIntuneImportRunspace.Dispose() } catch {}
+
+                $syncHash.PendingIntuneImportPS = $null
+                $syncHash.PendingIntuneImportRunspace = $null
+                $syncHash.PendingIntuneImportAsync = $null
+
+                & $setIntuneImportLoadingState -IsLoading $false
+            }
+        })
+
+    $pollTimer.Start()
+}
 
 # Apply persisted window size with safe minimums
 $window.Width = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
@@ -947,102 +1132,279 @@ $loadNerdioDefinitions = {
 }
 
 $loadNerdioShellApps = {
+    if ($syncHash.IsNerdioShellAppsLoading) {
+        return
+    }
+
     if (-not (& $loadNerdioShellAppsModule)) {
         $nerdioShellAppsListView.ItemsSource = @()
         $nerdioShellAppsCountLabel.Text = '0 apps'
         return
     }
 
-    $getShellAppsCommand = & $getNerdioShellAppsCommand -Name 'Get-ShellApps'
-    if ($null -eq $getShellAppsCommand) {
-        $getShellAppsCommand = & $getNerdioShellAppsCommand -Name 'Get-ShellApp'
+    if ($null -ne $syncHash.PendingNerdioShellAppsTimer -and $syncHash.PendingNerdioShellAppsTimer.IsEnabled) {
+        $syncHash.PendingNerdioShellAppsTimer.Stop()
+        $syncHash.PendingNerdioShellAppsTimer = $null
     }
 
-    if ($null -eq $getShellAppsCommand) {
+    foreach ($pendingOp in @('PendingNerdioShellAppsPS', 'PendingNerdioShellAppsRunspace', 'PendingNerdioShellAppsAsync')) {
+        $syncHash[$pendingOp] = $null
+    }
+
+    $modulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
+    if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
         $nerdioShellAppsListView.ItemsSource = @()
         $nerdioShellAppsCountLabel.Text = '0 apps'
-        Write-UILog -SyncHash $syncHash -Message 'Nerdio: required command Get-ShellApps was not found in NerdioShellApps module.' -Level Error
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: module path is not configured or does not exist.' -Level Error
         return
     }
 
-    try {
-        $rawApps = @(& $getShellAppsCommand)
-        $getShellAppVersionCommand = & $getNerdioShellAppsCommand -Name 'Get-ShellAppVersion'
-        $rows = [System.Collections.Generic.List[object]]::new()
+    & $setNerdioShellAppsLoadingState -IsLoading $true -Message 'Retrieving Shell Apps from Nerdio Manager...'
+    Write-UILog -SyncHash $syncHash -Message 'Nerdio: retrieving Shell Apps from Nerdio Manager...' -Level Info
 
-        foreach ($app in $rawApps) {
-            if ($null -eq $app) { continue }
+    $nerdioAuthContext = [PSCustomObject]@{
+        TenantId       = [string]$nerdioTenantIdBox.Text
+        NmeHost        = [string]$nmeHostBox.Text
+        ClientId       = [string]$nmeClientIdBox.Text
+        ApiScope       = [string]$nmeApiScopeBox.Text
+        OAuthTokenUrl  = [string]$nmeOAuthTokenUrlBox.Text
+        ClientSecret   = [string]$nmeClientSecretBox.Password
+        SubscriptionId = [string]$nmeSubscriptionIdBox.Text
+        ResourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
+        StorageAccount = [string]$nmeStorageAccountCombo.SelectedItem
+        Container      = [string]$nmeContainerCombo.SelectedItem
+    }
 
-            $publisher = @(
-                $app.PSObject.Properties['Publisher'],
-                $app.PSObject.Properties['publisher'],
-                $app.PSObject.Properties['Vendor'],
-                $app.PSObject.Properties['vendor'],
-                $app.PSObject.Properties['Manufacturer'],
-                $app.PSObject.Properties['manufacturer']
-            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+    $rs = New-WpfRunspace -SyncHash $syncHash
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
 
-            $name = @(
-                $app.PSObject.Properties['Name'],
-                $app.PSObject.Properties['name'],
-                $app.PSObject.Properties['displayName'],
-                $app.PSObject.Properties['cachedName']
-            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+    [void]$ps.AddScript({
+            param(
+                [string]$ModulePath,
+                [PSCustomObject]$NerdioAuthContext
+            )
 
-            $id = @(
-                $app.PSObject.Properties['Id'],
-                $app.PSObject.Properties['id'],
-                $app.PSObject.Properties['publicId'],
-                $app.PSObject.Properties['externalId']
-            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
-
-            $description = @(
-                $app.PSObject.Properties['Description'],
-                $app.PSObject.Properties['description'],
-                $app.PSObject.Properties['details']
-            ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
-
-            $versionCount = @(
-                $app.PSObject.Properties['VersionCount'],
-                $app.PSObject.Properties['versionCount'],
-                $app.PSObject.Properties['VersionsCount'],
-                $app.PSObject.Properties['versionsCount']
-            ) | Where-Object { $null -ne $_ -and $null -ne $_.Value -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
-
-            $resolvedVersionCount = '-'
-            if ($null -ne $versionCount) {
-                $resolvedVersionCount = [string]$versionCount.Value
+            $result = [PSCustomObject]@{
+                Success = $false
+                Rows    = @()
+                Error   = ''
             }
-            elseif ($null -ne $getShellAppVersionCommand -and $null -ne $id) {
-                try {
-                    $versions = @(& $getShellAppVersionCommand -Id ([string]$id.Value))
-                    $resolvedVersionCount = [string]$versions.Count
+
+            try {
+                Import-Module -Name $ModulePath -Force -ErrorAction Stop | Out-Null
+
+                $setNmeCredentialsCommand = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials' -ErrorAction SilentlyContinue
+                $connectNmeCommand = Get-Command -Name 'NerdioShellApps\Connect-Nme' -ErrorAction SilentlyContinue
+
+                if ($null -ne $setNmeCredentialsCommand -and $null -ne $connectNmeCommand) {
+                    foreach ($required in @(
+                            @{ Name = 'Tenant ID'; Value = [string]$NerdioAuthContext.TenantId },
+                            @{ Name = 'NME Host'; Value = [string]$NerdioAuthContext.NmeHost },
+                            @{ Name = 'Client ID'; Value = [string]$NerdioAuthContext.ClientId },
+                            @{ Name = 'API Scope'; Value = [string]$NerdioAuthContext.ApiScope },
+                            @{ Name = 'Client Secret'; Value = [string]$NerdioAuthContext.ClientSecret }
+                        )) {
+                        if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
+                            throw "Nerdio API $($required.Name) is required to list Shell Apps."
+                        }
+                    }
+
+                    & $setNmeCredentialsCommand -ClientId ([string]$NerdioAuthContext.ClientId) -ClientSecret ([string]$NerdioAuthContext.ClientSecret) -TenantId ([string]$NerdioAuthContext.TenantId) -ApiScope ([string]$NerdioAuthContext.ApiScope) -OAuthToken ([string]$NerdioAuthContext.OAuthTokenUrl) -SubscriptionId ([string]$NerdioAuthContext.SubscriptionId) -ResourceGroupName ([string]$NerdioAuthContext.ResourceGroup) -StorageAccountName ([string]$NerdioAuthContext.StorageAccount) -ContainerName ([string]$NerdioAuthContext.Container) -NmeHost ([string]$NerdioAuthContext.NmeHost)
+                    $null = & $connectNmeCommand -PassThru
                 }
-                catch {
+
+                $getShellAppsCommand = Get-Command -Name 'NerdioShellApps\Get-ShellApps' -ErrorAction SilentlyContinue
+                if ($null -eq $getShellAppsCommand) {
+                    $getShellAppsCommand = Get-Command -Name 'NerdioShellApps\Get-ShellApp' -ErrorAction SilentlyContinue
+                }
+
+                if ($null -eq $getShellAppsCommand) {
+                    throw 'Required command Get-ShellApps was not found in NerdioShellApps module.'
+                }
+
+                $getShellAppVersionCommand = Get-Command -Name 'NerdioShellApps\Get-ShellAppVersion' -ErrorAction SilentlyContinue
+                $rawApps = @(& $getShellAppsCommand)
+                $rows = [System.Collections.Generic.List[object]]::new()
+
+                foreach ($app in $rawApps) {
+                    if ($null -eq $app) { continue }
+
+                    $publisher = @(
+                        $app.PSObject.Properties['Publisher'],
+                        $app.PSObject.Properties['publisher'],
+                        $app.PSObject.Properties['Vendor'],
+                        $app.PSObject.Properties['vendor'],
+                        $app.PSObject.Properties['Manufacturer'],
+                        $app.PSObject.Properties['manufacturer']
+                    ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+                    $name = @(
+                        $app.PSObject.Properties['Name'],
+                        $app.PSObject.Properties['name'],
+                        $app.PSObject.Properties['displayName'],
+                        $app.PSObject.Properties['cachedName']
+                    ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+                    $id = @(
+                        $app.PSObject.Properties['Id'],
+                        $app.PSObject.Properties['id'],
+                        $app.PSObject.Properties['publicId'],
+                        $app.PSObject.Properties['externalId']
+                    ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+                    $latestVersion = @(
+                        $app.PSObject.Properties['LatestVersion'],
+                        $app.PSObject.Properties['latestVersion'],
+                        $app.PSObject.Properties['Version'],
+                        $app.PSObject.Properties['version']
+                    ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+                    $versionCount = @(
+                        $app.PSObject.Properties['VersionCount'],
+                        $app.PSObject.Properties['versionCount'],
+                        $app.PSObject.Properties['VersionsCount'],
+                        $app.PSObject.Properties['versionsCount']
+                    ) | Where-Object { $null -ne $_ -and $null -ne $_.Value -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
                     $resolvedVersionCount = '-'
+                    if ($null -ne $versionCount) {
+                        $resolvedVersionCount = [string]$versionCount.Value
+                    }
+
+                    $resolvedLatestVersion = if ($null -ne $latestVersion) { [string]$latestVersion.Value } else { '-' }
+
+                    if (($resolvedVersionCount -eq '-' -or $resolvedLatestVersion -eq '-') -and $null -ne $getShellAppVersionCommand -and $null -ne $id) {
+                        try {
+                            $versions = @(& $getShellAppVersionCommand -Id ([string]$id.Value))
+
+                            if ($resolvedVersionCount -eq '-') {
+                                $resolvedVersionCount = [string]$versions.Count
+                            }
+
+                            if ($resolvedLatestVersion -eq '-' -and $versions.Count -gt 0) {
+                                $versionStrings = @(
+                                    foreach ($v in $versions) {
+                                        $versionProperty = @(
+                                            $v.PSObject.Properties['Version'],
+                                            $v.PSObject.Properties['version'],
+                                            $v.PSObject.Properties['DisplayVersion'],
+                                            $v.PSObject.Properties['displayVersion'],
+                                            $v.PSObject.Properties['Name'],
+                                            $v.PSObject.Properties['name']
+                                        ) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Value) } | Select-Object -First 1
+
+                                        if ($null -ne $versionProperty) {
+                                            ([string]$versionProperty.Value).Trim()
+                                        }
+                                    }
+                                ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+                                if ($versionStrings.Count -gt 0) {
+                                    $parsedVersions = @(
+                                        foreach ($versionText in $versionStrings) {
+                                            $sanitizedVersion = (($versionText -replace '^[^0-9]*', '') -replace '[^0-9\.]', '')
+                                            if (-not [string]::IsNullOrWhiteSpace($sanitizedVersion)) {
+                                                try {
+                                                    [PSCustomObject]@{
+                                                        Raw    = $versionText
+                                                        Parsed = [version]$sanitizedVersion
+                                                    }
+                                                }
+                                                catch {
+                                                }
+                                            }
+                                        }
+                                    )
+
+                                    if ($parsedVersions.Count -gt 0) {
+                                        $resolvedLatestVersion = ($parsedVersions | Sort-Object -Property Parsed -Descending | Select-Object -First 1).Raw
+                                    }
+                                    else {
+                                        $resolvedLatestVersion = $versionStrings[0]
+                                    }
+                                }
+                            }
+                        }
+                        catch {
+                        }
+                    }
+
+                    $rows.Add([PSCustomObject]@{
+                            Publisher     = if ($null -ne $publisher) { [string]$publisher.Value } else { '-' }
+                            Name          = if ($null -ne $name) { [string]$name.Value } else { '-' }
+                            VersionCount  = $resolvedVersionCount
+                            LatestVersion = $resolvedLatestVersion
+                            Id            = if ($null -ne $id) { [string]$id.Value } else { '-' }
+                        })
                 }
+
+                $result.Success = $true
+                $result.Rows = @($rows | Sort-Object -Property Publisher, Name, Id)
+            }
+            catch {
+                $result.Error = $_.Exception.Message
             }
 
-            $rows.Add([PSCustomObject]@{
-                    Publisher    = if ($null -ne $publisher) { [string]$publisher.Value } else { '-' }
-                    Name         = if ($null -ne $name) { [string]$name.Value } else { '-' }
-                    VersionCount = $resolvedVersionCount
-                    Description  = if ($null -ne $description) { [string]$description.Value } else { '-' }
-                    Id           = if ($null -ne $id) { [string]$id.Value } else { '-' }
-                })
-        }
+            return $result
+        }).AddArgument($modulePath).AddArgument($nerdioAuthContext)
 
-        $sortedRows = @($rows | Sort-Object -Property Publisher, Name, Id)
-        $nerdioShellAppsListView.ItemsSource = $sortedRows
-        $nerdioShellAppsCountLabel.Text = "$($sortedRows.Count) apps"
+    $syncHash.PendingNerdioShellAppsPS = $ps
+    $syncHash.PendingNerdioShellAppsRunspace = $rs
+    $syncHash.PendingNerdioShellAppsAsync = $ps.BeginInvoke()
 
-        Write-UILog -SyncHash $syncHash -Message "Nerdio: loaded $($sortedRows.Count) Shell App(s) from Nerdio Manager." -Level Info
-    }
-    catch {
-        $nerdioShellAppsListView.ItemsSource = @()
-        $nerdioShellAppsCountLabel.Text = '0 apps'
-        Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to list Shell Apps: $($_.Exception.Message)" -Level Error
-    }
+    $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+    $syncHash.PendingNerdioShellAppsTimer = $pollTimer
+
+    $pollTimer.add_Tick({
+            if ($null -eq $syncHash.PendingNerdioShellAppsAsync -or -not $syncHash.PendingNerdioShellAppsAsync.IsCompleted) {
+                return
+            }
+
+            if ($null -ne $syncHash.PendingNerdioShellAppsTimer) {
+                $syncHash.PendingNerdioShellAppsTimer.Stop()
+                $syncHash.PendingNerdioShellAppsTimer = $null
+            }
+
+            $result = $null
+            try {
+                $output = $syncHash.PendingNerdioShellAppsPS.EndInvoke($syncHash.PendingNerdioShellAppsAsync)
+                if ($null -ne $output -and $output.Count -gt 0) {
+                    $result = $output[$output.Count - 1]
+                }
+            }
+            catch {
+                $result = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $_.Exception.Message }
+            }
+            finally {
+                try { $syncHash.PendingNerdioShellAppsPS.Dispose() } catch {}
+                try { $syncHash.PendingNerdioShellAppsRunspace.Dispose() } catch {}
+                $syncHash.PendingNerdioShellAppsPS = $null
+                $syncHash.PendingNerdioShellAppsRunspace = $null
+                $syncHash.PendingNerdioShellAppsAsync = $null
+            }
+
+            try {
+                if ($null -eq $result -or -not $result.Success) {
+                    $nerdioShellAppsListView.ItemsSource = @()
+                    $nerdioShellAppsCountLabel.Text = '0 apps'
+                    $errorMessage = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown error occurred while listing Shell Apps.' } else { [string]$result.Error }
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to list Shell Apps: $errorMessage" -Level Error
+                }
+                else {
+                    $rows = @($result.Rows)
+                    $nerdioShellAppsListView.ItemsSource = $rows
+                    $nerdioShellAppsCountLabel.Text = "$($rows.Count) apps"
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: loaded $($rows.Count) Shell App(s) from Nerdio Manager." -Level Info
+                }
+            }
+            finally {
+                & $setNerdioShellAppsLoadingState -IsLoading $false
+            }
+        })
+
+    $pollTimer.Start()
 }
 
 $refreshIntuneModuleStatus = {
@@ -1823,6 +2185,22 @@ $window.add_Closing({
                 try { $op.Runspace.Dispose() } catch {}
             }
             $syncHash.ActiveBackgroundOperations.Clear()
+
+            if ($null -ne $syncHash.PendingIntuneImportTimer -and $syncHash.PendingIntuneImportTimer.IsEnabled) {
+                $syncHash.PendingIntuneImportTimer.Stop()
+            }
+            if ($null -ne $syncHash.PendingIntuneImportPS) {
+                try { $syncHash.PendingIntuneImportPS.Stop() } catch {}
+                try { $syncHash.PendingIntuneImportPS.Dispose() } catch {}
+            }
+            if ($null -ne $syncHash.PendingIntuneImportRunspace) {
+                try { $syncHash.PendingIntuneImportRunspace.Dispose() } catch {}
+            }
+
+            $syncHash.PendingIntuneImportTimer = $null
+            $syncHash.PendingIntuneImportPS = $null
+            $syncHash.PendingIntuneImportRunspace = $null
+            $syncHash.PendingIntuneImportAsync = $null
         }
         catch {
             # Never block window close for a config-save failure
@@ -2086,7 +2464,7 @@ $nerdioImportNewButton.add_Click({
 
 $intuneRefreshCatalogButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'List Intune Win32 apps')) { return }
-        Write-UILog -SyncHash $syncHash -Message 'Intune: listing Win32 apps from Microsoft Intune is not implemented yet.' -Level Info
+    & $startIntuneImportOperation -ActionName 'List Intune Win32 apps' -LoadingMessage 'Listing Win32 apps from Microsoft Intune...' -CompletionMessage 'Intune: listing Win32 apps from Microsoft Intune is not implemented yet.'
     })
 
 $intuneBrowseDefinitionsButton.add_Click({
@@ -2139,12 +2517,12 @@ $intunePackageButton.add_Click({
 
 $intunePreviewImportButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'Intune preview import')) { return }
-        Write-UILog -SyncHash $syncHash -Message 'Intune: preview import is not implemented yet.' -Level Info
+    & $startIntuneImportOperation -ActionName 'Preview import' -LoadingMessage 'Preparing Intune import preview...' -CompletionMessage 'Intune: preview import is not implemented yet.'
     })
 
 $intuneApplyImportButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'Intune apply import')) { return }
-        Write-UILog -SyncHash $syncHash -Message 'Intune: apply import is not implemented yet.' -Level Info
+    & $startIntuneImportOperation -ActionName 'Apply import' -LoadingMessage 'Applying Intune import...' -CompletionMessage 'Intune: apply import is not implemented yet.'
     })
 
 $intuneReloadModuleSettingsButton.add_Click({

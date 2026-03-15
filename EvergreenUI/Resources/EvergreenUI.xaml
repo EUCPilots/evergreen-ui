@@ -1476,6 +1476,28 @@
                                                 </DockPanel>
                                             </Border>
 
+                                            <Border x:Name="IntuneImportLoadingPanel"
+                                                    DockPanel.Dock="Top"
+                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                    BorderThickness="0,0,0,1"
+                                                    Padding="12,8"
+                                                    Background="{DynamicResource WindowBackgroundBrush}"
+                                                    Visibility="Collapsed">
+                                                <StackPanel>
+                                                    <TextBlock x:Name="IntuneImportLoadingLabel"
+                                                               Text="Working..."
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="11"
+                                                               Margin="0,0,0,6"/>
+                                                    <ProgressBar x:Name="IntuneImportProgressBar"
+                                                                 IsIndeterminate="True"
+                                                                 Height="3"
+                                                                 Foreground="{DynamicResource AccentBrush}"
+                                                                 Background="{DynamicResource ControlBorderBrush}"
+                                                                 BorderThickness="0"/>
+                                                </StackPanel>
+                                            </Border>
+
                                             <!-- Win32 apps list + empty hint -->
                                             <Grid>
                                                 <ListView x:Name="IntuneWin32AppsListView"
@@ -1522,7 +1544,7 @@
                                                                FontSize="12"
                                                                FontWeight="SemiBold"
                                                                TextWrapping="Wrap"/>
-                                                    <TextBlock Text="Sign in with Entra ID and click List Win32 apps to retrieve existing apps from Microsoft Intune."
+                                                    <TextBlock Text="Sign in with Entra ID and click List Win32 apps to view existing apps from Microsoft Intune."
                                                                HorizontalAlignment="Center"
                                                                TextAlignment="Center"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
@@ -1699,8 +1721,7 @@
                                                     <ListView.View>
                                                         <GridView>
                                                             <GridViewColumn Header="Publisher"        DisplayMemberBinding="{Binding Publisher}"       Width="170"/>
-                                                            <GridViewColumn Header="App Name"         DisplayMemberBinding="{Binding AppName}"         Width="210"/>
-                                                            <GridViewColumn Header="Path"             DisplayMemberBinding="{Binding DefinitionPath}" Width="290"/>
+                                                            <GridViewColumn Header="Name"             DisplayMemberBinding="{Binding AppName}"         Width="500"/>
                                                         </GridView>
                                                     </ListView.View>
                                                 </ListView>
@@ -1777,6 +1798,28 @@
                                                 </DockPanel>
                                             </Border>
 
+                                            <Border x:Name="NerdioShellAppsLoadingPanel"
+                                                    DockPanel.Dock="Top"
+                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                    BorderThickness="0,0,0,1"
+                                                    Padding="12,8"
+                                                    Background="{DynamicResource WindowBackgroundBrush}"
+                                                    Visibility="Collapsed">
+                                                <StackPanel>
+                                                    <TextBlock x:Name="NerdioShellAppsLoadingLabel"
+                                                               Text="Loading Shell Apps from Nerdio Manager..."
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="11"
+                                                               Margin="0,0,0,6"/>
+                                                    <ProgressBar x:Name="NerdioShellAppsProgressBar"
+                                                                 IsIndeterminate="True"
+                                                                 Height="3"
+                                                                 Foreground="{DynamicResource AccentBrush}"
+                                                                 Background="{DynamicResource ControlBorderBrush}"
+                                                                 BorderThickness="0"/>
+                                                </StackPanel>
+                                            </Border>
+
                                             <!-- Shell Apps list + empty hint -->
                                             <Grid>
                                                 <ListView x:Name="NerdioShellAppsListView"
@@ -1800,7 +1843,7 @@
                                                             <GridViewColumn Header="Publisher"   DisplayMemberBinding="{Binding Publisher}"    Width="170"/>
                                                             <GridViewColumn Header="Name"        DisplayMemberBinding="{Binding Name}"         Width="180"/>
                                                             <GridViewColumn Header="Versions"    DisplayMemberBinding="{Binding VersionCount}" Width="80"/>
-                                                            <GridViewColumn Header="Description" DisplayMemberBinding="{Binding Description}"  Width="180"/>
+                                                            <GridViewColumn Header="Latest Version" DisplayMemberBinding="{Binding LatestVersion}" Width="120"/>
                                                             <GridViewColumn Header="ID"          DisplayMemberBinding="{Binding Id}"           Width="160"/>
                                                         </GridView>
                                                     </ListView.View>
@@ -1825,7 +1868,7 @@
                                                                FontSize="12"
                                                                FontWeight="SemiBold"
                                                                TextWrapping="Wrap"/>
-                                                    <TextBlock Text="Connect to Nerdio Manager and click List shell apps to retrieve existing apps."
+                                                    <TextBlock Text="Connect to Nerdio Manager and click List shell apps to list existing apps."
                                                                HorizontalAlignment="Center"
                                                                TextAlignment="Center"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
