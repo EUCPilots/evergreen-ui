@@ -5,6 +5,8 @@
         "Out-Null": true,
         "ForEach-Object": true,
         "Get-Module": true,
-        "Invoke-ScriptAnalyzer": true
+        "Invoke-ScriptAnalyzer": true,
+        "StaticResource": true,
+        "FluentTabControl": true
     }
 }
