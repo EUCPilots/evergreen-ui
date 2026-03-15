@@ -44,6 +44,9 @@ function Get-UIConfig {
         ImportSettings = [PSCustomObject]@{
             CurrentProvider = 'Nerdio'
         }
+        NerdioSettings = [PSCustomObject]@{
+            ModulePath = ''
+        }
         AzureAuthSettings = [PSCustomObject]@{
             TenantId        = ''
             LastAccountId   = ''
@@ -74,6 +77,13 @@ function Get-UIConfig {
         }
         elseif ($null -eq $json.ImportSettings.CurrentProvider -or [string]::IsNullOrWhiteSpace([string]$json.ImportSettings.CurrentProvider)) {
             $json.ImportSettings | Add-Member -NotePropertyName 'CurrentProvider' -NotePropertyValue 'Nerdio' -Force
+        }
+
+        if ($null -eq $json.NerdioSettings) {
+            $json | Add-Member -NotePropertyName 'NerdioSettings' -NotePropertyValue $default.NerdioSettings -Force
+        }
+        elseif ($null -eq $json.NerdioSettings.ModulePath) {
+            $json.NerdioSettings | Add-Member -NotePropertyName 'ModulePath' -NotePropertyValue '' -Force
         }
 
         if ($null -eq $json.AzureAuthSettings) {

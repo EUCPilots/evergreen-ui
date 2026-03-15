@@ -177,6 +177,10 @@ $browseOutputButton = $window.FindName('BrowseOutputButton')
 $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
 $clearCacheButton = $window.FindName('ClearCacheButton')
 $openCacheFolderButton = $window.FindName('OpenCacheFolderButton')
+$nerdioModulePathSettingsBox = $window.FindName('NerdioModulePathSettingsBox')
+$nerdioBrowseModulePathSettingsButton = $window.FindName('NerdioBrowseModulePathSettingsButton')
+$nerdioReloadModuleSettingsButton = $window.FindName('NerdioReloadModuleSettingsButton')
+$nerdioModuleStatusLabel = $window.FindName('NerdioModuleStatusLabel')
 
 $importProviderTabControl = $window.FindName('ImportProviderTabControl')
 $importTenantIdBox = $window.FindName('ImportTenantIdBox')
@@ -530,6 +534,61 @@ $applyImportTenantToConfig = {
     $tenantText = if ($null -eq $importTenantIdBox) { '' } else { [string]$importTenantIdBox.Text }
     $syncHash.Config.AzureAuthSettings.TenantId = $tenantText.Trim()
     Set-UIConfig -Config $syncHash.Config
+}
+
+$refreshNerdioModuleStatus = {
+    param(
+        [bool]$IsLoaded,
+        [string]$Message
+    )
+
+    if ($null -eq $nerdioModuleStatusLabel) { return }
+
+    if ($IsLoaded) {
+        $nerdioModuleStatusLabel.Foreground = [System.Windows.Media.Brushes]::LightGreen
+    }
+    else {
+        $nerdioModuleStatusLabel.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+    }
+
+    $nerdioModuleStatusLabel.Text = $Message
+}
+
+$loadNerdioShellAppsModule = {
+    param([switch]$Force)
+
+    $pathValue = [string]$nerdioModulePathSettingsBox.Text
+    $path = & $normalizeDirectoryPath -PathValue $pathValue
+    $nerdioModulePathSettingsBox.Text = $path
+    $syncHash.Config.NerdioSettings.ModulePath = $path
+    Set-UIConfig -Config $syncHash.Config
+
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        & $refreshNerdioModuleStatus -IsLoaded $false -Message 'NerdioShellApps module path is not configured.'
+        return $false
+    }
+
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        & $refreshNerdioModuleStatus -IsLoaded $false -Message "Module file not found: $path"
+        Write-UILog -SyncHash $syncHash -Message "Nerdio module was not loaded because the file was not found: $path" -Level Warning
+        return $false
+    }
+
+    try {
+        if ($Force) {
+            Remove-Module -Name NerdioShellApps -ErrorAction SilentlyContinue
+        }
+
+        Import-Module -Name $path -Force:$Force -ErrorAction Stop | Out-Null
+        & $refreshNerdioModuleStatus -IsLoaded $true -Message "Loaded module: $path"
+        Write-UILog -SyncHash $syncHash -Message "Loaded NerdioShellApps module from '$path'." -Level Info
+        return $true
+    }
+    catch {
+        & $refreshNerdioModuleStatus -IsLoaded $false -Message "Failed to load module: $($_.Exception.Message)"
+        Write-UILog -SyncHash $syncHash -Message "Failed to load NerdioShellApps module: $($_.Exception.Message)" -Level Error
+        return $false
+    }
 }
 
 $startImportSignIn = {
@@ -976,6 +1035,8 @@ $window.add_Loaded({
         & $refreshQueueView
         $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
         $importTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.TenantId
+        $nerdioModulePathSettingsBox.Text = [string]$syncHash.Config.NerdioSettings.ModulePath
+        [void](& $loadNerdioShellAppsModule)
         & $refreshImportAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
 
@@ -1547,6 +1608,15 @@ $startupViewComboBox.add_SelectionChanged({
 $navSettings.add_Checked({
         $outputPathBox.Text = $syncHash.Config.OutputPath
         $evergreenAppsPathBox.Text = (Get-EvergreenAppsPath)
+        $nerdioModulePathSettingsBox.Text = [string]$syncHash.Config.NerdioSettings.ModulePath
+
+        $nerdioLoaded = $null -ne (Get-Module -Name NerdioShellApps)
+        if ($nerdioLoaded) {
+            & $refreshNerdioModuleStatus -IsLoaded $true -Message 'NerdioShellApps module is loaded.'
+        }
+        else {
+            & $refreshNerdioModuleStatus -IsLoaded $false -Message 'NerdioShellApps module not loaded. Select a module path and click Reload.'
+        }
 
         $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
         $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
@@ -1622,6 +1692,32 @@ $browseOutputButton.add_Click({
         }
     })
 
+$nerdioBrowseModulePathSettingsButton.add_Click({
+        $dlg = [System.Windows.Forms.OpenFileDialog]::new()
+        $dlg.Title = 'Select NerdioShellApps module file'
+        $dlg.Filter = 'PowerShell module files (*.psm1)|*.psm1|All files (*.*)|*.*'
+        $dlg.CheckFileExists = $true
+        $dlg.Multiselect = $false
+        if (-not [string]::IsNullOrWhiteSpace($nerdioModulePathSettingsBox.Text)) {
+            try {
+                $currentDir = Split-Path -Path $nerdioModulePathSettingsBox.Text -Parent
+                if (Test-Path -LiteralPath $currentDir -PathType Container) {
+                    $dlg.InitialDirectory = $currentDir
+                }
+            }
+            catch {}
+        }
+
+        if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $nerdioModulePathSettingsBox.Text = $dlg.FileName
+            [void](& $loadNerdioShellAppsModule -Force)
+        }
+    })
+
+$nerdioReloadModuleSettingsButton.add_Click({
+        [void](& $loadNerdioShellAppsModule -Force)
+    })
+
 # Settings: Open cache folder
 $openEvergreenAppsFolderButton.add_Click({
         $folderPath = $evergreenAppsPathBox.Text
@@ -1666,6 +1762,10 @@ $outputPathBox.add_LostFocus({
         $outputPathBox.Text = $normalised
         $syncHash.Config.OutputPath = $normalised
         Set-UIConfig -Config $syncHash.Config
+    })
+
+$nerdioModulePathSettingsBox.add_LostFocus({
+        [void](& $loadNerdioShellAppsModule)
     })
 
 # Show window (blocking)

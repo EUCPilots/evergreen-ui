@@ -1940,6 +1940,46 @@
                             </StackPanel>
                         </Border>
 
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14"
+                                Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Nerdio Manager"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,14"/>
+
+                                <TextBlock Text="NerdioShellApps.psm1 path"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,4"/>
+                                <DockPanel Margin="0,0,0,8">
+                                    <StackPanel Orientation="Horizontal"
+                                                DockPanel.Dock="Right"
+                                                Margin="8,0,0,0">
+                                        <Button x:Name="NerdioBrowseModulePathSettingsButton"
+                                                Content="Browse"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Margin="0,0,8,0"/>
+                                        <Button x:Name="NerdioReloadModuleSettingsButton"
+                                                Content="Reload"
+                                                Style="{StaticResource FluentSecondaryButton}"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="NerdioModulePathSettingsBox"
+                                             Style="{StaticResource FluentTextBox}"/>
+                                </DockPanel>
+
+                                <TextBlock x:Name="NerdioModuleStatusLabel"
+                                           Text="NerdioShellApps module not loaded."
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
