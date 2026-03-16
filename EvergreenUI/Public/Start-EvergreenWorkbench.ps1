@@ -169,6 +169,13 @@ $syncHash = [hashtable]::Synchronized(@{
         PendingNerdioShellAppsRunspace = $null
         PendingNerdioShellAppsAsync    = $null
         IsNerdioShellAppsLoading       = $false
+        PendingNerdioAddVersionTimer    = $null
+        PendingNerdioAddVersionPS       = $null
+        PendingNerdioAddVersionRunspace = $null
+        PendingNerdioAddVersionAsync    = $null
+        PendingNerdioPostImportVerifyAppId = ''
+        PendingNerdioPostImportVerifyAppName = ''
+        PendingNerdioPostImportExpectedEvergreenVersion = ''
         NerdioDefinitionRows           = @()
         NerdioShellAppRows             = @()
         NerdioComparisonRows           = @()
@@ -1791,6 +1798,23 @@ $getEvergreenMetadataForDefinition = {
         throw 'Required command Get-AppMetadata was not found in NerdioShellApps module.'
     }
 
+    if ([string]$DefinitionRow.SourceType -ieq 'Evergreen') {
+        $sourceApp = [string]$DefinitionRow.SourceApp
+        $sourceFilter = [string]$DefinitionRow.SourceFilter
+
+        if (-not [string]::IsNullOrWhiteSpace($sourceApp)) {
+            $escapedSourceApp = $sourceApp.Replace("'", "''")
+            $commandMessage = if ([string]::IsNullOrWhiteSpace($sourceFilter)) {
+                "Get-EvergreenApp -Name '$escapedSourceApp'"
+            }
+            else {
+                "Get-EvergreenApp -Name '$escapedSourceApp' | Where-Object { $sourceFilter }"
+            }
+
+            Write-UILog -SyncHash $syncHash -Message $commandMessage -Level Cmd
+        }
+    }
+
     return (& $getAppMetadataCommand -Definition $DefinitionRow.DefinitionObject)
 }
 
@@ -1944,7 +1968,7 @@ $refreshNerdioComparison = {
             $updateCount++
         }
         else {
-            $baseRow.MatchStatus = 'Matched'
+            $baseRow.MatchStatus = 'Matches (No update required)'
             $baseRow.UpdateNeeded = 'No'
             $baseRow.CompareMessage = 'Nerdio latest version is current.'
         }
@@ -2414,9 +2438,280 @@ $loadNerdioShellApps = {
                 }
 
                 & $refreshNerdioComparison
+
+                if (-not [string]::IsNullOrWhiteSpace([string]$syncHash.PendingNerdioPostImportVerifyAppId)) {
+                    $verifyAppId = [string]$syncHash.PendingNerdioPostImportVerifyAppId
+                    $verifyAppName = [string]$syncHash.PendingNerdioPostImportVerifyAppName
+                    $expectedEvergreenVersion = [string]$syncHash.PendingNerdioPostImportExpectedEvergreenVersion
+
+                    $verifiedRow = @(
+                        $syncHash.NerdioComparisonRows | Where-Object {
+                            [string]$_.NerdioAppId -eq $verifyAppId -and [string]$_.HasDefinition -eq 'Yes'
+                        } | Select-Object -First 1
+                    )
+
+                    if ($verifiedRow.Count -eq 0) {
+                        $verifyMessage = "Post-import verification for '$verifyAppName' could not find a matching comparison row (Shell App ID: $verifyAppId)."
+                        if ($null -ne $nerdioActionStatusLabel) {
+                            $nerdioActionStatusLabel.Text = $verifyMessage
+                        }
+                        Write-UILog -SyncHash $syncHash -Message "Nerdio: $verifyMessage" -Level Warning
+                    }
+                    else {
+                        $row = $verifiedRow[0]
+                        $comparisonSummary = "Nerdio version $([string]$row.NerdioVersion) vs Evergreen $([string]$row.EvergreenVersion)"
+                        if ([string]$row.IsMatched -eq 'Yes' -and [string]$row.UpdateNeeded -eq 'No') {
+                            $verifyMessage = "Post-import verification passed for '$verifyAppName': status Matched. $comparisonSummary."
+                            if ($null -ne $nerdioActionStatusLabel) {
+                                $nerdioActionStatusLabel.Text = $verifyMessage
+                            }
+                            Write-UILog -SyncHash $syncHash -Message "Nerdio: $verifyMessage" -Level Info
+                        }
+                        elseif ([string]$row.IsMatched -eq 'Yes' -and [string]$row.UpdateNeeded -eq 'Yes') {
+                            $verifyMessage = "Post-import verification shows update still needed for '$verifyAppName'. $comparisonSummary."
+                            if (-not [string]::IsNullOrWhiteSpace($expectedEvergreenVersion)) {
+                                $verifyMessage = "$verifyMessage Expected Evergreen at import time: $expectedEvergreenVersion."
+                            }
+                            if ($null -ne $nerdioActionStatusLabel) {
+                                $nerdioActionStatusLabel.Text = $verifyMessage
+                            }
+                            Write-UILog -SyncHash $syncHash -Message "Nerdio: $verifyMessage" -Level Warning
+                        }
+                        elseif ([string]$row.UpdateNeeded -eq 'Compare unavailable') {
+                            $verifyMessage = "Post-import verification is inconclusive for '$verifyAppName': version comparison unavailable."
+                            if ($null -ne $nerdioActionStatusLabel) {
+                                $nerdioActionStatusLabel.Text = $verifyMessage
+                            }
+                            Write-UILog -SyncHash $syncHash -Message "Nerdio: $verifyMessage" -Level Warning
+                        }
+                        else {
+                            $verifyMessage = "Post-import verification could not confirm a matched state for '$verifyAppName' (status: $([string]$row.MatchStatus))."
+                            if ($null -ne $nerdioActionStatusLabel) {
+                                $nerdioActionStatusLabel.Text = $verifyMessage
+                            }
+                            Write-UILog -SyncHash $syncHash -Message "Nerdio: $verifyMessage" -Level Warning
+                        }
+                    }
+
+                    $syncHash.PendingNerdioPostImportVerifyAppId = ''
+                    $syncHash.PendingNerdioPostImportVerifyAppName = ''
+                    $syncHash.PendingNerdioPostImportExpectedEvergreenVersion = ''
+                }
             }
             finally {
                 & $setNerdioShellAppsLoadingState -IsLoading $false
+            }
+        })
+
+    $pollTimer.Start()
+}
+
+$startNerdioAddVersion = {
+    $selectedRow = $syncHash.NerdioSelectedComparisonRow
+    if ($null -eq $selectedRow) {
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: no row selected for adding a version.' -Level Warning
+        return
+    }
+
+    if ([string]$selectedRow.IsMatched -ne 'Yes' -or [string]$selectedRow.UpdateNeeded -ne 'Yes') {
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: selected row is not eligible for adding a version (matched app with update available required).' -Level Warning
+        return
+    }
+
+    if ($syncHash.IsNerdioShellAppsLoading) {
+        return
+    }
+
+    $modulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
+    if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: module path is not configured or does not exist.' -Level Error
+        return
+    }
+
+    $shellAppId     = [string]$selectedRow.NerdioAppId
+    $definitionPath = [string]$selectedRow.DefinitionPath
+    $appName        = [string]$selectedRow.AppName
+
+    if ([string]::IsNullOrWhiteSpace($shellAppId)) {
+        Write-UILog -SyncHash $syncHash -Message 'Nerdio: selected row does not have a Shell App ID.' -Level Error
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($definitionPath) -or -not (Test-Path -LiteralPath $definitionPath -PathType Container)) {
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: definition path is missing or does not exist: $definitionPath" -Level Error
+        return
+    }
+
+    $nerdioAuthContext = [PSCustomObject]@{
+        TenantId       = [string]$nerdioTenantIdBox.Text
+        NmeHost        = [string]$nmeHostBox.Text
+        ClientId       = [string]$nmeClientIdBox.Text
+        ApiScope       = [string]$nmeApiScopeBox.Text
+        OAuthTokenUrl  = [string]$nmeOAuthTokenUrlBox.Text
+        ClientSecret   = [string]$nmeClientSecretBox.Password
+        SubscriptionId = [string]$nmeSubscriptionIdBox.Text
+        ResourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
+        StorageAccount = [string]$nmeStorageAccountCombo.SelectedItem
+        Container      = [string]$nmeContainerCombo.SelectedItem
+    }
+
+    & $setNerdioShellAppsLoadingState -IsLoading $true -Message "Adding new version to Shell App '$appName'..."
+    Write-UILog -SyncHash $syncHash -Message "Nerdio: adding new version to Shell App '$appName' (id: $shellAppId)..." -Level Info
+
+    $rs = New-WpfRunspace -SyncHash $syncHash
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
+
+    [void]$ps.AddScript({
+            param(
+                [string]$ModulePath,
+                [PSCustomObject]$NerdioAuthContext,
+                [string]$ShellAppId,
+                [string]$DefinitionPath
+            )
+
+            $result = [PSCustomObject]@{
+                Success = $false
+                Error   = ''
+            }
+
+            try {
+                Import-Module -Name $ModulePath -Force -ErrorAction Stop | Out-Null
+
+                $module = Get-Module -Name NerdioShellApps -ErrorAction SilentlyContinue
+                if ($null -ne $module -and $null -ne $module.SessionState -and $null -ne $module.SessionState.PSVariable) {
+                    $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
+                }
+
+                $setNmeCredentialsCommand     = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials'     -ErrorAction SilentlyContinue
+                $connectNmeCommand            = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
+                $getShellAppDefCommand        = Get-Command -Name 'NerdioShellApps\Get-ShellAppDefinition' -ErrorAction SilentlyContinue
+                $getAppMetadataCommand        = Get-Command -Name 'NerdioShellApps\Get-AppMetadata'        -ErrorAction SilentlyContinue
+                $newShellAppVersionCommand    = Get-Command -Name 'NerdioShellApps\New-ShellAppVersion'    -ErrorAction SilentlyContinue
+
+                if ($null -eq $setNmeCredentialsCommand)  { throw 'Required command Set-NmeCredentials was not found in NerdioShellApps module.' }
+                if ($null -eq $connectNmeCommand)         { throw 'Required command Connect-Nme was not found in NerdioShellApps module.' }
+                if ($null -eq $getShellAppDefCommand)     { throw 'Required command Get-ShellAppDefinition was not found in NerdioShellApps module.' }
+                if ($null -eq $getAppMetadataCommand)     { throw 'Required command Get-AppMetadata was not found in NerdioShellApps module.' }
+                if ($null -eq $newShellAppVersionCommand) { throw 'Required command New-ShellAppVersion was not found in NerdioShellApps module.' }
+
+                foreach ($required in @(
+                        @{ Name = 'Tenant ID';     Value = [string]$NerdioAuthContext.TenantId },
+                        @{ Name = 'NME Host';      Value = [string]$NerdioAuthContext.NmeHost },
+                        @{ Name = 'Client ID';     Value = [string]$NerdioAuthContext.ClientId },
+                        @{ Name = 'API Scope';     Value = [string]$NerdioAuthContext.ApiScope },
+                        @{ Name = 'Client Secret'; Value = [string]$NerdioAuthContext.ClientSecret }
+                    )) {
+                    if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
+                        throw "Nerdio API $($required.Name) is required to add a Shell App version."
+                    }
+                }
+
+                & $setNmeCredentialsCommand `
+                    -ClientId           ([string]$NerdioAuthContext.ClientId) `
+                    -ClientSecret       ([string]$NerdioAuthContext.ClientSecret) `
+                    -TenantId           ([string]$NerdioAuthContext.TenantId) `
+                    -ApiScope           ([string]$NerdioAuthContext.ApiScope) `
+                    -OAuthToken         ([string]$NerdioAuthContext.OAuthTokenUrl) `
+                    -SubscriptionId     ([string]$NerdioAuthContext.SubscriptionId) `
+                    -ResourceGroupName  ([string]$NerdioAuthContext.ResourceGroup) `
+                    -StorageAccountName ([string]$NerdioAuthContext.StorageAccount) `
+                    -ContainerName      ([string]$NerdioAuthContext.Container) `
+                    -NmeHost            ([string]$NerdioAuthContext.NmeHost)
+
+                $null = & $connectNmeCommand -PassThru
+
+                $definition = & $getShellAppDefCommand -Path $DefinitionPath
+                if ($null -eq $definition) {
+                    throw "Failed to load Shell App definition from: $DefinitionPath"
+                }
+
+                $appMetadata = $definition | & $getAppMetadataCommand
+                if ($null -eq $appMetadata) {
+                    throw 'Failed to retrieve app metadata from the definition source.'
+                }
+
+                $null = & $newShellAppVersionCommand -Id $ShellAppId -AppMetadata $appMetadata
+
+                $result.Success = $true
+            }
+            catch {
+                $result.Error = $_.Exception.Message
+            }
+
+            return $result
+        }).AddArgument($modulePath).AddArgument($nerdioAuthContext).AddArgument($shellAppId).AddArgument($definitionPath)
+
+    $syncHash.PendingNerdioAddVersionPS       = $ps
+    $syncHash.PendingNerdioAddVersionRunspace = $rs
+    $syncHash.PendingNerdioAddVersionAsync    = $ps.BeginInvoke()
+
+    $syncHash.PendingNerdioAddVersionAppName = $appName
+
+    $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+    $syncHash.PendingNerdioAddVersionTimer = $pollTimer
+
+    $pollTimer.add_Tick({
+            if ($null -eq $syncHash.PendingNerdioAddVersionAsync -or -not $syncHash.PendingNerdioAddVersionAsync.IsCompleted) {
+                return
+            }
+
+            if ($null -ne $syncHash.PendingNerdioAddVersionTimer) {
+                $syncHash.PendingNerdioAddVersionTimer.Stop()
+                $syncHash.PendingNerdioAddVersionTimer = $null
+            }
+
+            $addVersionResult = $null
+            try {
+                $output = $syncHash.PendingNerdioAddVersionPS.EndInvoke($syncHash.PendingNerdioAddVersionAsync)
+                if ($null -ne $output -and $output.Count -gt 0) {
+                    $addVersionResult = $output[$output.Count - 1]
+                }
+            }
+            catch {
+                $addVersionResult = [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
+            }
+            finally {
+                try { $syncHash.PendingNerdioAddVersionPS.Dispose() } catch {}
+                try { $syncHash.PendingNerdioAddVersionRunspace.Dispose() } catch {}
+                $syncHash.PendingNerdioAddVersionPS       = $null
+                $syncHash.PendingNerdioAddVersionRunspace = $null
+                $syncHash.PendingNerdioAddVersionAsync    = $null
+            }
+
+            if ($null -eq $addVersionResult -or -not $addVersionResult.Success) {
+                $errMsg = if ($null -eq $addVersionResult -or [string]::IsNullOrWhiteSpace([string]$addVersionResult.Error)) {
+                    'Unknown error occurred while adding Shell App version.'
+                }
+                else {
+                    [string]$addVersionResult.Error
+                }
+                Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to add Shell App version: $errMsg" -Level Error
+                & $setNerdioShellAppsLoadingState -IsLoading $false
+            }
+            else {
+                $completedAppName = [string]$syncHash.PendingNerdioAddVersionAppName
+                $syncHash.PendingNerdioAddVersionAppName = $null
+                Write-UILog -SyncHash $syncHash -Message "Nerdio: successfully added new version to Shell App '$completedAppName'." -Level Info
+                try {
+                    $syncHash.PendingNerdioPostImportVerifyAppId = [string]$shellAppId
+                    $syncHash.PendingNerdioPostImportVerifyAppName = [string]$completedAppName
+                    $syncHash.PendingNerdioPostImportExpectedEvergreenVersion = [string]$selectedRow.EvergreenVersion
+                    & $setNerdioShellAppsLoadingState -IsLoading $false
+                    & $loadNerdioShellApps
+                }
+                catch {
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: refresh after adding Shell App version failed: $($_.Exception.Message)" -Level Error
+                    $syncHash.PendingNerdioPostImportVerifyAppId = ''
+                    $syncHash.PendingNerdioPostImportVerifyAppName = ''
+                    $syncHash.PendingNerdioPostImportExpectedEvergreenVersion = ''
+                }
+                finally {
+                    if ($syncHash.IsNerdioShellAppsLoading) {
+                        & $setNerdioShellAppsLoadingState -IsLoading $false
+                    }
+                }
             }
         })
 
@@ -3534,7 +3829,7 @@ $nerdioDefinitionsListView.add_SelectionChanged({
 
 $nerdioAddVersionButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'Add Shell App version' -Provider 'Nerdio')) { return }
-        Write-UILog -SyncHash $syncHash -Message 'Nerdio: add version to existing Shell App is not implemented yet.' -Level Info
+        & $startNerdioAddVersion
     })
 
 $nerdioImportNewButton.add_Click({
