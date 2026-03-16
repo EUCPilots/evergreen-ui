@@ -134,6 +134,7 @@ $syncHash = [hashtable]::Synchronized(@{
         DownloadQueueListView                           = $null
         QueueCountLabel                                 = $null
         DownloadAllButton                               = $null
+        DownloadProgressBar                             = $null
         LibraryContentsListView                         = $null
         LibraryDetailsListView                          = $null
         LibraryStatusLabel                              = $null
@@ -268,6 +269,7 @@ $syncHash.LibraryUpdateButton = $window.FindName('LibraryUpdateButton')
 $syncHash.DownloadQueueListView = $window.FindName('DownloadQueueListView')
 $syncHash.QueueCountLabel = $window.FindName('QueueCountLabel')
 $syncHash.DownloadAllButton = $window.FindName('DownloadAllButton')
+$syncHash.DownloadProgressBar = $window.FindName('DownloadProgressBar')
 
 $syncHash.VersionsListView = $window.FindName('VersionsListView')
 $syncHash.ResultsCountLabel = $window.FindName('ResultsCountLabel')
@@ -1043,6 +1045,28 @@ $refreshQueueView = {
     $failed = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
     $total = $syncHash.DownloadQueue.Count
     $syncHash.QueueCountLabel.Text = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
+
+    & $updateDownloadAllButtonState
+}
+
+$updateDownloadAllButtonState = {
+    if ($null -eq $syncHash.DownloadAllButton) {
+        return
+    }
+
+    $pathValue = ''
+    if ($null -ne $outputPathBox -and -not [string]::IsNullOrWhiteSpace([string]$outputPathBox.Text)) {
+        $pathValue = [string]$outputPathBox.Text
+    }
+    elseif ($null -ne $syncHash.Config -and $syncHash.Config.PSObject.Properties.Name -contains 'OutputPath') {
+        $pathValue = [string]$syncHash.Config.OutputPath
+    }
+
+    $normalisedPathValue = if ([string]::IsNullOrWhiteSpace($pathValue)) { '' } else { $pathValue.Trim().Trim('"') }
+    $hasOutputPath = -not [string]::IsNullOrWhiteSpace($normalisedPathValue)
+    $hasQueueItems = $syncHash.DownloadQueue.Count -gt 0
+
+    $syncHash.DownloadAllButton.IsEnabled = (-not $syncHash.IsRunning) -and $hasQueueItems -and $hasOutputPath
 }
 
 $normalizeImportProvider = {
@@ -3460,6 +3484,10 @@ $startQueueDownload = {
 
     $syncHash.IsRunning = $true
     $syncHash.DownloadAllButton.IsEnabled = $false
+    if ($null -ne $syncHash.DownloadProgressBar) {
+        $syncHash.DownloadProgressBar.Visibility = [System.Windows.Visibility]::Visible
+        $syncHash.DownloadProgressBar.IsIndeterminate = $true
+    }
 
     $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
     $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
@@ -3508,8 +3536,10 @@ $startQueueDownload = {
 
                 $syncHash.Window.Dispatcher.Invoke([action] {
                         $syncHash.IsRunning = $false
-                        if ($null -ne $syncHash.DownloadAllButton) {
-                            $syncHash.DownloadAllButton.IsEnabled = $true
+                        & $updateDownloadAllButtonState
+                        if ($null -ne $syncHash.DownloadProgressBar) {
+                            $syncHash.DownloadProgressBar.IsIndeterminate = $false
+                            $syncHash.DownloadProgressBar.Visibility = [System.Windows.Visibility]::Collapsed
                         }
                         if ($null -ne $syncHash.DownloadQueueListView) {
                             $syncHash.DownloadQueueListView.Items.Refresh()
@@ -3761,6 +3791,16 @@ $window.add_Loaded({
                 $appsComboBox.SelectedItem = $savedApp[0]
                 $appsComboBox.ScrollIntoView($savedApp[0])
             }
+        }
+
+        $currentOutputPath = & $normalizeDirectoryPath -PathValue ([string]$syncHash.Config.OutputPath)
+        if ([string]::IsNullOrWhiteSpace($currentOutputPath)) {
+            $currentOutputPath = Join-Path -Path ([System.Environment]::GetFolderPath('UserProfile')) -ChildPath 'Downloads'
+            $syncHash.Config.OutputPath = $currentOutputPath
+            Set-UIConfig -Config $syncHash.Config
+        }
+        if ($null -ne $outputPathBox) {
+            $outputPathBox.Text = $currentOutputPath
         }
 
         & $refreshQueueView
@@ -4692,6 +4732,7 @@ $browseOutputButton.add_Click({
             $outputPathBox.Text = $normalised
             $syncHash.Config.OutputPath = $normalised
             Set-UIConfig -Config $syncHash.Config
+            & $updateDownloadAllButtonState
         }
     })
 
@@ -4765,6 +4806,7 @@ $outputPathBox.add_LostFocus({
         $outputPathBox.Text = $normalised
         $syncHash.Config.OutputPath = $normalised
         Set-UIConfig -Config $syncHash.Config
+    & $updateDownloadAllButtonState
     })
 
 $nerdioModulePathSettingsBox.add_LostFocus({
