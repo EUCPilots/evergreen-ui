@@ -119,7 +119,7 @@ function Invoke-NerdioAzureSignIn {
             throw 'Connect-AzAccount is not available. Install the Az.Accounts module.'
         }
 
-        $sub    = $SubscriptionId.Trim()
+        $sub = $SubscriptionId.Trim()
         $tenant = if ([string]::IsNullOrWhiteSpace($TenantId)) { $null } else { $TenantId.Trim() }
 
         if (Get-Command -Name Update-AzConfig -ErrorAction SilentlyContinue) {
@@ -160,8 +160,8 @@ function Invoke-NerdioAzureSignIn {
 
         $ctx = Get-AzContext -ErrorAction SilentlyContinue
 
-        $accountId       = if ($null -ne $ctx -and $null -ne $ctx.Account)      { [string]$ctx.Account.Id }      else { '' }
-        $resolvedTenant  = if ($null -ne $ctx -and $null -ne $ctx.Tenant)       { [string]$ctx.Tenant.Id }       else { if ($null -eq $tenant) { '' } else { $tenant } }
+        $accountId = if ($null -ne $ctx -and $null -ne $ctx.Account) { [string]$ctx.Account.Id }      else { '' }
+        $resolvedTenant = if ($null -ne $ctx -and $null -ne $ctx.Tenant) { [string]$ctx.Tenant.Id }       else { if ($null -eq $tenant) { '' } else { $tenant } }
         $subscriptionName = if ($null -ne $ctx -and $null -ne $ctx.Subscription) { [string]$ctx.Subscription.Name } else { '' }
 
         return [PSCustomObject]@{

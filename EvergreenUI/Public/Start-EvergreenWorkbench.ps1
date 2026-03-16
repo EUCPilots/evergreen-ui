@@ -122,66 +122,66 @@ catch {
 
 # Shared state
 $syncHash = [hashtable]::Synchronized(@{
-        Window                     = $null
-        LogTextBox                 = $null
-        LogScrollViewer            = $null
-        IsRunning                  = $false
-        AppList                    = $null
-        CurrentAppResults          = $null
-        FilterState                = @{}
-        VersionsListView           = $null
-        ResultsCountLabel          = $null
-        DownloadQueueListView      = $null
-        QueueCountLabel            = $null
-        DownloadAllButton          = $null
-        LibraryContentsListView    = $null
-        LibraryDetailsListView     = $null
-        LibraryStatusLabel         = $null
-        LibraryUpdateButton        = $null
-        LibraryData                = @()
-        ActiveBackgroundOperations = [System.Collections.Generic.List[object]]::new()
-        BackgroundOperationsTimer  = $null
-        SettingsAutoSaveTimer      = $null
-        SettingsLastSavedJson      = ''
-        DownloadQueue              = [System.Collections.Generic.List[PSCustomObject]]::new()
-        EvergreenVersion           = ''
-        Config                     = $config
-        PendingLoadTimer           = $null
-        PendingLoadPS              = $null
-        PendingLoadRunspace        = $null
-        PendingLoadAsync           = $null
-        PendingLoadAppName         = $null
-        PendingNerdioAzureAuthTimer    = $null
-        PendingNerdioAzureAuthPS       = $null
-        PendingNerdioAzureAuthRunspace = $null
-        PendingNerdioAzureAuthAsync    = $null
-        PendingIntuneImportTimer       = $null
-        PendingIntuneImportPS          = $null
-        PendingIntuneImportRunspace    = $null
-        PendingIntuneImportAsync       = $null
-        IsIntuneImportLoading          = $false
-        IntuneActionButtonStates       = @{}
-        IntuneDefinitionRows           = @()
-        IntuneWin32Rows                = @()
-        IntuneComparisonRows           = @()
-        PendingNerdioShellAppsTimer    = $null
-        PendingNerdioShellAppsPS       = $null
-        PendingNerdioShellAppsRunspace = $null
-        PendingNerdioShellAppsAsync    = $null
-        IsNerdioShellAppsLoading       = $false
-        PendingNerdioAddVersionTimer    = $null
-        PendingNerdioAddVersionPS       = $null
-        PendingNerdioAddVersionRunspace = $null
-        PendingNerdioAddVersionAsync    = $null
-        PendingNerdioPostImportVerifyAppId = ''
-        PendingNerdioPostImportVerifyAppName = ''
+        Window                                          = $null
+        LogTextBox                                      = $null
+        LogScrollViewer                                 = $null
+        IsRunning                                       = $false
+        AppList                                         = $null
+        CurrentAppResults                               = $null
+        FilterState                                     = @{}
+        VersionsListView                                = $null
+        ResultsCountLabel                               = $null
+        DownloadQueueListView                           = $null
+        QueueCountLabel                                 = $null
+        DownloadAllButton                               = $null
+        LibraryContentsListView                         = $null
+        LibraryDetailsListView                          = $null
+        LibraryStatusLabel                              = $null
+        LibraryUpdateButton                             = $null
+        LibraryData                                     = @()
+        ActiveBackgroundOperations                      = [System.Collections.Generic.List[object]]::new()
+        BackgroundOperationsTimer                       = $null
+        SettingsAutoSaveTimer                           = $null
+        SettingsLastSavedJson                           = ''
+        DownloadQueue                                   = [System.Collections.Generic.List[PSCustomObject]]::new()
+        EvergreenVersion                                = ''
+        Config                                          = $config
+        PendingLoadTimer                                = $null
+        PendingLoadPS                                   = $null
+        PendingLoadRunspace                             = $null
+        PendingLoadAsync                                = $null
+        PendingLoadAppName                              = $null
+        PendingNerdioAzureAuthTimer                     = $null
+        PendingNerdioAzureAuthPS                        = $null
+        PendingNerdioAzureAuthRunspace                  = $null
+        PendingNerdioAzureAuthAsync                     = $null
+        PendingIntuneImportTimer                        = $null
+        PendingIntuneImportPS                           = $null
+        PendingIntuneImportRunspace                     = $null
+        PendingIntuneImportAsync                        = $null
+        IsIntuneImportLoading                           = $false
+        IntuneActionButtonStates                        = @{}
+        IntuneDefinitionRows                            = @()
+        IntuneWin32Rows                                 = @()
+        IntuneComparisonRows                            = @()
+        PendingNerdioShellAppsTimer                     = $null
+        PendingNerdioShellAppsPS                        = $null
+        PendingNerdioShellAppsRunspace                  = $null
+        PendingNerdioShellAppsAsync                     = $null
+        IsNerdioShellAppsLoading                        = $false
+        PendingNerdioAddVersionTimer                    = $null
+        PendingNerdioAddVersionPS                       = $null
+        PendingNerdioAddVersionRunspace                 = $null
+        PendingNerdioAddVersionAsync                    = $null
+        PendingNerdioPostImportVerifyAppId              = ''
+        PendingNerdioPostImportVerifyAppName            = ''
         PendingNerdioPostImportExpectedEvergreenVersion = ''
-        NerdioDefinitionRows           = @()
-        NerdioShellAppRows             = @()
-        NerdioComparisonRows           = @()
-        NerdioSelectedComparisonRow    = $null
-        ImportCurrentProvider      = 'Nerdio'
-        AzureAuthState             = [PSCustomObject]@{
+        NerdioDefinitionRows                            = @()
+        NerdioShellAppRows                              = @()
+        NerdioComparisonRows                            = @()
+        NerdioSelectedComparisonRow                     = $null
+        ImportCurrentProvider                           = 'Nerdio'
+        AzureAuthState                                  = [PSCustomObject]@{
             IsAuthenticated    = $false
             IsAuthInProgress   = $false
             AccountId          = ''
@@ -191,7 +191,7 @@ $syncHash = [hashtable]::Synchronized(@{
             IntuneConnected    = $false
             IntuneConnectError = ''
         }
-        NerdioApiAuthState         = [PSCustomObject]@{
+        NerdioApiAuthState                              = [PSCustomObject]@{
             IsAuthenticated  = $false
             IsAuthInProgress = $false
             AccountId        = ''
@@ -199,7 +199,7 @@ $syncHash = [hashtable]::Synchronized(@{
             ContextName      = ''
             ErrorMessage     = ''
         }
-        NerdioAzureAuthState       = [PSCustomObject]@{
+        NerdioAzureAuthState                            = [PSCustomObject]@{
             IsAuthenticated  = $false
             IsAuthInProgress = $false
             AccountId        = ''
@@ -211,8 +211,8 @@ $syncHash = [hashtable]::Synchronized(@{
 
 # Load XAML layout
 $xamlPath = Join-Path -Path (Join-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath "..") -ChildPath "Resources") -ChildPath "EvergreenUI.xaml"
-$stream   = [System.IO.File]::OpenRead((Resolve-Path -Path $xamlPath).Path)
-$window   = [System.Windows.Markup.XamlReader]::Load($stream)
+$stream = [System.IO.File]::OpenRead((Resolve-Path -Path $xamlPath).Path)
+$window = [System.Windows.Markup.XamlReader]::Load($stream)
 $stream.Dispose()
 
 # Resolve named controls
@@ -245,8 +245,8 @@ $appsComboBox = $window.FindName('AppsComboBox')
 $loadAppVersionsButton = $window.FindName('LoadAppVersionsButton')
 $filterWrapPanel = $window.FindName('FilterWrapPanel')
 $clearFiltersButton = $window.FindName('ClearFiltersButton')
-$exportCsvButton   = $window.FindName('ExportCsvButton')
-$addToQueueButton  = $window.FindName('AddToQueueButton')
+$exportCsvButton = $window.FindName('ExportCsvButton')
+$addToQueueButton = $window.FindName('AddToQueueButton')
 
 $removeQueueItemButton = $window.FindName('RemoveQueueItemButton')
 $clearQueueButton = $window.FindName('ClearQueueButton')
@@ -310,59 +310,59 @@ $importSignInButton = $window.FindName('ImportSignInButton')
 $importSignOutButton = $window.FindName('ImportSignOutButton')
 $intuneRefreshCatalogButton = $window.FindName('IntuneRefreshCatalogButton')
 # Microsoft Intune controls
-$intunePackageOutputPathBox              = $window.FindName('IntunePackageOutputPathBox')
-$intuneBrowsePackageOutputButton         = $window.FindName('IntuneBrowsePackageOutputButton')
-$intuneDefinitionsPathBox                = $window.FindName('IntuneDefinitionsPathBox')
-$intuneBrowseDefinitionsButton           = $window.FindName('IntuneBrowseDefinitionsButton')
-$intuneLoadDefinitionsButton             = $window.FindName('IntuneLoadDefinitionsButton')
-$intuneDefinitionsCountLabel             = $window.FindName('IntuneDefinitionsCountLabel')
-$intuneWin32AppsCountLabel               = $window.FindName('IntuneWin32AppsCountLabel')
-$intuneConnectionStatusDot               = $window.FindName('IntuneConnectionStatusDot')
-$intuneConnectionStatusLabel             = $window.FindName('IntuneConnectionStatusLabel')
-$intuneWin32AppsListView                 = $window.FindName('IntuneWin32AppsListView')
-$intunePackageButton                     = $window.FindName('IntunePackageButton')
-$intuneActionStatusLabel                 = $window.FindName('IntuneActionStatusLabel')
-$intuneImportLoadingPanel                = $window.FindName('IntuneImportLoadingPanel')
-$intuneImportLoadingLabel                = $window.FindName('IntuneImportLoadingLabel')
-$intuneImportProgressBar                 = $window.FindName('IntuneImportProgressBar')
+$intunePackageOutputPathBox = $window.FindName('IntunePackageOutputPathBox')
+$intuneBrowsePackageOutputButton = $window.FindName('IntuneBrowsePackageOutputButton')
+$intuneDefinitionsPathBox = $window.FindName('IntuneDefinitionsPathBox')
+$intuneBrowseDefinitionsButton = $window.FindName('IntuneBrowseDefinitionsButton')
+$intuneLoadDefinitionsButton = $window.FindName('IntuneLoadDefinitionsButton')
+$intuneDefinitionsCountLabel = $window.FindName('IntuneDefinitionsCountLabel')
+$intuneWin32AppsCountLabel = $window.FindName('IntuneWin32AppsCountLabel')
+$intuneConnectionStatusDot = $window.FindName('IntuneConnectionStatusDot')
+$intuneConnectionStatusLabel = $window.FindName('IntuneConnectionStatusLabel')
+$intuneWin32AppsListView = $window.FindName('IntuneWin32AppsListView')
+$intunePackageButton = $window.FindName('IntunePackageButton')
+$intuneActionStatusLabel = $window.FindName('IntuneActionStatusLabel')
+$intuneImportLoadingPanel = $window.FindName('IntuneImportLoadingPanel')
+$intuneImportLoadingLabel = $window.FindName('IntuneImportLoadingLabel')
+$intuneImportProgressBar = $window.FindName('IntuneImportProgressBar')
 # Intune Settings controls
-$intuneReloadModuleSettingsButton        = $window.FindName('IntuneReloadModuleSettingsButton')
-$intuneSettingsModuleStatusDot           = $window.FindName('IntuneSettingsModuleStatusDot')
-$intuneSettingsModuleStatusLabel         = $window.FindName('IntuneSettingsModuleStatusLabel')
+$intuneReloadModuleSettingsButton = $window.FindName('IntuneReloadModuleSettingsButton')
+$intuneSettingsModuleStatusDot = $window.FindName('IntuneSettingsModuleStatusDot')
+$intuneSettingsModuleStatusLabel = $window.FindName('IntuneSettingsModuleStatusLabel')
 # Nerdio Shell Apps controls
-$nmeHostBox                  = $window.FindName('NmeHostBox')
-$nmeClientIdBox              = $window.FindName('NmeClientIdBox')
-$nmeApiScopeBox              = $window.FindName('NmeApiScopeBox')
-$nmeOAuthTokenUrlBox         = $window.FindName('NmeOAuthTokenUrlBox')
-$nmeClientSecretBox          = $window.FindName('NmeClientSecretBox')
-$nmeSubscriptionIdBox        = $window.FindName('NmeSubscriptionIdBox')
-$nmeResourceGroupCombo       = $window.FindName('NmeResourceGroupCombo')
-$nmeStorageAccountCombo      = $window.FindName('NmeStorageAccountCombo')
-$nmeContainerCombo           = $window.FindName('NmeContainerCombo')
-$nerdioTenantIdBox           = $window.FindName('NerdioTenantIdBox')
-$nerdioApiAuthStatusDot      = $window.FindName('NerdioApiAuthStatusDot')
-$nerdioApiAuthStatusLabel    = $window.FindName('NerdioApiAuthStatusLabel')
-$nerdioApiSignInButton       = $window.FindName('NerdioApiSignInButton')
-$nerdioApiSignOutButton      = $window.FindName('NerdioApiSignOutButton')
-$nerdioDefinitionsPathBox      = $window.FindName('NerdioDefinitionsPathBox')
+$nmeHostBox = $window.FindName('NmeHostBox')
+$nmeClientIdBox = $window.FindName('NmeClientIdBox')
+$nmeApiScopeBox = $window.FindName('NmeApiScopeBox')
+$nmeOAuthTokenUrlBox = $window.FindName('NmeOAuthTokenUrlBox')
+$nmeClientSecretBox = $window.FindName('NmeClientSecretBox')
+$nmeSubscriptionIdBox = $window.FindName('NmeSubscriptionIdBox')
+$nmeResourceGroupCombo = $window.FindName('NmeResourceGroupCombo')
+$nmeStorageAccountCombo = $window.FindName('NmeStorageAccountCombo')
+$nmeContainerCombo = $window.FindName('NmeContainerCombo')
+$nerdioTenantIdBox = $window.FindName('NerdioTenantIdBox')
+$nerdioApiAuthStatusDot = $window.FindName('NerdioApiAuthStatusDot')
+$nerdioApiAuthStatusLabel = $window.FindName('NerdioApiAuthStatusLabel')
+$nerdioApiSignInButton = $window.FindName('NerdioApiSignInButton')
+$nerdioApiSignOutButton = $window.FindName('NerdioApiSignOutButton')
+$nerdioDefinitionsPathBox = $window.FindName('NerdioDefinitionsPathBox')
 $nerdioBrowseDefinitionsButton = $window.FindName('NerdioBrowseDefinitionsButton')
-$nerdioLoadDefinitionsButton   = $window.FindName('NerdioLoadDefinitionsButton')
-$nerdioListShellAppsButton     = $window.FindName('NerdioListShellAppsButton')
-$nerdioDefinitionsListView     = $window.FindName('NerdioDefinitionsListView')
-$nerdioDefinitionsCountLabel   = $window.FindName('NerdioDefinitionsCountLabel')
-$nerdioShellAppsCountLabel     = $window.FindName('NerdioShellAppsCountLabel')
-$nerdioShellAppsLoadingPanel   = $window.FindName('NerdioShellAppsLoadingPanel')
-$nerdioShellAppsLoadingLabel   = $window.FindName('NerdioShellAppsLoadingLabel')
-$nerdioShellAppsProgressBar    = $window.FindName('NerdioShellAppsProgressBar')
-$nerdioAddVersionButton        = $window.FindName('NerdioAddVersionButton')
-$nerdioImportNewButton         = $window.FindName('NerdioImportNewButton')
-$nerdioActionStatusLabel       = $window.FindName('NerdioActionStatusLabel')
-$nerdioImportAuthStatusDot     = $window.FindName('NerdioImportAuthStatusDot')
-$nerdioImportAuthStatusLabel   = $window.FindName('NerdioImportAuthStatusLabel')
-$nerdioAzureAuthStatusDot      = $window.FindName('NerdioAzureAuthStatusDot')
-$nerdioAzureAuthStatusLabel    = $window.FindName('NerdioAzureAuthStatusLabel')
-$nerdioAzureSignInButton       = $window.FindName('NerdioAzureSignInButton')
-$nerdioAzureSignOutButton      = $window.FindName('NerdioAzureSignOutButton')
+$nerdioLoadDefinitionsButton = $window.FindName('NerdioLoadDefinitionsButton')
+$nerdioListShellAppsButton = $window.FindName('NerdioListShellAppsButton')
+$nerdioDefinitionsListView = $window.FindName('NerdioDefinitionsListView')
+$nerdioDefinitionsCountLabel = $window.FindName('NerdioDefinitionsCountLabel')
+$nerdioShellAppsCountLabel = $window.FindName('NerdioShellAppsCountLabel')
+$nerdioShellAppsLoadingPanel = $window.FindName('NerdioShellAppsLoadingPanel')
+$nerdioShellAppsLoadingLabel = $window.FindName('NerdioShellAppsLoadingLabel')
+$nerdioShellAppsProgressBar = $window.FindName('NerdioShellAppsProgressBar')
+$nerdioAddVersionButton = $window.FindName('NerdioAddVersionButton')
+$nerdioImportNewButton = $window.FindName('NerdioImportNewButton')
+$nerdioActionStatusLabel = $window.FindName('NerdioActionStatusLabel')
+$nerdioImportAuthStatusDot = $window.FindName('NerdioImportAuthStatusDot')
+$nerdioImportAuthStatusLabel = $window.FindName('NerdioImportAuthStatusLabel')
+$nerdioAzureAuthStatusDot = $window.FindName('NerdioAzureAuthStatusDot')
+$nerdioAzureAuthStatusLabel = $window.FindName('NerdioAzureAuthStatusLabel')
+$nerdioAzureSignInButton = $window.FindName('NerdioAzureSignInButton')
+$nerdioAzureSignOutButton = $window.FindName('NerdioAzureSignOutButton')
 $intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
 # Log row is RowDefinitions[3]; track its height for collapse/restore
 $logRowDef = $rootGrid.RowDefinitions[3]
@@ -708,9 +708,9 @@ $loadAppVersions = {
     $loadAppVersionsButton.IsEnabled = $false
 
     # Show loading state
-    $appDetailContent.Visibility     = [System.Windows.Visibility]::Collapsed
-    $appDetailLoading.Visibility     = [System.Windows.Visibility]::Visible
-    $appDetailLoadingLabel.Text      = "Retrieving details for $appName with Evergreen..."
+    $appDetailContent.Visibility = [System.Windows.Visibility]::Collapsed
+    $appDetailLoading.Visibility = [System.Windows.Visibility]::Visible
+    $appDetailLoadingLabel.Text = "Retrieving details for $appName with Evergreen..."
 
     Write-UILog -SyncHash $syncHash -Message "Loading versions for $appName..." -Level Info
     Write-UILog -SyncHash $syncHash -Message "Get-EvergreenApp -Name '$appName'" -Level Cmd
@@ -724,69 +724,69 @@ $loadAppVersions = {
         }).AddArgument($appName)
 
     # Store async state in syncHash so the tick handler and cancellation logic can reach it
-    $syncHash.PendingLoadPS       = $ps
+    $syncHash.PendingLoadPS = $ps
     $syncHash.PendingLoadRunspace = $runspace
-    $syncHash.PendingLoadAppName  = $appName
-    $syncHash.PendingLoadAsync    = $ps.BeginInvoke()
+    $syncHash.PendingLoadAppName = $appName
+    $syncHash.PendingLoadAsync = $ps.BeginInvoke()
 
     $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
     $pollTimer.Interval = [TimeSpan]::FromMilliseconds(300)
     $syncHash.PendingLoadTimer = $pollTimer
 
     $pollTimer.add_Tick({
-        # Guard against null (can happen if cancelled between ticks)
-        if ($null -eq $syncHash.PendingLoadAsync -or -not $syncHash.PendingLoadAsync.IsCompleted) { return }
+            # Guard against null (can happen if cancelled between ticks)
+            if ($null -eq $syncHash.PendingLoadAsync -or -not $syncHash.PendingLoadAsync.IsCompleted) { return }
 
-        $syncHash.PendingLoadTimer.Stop()
-        $syncHash.PendingLoadTimer = $null
+            $syncHash.PendingLoadTimer.Stop()
+            $syncHash.PendingLoadTimer = $null
 
-        # Grab refs before clearing syncHash slots
-        $currentPS       = $syncHash.PendingLoadPS
-        $currentRunspace = $syncHash.PendingLoadRunspace
-        $currentAsync    = $syncHash.PendingLoadAsync
-        $currentAppName  = $syncHash.PendingLoadAppName
+            # Grab refs before clearing syncHash slots
+            $currentPS = $syncHash.PendingLoadPS
+            $currentRunspace = $syncHash.PendingLoadRunspace
+            $currentAsync = $syncHash.PendingLoadAsync
+            $currentAppName = $syncHash.PendingLoadAppName
 
-        $syncHash.PendingLoadPS       = $null
-        $syncHash.PendingLoadRunspace = $null
-        $syncHash.PendingLoadAsync    = $null
-        $syncHash.PendingLoadAppName  = $null
+            $syncHash.PendingLoadPS = $null
+            $syncHash.PendingLoadRunspace = $null
+            $syncHash.PendingLoadAsync = $null
+            $syncHash.PendingLoadAppName = $null
 
-        try {
-            $results = @($currentPS.EndInvoke($currentAsync))
-            $currentPS.Dispose()
-            $currentRunspace.Dispose()
-
-            # Save results to cache
-            $cachePath = & $getAppCacheFile -AppName $currentAppName
             try {
-                $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $cachePath -Encoding UTF8 -Force
+                $results = @($currentPS.EndInvoke($currentAsync))
+                $currentPS.Dispose()
+                $currentRunspace.Dispose()
+
+                # Save results to cache
+                $cachePath = & $getAppCacheFile -AppName $currentAppName
+                try {
+                    $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $cachePath -Encoding UTF8 -Force
+                }
+                catch {
+                    Write-UILog -SyncHash $syncHash -Message "Failed to write cache for ${currentAppName}: $_" -Level Warning
+                }
+
+                & $displayAppResults -AppResults $results
+
+                Write-UILog -SyncHash $syncHash -Message "Loaded $($syncHash.CurrentAppResults.Count) versions for $currentAppName." -Level Info
             }
             catch {
-                Write-UILog -SyncHash $syncHash -Message "Failed to write cache for ${currentAppName}: $_" -Level Warning
+                try { $currentPS.Dispose() } catch {}
+                try { $currentRunspace.Dispose() } catch {}
+
+                $syncHash.CurrentAppResults = @()
+                $syncHash.VersionsListView.ItemsSource = @()
+                $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
+                $filterWrapPanel.Children.Clear()
+
+                $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
+                $appDetailEmpty.Visibility = [System.Windows.Visibility]::Visible
+
+                Write-UILog -SyncHash $syncHash -Message "Failed to load versions for ${currentAppName}: $_" -Level Error
             }
-
-            & $displayAppResults -AppResults $results
-
-            Write-UILog -SyncHash $syncHash -Message "Loaded $($syncHash.CurrentAppResults.Count) versions for $currentAppName." -Level Info
-        }
-        catch {
-            try { $currentPS.Dispose() } catch {}
-            try { $currentRunspace.Dispose() } catch {}
-
-            $syncHash.CurrentAppResults = @()
-            $syncHash.VersionsListView.ItemsSource = @()
-            $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
-            $filterWrapPanel.Children.Clear()
-
-            $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
-            $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Visible
-
-            Write-UILog -SyncHash $syncHash -Message "Failed to load versions for ${currentAppName}: $_" -Level Error
-        }
-        finally {
-            $loadAppVersionsButton.IsEnabled = $true
-        }
-    })
+            finally {
+                $loadAppVersionsButton.IsEnabled = $true
+            }
+        })
     $pollTimer.Start()
 }
 
@@ -965,8 +965,8 @@ $refreshImportAuthUi = {
     if ($state.IsAuthenticated) {
         $importAuthStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
         $account = if ([string]::IsNullOrWhiteSpace($state.AccountId)) { 'signed in' } else { $state.AccountId }
-        $tenant  = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " | tenant: $($state.TenantId)" }
-        $intune  = if ($state.IntuneConnected) { ' | Intune: connected' } else { '' }
+        $tenant = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " | tenant: $($state.TenantId)" }
+        $intune = if ($state.IntuneConnected) { ' | Intune: connected' } else { '' }
         $importAuthStatusLabel.Text = "$account$tenant$intune"
 
         if ($state.IntuneConnected) {
@@ -1111,7 +1111,7 @@ $requireImportAuth = {
         return $true
     }
 
-        Write-UILog -SyncHash $syncHash -Message "$ActionName requires Entra ID sign-in in the Intune tab." -Level Warning
+    Write-UILog -SyncHash $syncHash -Message "$ActionName requires Entra ID sign-in in the Intune tab." -Level Warning
     return $false
 }
 
@@ -1339,18 +1339,18 @@ $refreshIntuneComparison = {
         $lookupKey = if ([string]::IsNullOrWhiteSpace($guidText)) { '' } else { $guidText.Trim().ToLowerInvariant() }
 
         $baseRow = [PSCustomObject]@{
-            RowType                 = 'Intune'
-            IntuneAppId             = [string]$intuneRow.IntuneAppId
-            IntuneDisplayName       = [string]$intuneRow.DisplayName
-            DefinitionDisplayName   = '-'
-            DisplayPublisher        = [string]$intuneRow.Publisher
-            IntuneVersion           = [string]$intuneRow.DisplayVersion
-            DefinitionVersion       = '-'
-            PSPackageFactoryGuid    = if ([string]::IsNullOrWhiteSpace($guidText)) { '-' } else { $guidText }
-            IsMatched               = 'No'
-            UpdateRequired          = 'Unknown'
-            MatchStatus             = 'No local definition'
-            ImportAction            = '-'
+            RowType               = 'Intune'
+            IntuneAppId           = [string]$intuneRow.IntuneAppId
+            IntuneDisplayName     = [string]$intuneRow.DisplayName
+            DefinitionDisplayName = '-'
+            DisplayPublisher      = [string]$intuneRow.Publisher
+            IntuneVersion         = [string]$intuneRow.DisplayVersion
+            DefinitionVersion     = '-'
+            PSPackageFactoryGuid  = if ([string]::IsNullOrWhiteSpace($guidText)) { '-' } else { $guidText }
+            IsMatched             = 'No'
+            UpdateRequired        = 'Unknown'
+            MatchStatus           = 'No local definition'
+            ImportAction          = '-'
         }
 
         if ([string]$intuneRow.NotesValid -ne 'Yes') {
@@ -1463,18 +1463,18 @@ $refreshIntuneComparison = {
         }
 
         $comparisonRows.Add([PSCustomObject]@{
-                RowType                 = 'Definition'
-                IntuneAppId             = ''
-                IntuneDisplayName       = '-'
-                DefinitionDisplayName   = [string]$definitionRow.Name
-                DisplayPublisher        = [string]$definitionRow.Publisher
-                IntuneVersion           = '-'
-                DefinitionVersion       = [string]$definitionRow.Version
-                PSPackageFactoryGuid    = [string]$definitionRow.PSPackageFactoryGuid
-                IsMatched               = 'No'
-                UpdateRequired          = $updateRequired
-                MatchStatus             = $matchStatus
-                ImportAction            = $importAction
+                RowType               = 'Definition'
+                IntuneAppId           = ''
+                IntuneDisplayName     = '-'
+                DefinitionDisplayName = [string]$definitionRow.Name
+                DisplayPublisher      = [string]$definitionRow.Publisher
+                IntuneVersion         = '-'
+                DefinitionVersion     = [string]$definitionRow.Version
+                PSPackageFactoryGuid  = [string]$definitionRow.PSPackageFactoryGuid
+                IsMatched             = 'No'
+                UpdateRequired        = $updateRequired
+                MatchStatus           = $matchStatus
+                ImportAction          = $importAction
             })
 
         if ($isValid -and -not $isDuplicateGuid) {
@@ -1487,17 +1487,18 @@ $refreshIntuneComparison = {
 
     $sortedRows = @(
         $comparisonRows | Sort-Object -Property `
-            @{ Expression = {
-                    if ([string]$_.ImportAction -eq 'Import as new app') { return 0 }
-                    if ([string]$_.UpdateRequired -eq 'Yes') { return 1 }
-                    if ([string]$_.UpdateRequired -eq 'Unknown') { return 2 }
-                    if ([string]$_.RowType -eq 'Intune') { return 3 }
-                    return 4
-                } },
-            DisplayPublisher,
-            DefinitionDisplayName,
-            IntuneDisplayName,
-            PSPackageFactoryGuid
+        @{ Expression = {
+                if ([string]$_.ImportAction -eq 'Import as new app') { return 0 }
+                if ([string]$_.UpdateRequired -eq 'Yes') { return 1 }
+                if ([string]$_.UpdateRequired -eq 'Unknown') { return 2 }
+                if ([string]$_.RowType -eq 'Intune') { return 3 }
+                return 4
+            } 
+        },
+        DisplayPublisher,
+        DefinitionDisplayName,
+        IntuneDisplayName,
+        PSPackageFactoryGuid
     )
 
     $syncHash.IntuneComparisonRows = $sortedRows
@@ -2005,20 +2006,21 @@ $refreshNerdioComparison = {
 
     $sortedRows = @(
         $comparisonRows | Sort-Object -Property `
-            @{ Expression = {
-                    if ([string]$_.IsNewApp -eq 'Yes') { return 0 }
-                    if ([string]$_.UpdateNeeded -eq 'Yes') { return 1 }
-                    if ([string]$_.UpdateNeeded -eq 'Compare unavailable') { return 2 }
-                    if ([string]$_.MatchStatus -eq 'Duplicate matches') { return 3 }
-                    if ([string]$_.MatchStatus -eq 'Invalid definition') { return 4 }
-                    if ([string]$_.MatchStatus -eq 'Unsupported source type') { return 5 }
-                    if ([string]$_.RowType -eq 'Nerdio') { return 6 }
-                    return 7
-                } },
-            Publisher,
-            AppName,
-            RowType,
-            NerdioAppId
+        @{ Expression = {
+                if ([string]$_.IsNewApp -eq 'Yes') { return 0 }
+                if ([string]$_.UpdateNeeded -eq 'Yes') { return 1 }
+                if ([string]$_.UpdateNeeded -eq 'Compare unavailable') { return 2 }
+                if ([string]$_.MatchStatus -eq 'Duplicate matches') { return 3 }
+                if ([string]$_.MatchStatus -eq 'Invalid definition') { return 4 }
+                if ([string]$_.MatchStatus -eq 'Unsupported source type') { return 5 }
+                if ([string]$_.RowType -eq 'Nerdio') { return 6 }
+                return 7
+            } 
+        },
+        Publisher,
+        AppName,
+        RowType,
+        NerdioAppId
     )
     $syncHash.NerdioComparisonRows = $sortedRows
     $nerdioDefinitionsListView.ItemsSource = $sortedRows
@@ -2066,7 +2068,7 @@ $loadNerdioDefinitions = {
 
         foreach ($directory in $topLevelDirectories) {
             $definitionMatches = @(Get-ChildItem -LiteralPath $directory.FullName -Recurse -File -ErrorAction Stop |
-                    Where-Object { $_.Name -ieq 'definition.json' })
+                Where-Object { $_.Name -ieq 'definition.json' })
 
             foreach ($match in $definitionMatches) {
                 $definitionFiles.Add($match)
@@ -2137,13 +2139,13 @@ $loadNerdioDefinitions = {
         }
 
         $rows.Add([PSCustomObject]@{
-                DefinitionPath  = $definitionPath
-                Publisher       = $publisher
-                AppName         = $appName
-                DefinitionValid = $definitionValid
-                SourceType      = $sourceType
-                SourceApp       = $sourceApp
-                SourceFilter    = $sourceFilter
+                DefinitionPath   = $definitionPath
+                Publisher        = $publisher
+                AppName          = $appName
+                DefinitionValid  = $definitionValid
+                SourceType       = $sourceType
+                SourceApp        = $sourceApp
+                SourceFilter     = $sourceFilter
                 DefinitionObject = $definitionObject
             })
     }
@@ -2528,9 +2530,9 @@ $startNerdioAddVersion = {
         return
     }
 
-    $shellAppId     = [string]$selectedRow.NerdioAppId
+    $shellAppId = [string]$selectedRow.NerdioAppId
     $definitionPath = [string]$selectedRow.DefinitionPath
-    $appName        = [string]$selectedRow.AppName
+    $appName = [string]$selectedRow.AppName
 
     if ([string]::IsNullOrWhiteSpace($shellAppId)) {
         Write-UILog -SyncHash $syncHash -Message 'Nerdio: selected row does not have a Shell App ID.' -Level Error
@@ -2583,23 +2585,23 @@ $startNerdioAddVersion = {
                     $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
                 }
 
-                $setNmeCredentialsCommand     = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials'     -ErrorAction SilentlyContinue
-                $connectNmeCommand            = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
-                $getShellAppDefCommand        = Get-Command -Name 'NerdioShellApps\Get-ShellAppDefinition' -ErrorAction SilentlyContinue
-                $getAppMetadataCommand        = Get-Command -Name 'NerdioShellApps\Get-AppMetadata'        -ErrorAction SilentlyContinue
-                $newShellAppVersionCommand    = Get-Command -Name 'NerdioShellApps\New-ShellAppVersion'    -ErrorAction SilentlyContinue
+                $setNmeCredentialsCommand = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials'     -ErrorAction SilentlyContinue
+                $connectNmeCommand = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
+                $getShellAppDefCommand = Get-Command -Name 'NerdioShellApps\Get-ShellAppDefinition' -ErrorAction SilentlyContinue
+                $getAppMetadataCommand = Get-Command -Name 'NerdioShellApps\Get-AppMetadata'        -ErrorAction SilentlyContinue
+                $newShellAppVersionCommand = Get-Command -Name 'NerdioShellApps\New-ShellAppVersion'    -ErrorAction SilentlyContinue
 
-                if ($null -eq $setNmeCredentialsCommand)  { throw 'Required command Set-NmeCredentials was not found in NerdioShellApps module.' }
-                if ($null -eq $connectNmeCommand)         { throw 'Required command Connect-Nme was not found in NerdioShellApps module.' }
-                if ($null -eq $getShellAppDefCommand)     { throw 'Required command Get-ShellAppDefinition was not found in NerdioShellApps module.' }
-                if ($null -eq $getAppMetadataCommand)     { throw 'Required command Get-AppMetadata was not found in NerdioShellApps module.' }
+                if ($null -eq $setNmeCredentialsCommand) { throw 'Required command Set-NmeCredentials was not found in NerdioShellApps module.' }
+                if ($null -eq $connectNmeCommand) { throw 'Required command Connect-Nme was not found in NerdioShellApps module.' }
+                if ($null -eq $getShellAppDefCommand) { throw 'Required command Get-ShellAppDefinition was not found in NerdioShellApps module.' }
+                if ($null -eq $getAppMetadataCommand) { throw 'Required command Get-AppMetadata was not found in NerdioShellApps module.' }
                 if ($null -eq $newShellAppVersionCommand) { throw 'Required command New-ShellAppVersion was not found in NerdioShellApps module.' }
 
                 foreach ($required in @(
-                        @{ Name = 'Tenant ID';     Value = [string]$NerdioAuthContext.TenantId },
-                        @{ Name = 'NME Host';      Value = [string]$NerdioAuthContext.NmeHost },
-                        @{ Name = 'Client ID';     Value = [string]$NerdioAuthContext.ClientId },
-                        @{ Name = 'API Scope';     Value = [string]$NerdioAuthContext.ApiScope },
+                        @{ Name = 'Tenant ID'; Value = [string]$NerdioAuthContext.TenantId },
+                        @{ Name = 'NME Host'; Value = [string]$NerdioAuthContext.NmeHost },
+                        @{ Name = 'Client ID'; Value = [string]$NerdioAuthContext.ClientId },
+                        @{ Name = 'API Scope'; Value = [string]$NerdioAuthContext.ApiScope },
                         @{ Name = 'Client Secret'; Value = [string]$NerdioAuthContext.ClientSecret }
                     )) {
                     if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
@@ -2642,9 +2644,9 @@ $startNerdioAddVersion = {
             return $result
         }).AddArgument($modulePath).AddArgument($nerdioAuthContext).AddArgument($shellAppId).AddArgument($definitionPath)
 
-    $syncHash.PendingNerdioAddVersionPS       = $ps
+    $syncHash.PendingNerdioAddVersionPS = $ps
     $syncHash.PendingNerdioAddVersionRunspace = $rs
-    $syncHash.PendingNerdioAddVersionAsync    = $ps.BeginInvoke()
+    $syncHash.PendingNerdioAddVersionAsync = $ps.BeginInvoke()
 
     $syncHash.PendingNerdioAddVersionAppName = $appName
 
@@ -2675,9 +2677,9 @@ $startNerdioAddVersion = {
             finally {
                 try { $syncHash.PendingNerdioAddVersionPS.Dispose() } catch {}
                 try { $syncHash.PendingNerdioAddVersionRunspace.Dispose() } catch {}
-                $syncHash.PendingNerdioAddVersionPS       = $null
+                $syncHash.PendingNerdioAddVersionPS = $null
                 $syncHash.PendingNerdioAddVersionRunspace = $null
-                $syncHash.PendingNerdioAddVersionAsync    = $null
+                $syncHash.PendingNerdioAddVersionAsync = $null
             }
 
             if ($null -eq $addVersionResult -or -not $addVersionResult.Success) {
@@ -2780,11 +2782,11 @@ $startImportSignIn = {
     $r = Invoke-AzureSignIn -TenantId $tenant
 
     if ($null -ne $r -and $r.Succeeded) {
-        $syncHash.AzureAuthState.IsAuthenticated  = $true
-        $syncHash.AzureAuthState.AccountId        = [string]$r.AccountId
-        $syncHash.AzureAuthState.TenantId         = [string]$r.TenantId
+        $syncHash.AzureAuthState.IsAuthenticated = $true
+        $syncHash.AzureAuthState.AccountId = [string]$r.AccountId
+        $syncHash.AzureAuthState.TenantId = [string]$r.TenantId
         $syncHash.AzureAuthState.SubscriptionName = [string]$r.SubscriptionName
-        $syncHash.AzureAuthState.ErrorMessage     = ''
+        $syncHash.AzureAuthState.ErrorMessage = ''
 
         if ($r.PSObject.Properties.Name -contains 'IntuneConnected') {
             $syncHash.AzureAuthState.IntuneConnected = [bool]$r.IntuneConnected
@@ -2804,9 +2806,9 @@ $startImportSignIn = {
             $syncHash.ImportTenantIdBox.Text = [string]$r.TenantId
         }
 
-        $syncHash.Config.AzureAuthSettings.TenantId        = [string]$syncHash.ImportTenantIdBox.Text
-        $syncHash.Config.AzureAuthSettings.LastAccountId   = [string]$r.AccountId
-        $syncHash.Config.AzureAuthSettings.LastTenantId    = [string]$r.TenantId
+        $syncHash.Config.AzureAuthSettings.TenantId = [string]$syncHash.ImportTenantIdBox.Text
+        $syncHash.Config.AzureAuthSettings.LastAccountId = [string]$r.AccountId
+        $syncHash.Config.AzureAuthSettings.LastTenantId = [string]$r.TenantId
         $syncHash.Config.AzureAuthSettings.LastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
         Set-UIConfig -Config $syncHash.Config
 
@@ -2822,13 +2824,13 @@ $startImportSignIn = {
         }
     }
     else {
-        $syncHash.AzureAuthState.IsAuthenticated    = $false
-        $syncHash.AzureAuthState.AccountId          = ''
-        $syncHash.AzureAuthState.TenantId           = ''
-        $syncHash.AzureAuthState.SubscriptionName   = ''
-        $syncHash.AzureAuthState.IntuneConnected    = $false
+        $syncHash.AzureAuthState.IsAuthenticated = $false
+        $syncHash.AzureAuthState.AccountId = ''
+        $syncHash.AzureAuthState.TenantId = ''
+        $syncHash.AzureAuthState.SubscriptionName = ''
+        $syncHash.AzureAuthState.IntuneConnected = $false
         $syncHash.AzureAuthState.IntuneConnectError = ''
-        $syncHash.AzureAuthState.ErrorMessage       = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+        $syncHash.AzureAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
         Write-UILog -SyncHash $syncHash -Message "Sign-in failed: $($syncHash.AzureAuthState.ErrorMessage)" -Level Error
     }
 
@@ -2880,9 +2882,9 @@ $startNerdioApiSignIn = {
     $oAuthTokenUrl = [string]$nmeOAuthTokenUrlBox.Text
     $clientSecret = [string]$nmeClientSecretBox.Password
     $subscriptionId = [string]$nmeSubscriptionIdBox.Text
-    $resourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
+    $resourceGroup = [string]$nmeResourceGroupCombo.SelectedItem
     $storageAccount = [string]$nmeStorageAccountCombo.SelectedItem
-    $container      = [string]$nmeContainerCombo.SelectedItem
+    $container = [string]$nmeContainerCombo.SelectedItem
 
     foreach ($required in @(
             @{ Name = 'Tenant ID'; Value = $tenant },
@@ -2972,20 +2974,20 @@ $startNerdioAzureSignIn = {
 
     $r = Invoke-NerdioAzureSignIn -SubscriptionId $subscriptionId -TenantId $tenant
     if ($null -ne $r -and $r.Succeeded) {
-        $syncHash.NerdioAzureAuthState.IsAuthenticated   = $true
-        $syncHash.NerdioAzureAuthState.AccountId         = [string]$r.AccountId
-        $syncHash.NerdioAzureAuthState.TenantId          = [string]$r.TenantId
-        $syncHash.NerdioAzureAuthState.SubscriptionName  = [string]$r.SubscriptionName
-        $syncHash.NerdioAzureAuthState.ErrorMessage      = ''
+        $syncHash.NerdioAzureAuthState.IsAuthenticated = $true
+        $syncHash.NerdioAzureAuthState.AccountId = [string]$r.AccountId
+        $syncHash.NerdioAzureAuthState.TenantId = [string]$r.TenantId
+        $syncHash.NerdioAzureAuthState.SubscriptionName = [string]$r.SubscriptionName
+        $syncHash.NerdioAzureAuthState.ErrorMessage = ''
 
         if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
             $nerdioTenantIdBox.Text = [string]$r.TenantId
         }
 
-        $syncHash.Config.AzureAuthSettings.NerdioTenantId         = [string]$nerdioTenantIdBox.Text
-        $syncHash.Config.AzureAuthSettings.NerdioLastAccountId    = [string]$r.AccountId
-        $syncHash.Config.AzureAuthSettings.NerdioLastTenantId     = [string]$r.TenantId
-        $syncHash.Config.AzureAuthSettings.NerdioLastSignedInUtc  = (Get-Date).ToUniversalTime().ToString('o')
+        $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$nerdioTenantIdBox.Text
+        $syncHash.Config.AzureAuthSettings.NerdioLastAccountId = [string]$r.AccountId
+        $syncHash.Config.AzureAuthSettings.NerdioLastTenantId = [string]$r.TenantId
+        $syncHash.Config.AzureAuthSettings.NerdioLastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
         Set-UIConfig -Config $syncHash.Config
 
         Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in succeeded as $($r.AccountId) (subscription: $($r.SubscriptionName), tenant: $($r.TenantId))." -Level Info
@@ -2996,7 +2998,7 @@ $startNerdioAzureSignIn = {
         $nmeStorageAccountCombo.Items.Clear()
         $nmeContainerCombo.Items.Clear()
         $nmeStorageAccountCombo.IsEnabled = $false
-        $nmeContainerCombo.IsEnabled      = $false
+        $nmeContainerCombo.IsEnabled = $false
 
         $rgs = Get-NerdioAzureResourceGroups
         foreach ($rg in $rgs) { [void]$nmeResourceGroupCombo.Items.Add($rg) }
@@ -3030,11 +3032,11 @@ $startNerdioAzureSignIn = {
         }
     }
     else {
-        $syncHash.NerdioAzureAuthState.IsAuthenticated   = $false
-        $syncHash.NerdioAzureAuthState.AccountId         = ''
-        $syncHash.NerdioAzureAuthState.TenantId          = ''
-        $syncHash.NerdioAzureAuthState.SubscriptionName  = ''
-        $syncHash.NerdioAzureAuthState.ErrorMessage      = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+        $syncHash.NerdioAzureAuthState.IsAuthenticated = $false
+        $syncHash.NerdioAzureAuthState.AccountId = ''
+        $syncHash.NerdioAzureAuthState.TenantId = ''
+        $syncHash.NerdioAzureAuthState.SubscriptionName = ''
+        $syncHash.NerdioAzureAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
         Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in failed: $($syncHash.NerdioAzureAuthState.ErrorMessage)" -Level Error
     }
 
@@ -3045,20 +3047,20 @@ $startNerdioAzureSignIn = {
 $startNerdioAzureSignOut = {
     Invoke-NerdioAzureSignOut
 
-    $syncHash.NerdioAzureAuthState.IsAuthenticated  = $false
+    $syncHash.NerdioAzureAuthState.IsAuthenticated = $false
     $syncHash.NerdioAzureAuthState.IsAuthInProgress = $false
-    $syncHash.NerdioAzureAuthState.AccountId        = ''
-    $syncHash.NerdioAzureAuthState.TenantId         = ''
+    $syncHash.NerdioAzureAuthState.AccountId = ''
+    $syncHash.NerdioAzureAuthState.TenantId = ''
     $syncHash.NerdioAzureAuthState.SubscriptionName = ''
-    $syncHash.NerdioAzureAuthState.ErrorMessage     = ''
+    $syncHash.NerdioAzureAuthState.ErrorMessage = ''
 
     # Clear and disable the storage dropdowns
     $nmeResourceGroupCombo.Items.Clear()
     $nmeStorageAccountCombo.Items.Clear()
     $nmeContainerCombo.Items.Clear()
-    $nmeResourceGroupCombo.IsEnabled  = $false
+    $nmeResourceGroupCombo.IsEnabled = $false
     $nmeStorageAccountCombo.IsEnabled = $false
-    $nmeContainerCombo.IsEnabled      = $false
+    $nmeContainerCombo.IsEnabled = $false
 
     & $refreshNerdioAzureAuthUi
     Write-UILog -SyncHash $syncHash -Message 'Signed out of Azure session for Nerdio workflows.' -Level Info
@@ -3186,9 +3188,9 @@ $startQueueDownload = {
             finally {
                 # Pre-compute counts on the background thread before dispatching.
                 $pendingCount = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
-                $doneCount    = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
-                $failedCount  = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
-                $totalCount   = $syncHash.DownloadQueue.Count
+                $doneCount = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+                $failedCount = @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+                $totalCount = $syncHash.DownloadQueue.Count
                 $finalQueueText = "Queue: $totalCount items (Pending: $pendingCount, Done: $doneCount, Failed: $failedCount)"
 
                 $syncHash.Window.Dispatcher.Invoke([action] {
@@ -3248,14 +3250,16 @@ $refreshLibraryView = {
         $libraryObj = Get-EvergreenLibrary -Path $path -ErrorAction Stop
         $inventory = if ($libraryObj.PSObject.Properties.Name -contains 'Inventory') {
             @($libraryObj.Inventory)
-        } else {
+        }
+        else {
             @($libraryObj)
         }
 
         foreach ($entry in $inventory) {
             $appName = if ($entry.PSObject.Properties.Name -contains 'ApplicationName') {
                 [string]$entry.ApplicationName
-            } else {
+            }
+            else {
                 & $getLibraryItemName -Item $entry
             }
             $versions = if ($entry.PSObject.Properties.Name -contains 'Versions') { $entry.Versions } else { $null }
@@ -3451,14 +3455,14 @@ $window.add_Loaded({
         $importTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.TenantId
         $nerdioTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.NerdioTenantId
         $nerdioModulePathSettingsBox.Text = [string]$syncHash.Config.NerdioSettings.ModulePath
-        $nmeHostBox.Text           = [string]$syncHash.Config.NerdioSettings.NmeHost
-        $nmeClientIdBox.Text       = [string]$syncHash.Config.NerdioSettings.NmeClientId
-        $nmeApiScopeBox.Text       = [string]$syncHash.Config.NerdioSettings.NmeApiScope
-        $nmeOAuthTokenUrlBox.Text  = [string]$syncHash.Config.NerdioSettings.NmeOAuthTokenUrl
+        $nmeHostBox.Text = [string]$syncHash.Config.NerdioSettings.NmeHost
+        $nmeClientIdBox.Text = [string]$syncHash.Config.NerdioSettings.NmeClientId
+        $nmeApiScopeBox.Text = [string]$syncHash.Config.NerdioSettings.NmeApiScope
+        $nmeOAuthTokenUrlBox.Text = [string]$syncHash.Config.NerdioSettings.NmeOAuthTokenUrl
         $nmeSubscriptionIdBox.Text = [string]$syncHash.Config.NerdioSettings.NmeSubscriptionId
         $nerdioDefinitionsPathBox.Text = [string]$syncHash.Config.NerdioSettings.DefinitionsPath
-        $intuneDefinitionsPathBox.Text    = [string]$syncHash.Config.IntuneSettings.DefinitionsPath
-        $intunePackageOutputPathBox.Text  = [string]$syncHash.Config.IntuneSettings.PackageOutputPath
+        $intuneDefinitionsPathBox.Text = [string]$syncHash.Config.IntuneSettings.DefinitionsPath
+        $intunePackageOutputPathBox.Text = [string]$syncHash.Config.IntuneSettings.PackageOutputPath
         [void](& $loadNerdioShellAppsModule)
         [void](& $loadIntuneWin32AppModule)
         & $refreshImportAuthUi
@@ -3555,7 +3559,7 @@ $window.add_Closing({
 # Ctrl+L: toggle log panel
 # F5: refresh current active view
 $window.add_PreviewKeyDown({
-    param($source, $e)
+        param($source, $e)
 
         $mods = [System.Windows.Input.Keyboard]::Modifiers
         $ctrl = ($mods -band [System.Windows.Input.ModifierKeys]::Control) -ne 0
@@ -3659,8 +3663,8 @@ $navLibrary.add_Checked({
 
 $navImport.add_Checked({
         & $refreshImportAuthUi
-    & $refreshNerdioApiAuthUi
-    & $refreshNerdioAzureAuthUi
+        & $refreshNerdioApiAuthUi
+        & $refreshNerdioAzureAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
     })
 
@@ -3669,9 +3673,9 @@ $importProviderTabControl.add_SelectionChanged({
         if ($s -ne $importProviderTabControl) { return }
         # Index 2 is the shared Authentication tab — not a provider workflow, nothing to switch
         if ($importProviderTabControl.SelectedIndex -eq 2) { return }
-    $provider = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Intune' } else { 'Nerdio' }
+        $provider = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Intune' } else { 'Nerdio' }
         & $setImportProvider -Provider $provider -Persist
-    $label = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Microsoft Intune Win32 Apps' } else { 'Nerdio Manager Shell Apps' }
+        $label = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Microsoft Intune Win32 Apps' } else { 'Nerdio Manager Shell Apps' }
         Write-UILog -SyncHash $syncHash -Message "Import workflow switched to $label placeholder." -Level Info
     })
 
@@ -3739,7 +3743,7 @@ $nmeResourceGroupCombo.add_SelectionChanged({
         $nmeStorageAccountCombo.Items.Clear()
         $nmeContainerCombo.Items.Clear()
         $nmeStorageAccountCombo.IsEnabled = $false
-        $nmeContainerCombo.IsEnabled      = $false
+        $nmeContainerCombo.IsEnabled = $false
         if ([string]::IsNullOrWhiteSpace($rg)) { return }
 
         $existingResourceGroup = [string]$syncHash.Config.NerdioSettings.NmeResourceGroup
@@ -3793,7 +3797,7 @@ $nmeContainerCombo.add_SelectionChanged({
     })
 
 $nerdioTenantIdBox.add_LostFocus({
-    & $applyNerdioTenantToConfig
+        & $applyNerdioTenantToConfig
     })
 
 $nerdioDefinitionsPathBox.add_LostFocus({
@@ -3815,12 +3819,12 @@ $nerdioBrowseDefinitionsButton.add_Click({
     })
 
 $nerdioLoadDefinitionsButton.add_Click({
-    & $loadNerdioDefinitions
+        & $loadNerdioDefinitions
     })
 
 $nerdioListShellAppsButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'List Shell Apps and compare updates' -Provider 'Nerdio')) { return }
-    & $loadNerdioShellApps
+        & $loadNerdioShellApps
     })
 
 $nerdioDefinitionsListView.add_SelectionChanged({
@@ -3839,7 +3843,7 @@ $nerdioImportNewButton.add_Click({
 
 $intuneRefreshCatalogButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'List Intune Win32 apps')) { return }
-    & $loadIntuneWin32Apps
+        & $loadIntuneWin32Apps
     })
 
 $intuneBrowseDefinitionsButton.add_Click({
@@ -3857,7 +3861,7 @@ $intuneBrowseDefinitionsButton.add_Click({
     })
 
 $intuneLoadDefinitionsButton.add_Click({
-    & $loadIntuneDefinitions
+        & $loadIntuneDefinitions
     })
 
 $intuneBrowsePackageOutputButton.add_Click({
@@ -3887,12 +3891,12 @@ $intunePackageOutputPathBox.add_LostFocus({
     })
 
 $intunePackageButton.add_Click({
-    Write-UILog -SyncHash $syncHash -Message 'Intune: package selected apps is currently out of scope for this workflow update.' -Level Info
+        Write-UILog -SyncHash $syncHash -Message 'Intune: package selected apps is currently out of scope for this workflow update.' -Level Info
     })
 
 $intuneApplyImportButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'Intune apply import')) { return }
-    & $startIntuneImportOperation -ActionName 'Apply import' -LoadingMessage 'Applying Intune import...' -CompletionMessage 'Intune: apply import remains out of scope for this workflow update.'
+        & $startIntuneImportOperation -ActionName 'Apply import' -LoadingMessage 'Applying Intune import...' -CompletionMessage 'Intune: apply import remains out of scope for this workflow update.'
     })
 
 $intuneReloadModuleSettingsButton.add_Click({
@@ -3927,7 +3931,7 @@ $appsComboBox.add_SelectionChanged({
             try { $syncHash.PendingLoadRunspace.Dispose() } catch {}
             $syncHash.PendingLoadRunspace = $null
         }
-        $syncHash.PendingLoadAsync   = $null
+        $syncHash.PendingLoadAsync = $null
         $syncHash.PendingLoadAppName = $null
 
         $syncHash.CurrentAppResults = @()
@@ -3944,18 +3948,20 @@ $appsComboBox.add_SelectionChanged({
             $cachePath = & $getAppCacheFile -AppName $selectedApp.Name
             if (Test-Path -LiteralPath $cachePath) {
                 try {
-                    $rawJson     = Get-Content -LiteralPath $cachePath -Raw
-                    $parsed      = ConvertFrom-Json -InputObject $rawJson
+                    $rawJson = Get-Content -LiteralPath $cachePath -Raw
+                    $parsed = ConvertFrom-Json -InputObject $rawJson
                     # Guard against double-wrapping: @() can treat the Object[] returned by
                     # ConvertFrom-Json as a single item in certain PS/WPF execution contexts,
                     # producing Object[]{ Object[]{realItems} }. Detect and flatten one level.
                     $cachedResults = if ($parsed -is [System.Array] -and
-                                        $parsed.Count -gt 0 -and
-                                        $parsed[0] -is [System.Array]) {
+                        $parsed.Count -gt 0 -and
+                        $parsed[0] -is [System.Array]) {
                         [object[]]$parsed[0]
-                    } elseif ($parsed -is [System.Array]) {
+                    }
+                    elseif ($parsed -is [System.Array]) {
                         [object[]]$parsed
-                    } else {
+                    }
+                    else {
                         @($parsed)
                     }
                     Write-UILog -SyncHash $syncHash -Message "Loaded $($cachedResults.Count) cached versions for $($selectedApp.Name)." -Level Info
@@ -3965,19 +3971,19 @@ $appsComboBox.add_SelectionChanged({
                     Write-UILog -SyncHash $syncHash -Message "Cache read failed for $($selectedApp.Name), click Refresh to load: $_" -Level Warning
                     $filterWrapPanel.Children.Clear()
                     $syncHash.FilterState = @{}
-                    $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Collapsed
+                    $appDetailEmpty.Visibility = [System.Windows.Visibility]::Collapsed
                     $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
                     $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
                 }
             }
             else {
-                $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Collapsed
+                $appDetailEmpty.Visibility = [System.Windows.Visibility]::Collapsed
                 $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
                 $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
             }
         }
         else {
-            $appDetailEmpty.Visibility   = [System.Windows.Visibility]::Visible
+            $appDetailEmpty.Visibility = [System.Windows.Visibility]::Visible
             $appDetailContent.Visibility = [System.Windows.Visibility]::Collapsed
             $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
         }
@@ -4005,10 +4011,10 @@ $exportCsvButton.add_Click({
         }
 
         $dlg = New-Object Microsoft.Win32.SaveFileDialog
-        $dlg.Title      = 'Export to CSV'
-        $dlg.FileName   = "$($selectedApp.Name).csv"
+        $dlg.Title = 'Export to CSV'
+        $dlg.FileName = "$($selectedApp.Name).csv"
         $dlg.DefaultExt = '.csv'
-        $dlg.Filter     = 'CSV Files (*.csv)|*.csv|All Files (*.*)|*.*'
+        $dlg.Filter = 'CSV Files (*.csv)|*.csv|All Files (*.*)|*.*'
 
         if ($dlg.ShowDialog() -eq $true) {
             try {
@@ -4042,11 +4048,11 @@ $addToQueueButton.add_Click({
             }
 
             $isDuplicate = $syncHash.DownloadQueue | Where-Object {
-                $_.AppName      -eq $queueItem.AppName      -and
-                $_.Version      -eq $queueItem.Version      -and
+                $_.AppName -eq $queueItem.AppName -and
+                $_.Version -eq $queueItem.Version -and
                 $_.Architecture -eq $queueItem.Architecture -and
-                $_.Channel      -eq $queueItem.Channel      -and
-                $_.Platform     -eq $queueItem.Platform
+                $_.Channel -eq $queueItem.Channel -and
+                $_.Platform -eq $queueItem.Platform
             }
             if ($isDuplicate) {
                 Write-UILog -SyncHash $syncHash -Message "Already queued: $($queueItem.AppName) $($queueItem.Version)" -Level Warning

@@ -31,20 +31,20 @@ function Get-UIConfig {
     param()
 
     $default = [PSCustomObject]@{
-        OutputPath   = (Join-Path -Path ([System.Environment]::GetFolderPath('UserProfile')) -ChildPath 'Downloads')
-        LibraryPath  = ''
-        Theme        = 'Light'
-        LogVerbosity = 'Normal'
-        LogVisible   = $false
-        LogHeight    = 150
-        StartupView  = 'Apps'
-        LastAppName  = ''
-        WindowWidth  = 1200
-        WindowHeight = 750
-        ImportSettings = [PSCustomObject]@{
+        OutputPath        = (Join-Path -Path ([System.Environment]::GetFolderPath('UserProfile')) -ChildPath 'Downloads')
+        LibraryPath       = ''
+        Theme             = 'Light'
+        LogVerbosity      = 'Normal'
+        LogVisible        = $false
+        LogHeight         = 150
+        StartupView       = 'Apps'
+        LastAppName       = ''
+        WindowWidth       = 1200
+        WindowHeight      = 750
+        ImportSettings    = [PSCustomObject]@{
             CurrentProvider = 'Nerdio'
         }
-        NerdioSettings = [PSCustomObject]@{
+        NerdioSettings    = [PSCustomObject]@{
             ModulePath        = ''
             NmeHost           = ''
             NmeClientId       = ''
@@ -56,18 +56,18 @@ function Get-UIConfig {
             NmeContainer      = ''
             DefinitionsPath   = ''
         }
-        IntuneSettings = [PSCustomObject]@{
+        IntuneSettings    = [PSCustomObject]@{
             DefinitionsPath   = ''
             PackageOutputPath = ''
         }
         AzureAuthSettings = [PSCustomObject]@{
-            TenantId             = ''
-            LastAccountId        = ''
-            LastTenantId         = ''
-            LastSignedInUtc      = ''
-            NerdioTenantId       = ''
-            NerdioLastAccountId  = ''
-            NerdioLastTenantId   = ''
+            TenantId              = ''
+            LastAccountId         = ''
+            LastTenantId          = ''
+            LastSignedInUtc       = ''
+            NerdioTenantId        = ''
+            NerdioLastAccountId   = ''
+            NerdioLastTenantId    = ''
             NerdioLastSignedInUtc = ''
         }
     }
