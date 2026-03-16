@@ -1,12 +1,12 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.0.5'
+    ModuleVersion     = '1.0.6'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
     Copyright         = '(c) 2026 EUC Pilots. Licensed under the MIT Licence.'
-    Description       = 'The Evergreen Workbench is WPF graphical frontend for the Evergreen PowerShell module. Provides a Windows-only GUI for Find-EvergreenApp, Get-EvergreenApp, Save-EvergreenApp, and Evergreen library management cmdlets.'
+    Description       = 'EvergreenUI and the Evergreen Workbench is WPF graphical frontend for the Evergreen PowerShell module. Provides a Windows-only GUI for Find-EvergreenApp, Get-EvergreenApp, Save-EvergreenApp, and Evergreen library management cmdlets.'
 
     # Compatibility
     PowerShellVersion = '5.1'
@@ -58,7 +58,7 @@
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Pre-release version. Now named Evergreen Workbench. All existing functionality are now working.'
+            ReleaseNotes = 'Pre-release version. Add support for importing Win32 packages into Microsoft Intune and Nerdio Manager.'
             Prerelease   = 'beta'
         }
     }
