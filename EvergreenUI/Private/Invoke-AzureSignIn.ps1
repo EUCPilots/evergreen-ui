@@ -134,6 +134,18 @@ function Invoke-NerdioAzureSignIn {
             }
         }
 
+        # Ensure the Az context is persisted to disk so that background runspaces
+        # (used for blob upload during add-version / new Shell App operations)
+        # can load it when they import Az.Accounts.
+        if (Get-Command -Name Enable-AzContextAutosave -ErrorAction SilentlyContinue) {
+            try {
+                Enable-AzContextAutosave -Scope CurrentUser -ErrorAction SilentlyContinue | Out-Null
+            }
+            catch {
+                # Best-effort. The default is already enabled; failure here is non-blocking.
+            }
+        }
+
         # Passing -Subscription avoids the interactive subscription-picker prompt
         # that would otherwise block the UI thread.
         $connectParams = @{
