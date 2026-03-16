@@ -16,6 +16,7 @@
         LogVerbosity : string  - 'Normal' or 'Verbose'
         LogVisible   : bool    - whether the progress log panel is expanded
         LogHeight    : int     - log panel height in pixels
+        ShowImportTab: bool    - whether the Import tab is visible in navigation
         StartupView  : string  - 'Apps' | 'Download' | 'Library' | 'Import' | 'Settings' | 'About'
         LastAppName  : string  - last selected app in Apps view
         WindowWidth  : int     - last window width
@@ -37,6 +38,7 @@ function Get-UIConfig {
         LogVerbosity      = 'Normal'
         LogVisible        = $false
         LogHeight         = 150
+        ShowImportTab     = $false
         StartupView       = 'Apps'
         LastAppName       = ''
         WindowWidth       = 1200
@@ -131,6 +133,10 @@ function Get-UIConfig {
 
         if ([string]::IsNullOrWhiteSpace([string]$json.OutputPath)) {
             $json.OutputPath = [string]$default.OutputPath
+        }
+
+        if ($null -eq $json.ShowImportTab) {
+            $json.ShowImportTab = [bool]$default.ShowImportTab
         }
 
         return $json
