@@ -164,6 +164,8 @@ $syncHash = [hashtable]::Synchronized(@{
         IntuneDefinitionRows                            = @()
         IntuneWin32Rows                                 = @()
         IntuneComparisonRows                            = @()
+        IntuneSortProperty                              = ''
+        IntuneSortDirection                             = 'Ascending'
         PendingNerdioShellAppsTimer                     = $null
         PendingNerdioShellAppsPS                        = $null
         PendingNerdioShellAppsRunspace                  = $null
@@ -283,6 +285,7 @@ $logToggleButton = $window.FindName('LogToggleButton')
 $outputPathBox = $window.FindName('OutputPathBox')
 $evergreenAppsPathBox = $window.FindName('EvergreenAppsPathBox')
 $logVerbosityComboBox = $window.FindName('LogVerbosityComboBox')
+$showImportTabCheckBox = $window.FindName('ShowImportTabCheckBox')
 $startupViewComboBox = $window.FindName('StartupViewComboBox')
 $browseOutputButton = $window.FindName('BrowseOutputButton')
 $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
@@ -320,7 +323,6 @@ $intuneWin32AppsCountLabel = $window.FindName('IntuneWin32AppsCountLabel')
 $intuneConnectionStatusDot = $window.FindName('IntuneConnectionStatusDot')
 $intuneConnectionStatusLabel = $window.FindName('IntuneConnectionStatusLabel')
 $intuneWin32AppsListView = $window.FindName('IntuneWin32AppsListView')
-$intunePackageButton = $window.FindName('IntunePackageButton')
 $intuneActionStatusLabel = $window.FindName('IntuneActionStatusLabel')
 $intuneImportLoadingPanel = $window.FindName('IntuneImportLoadingPanel')
 $intuneImportLoadingLabel = $window.FindName('IntuneImportLoadingLabel')
@@ -369,6 +371,13 @@ $logRowDef = $rootGrid.RowDefinitions[3]
 
 # Store refs needed by background-runspace callbacks
 $syncHash.ImportTenantIdBox = $importTenantIdBox
+
+# Intune controls exposed to runspace Dispatcher callbacks
+$syncHash.IntuneImportLoadingLabel = $intuneImportLoadingLabel
+$syncHash.IntuneImportProgressBar  = $intuneImportProgressBar
+$syncHash.IntuneImportLoadingPanel = $intuneImportLoadingPanel
+$syncHash.IntuneActionStatusLabel  = $intuneActionStatusLabel
+$syncHash.IntuneWin32AppsListView  = $intuneWin32AppsListView
 
 $aboutNameValue.Text = [string]$moduleMetadata.Name
 $aboutVersionValue.Text = [string]$moduleMetadata.Version
@@ -442,6 +451,48 @@ $updateNerdioRowActionButtons = {
     }
 }
 
+$updateIntuneRowActionButtons = {
+    $selectedItems = if ($null -eq $intuneWin32AppsListView) { @() } else { @($intuneWin32AppsListView.SelectedItems) }
+
+    $hasActionable = $selectedItems | Where-Object {
+        [string]$_.ImportAction -eq 'Import as new app' -or [string]$_.ImportAction -eq 'Update app'
+    }
+
+    $canImport = ($null -ne $hasActionable) -and (-not $syncHash.IsIntuneImportLoading)
+
+    if ($null -ne $intuneApplyImportButton) {
+        $intuneApplyImportButton.IsEnabled = $canImport
+    }
+}
+
+$applyIntuneListSort = {
+    if ($null -eq $intuneWin32AppsListView -or $null -eq $intuneWin32AppsListView.ItemsSource) {
+        return
+    }
+
+    $sortProperty = [string]$syncHash.IntuneSortProperty
+    if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+        return
+    }
+
+    $sortDirectionText = [string]$syncHash.IntuneSortDirection
+    $sortDirection = if ($sortDirectionText -ieq 'Descending') {
+        [System.ComponentModel.ListSortDirection]::Descending
+    }
+    else {
+        [System.ComponentModel.ListSortDirection]::Ascending
+    }
+
+    $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($intuneWin32AppsListView.ItemsSource)
+    if ($null -eq $view) {
+        return
+    }
+
+    $view.SortDescriptions.Clear()
+    $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
+    $view.Refresh()
+}
+
 $setIntuneImportLoadingState = {
     param(
         [bool]$IsLoading,
@@ -495,53 +546,220 @@ $setIntuneImportLoadingState = {
             $intuneActionStatusLabel.Text = ''
         }
     }
+
+    & $updateIntuneRowActionButtons
 }
 
 $startIntuneImportOperation = {
-    param(
-        [Parameter(Mandatory = $true)][string]$ActionName,
-        [Parameter(Mandatory = $true)][string]$LoadingMessage,
-        [Parameter(Mandatory = $true)][string]$CompletionMessage
-    )
-
     if ($syncHash.IsIntuneImportLoading) {
-        Write-UILog -SyncHash $syncHash -Message "Intune: another import action is already in progress." -Level Warning
+        Write-UILog -SyncHash $syncHash -Message 'Intune: another import action is already in progress.' -Level Warning
         return
     }
 
+    # Gather actionable rows from the list view selection
+    $selectedRows   = @($intuneWin32AppsListView.SelectedItems)
+    $actionableRows = @($selectedRows | Where-Object {
+        [string]$_.ImportAction -eq 'Import as new app' -or [string]$_.ImportAction -eq 'Update app'
+    })
+
+    if ($actionableRows.Count -eq 0) {
+        Write-UILog -SyncHash $syncHash -Message 'Intune: no actionable rows selected. Select rows with "Import as new app" or "Update app" import action.' -Level Warning
+        return
+    }
+
+    # Verify required output path
+    $packageOutputPath = & $normalizeDirectoryPath -PathValue ([string]$intunePackageOutputPathBox.Text)
+    if ([string]::IsNullOrWhiteSpace($packageOutputPath)) {
+        Write-UILog -SyncHash $syncHash -Message 'Intune: package output path is not configured. Set it in the Intune settings pane first.' -Level Warning
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $packageOutputPath -PathType Container)) {
+        try { $null = New-Item -ItemType Directory -Path $packageOutputPath -Force -ErrorAction Stop }
+        catch {
+            Write-UILog -SyncHash $syncHash -Message "Intune: cannot create package output path '$packageOutputPath': $($_.Exception.Message)" -Level Error
+            return
+        }
+    }
+
+    # IntuneWin32App module is still required for New-IntuneWin32AppPackage (packaging only)
+    if (-not (& $loadIntuneWin32AppModule)) {
+        Write-UILog -SyncHash $syncHash -Message 'Intune: IntuneWin32App module is required for .intunewin packaging but could not be loaded.' -Level Warning
+        return
+    }
+
+    # Build serialisable action list for the runspace
+    $importActions = [System.Collections.Generic.List[object]]::new()
+    foreach ($row in $actionableRows) {
+        $defPath = [string]$row.DefinitionPath
+        if ([string]::IsNullOrWhiteSpace($defPath) -or -not (Test-Path -LiteralPath $defPath -PathType Leaf)) {
+            Write-UILog -SyncHash $syncHash -Message "Intune: skipping '$([string]$row.DefinitionDisplayName)' - App.json not found at '$defPath'." -Level Warning
+            continue
+        }
+
+        $importActions.Add([PSCustomObject]@{
+            AppName          = [string]$row.DefinitionDisplayName
+            DefinitionPath   = $defPath
+            PreviousAppId    = [string]$row.IntuneAppId
+            IsUpdate         = ([string]$row.ImportAction -eq 'Update app')
+            PSPackageFactory = [string]$row.PSPackageFactoryGuid
+        })
+    }
+
+    if ($importActions.Count -eq 0) {
+        Write-UILog -SyncHash $syncHash -Message 'Intune: no rows could be processed (check that DefinitionPath is set for selected rows).' -Level Warning
+        return
+    }
+
+    # Clean up any stale async state
     if ($null -ne $syncHash.PendingIntuneImportTimer -and $syncHash.PendingIntuneImportTimer.IsEnabled) {
         $syncHash.PendingIntuneImportTimer.Stop()
         $syncHash.PendingIntuneImportTimer = $null
     }
-
-    foreach ($pendingOp in @('PendingIntuneImportPS', 'PendingIntuneImportRunspace', 'PendingIntuneImportAsync')) {
-        $syncHash[$pendingOp] = $null
+    foreach ($key in @('PendingIntuneImportPS', 'PendingIntuneImportRunspace', 'PendingIntuneImportAsync')) {
+        $syncHash[$key] = $null
     }
 
-    & $setIntuneImportLoadingState -IsLoading $true -Message $LoadingMessage
-    Write-UILog -SyncHash $syncHash -Message "Intune: $ActionName started." -Level Info
+    & $setIntuneImportLoadingState -IsLoading $true -Message "Importing $($importActions.Count) app(s)..."
+    Write-UILog -SyncHash $syncHash -Message "Intune: starting import of $($importActions.Count) app(s)..." -Level Info
+
+    # Resolve required private helper scripts explicitly so the runspace does not import the full UI module.
+    $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+    $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+    $helperScripts = @(
+        'Write-UILog.ps1'
+        'Get-IntunePackageLatestVersion.ps1'
+        'Invoke-IntunePackageBuild.ps1'
+        'Invoke-IntuneGraphWin32Import.ps1'
+        'Set-IntuneGraphWin32Supersedence.ps1'
+    ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
 
     $rs = New-WpfRunspace -SyncHash $syncHash
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
 
     [void]$ps.AddScript({
-            param([string]$OperationName)
+            param(
+                [string[]]$HelperScripts,
+                [object[]]$ImportActions,
+                [string]  $WorkingPath
+            )
 
-            Start-Sleep -Milliseconds 1200
-
-            return [PSCustomObject]@{
-                Success = $true
-                Action  = $OperationName
+            $result = [PSCustomObject]@{
+                Success   = $false
+                Completed = [System.Collections.Generic.List[object]]::new()
+                Failed    = [System.Collections.Generic.List[object]]::new()
+                Error     = ''
             }
-        }).AddArgument($ActionName)
 
-    $syncHash.PendingIntuneImportPS = $ps
+            try {
+                foreach ($scriptPath in $HelperScripts) {
+                    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                        throw "Required helper script not found: $scriptPath"
+                    }
+
+                    . $scriptPath
+                }
+
+                if (-not (Get-Command -Name 'Save-EvergreenApp' -ErrorAction SilentlyContinue)) {
+                    Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
+                }
+
+                if (-not (Get-Command -Name 'New-IntuneWin32AppPackage' -ErrorAction SilentlyContinue)) {
+                    Import-Module -Name IntuneWin32App -ErrorAction Stop | Out-Null
+                    Write-UILog -Message "IntuneWin32App module loaded in import runspace." -Level Info -SyncHash $syncHash
+                }
+
+                $totalCount = $ImportActions.Count
+                $itemIndex  = 0
+
+                foreach ($action in $ImportActions) {
+                    $itemIndex++
+                    $statusMsg = "[$itemIndex/$totalCount] $($action.AppName)"
+
+                    $syncHash.Window.Dispatcher.Invoke([action]{
+                        if ($null -ne $syncHash.IntuneImportLoadingLabel) {
+                            $syncHash.IntuneImportLoadingLabel.Text = $statusMsg
+                        }
+                        if ($null -ne $syncHash.IntuneActionStatusLabel) {
+                            $syncHash.IntuneActionStatusLabel.Text = $statusMsg
+                        }
+                    }, 'Normal')
+
+                    # Load definition object from disk
+                    $definitionObject = $null
+                    try {
+                        $definitionObject = Get-Content -LiteralPath $action.DefinitionPath -Raw -ErrorAction Stop |
+                            ConvertFrom-Json -ErrorAction Stop
+                    }
+                    catch {
+                        $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Failed to load App.json: $($_.Exception.Message)" })
+                        continue
+                    }
+
+                    # Stage 1: resolve latest version, download, and package
+                    $buildResult = Invoke-IntunePackageBuild -ComparisonRow ([PSCustomObject]@{
+                        DefinitionPath   = $action.DefinitionPath
+                        DefinitionObject = $definitionObject
+                        DefinitionId     = $action.DefinitionPath
+                    }) -WorkingPath $WorkingPath -SyncHash $syncHash
+
+                    if (-not $buildResult.Succeeded) {
+                        $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Build: $($buildResult.Error)" })
+                        continue
+                    }
+
+                    # Stage 2: upload to Intune via Graph
+                    $importResult = Invoke-IntuneGraphWin32Import `
+                        -DefinitionObject  $definitionObject `
+                        -IntuneWinPath     $buildResult.IntuneWinPath `
+                        -SetupFilePath     $buildResult.SetupFileUsed `
+                        -DownloadedVersion $buildResult.DownloadedVersion `
+                        -PSPackageFactoryGuid $action.PSPackageFactory `
+                        -DefinitionPath    $action.DefinitionPath `
+                        -SyncHash          $syncHash
+
+                    if (-not $importResult.Succeeded) {
+                        $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Import: $($importResult.Error)" })
+                        continue
+                    }
+
+                    # Stage 3: configure supersedence for updates
+                    if ($action.IsUpdate -and -not [string]::IsNullOrWhiteSpace($action.PreviousAppId)) {
+                        $superResult = Set-IntuneGraphWin32Supersedence `
+                            -NewAppId      $importResult.IntuneAppId `
+                            -PreviousAppId $action.PreviousAppId `
+                            -SyncHash      $syncHash
+
+                        if (-not $superResult.Succeeded) {
+                            Write-UILog -Message "Supersedence warning for '$($action.AppName)': $($superResult.Error)" -Level Warning -SyncHash $syncHash
+                        }
+                    }
+
+                    $result.Completed.Add([PSCustomObject]@{
+                        AppName     = $action.AppName
+                        AppId       = $importResult.IntuneAppId
+                        DisplayName = $importResult.DisplayName
+                        Version     = $buildResult.DownloadedVersion
+                    })
+                }
+
+                $result.Success = $true
+            }
+            catch {
+                $result.Error = $_.Exception.Message
+            }
+
+            return $result
+
+        }).AddArgument(@($helperScripts)).AddArgument(@($importActions)).AddArgument($packageOutputPath)
+
+    $syncHash.PendingIntuneImportPS       = $ps
     $syncHash.PendingIntuneImportRunspace = $rs
-    $syncHash.PendingIntuneImportAsync = $ps.BeginInvoke()
+    $syncHash.PendingIntuneImportAsync    = $ps.BeginInvoke()
 
     $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
-    $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+    $pollTimer.Interval = [TimeSpan]::FromMilliseconds(500)
     $syncHash.PendingIntuneImportTimer = $pollTimer
 
     $pollTimer.add_Tick({
@@ -554,21 +772,46 @@ $startIntuneImportOperation = {
                 $syncHash.PendingIntuneImportTimer = $null
             }
 
+            $result = $null
             try {
-                [void]$syncHash.PendingIntuneImportPS.EndInvoke($syncHash.PendingIntuneImportAsync)
-                Write-UILog -SyncHash $syncHash -Message $CompletionMessage -Level Info
+                $output = $syncHash.PendingIntuneImportPS.EndInvoke($syncHash.PendingIntuneImportAsync)
+                $result = if ($null -ne $output -and $output.Count -gt 0) { $output[$output.Count - 1] } else { $null }
             }
             catch {
-                Write-UILog -SyncHash $syncHash -Message "Intune: $ActionName failed: $($_.Exception.Message)" -Level Error
+                $result = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $_.Exception.Message }
             }
             finally {
                 try { $syncHash.PendingIntuneImportPS.Dispose() } catch {}
                 try { $syncHash.PendingIntuneImportRunspace.Dispose() } catch {}
-
-                $syncHash.PendingIntuneImportPS = $null
+                $syncHash.PendingIntuneImportPS       = $null
                 $syncHash.PendingIntuneImportRunspace = $null
-                $syncHash.PendingIntuneImportAsync = $null
+                $syncHash.PendingIntuneImportAsync    = $null
+            }
 
+            try {
+                if ($null -eq $result -or -not $result.Success) {
+                    $errMsg = if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Error)) { 'Unknown error during import.' } else { $result.Error }
+                    Write-UILog -SyncHash $syncHash -Message "Intune: import run failed: $errMsg" -Level Error
+                }
+                else {
+                    $completedCount = @($result.Completed).Count
+                    $failedCount    = @($result.Failed).Count
+                    Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
+                    foreach ($item in @($result.Completed)) {
+                        Write-UILog -SyncHash $syncHash -Message "  + Imported '$($item.DisplayName)' v$($item.Version) (id: $($item.AppId))" -Level Info
+                    }
+                    foreach ($item in @($result.Failed)) {
+                        Write-UILog -SyncHash $syncHash -Message "  - Failed '$($item.AppName)': $($item.Error)" -Level Error
+                    }
+                }
+
+                # Clear loading state before refresh, otherwise loadIntuneWin32Apps exits early.
+                & $setIntuneImportLoadingState -IsLoading $false
+
+                # Refresh the comparison table against the updated Intune catalog
+                & $loadIntuneWin32Apps
+            }
+            finally {
                 & $setIntuneImportLoadingState -IsLoading $false
             }
         })
@@ -853,6 +1096,44 @@ $normalizeDirectoryPath = {
     return $PathValue.Trim().Trim('"')
 }
 
+$setImportTabVisibility = {
+    param([bool]$IsVisible)
+
+    if ($null -ne $navImport) {
+        $navImport.Visibility = if ($IsVisible) {
+            [System.Windows.Visibility]::Visible
+        }
+        else {
+            [System.Windows.Visibility]::Collapsed
+        }
+
+        if (-not $IsVisible -and $navImport.IsChecked) {
+            $navApps.IsChecked = $true
+        }
+    }
+
+    if ($null -ne $startupViewComboBox) {
+        $importStartupItem = $null
+        foreach ($candidate in @($startupViewComboBox.Items)) {
+            if ($candidate -is [System.Windows.Controls.ComboBoxItem] -and [string]$candidate.Content -eq 'Import') {
+                $importStartupItem = $candidate
+                break
+            }
+        }
+
+        if ($null -ne $importStartupItem) {
+            $importStartupItem.IsEnabled = $IsVisible
+        }
+
+        if (-not $IsVisible -and [string]$syncHash.Config.StartupView -eq 'Import') {
+            $syncHash.Config.StartupView = 'Apps'
+            if ($startupViewComboBox.SelectedIndex -eq 3) {
+                $startupViewComboBox.SelectedIndex = 0
+            }
+        }
+    }
+}
+
 $getCurrentStartupView = {
     if ($navDownload.IsChecked) {
         return 'Download'
@@ -883,6 +1164,7 @@ $persistUiSettingsSnapshot = {
     $syncHash.Config.WindowHeight = [int]$window.Height
     $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
     $syncHash.Config.StartupView = & $getCurrentStartupView
+    $syncHash.Config.ShowImportTab = if ($null -eq $showImportTabCheckBox) { [bool]$syncHash.Config.ShowImportTab } else { [bool]$showImportTabCheckBox.IsChecked }
     $syncHash.Config.LogVisible = [bool]$logToggleButton.IsChecked
 
     if ($syncHash.Config.LogVisible) {
@@ -937,6 +1219,11 @@ $persistUiSettingsSnapshot = {
 
 $refreshImportAuthUi = {
     $state = $syncHash.AzureAuthState
+    $canCompareIntune = (-not $syncHash.IsIntuneImportLoading) -and $state.IsAuthenticated -and $state.IntuneConnected
+
+    if ($null -ne $intuneRefreshCatalogButton) {
+        $intuneRefreshCatalogButton.IsEnabled = $canCompareIntune
+    }
 
     $setIntuneConnectionStatus = {
         param(
@@ -1012,6 +1299,12 @@ $refreshNerdioApiAuthUi = {
     }
 
     $state = $syncHash.NerdioApiAuthState
+    $canCompareShellApps = (-not $syncHash.IsNerdioShellAppsLoading) -and $state.IsAuthenticated
+
+    if ($null -ne $nerdioListShellAppsButton) {
+        $nerdioListShellAppsButton.IsEnabled = $canCompareShellApps
+    }
+
     if ($state.IsAuthInProgress) {
         $nerdioApiAuthStatusDot.Fill = [System.Windows.Media.Brushes]::Gold
         $nerdioApiAuthStatusLabel.Text = 'Signing in...'
@@ -1086,10 +1379,6 @@ $isImportAuthReady = {
 
 $isNerdioApiAuthReady = {
     return [bool]$syncHash.NerdioApiAuthState.IsAuthenticated
-}
-
-$isNerdioAzureAuthReady = {
-    return [bool]$syncHash.NerdioAzureAuthState.IsAuthenticated
 }
 
 $requireImportAuth = {
@@ -1351,6 +1640,8 @@ $refreshIntuneComparison = {
             UpdateRequired        = 'Unknown'
             MatchStatus           = 'No local definition'
             ImportAction          = '-'
+            DefinitionPath        = ''
+            DefinitionObject      = $null
         }
 
         if ([string]$intuneRow.NotesValid -ne 'Yes') {
@@ -1397,6 +1688,8 @@ $refreshIntuneComparison = {
         $baseRow.IsMatched = 'Yes'
         $baseRow.DefinitionDisplayName = [string]$definitionRow.Name
         $baseRow.DefinitionVersion = [string]$definitionRow.Version
+        $baseRow.DefinitionPath = [string]$definitionRow.DefinitionPath
+        $baseRow.DefinitionObject = $definitionRow.DefinitionObject
         if ([string]::IsNullOrWhiteSpace($baseRow.DisplayPublisher) -or $baseRow.DisplayPublisher -eq '-') {
             $baseRow.DisplayPublisher = [string]$definitionRow.Publisher
         }
@@ -1475,6 +1768,8 @@ $refreshIntuneComparison = {
                 UpdateRequired        = $updateRequired
                 MatchStatus           = $matchStatus
                 ImportAction          = $importAction
+            DefinitionPath        = [string]$definitionRow.DefinitionPath
+            DefinitionObject      = $definitionRow.DefinitionObject
             })
 
         if ($isValid -and -not $isDuplicateGuid) {
@@ -1504,6 +1799,7 @@ $refreshIntuneComparison = {
     $syncHash.IntuneComparisonRows = $sortedRows
     if ($null -ne $intuneWin32AppsListView) {
         $intuneWin32AppsListView.ItemsSource = $sortedRows
+        & $applyIntuneListSort
     }
 
     if ($null -ne $intuneWin32AppsCountLabel) {
@@ -1636,12 +1932,6 @@ $loadIntuneWin32Apps = {
         return
     }
 
-    if (-not (& $loadIntuneWin32AppModule)) {
-        $syncHash.IntuneWin32Rows = @()
-        & $refreshIntuneComparison
-        return
-    }
-
     if ($null -ne $syncHash.PendingIntuneImportTimer -and $syncHash.PendingIntuneImportTimer.IsEnabled) {
         $syncHash.PendingIntuneImportTimer.Stop()
         $syncHash.PendingIntuneImportTimer = $null
@@ -1652,7 +1942,7 @@ $loadIntuneWin32Apps = {
     }
 
     & $setIntuneImportLoadingState -IsLoading $true -Message 'Listing Win32 apps from Microsoft Intune...'
-    Write-UILog -SyncHash $syncHash -Message 'Intune: retrieving Win32 apps from Microsoft Intune...' -Level Info
+    Write-UILog -SyncHash $syncHash -Message 'Intune: retrieving Win32 apps via Microsoft Graph...' -Level Info
 
     $rs = New-WpfRunspace -SyncHash $syncHash
     $ps = [powershell]::Create()
@@ -1666,17 +1956,14 @@ $loadIntuneWin32Apps = {
             }
 
             try {
-                Import-Module -Name IntuneWin32App -ErrorAction Stop | Out-Null
-                $getWin32Command = Get-Command -Name 'IntuneWin32App\Get-IntuneWin32App' -ErrorAction SilentlyContinue
-                if ($null -eq $getWin32Command) {
-                    $getWin32Command = Get-Command -Name 'Get-IntuneWin32App' -ErrorAction SilentlyContinue
+                if (-not (Get-Command -Name 'Invoke-MgGraphRequest' -ErrorAction SilentlyContinue)) {
+                    throw 'Invoke-MgGraphRequest is not available. Ensure Microsoft.Graph.Authentication is imported and Connect-MgGraph has been called.'
                 }
 
-                if ($null -eq $getWin32Command) {
-                    throw 'Required command Get-IntuneWin32App was not found in IntuneWin32App module.'
-                }
+                $uri      = 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?$filter=isOf(''microsoft.graph.win32LobApp'')&$top=999'
+                $response = Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject -ErrorAction Stop
+                $rawApps  = @($response.value)
 
-                $rawApps = @(& $getWin32Command)
                 $rows = [System.Collections.Generic.List[object]]::new()
 
                 foreach ($application in $rawApps) {
@@ -1690,7 +1977,7 @@ $loadIntuneWin32Apps = {
 
                     if (-not [string]::IsNullOrWhiteSpace($notesText)) {
                         try {
-                            $notesJson = $notesText | ConvertFrom-Json -ErrorAction Stop
+                            $notesJson  = $notesText | ConvertFrom-Json -ErrorAction Stop
                             $notesValid = 'Yes'
                         }
                         catch {
@@ -1699,10 +1986,10 @@ $loadIntuneWin32Apps = {
                     }
 
                     $createdBy = if ($null -ne $notesJson -and $notesJson.PSObject.Properties.Name -contains 'CreatedBy') { [string]$notesJson.CreatedBy } else { '' }
-                    $guidText = if ($null -ne $notesJson -and $notesJson.PSObject.Properties.Name -contains 'Guid') { [string]$notesJson.Guid } else { '' }
-                    $isPspackageFactoryApp = ($notesText -match 'PSPackageFactory') -or ($createdBy -ieq 'PSPackageFactory')
+                    $guidText  = if ($null -ne $notesJson -and $notesJson.PSObject.Properties.Name -contains 'Guid')      { [string]$notesJson.Guid }      else { '' }
+                    $isPsPackageFactory = ($notesText -match 'PSPackageFactory') -or ($createdBy -ieq 'PSPackageFactory')
 
-                    if (-not $isPspackageFactoryApp) {
+                    if (-not $isPsPackageFactory) {
                         continue
                     }
 
@@ -1717,7 +2004,7 @@ $loadIntuneWin32Apps = {
                 }
 
                 $result.Success = $true
-                $result.Rows = @($rows | Sort-Object -Property Publisher, DisplayName, IntuneAppId)
+                $result.Rows    = @($rows | Sort-Object -Property Publisher, DisplayName, IntuneAppId)
             }
             catch {
                 $result.Error = $_.Exception.Message
@@ -3470,6 +3757,14 @@ $window.add_Loaded({
         & $refreshNerdioAzureAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
 
+        if ($null -eq $syncHash.Config.ShowImportTab) {
+            $syncHash.Config.ShowImportTab = $false
+        }
+        if ($null -ne $showImportTabCheckBox) {
+            $showImportTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowImportTab
+        }
+        & $setImportTabVisibility -IsVisible ([bool]$syncHash.Config.ShowImportTab)
+
         $syncHash.SettingsLastSavedJson = $syncHash.Config | ConvertTo-Json -Depth 5
         if ($null -eq $syncHash.SettingsAutoSaveTimer) {
             $settingsTimer = [System.Windows.Threading.DispatcherTimer]::new()
@@ -3496,7 +3791,12 @@ $window.add_Loaded({
                 $navLibrary.IsChecked = $true
             }
             'Import' {
-                $navImport.IsChecked = $true
+                if ([bool]$syncHash.Config.ShowImportTab) {
+                    $navImport.IsChecked = $true
+                }
+                else {
+                    $navApps.IsChecked = $true
+                }
             }
             'Settings' {
                 $navSettings.IsChecked = $true
@@ -3671,12 +3971,10 @@ $navImport.add_Checked({
 $importProviderTabControl.add_SelectionChanged({
         param($s, $e)
         if ($s -ne $importProviderTabControl) { return }
-        # Index 2 is the shared Authentication tab — not a provider workflow, nothing to switch
+        # Index 2 is the shared Authentication tab - not a provider workflow, nothing to switch
         if ($importProviderTabControl.SelectedIndex -eq 2) { return }
         $provider = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Intune' } else { 'Nerdio' }
         & $setImportProvider -Provider $provider -Persist
-        $label = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Microsoft Intune Win32 Apps' } else { 'Nerdio Manager Shell Apps' }
-        Write-UILog -SyncHash $syncHash -Message "Import workflow switched to $label placeholder." -Level Info
     })
 
 $importSignInButton.add_Click({
@@ -3890,13 +4188,49 @@ $intunePackageOutputPathBox.add_LostFocus({
         & $applyIntunePathsToConfig
     })
 
-$intunePackageButton.add_Click({
-        Write-UILog -SyncHash $syncHash -Message 'Intune: package selected apps is currently out of scope for this workflow update.' -Level Info
+$intuneWin32AppsListView.add_SelectionChanged({
+        & $updateIntuneRowActionButtons
     })
+
+$intuneWin32AppsListView.AddHandler(
+    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+    [System.Windows.RoutedEventHandler]{
+        param($eventSender, $routedEventArgs)
+
+        $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
+        if ($null -eq $header -or $null -eq $header.Column) {
+            return
+        }
+
+        if ($header.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) {
+            return
+        }
+
+        $sortProperty = ''
+        $binding = $header.Column.DisplayMemberBinding -as [System.Windows.Data.Binding]
+        if ($null -ne $binding -and $null -ne $binding.Path) {
+            $sortProperty = [string]$binding.Path.Path
+        }
+
+        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+            return
+        }
+
+        $newDirection = 'Ascending'
+        if ([string]$syncHash.IntuneSortProperty -eq $sortProperty -and [string]$syncHash.IntuneSortDirection -eq 'Ascending') {
+            $newDirection = 'Descending'
+        }
+
+        $syncHash.IntuneSortProperty = $sortProperty
+        $syncHash.IntuneSortDirection = $newDirection
+
+        & $applyIntuneListSort
+    }
+)
 
 $intuneApplyImportButton.add_Click({
         if (-not (& $requireImportAuth -ActionName 'Intune apply import')) { return }
-        & $startIntuneImportOperation -ActionName 'Apply import' -LoadingMessage 'Applying Intune import...' -CompletionMessage 'Intune: apply import remains out of scope for this workflow update.'
+        & $startIntuneImportOperation
     })
 
 $intuneReloadModuleSettingsButton.add_Click({
@@ -4216,6 +4550,11 @@ $startupViewComboBox.add_SelectionChanged({
             $selected = 'Apps'
         }
 
+        if ($selected -eq 'Import' -and -not [bool]$syncHash.Config.ShowImportTab) {
+            $selected = 'Apps'
+            $startupViewComboBox.SelectedIndex = 0
+        }
+
         $syncHash.Config.StartupView = $selected
         Set-UIConfig -Config $syncHash.Config
     })
@@ -4246,6 +4585,10 @@ $navSettings.add_Checked({
         $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
 
         $themeComboBox.SelectedIndex = if ([string]$syncHash.Config.Theme -eq 'Dark') { 1 } else { 0 }
+        if ($null -ne $showImportTabCheckBox) {
+            $showImportTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowImportTab
+        }
+        & $setImportTabVisibility -IsVisible ([bool]$syncHash.Config.ShowImportTab)
 
         switch ([string]$syncHash.Config.StartupView) {
             'Download' { $startupViewComboBox.SelectedIndex = 1 }
@@ -4256,6 +4599,15 @@ $navSettings.add_Checked({
             default { $startupViewComboBox.SelectedIndex = 0 }
         }
     })
+
+if ($null -ne $showImportTabCheckBox) {
+    $showImportTabCheckBox.add_Click({
+            $showImport = [bool]$showImportTabCheckBox.IsChecked
+            $syncHash.Config.ShowImportTab = $showImport
+            & $setImportTabVisibility -IsVisible $showImport
+            Set-UIConfig -Config $syncHash.Config
+        })
+}
 
 # Log panel collapse / expand
 # When expanded, the log area height (above the 32px status bar) is restored
