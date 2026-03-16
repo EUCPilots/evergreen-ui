@@ -50,6 +50,8 @@ function Set-LightTheme {
     $res['ToggleThumbBrush'] = NewBrush 255 255 255   # #FFFFFF
     $res['SecondaryButtonBackgroundBrush'] = NewBrush 228 232 231   # #E4E8E7 - clearly above window bg
     $res['SecondaryButtonBorderBrush']     = NewBrush 154 173 170   # #9AADAA - visible mid-tone border
+    $res['StatusPositiveBrush'] = NewBrush  37 110  73   # Softer green for light mode table highlights
+    $res['StatusErrorBrush']    = NewBrush 166  64  64   # Softer red for light mode table highlights
 
     $Window.Background = $res['WindowBackgroundBrush']
     if ($null -ne $ThemeLabelTextBlock) {

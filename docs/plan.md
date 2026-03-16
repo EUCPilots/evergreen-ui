@@ -1,7 +1,11 @@
-# Evergreen Workbench Nerdio Manager Reimplementation Plan
+# Evergreen Workbench - Implementation Plans
 
 Last verified: 2026-03-15
 Source of truth: current implementation in EvergreenUI module
+
+---
+
+## Part 1: Nerdio Manager Reimplementation
 
 ## Goal
 
@@ -324,3 +328,121 @@ Failure-path checks:
 - Connection is validated for this UI session, but each action runspace reconnects independently.
 - `NerdioOauthToken` is persisted as text in current implementation; secret is session-only.
 - Apply buttons are never manually enabled outside plan-result logic.
+
+## Next Steps: Shared Entra Sign-In
+
+These steps track the follow-up work after introducing a common Import auth bar shared by Intune and Nerdio workflows.
+
+1. Wire tenant-aware token acquisition for both Microsoft Graph (Intune) and Azure management scopes from the shared sign-in session state.
+2. Connect the first real Intune action (catalog refresh) to Graph using the shared auth state and maintain existing action gating.
+3. Connect Nerdio list/import/version operations to use the shared auth state plus Nerdio API fields already present in the Nerdio tab.
+4. Add a tenant mismatch guard: if a Nerdio definition/workflow requires a different tenant than the shared sign-in tenant, show a clear warning and block the action.
+5. Add token-expiry handling: detect expired session context before protected actions and prompt for re-authentication without breaking UI state.
+6. Add auth telemetry in UI logs for sign-in start/success/failure/sign-out and include tenant/account hints (non-secret).
+7. Add validation tests for protected actions on both tabs to ensure unsigned users can browse but cannot execute protected operations.
+8. Add a regression test pass to ensure no secret/token material is persisted to config and that only non-secret hints remain under `AzureAuthSettings`.
+
+---
+
+## Part 2: Microsoft Intune Workflow
+
+Last verified: 2026-03-15
+Source: https://stealthpuppy.com/packagefactory/ and https://github.com/aaronparker/packagefactory
+
+### Goal
+
+Integrate the packagefactory workflow natively into EvergreenUI. The workflow uses Evergreen to resolve
+the latest installer URL, downloads the installer, creates an `.intunewin` package via the
+IntuneWin32App module, and imports or updates the Win32 app in Microsoft Intune.
+
+External dependency: `IntuneWin32App` PowerShell module (not bundled - must be available in the session).
+Internal: packagfactory packaging logic is implemented directly inside EvergreenUI Private functions.
+
+### Package Factory Workflow Stages
+
+1. **Define** - point to a packagefactory definitions root folder; load `App.json` definitions per app sub-directory.
+2. **Package** - use Evergreen to resolve the latest download URL, download the installer, wrap in `.intunewin` using `New-IntuneWin32AppPackage` from IntuneWin32App.
+3. **Import** - upload the `.intunewin` file with app metadata to Intune via `Add-IntuneWin32App` / `Update-IntuneWin32AppPackageFile`.
+
+### UI Control Surface
+
+#### Import tab - Microsoft Intune Win32 Apps TabItem
+
+Config card (Row 0):
+- `IntunePackageOutputPathBox` - editable path where `.intunewin` packages are written
+- `IntuneBrowsePackageOutputButton` - opens a folder picker
+- `IntuneModuleStatusDot` - 8x8 status dot (grey/green/red)
+- `IntuneModuleStatusLabel` - "IntuneWin32App vX.Y.Z loaded" or error message
+
+Main split (Row 1):
+Left panel - Package definitions:
+- `IntuneDefinitionsPathBox` - path to the packagefactory definitions root folder
+- `IntuneBrowseDefinitionsButton` - folder picker
+- `IntuneLoadDefinitionsButton` - scans the folder and populates the list
+- `IntuneDefinitionsCountLabel` - "N loaded"
+- `IntuneDefinitionsListView` - columns: Name, Publisher, Version, Status
+  - `SelectionMode="Extended"` (multi-select for batch packaging)
+
+Right panel - Existing Win32 apps in Intune:
+- `IntuneRefreshCatalogButton` - "List Win32 apps" (queries Intune, requires auth)
+- `IntuneWin32AppsCountLabel` - "N apps"
+- `IntuneWin32AppsListView` - columns: Display Name, Publisher, Version
+
+Action bar (Row 2):
+- `IntuneOnlyUnpackagedCheckBox` - filters the Package operation to apps without an existing output package
+- `IntuneActionStatusLabel` - progress/status text (left side)
+- `IntunePackageButton` - builds `.intunewin` for selected definitions (disabled until definitions loaded)
+- `IntunePreviewImportButton` - dry-run import plan (disabled until packaged + auth)
+- `IntuneApplyImportButton` - applies the import plan (disabled until Preview has results)
+
+#### Settings panel - Microsoft Intune section
+
+- `IntuneDefinitionsSettingsPathBox` - mirrors `IntuneDefinitionsPathBox`; persisted as `IntuneSettings.DefinitionsPath`
+- `IntuneBrowseDefinitionsSettingsButton` - folder picker
+- `IntunePackageOutputSettingsPathBox` - mirrors `IntunePackageOutputPathBox`; persisted as `IntuneSettings.PackageOutputPath`
+- `IntuneBrowsePackageOutputSettingsButton` - folder picker
+- `IntuneSettingsModuleStatusDot` - status dot
+- `IntuneSettingsModuleStatusLabel` - module status text
+
+### Config Schema
+
+Keys added under `IntuneSettings` in `settings.json`:
+- `DefinitionsPath` (string) - path to the packagefactory definitions root folder
+- `PackageOutputPath` (string) - folder where `.intunewin` packages are written
+
+Both keys are readable/writable via `Get-UIConfig` / `Set-UIConfig`.
+Neither key contains credentials or secrets.
+
+### Sync State Keys (to be added when wiring functionality)
+
+In `syncHash`:
+- `IntuneDefinitions` - `List[PSCustomObject]` of loaded definition objects
+- `IntuneWin32Apps` - `List[PSCustomObject]` of apps retrieved from Intune
+- `IntunePlanItems` - `List[PSCustomObject]` of preview import results
+- `IntuneModuleAvailable` - bool; true when IntuneWin32App module is importable
+
+### Planned Private Functions
+
+- `Get-IntunePackageDefinitions` - scans a definitions root folder, reads each `App.json`, returns list
+- `Invoke-IntunePackageApp` - downloads the installer using Evergreen and creates the `.intunewin` package
+- `Get-IntuneWin32Apps` - wraps `Get-IntuneWin32App` from IntuneWin32App to list existing apps
+- `Invoke-IntuneAppImport` - creates new or updates existing Win32 app in Intune
+
+### Enable/Disable Rules
+
+- `IntunePackageButton`: enabled when at least one definition is loaded
+- `IntunePreviewImportButton`: enabled when auth is valid and at least one packaged output exists
+- `IntuneApplyImportButton`: enabled only after a successful Preview produces at least one plan row
+- `IntuneRefreshCatalogButton`: enabled when auth is valid
+
+### Implementation Order
+
+1. `Get-IntunePackageDefinitions` + `IntuneLoadDefinitionsButton` wiring
+2. IntuneWin32App module detection at startup + status dot update
+3. `Invoke-IntunePackageApp` + `IntunePackageButton` wiring
+4. `Get-IntuneWin32Apps` + `IntuneRefreshCatalogButton` wiring
+5. `Invoke-IntuneAppImport` (Preview mode) + `IntunePreviewImportButton` wiring
+6. `Invoke-IntuneAppImport` (Apply mode) + `IntuneApplyImportButton` wiring
+7. Settings path persistence (LostFocus handlers for settings boxes, sync to inline boxes)
+8. End-to-end validation
+

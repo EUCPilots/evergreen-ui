@@ -69,7 +69,7 @@ namespace EvergreenUI {
         $hwnd = [System.Windows.Interop.WindowInteropHelper]::new($Window).Handle
         if ($hwnd -eq [System.IntPtr]::Zero) { return }
 
-        $darkInt  = [int]$UseDarkMode
+        $darkInt = [int]$UseDarkMode
         [EvergreenUI.DwmHelper]::DwmSetWindowAttribute(
             $hwnd,
             [EvergreenUI.DwmHelper]::DWMWA_USE_IMMERSIVE_DARK_MODE,

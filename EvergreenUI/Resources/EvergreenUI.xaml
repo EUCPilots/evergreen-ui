@@ -23,6 +23,8 @@
         <SolidColorBrush x:Key="ToggleThumbBrush"       Color="Transparent"/>
         <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="Transparent"/>
         <SolidColorBrush x:Key="SecondaryButtonBorderBrush"     Color="Transparent"/>
+        <SolidColorBrush x:Key="StatusPositiveBrush"     Color="Transparent"/>
+        <SolidColorBrush x:Key="StatusErrorBrush"        Color="Transparent"/>
 
         <!-- ── FluentButton ── -->
         <Style x:Key="FluentButton" TargetType="Button">
@@ -329,7 +331,6 @@
                                     <ColumnDefinition Width="3"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <!-- Active indicator bar -->
                                 <Border x:Name="accent"
                                         Grid.Column="0"
                                         CornerRadius="2"
@@ -365,6 +366,92 @@
             <Setter Property="Height"            Value="8"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Margin"            Value="0,0,5,0"/>
+        </Style>
+
+        <!-- ── FluentTabControl / FluentTabItem - underline pivot style ── -->
+        <Style x:Key="FluentTabControl" TargetType="TabControl">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="0,0,0,1">
+                                <TabPanel x:Name="HeaderPanel"
+                                          IsItemsHost="True"
+                                          Background="Transparent"
+                                          KeyboardNavigation.TabIndex="1"/>
+                            </Border>
+                            <ContentPresenter Grid.Row="1"
+                                              x:Name="PART_SelectedContentHost"
+                                              Margin="0,14,0,0"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch"
+                                              ContentSource="SelectedContent"
+                                              KeyboardNavigation.TabIndex="2"
+                                              KeyboardNavigation.DirectionalNavigation="Contained"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FluentTabItem" TargetType="TabItem">
+            <Setter Property="Background"               Value="Transparent"/>
+            <Setter Property="Foreground"               Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="BorderThickness"          Value="0"/>
+            <Setter Property="Cursor"                   Value="Hand"/>
+            <Setter Property="FontSize"                 Value="13"/>
+            <Setter Property="MinWidth"                 Value="160"/>
+            <Setter Property="MinHeight"                Value="44"/>
+            <Setter Property="Margin"                   Value="0,0,4,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="Transparent" Padding="16,10,16,10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="2"/>
+                                </Grid.RowDefinitions>
+                                <ContentPresenter Grid.Row="0"
+                                                  x:Name="HeaderContentPresenter"
+                                                  ContentSource="Header"
+                                                  Margin="0"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  SnapsToDevicePixels="True"/>
+                                <Border x:Name="underline"
+                                        Grid.Row="1"
+                                        Background="Transparent"
+                                        CornerRadius="1"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground"
+                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="HeaderContentPresenter"
+                                        Property="TextElement.FontWeight"
+                                        Value="SemiBold"/>
+                                <Setter TargetName="underline" Property="Background"
+                                        Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- ScrollBar helper: transparent repeat button -->
@@ -464,6 +551,50 @@
             </Style.Triggers>
         </Style>
 
+        <!-- ── FluentPasswordBox ── -->
+        <Style x:Key="FluentPasswordBox" TargetType="PasswordBox">
+            <Setter Property="Background"               Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="Foreground"               Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush"              Value="{DynamicResource ControlBorderBrush}"/>
+            <Setter Property="BorderThickness"          Value="1"/>
+            <Setter Property="Padding"                  Value="8,0"/>
+            <Setter Property="MinHeight"                Value="32"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush"               Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="SelectionBrush"           Value="{DynamicResource AccentLightBrush}"/>
+            <Setter Property="FocusVisualStyle"         Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
     <!-- ══════════════════════════════════ Root grid ════════════════════════════════════ -->
@@ -519,11 +650,17 @@
                 <RadioButton x:Name="NavLibrary"
                              Content="Library"
                              Style="{StaticResource NavRailRadioButton}"/>
+                <RadioButton x:Name="NavImport"
+                             Content="Import"
+                             Style="{StaticResource NavRailRadioButton}"/>
                 <Rectangle Height="1"
                            Fill="{DynamicResource ControlBorderBrush}"
                            Margin="14,8"/>
                 <RadioButton x:Name="NavSettings"
                              Content="Settings"
+                             Style="{StaticResource NavRailRadioButton}"/>
+                <RadioButton x:Name="NavAbout"
+                             Content="About"
                              Style="{StaticResource NavRailRadioButton}"/>
             </StackPanel>
         </Border>
@@ -1126,13 +1263,920 @@
                 </Grid>
             </Grid>
 
+            <!-- Import view -->
+            <Grid x:Name="ImportPanel"
+                  Visibility="Collapsed"
+                  Background="{DynamicResource WindowBackgroundBrush}">
+                <Grid Margin="22,18,22,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <TextBlock Text="Import"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   DockPanel.Dock="Left"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <TabControl Grid.Row="1"
+                                x:Name="ImportProviderTabControl"
+                                Style="{StaticResource FluentTabControl}">
+
+                        <TabItem Header="Microsoft Intune Win32 Apps"
+                                 Style="{StaticResource FluentTabItem}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>     <!-- Main split    -->
+                                    <RowDefinition Height="Auto"/>  <!-- Action bar    -->
+                                </Grid.RowDefinitions>
+
+                                <!-- Unified reconciliation view with definitions toolbar -->
+                                <Border Grid.Row="0"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="4"
+                                        Margin="0,0,0,12"
+                                        ClipToBounds="True">
+                                    <DockPanel>
+
+                                        <Border DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="10,8"
+                                                Background="{DynamicResource WindowBackgroundBrush}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="IntuneDefinitionsPathBox"
+                                                         Grid.Column="0"
+                                                         Style="{StaticResource FluentTextBox}"
+                                                         Margin="0,0,6,0"
+                                                         ToolTip="Path to the packagefactory application definitions root folder"/>
+                                                <TextBlock Text="Path to package definitions..."
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           IsHitTestVisible="False"
+                                                           Margin="10,0,6,0"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           Grid.Column="0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, ElementName=IntuneDefinitionsPathBox}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Button x:Name="IntuneBrowseDefinitionsButton"
+                                                        Grid.Column="1"
+                                                        Content="Browse"
+                                                        Style="{StaticResource FluentSecondaryButton}"
+                                                        Margin="0,0,6,0"
+                                                        Padding="10,6"/>
+                                                <Button x:Name="IntuneLoadDefinitionsButton"
+                                                        Grid.Column="2"
+                                                        Content="Load definitions"
+                                                        Style="{StaticResource FluentSecondaryButton}"
+                                                        Margin="0,0,6,0"
+                                                        Padding="10,6"/>
+                                                <Button x:Name="IntuneRefreshCatalogButton"
+                                                        Grid.Column="3"
+                                                        Content="Compare with Intune Win32 apps"
+                                                        Style="{StaticResource FluentButton}"
+                                                    Padding="10,6"
+                                                    IsEnabled="False"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <Border DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,8"
+                                                Background="{DynamicResource ControlBackgroundBrush}">
+                                            <DockPanel LastChildFill="True">
+                                                <StackPanel Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            Margin="0,0,12,0"
+                                                            DockPanel.Dock="Left">
+                                                    <TextBlock x:Name="IntuneDefinitionsCountLabel"
+                                                               Text="0 loaded"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,10,0"/>
+                                                    <TextBlock x:Name="IntuneWin32AppsCountLabel"
+                                                               Text="0 apps"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            DockPanel.Dock="Right">
+                                                    <Ellipse x:Name="IntuneConnectionStatusDot"
+                                                             Width="8"
+                                                             Height="8"
+                                                             Fill="OrangeRed"
+                                                             VerticalAlignment="Center"
+                                                             Margin="0,0,6,0"/>
+                                                    <TextBlock x:Name="IntuneConnectionStatusLabel"
+                                                               Text="Not signed in"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+
+                                        <Border x:Name="IntuneImportLoadingPanel"
+                                                DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,8"
+                                                Background="{DynamicResource WindowBackgroundBrush}"
+                                                Visibility="Collapsed">
+                                            <StackPanel>
+                                                <TextBlock x:Name="IntuneImportLoadingLabel"
+                                                           Text="Working..."
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="11"
+                                                           Margin="0,0,0,6"/>
+                                                <ProgressBar x:Name="IntuneImportProgressBar"
+                                                             IsIndeterminate="True"
+                                                             Height="3"
+                                                             Foreground="{DynamicResource AccentBrush}"
+                                                             Background="{DynamicResource ControlBorderBrush}"
+                                                             BorderThickness="0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Reconciliation list + empty hint -->
+                                        <Grid>
+                                                <ListView x:Name="IntuneWin32AppsListView"
+                                                          Style="{StaticResource FluentListView}"
+                                                          BorderThickness="0"
+                                                          SelectionMode="Extended">
+                                                    <ListView.Resources>
+                                                        <Style TargetType="GridViewColumnHeader">
+                                                            <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
+                                                            <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
+                                                            <Setter Property="FontSize"                   Value="11"/>
+                                                            <Setter Property="FontWeight"                 Value="SemiBold"/>
+                                                            <Setter Property="Padding"                    Value="12,6"/>
+                                                            <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
+                                                            <Setter Property="BorderThickness"            Value="0,0,1,1"/>
+                                                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                                        </Style>
+                                                    </ListView.Resources>
+                                                    <ListView.ItemContainerStyle>
+                                                        <Style TargetType="ListViewItem">
+                                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                            <Setter Property="MinHeight"                  Value="32"/>
+                                                            <Setter Property="Padding"                    Value="0"/>
+                                                            <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
+                                                            <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="ListViewItem">
+                                                                        <Border x:Name="bd"
+                                                                                Background="Transparent"
+                                                                                Padding="{TemplateBinding Padding}">
+                                                                            <GridViewRowPresenter Content="{TemplateBinding Content}"
+                                                                                                  HorizontalAlignment="Stretch"
+                                                                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                                                        </Border>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <DataTrigger Binding="{Binding ImportAction}" Value="Import as new app">
+                                                                                <Setter TargetName="bd" Property="Background" Value="#1A4CAF50"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding UpdateRequired}" Value="Yes">
+                                                                                <Setter TargetName="bd" Property="Background" Value="#1AFFB300"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding UpdateRequired}" Value="Unknown">
+                                                                                <Setter TargetName="bd" Property="Background" Value="#143B82F6"/>
+                                                                            </DataTrigger>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="bd" Property="Background"
+                                                                                        Value="{DynamicResource AccentLightBrush}"/>
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsSelected" Value="True">
+                                                                                <Setter TargetName="bd" Property="Background"
+                                                                                        Value="{DynamicResource AccentLightBrush}"/>
+                                                                                <Setter Property="Foreground"
+                                                                                        Value="{DynamicResource AccentBrush}"/>
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </ListView.ItemContainerStyle>
+                                                    <ListView.View>
+                                                        <GridView>
+                                                            <GridViewColumn Header="Intune App"          DisplayMemberBinding="{Binding IntuneDisplayName}"     Width="170"/>
+                                                            <GridViewColumn Header="Definition"          DisplayMemberBinding="{Binding DefinitionDisplayName}" Width="170"/>
+                                                            <GridViewColumn Header="Publisher"           DisplayMemberBinding="{Binding DisplayPublisher}"      Width="120"/>
+                                                            <GridViewColumn Header="Intune Version"      DisplayMemberBinding="{Binding IntuneVersion}"         Width="95"/>
+                                                            <GridViewColumn Header="Definition Version"  DisplayMemberBinding="{Binding DefinitionVersion}"     Width="105"/>
+                                                            <GridViewColumn Header="Matched"             DisplayMemberBinding="{Binding IsMatched}"             Width="70"/>
+                                                            <GridViewColumn Header="Update Required"     DisplayMemberBinding="{Binding UpdateRequired}"        Width="105"/>
+                                                            <GridViewColumn Header="Status"              DisplayMemberBinding="{Binding MatchStatus}"           Width="170"/>
+                                                            <GridViewColumn Header="Action"              DisplayMemberBinding="{Binding ImportAction}"          Width="130"/>
+                                                        </GridView>
+                                                    </ListView.View>
+                                                </ListView>
+                                                <StackPanel HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            Margin="16">
+                                                    <StackPanel.Style>
+                                                        <Style TargetType="StackPanel">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasItems, ElementName=IntuneWin32AppsListView}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </StackPanel.Style>
+                                                    <TextBlock Text="No reconciliation rows available."
+                                                               HorizontalAlignment="Center"
+                                                               TextAlignment="Center"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               TextWrapping="Wrap"/>
+                                                    <TextBlock Text="Load definitions and list Win32 apps to build a unified reconciliation view."
+                                                               HorizontalAlignment="Center"
+                                                               TextAlignment="Center"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="11"
+                                                               TextWrapping="Wrap"
+                                                               Margin="0,6,0,0"/>
+                                                </StackPanel>
+                                        </Grid>
+
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- Action bar -->
+                                <Border Grid.Row="1"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="4"
+                                        Padding="12,10">
+                                    <DockPanel LastChildFill="True">
+                                        <StackPanel Orientation="Horizontal"
+                                                    DockPanel.Dock="Right">
+                                            <Button x:Name="IntuneApplyImportButton"
+                                                    Content="Import as new Win32 app"
+                                                    Style="{StaticResource FluentButton}"
+                                                    Padding="12,6"
+                                                    IsEnabled="False"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="IntuneActionStatusLabel"
+                                                   Text=""
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="12"/>
+                                    </DockPanel>
+                                </Border>
+
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Nerdio Manager Shell Apps"
+                                 Style="{StaticResource FluentTabItem}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="4"
+                                        Margin="0,0,0,12"
+                                        ClipToBounds="True">
+                                    <DockPanel>
+
+                                        <Border DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="10,8"
+                                                Background="{DynamicResource WindowBackgroundBrush}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="NerdioDefinitionsPathBox"
+                                                         Grid.Column="0"
+                                                         Style="{StaticResource FluentTextBox}"
+                                                         Margin="0,0,6,0"/>
+                                                <TextBlock Text="Path to Shell App definitions..."
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           IsHitTestVisible="False"
+                                                           Margin="10,0,6,0"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           Grid.Column="0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, ElementName=NerdioDefinitionsPathBox}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Button x:Name="NerdioBrowseDefinitionsButton"
+                                                        Grid.Column="1"
+                                                        Content="Browse"
+                                                        Style="{StaticResource FluentSecondaryButton}"
+                                                        Margin="0,0,6,0"
+                                                        Padding="10,6"/>
+                                                <Button x:Name="NerdioLoadDefinitionsButton"
+                                                        Grid.Column="2"
+                                                        Content="Load definitions"
+                                                        Style="{StaticResource FluentSecondaryButton}"
+                                                    Padding="10,6"
+                                                    Margin="0,0,6,0"/>
+                                                <Button x:Name="NerdioListShellAppsButton"
+                                                    Grid.Column="3"
+                                                    Content="Compare with Shell Apps"
+                                                    Style="{StaticResource FluentButton}"
+                                                    Padding="10,6"
+                                                    IsEnabled="False"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <Border DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,8"
+                                                Background="{DynamicResource ControlBackgroundBrush}">
+                                            <DockPanel LastChildFill="True">
+                                                <StackPanel Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            Margin="0,0,12,0"
+                                                            DockPanel.Dock="Left">
+                                                    <TextBlock x:Name="NerdioDefinitionsCountLabel"
+                                                               Text="0 definitions"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,10,0"/>
+                                                    <TextBlock x:Name="NerdioShellAppsCountLabel"
+                                                               Text="0 apps"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            DockPanel.Dock="Right">
+                                                    <Ellipse x:Name="NerdioImportAuthStatusDot"
+                                                             Width="9"
+                                                             Height="9"
+                                                             Fill="OrangeRed"
+                                                             Stroke="{DynamicResource ControlBorderBrush}"
+                                                             StrokeThickness="1"
+                                                             VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="NerdioImportAuthStatusLabel"
+                                                               Text="Not signed in"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="11"
+                                                               Margin="6,0,0,0"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+
+                                        <Border x:Name="NerdioShellAppsLoadingPanel"
+                                                DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,8"
+                                                Background="{DynamicResource WindowBackgroundBrush}"
+                                                Visibility="Collapsed">
+                                            <StackPanel>
+                                                <TextBlock x:Name="NerdioShellAppsLoadingLabel"
+                                                           Text="Loading Shell Apps from Nerdio Manager..."
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="11"
+                                                           Margin="0,0,0,6"/>
+                                                <ProgressBar x:Name="NerdioShellAppsProgressBar"
+                                                             IsIndeterminate="True"
+                                                             Height="3"
+                                                             Foreground="{DynamicResource AccentBrush}"
+                                                             Background="{DynamicResource ControlBorderBrush}"
+                                                             BorderThickness="0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Grid>
+                                            <ListView x:Name="NerdioDefinitionsListView"
+                                                      Style="{StaticResource FluentListView}"
+                                                      BorderThickness="0"
+                                                      SelectionMode="Single">
+                                                <ListView.Resources>
+                                                    <Style TargetType="GridViewColumnHeader">
+                                                        <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
+                                                        <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Setter Property="FontSize"                   Value="11"/>
+                                                        <Setter Property="FontWeight"                 Value="SemiBold"/>
+                                                        <Setter Property="Padding"                    Value="12,6"/>
+                                                        <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
+                                                        <Setter Property="BorderThickness"            Value="0,0,1,1"/>
+                                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                                    </Style>
+
+                                                    <Style x:Key="NerdioStatusCellStyle"
+                                                           TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Matched (update available)">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusPositiveBrush}"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Matched (compare unavailable)">
+                                                                <Setter Property="Foreground" Value="Gold"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Duplicate matches">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusErrorBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Invalid definition">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusErrorBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Unsupported source type">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusErrorBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+
+                                                    <DataTemplate x:Key="NerdioStatusCellTemplate">
+                                                        <TextBlock Text="{Binding MatchStatus}" Style="{StaticResource NerdioStatusCellStyle}"/>
+                                                    </DataTemplate>
+                                                </ListView.Resources>
+                                                <ListView.View>
+                                                    <GridView>
+                                                        <GridViewColumn Header="Status"           CellTemplate="{StaticResource NerdioStatusCellTemplate}"         Width="230"/>
+                                                        <GridViewColumn Header="Publisher"        DisplayMemberBinding="{Binding Publisher}"        Width="170"/>
+                                                        <GridViewColumn Header="Definition App Name"         DisplayMemberBinding="{Binding AppName}"          Width="210"/>
+                                                        <GridViewColumn Header="Shell App Name"       DisplayMemberBinding="{Binding NerdioAppName}"    Width="210"/>
+                                                        <GridViewColumn Header="Shell App Version"   DisplayMemberBinding="{Binding NerdioVersion}"    Width="125"/>
+                                                        <GridViewColumn Header="Evergreen Version" DisplayMemberBinding="{Binding EvergreenVersion}" Width="130"/>
+                                                        <GridViewColumn Header="Shell App Id"    DisplayMemberBinding="{Binding NerdioAppId}"      Width="170"/>
+                                                        <GridViewColumn Header="Authority"         DisplayMemberBinding="{Binding RowType}"          Width="105"/>
+                                                    </GridView>
+                                                </ListView.View>
+                                            </ListView>
+                                            <StackPanel HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Margin="16">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasItems, ElementName=NerdioDefinitionsListView}" Value="False">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <TextBlock Text="No Nerdio Shell App data loaded."
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"/>
+                                                <TextBlock Text="Load local definitions and list Shell Apps to build a merged reconciliation view."
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="11"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Grid.Row="1"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="4"
+                                        Padding="12,10">
+                                    <DockPanel LastChildFill="True">
+                                        <StackPanel Orientation="Horizontal"
+                                                    DockPanel.Dock="Right">
+                                            <Button x:Name="NerdioAddVersionButton"
+                                                    Content="Add new version to existing Shell App"
+                                                    Style="{StaticResource FluentSecondaryButton}"
+                                                    Padding="12,6"
+                                                    IsEnabled="False"
+                                                    Margin="0,0,8,0"/>
+                                            <Button x:Name="NerdioImportNewButton"
+                                                    Content="Import as new Shell App"
+                                                    Style="{StaticResource FluentButton}"
+                                                    Padding="12,6"
+                                                    IsEnabled="False"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="NerdioActionStatusLabel"
+                                                   Text=""
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="12"/>
+                                    </DockPanel>
+                                </Border>
+
+                            </Grid>
+                        </TabItem>
+
+                        <!-- ── Authentication tab ── -->
+                        <TabItem Header="Authentication"
+                                 Style="{StaticResource FluentTabItem}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Padding="0,2,0,0">
+                                <StackPanel>
+
+                                    <!-- Entra ID (Intune) section -->
+                                    <TextBlock Text="Entra ID"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <Border BorderThickness="1"
+                                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                                            Background="{DynamicResource ControlBackgroundBrush}"
+                                            CornerRadius="8"
+                                            Padding="12"
+                                            Margin="0,0,0,20">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="290"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="Entra ID sign-in"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,12,0"/>
+                                            <TextBox x:Name="ImportTenantIdBox"
+                                                     Grid.Column="1"
+                                                     Style="{StaticResource FluentTextBox}"
+                                                     VerticalAlignment="Center"
+                                                     ToolTip="Optional Entra tenant ID for Intune Graph workflows"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="Tenant ID (optional)"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       IsHitTestVisible="False"
+                                                       Margin="10,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="12">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=ImportTenantIdBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <StackPanel Grid.Column="3"
+                                                        Orientation="Horizontal"
+                                                        VerticalAlignment="Center">
+                                                <Ellipse x:Name="ImportAuthStatusDot"
+                                                         Style="{StaticResource StatusDot}"
+                                                         Fill="{DynamicResource ControlBorderBrush}"/>
+                                                <TextBlock x:Name="ImportAuthStatusLabel"
+                                                           Text="Not signed in"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,8,0"/>
+                                            </StackPanel>
+                                            <Button x:Name="ImportSignInButton"
+                                                    Grid.Column="4"
+                                                    Content="Sign in"
+                                                    Style="{StaticResource FluentButton}"
+                                                    Padding="14,6"
+                                                    Margin="0,0,8,0"/>
+                                            <Button x:Name="ImportSignOutButton"
+                                                    Grid.Column="5"
+                                                    Content="Sign out"
+                                                    Style="{StaticResource FluentSecondaryButton}"
+                                                    Padding="14,6"
+                                                    IsEnabled="False"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Nerdio Manager API section -->
+                                    <TextBlock Text="Nerdio Manager API"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <Border BorderThickness="1"
+                                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                                            Background="{DynamicResource ControlBackgroundBrush}"
+                                            CornerRadius="8"
+                                            Padding="14"
+                                            Margin="0,0,0,20">
+                                        <StackPanel>
+
+                                            <!-- API credential fields -->
+                                            <Grid Margin="0,0,0,12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                                    <TextBlock Text="NME Host"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeHostBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                                                    <TextBlock Text="Client ID"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeClientIdBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Margin="0,0,8,0">
+                                                    <TextBlock Text="API Scope"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeApiScopeBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3" Margin="0,0,8,0">
+                                                    <TextBlock Text="OAuth token URL"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeOAuthTokenUrlBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="4">
+                                                    <TextBlock Text="Client Secret"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <PasswordBox x:Name="NmeClientSecretBox"
+                                                                 Style="{StaticResource FluentPasswordBox}"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Tenant ID + API sign-in row -->
+                                            <Border BorderThickness="1"
+                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                    Background="{DynamicResource WindowBackgroundBrush}"
+                                                    CornerRadius="6"
+                                                    Padding="10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="290"/>
+                                                        <ColumnDefinition Width="16"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="Tenant ID"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,8,0"/>
+                                                    <Grid Grid.Column="1">
+                                                        <TextBox x:Name="NerdioTenantIdBox"
+                                                                 Style="{StaticResource FluentTextBox}"
+                                                                 VerticalAlignment="Center"
+                                                                 ToolTip="Tenant ID shared by Nerdio Manager API sign-in and optional Azure sign-in"/>
+                                                        <TextBlock Text="Tenant ID (optional)"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   IsHitTestVisible="False"
+                                                                   Margin="10,0,0,0"
+                                                                   VerticalAlignment="Center"
+                                                                   FontSize="12">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Text, ElementName=NerdioTenantIdBox}" Value="">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Grid>
+                                                    <StackPanel Grid.Column="4"
+                                                                Orientation="Horizontal"
+                                                                VerticalAlignment="Center">
+                                                        <Ellipse x:Name="NerdioApiAuthStatusDot"
+                                                                 Style="{StaticResource StatusDot}"
+                                                                 Fill="{DynamicResource ControlBorderBrush}"/>
+                                                        <TextBlock x:Name="NerdioApiAuthStatusLabel"
+                                                                   Text="Not signed in"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   FontSize="12"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"/>
+                                                    </StackPanel>
+                                                    <Button x:Name="NerdioApiSignInButton"
+                                                            Grid.Column="5"
+                                                            Content="Sign in"
+                                                            Style="{StaticResource FluentButton}"
+                                                            Padding="12,6"
+                                                            Margin="0,0,8,0"/>
+                                                    <Button x:Name="NerdioApiSignOutButton"
+                                                            Grid.Column="6"
+                                                            Content="Sign out"
+                                                            Style="{StaticResource FluentSecondaryButton}"
+                                                            Padding="12,6"
+                                                            IsEnabled="False"/>
+                                                </Grid>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Azure Storage section -->
+                                    <TextBlock Text="Azure Storage"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <Border BorderThickness="1"
+                                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                                            Background="{DynamicResource ControlBackgroundBrush}"
+                                            CornerRadius="8"
+                                            Padding="14"
+                                            Margin="0,0,0,20">
+                                        <StackPanel>
+
+                                            <!-- Storage fields -->
+                                            <Grid Margin="0,0,0,12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                                    <TextBlock Text="Subscription ID"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeSubscriptionIdBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                                                    <TextBlock Text="Resource Group"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="NmeResourceGroupCombo"
+                                                              Style="{StaticResource FluentComboBox}"
+                                                              Height="32"
+                                                              IsEnabled="False"
+                                                              ToolTip="Sign in to Azure to populate this list"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Margin="0,0,8,0">
+                                                    <TextBlock Text="Storage Account"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="NmeStorageAccountCombo"
+                                                              Style="{StaticResource FluentComboBox}"
+                                                              Height="32"
+                                                              IsEnabled="False"
+                                                              ToolTip="Select a Resource Group first"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3">
+                                                    <TextBlock Text="Container"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="NmeContainerCombo"
+                                                              Style="{StaticResource FluentComboBox}"
+                                                              Height="32"
+                                                              IsEnabled="False"
+                                                              ToolTip="Select a Storage Account first"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Azure sign-in row -->
+                                            <Border BorderThickness="1"
+                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                    Background="{DynamicResource WindowBackgroundBrush}"
+                                                    CornerRadius="6"
+                                                    Padding="10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="8"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="Azure sign-in (optional)"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,10,0"/>
+                                                    <StackPanel Grid.Column="2"
+                                                                Orientation="Horizontal"
+                                                                VerticalAlignment="Center">
+                                                        <Ellipse x:Name="NerdioAzureAuthStatusDot"
+                                                                 Style="{StaticResource StatusDot}"
+                                                                 Fill="{DynamicResource ControlBorderBrush}"/>
+                                                        <TextBlock x:Name="NerdioAzureAuthStatusLabel"
+                                                                   Text="Not signed in"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   FontSize="12"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"/>
+                                                    </StackPanel>
+                                                    <Button x:Name="NerdioAzureSignInButton"
+                                                            Grid.Column="3"
+                                                            Content="Sign in"
+                                                            Style="{StaticResource FluentButton}"
+                                                            Padding="12,6"
+                                                            Margin="0,0,8,0"
+                                                            IsEnabled="False"/>
+                                                    <Button x:Name="NerdioAzureSignOutButton"
+                                                            Grid.Column="4"
+                                                            Content="Sign out"
+                                                            Style="{StaticResource FluentSecondaryButton}"
+                                                            Padding="12,6"
+                                                            IsEnabled="False"/>
+                                                </Grid>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </Border>
+
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                    </TabControl>
+                </Grid>
+            </Grid>
+
             <!-- Settings view -->
             <Grid x:Name="SettingsPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="22,18,22,12" MaxWidth="520" HorizontalAlignment="Left">
+                    <StackPanel Margin="22,18,22,12" MaxWidth="760" HorizontalAlignment="Left">
 
                         <TextBlock Text="Settings"
                                    FontSize="20" FontWeight="SemiBold"
@@ -1144,18 +2188,32 @@
                                 Background="{DynamicResource ControlBackgroundBrush}"
                                 CornerRadius="8"
                                 Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="General"
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                                           Text="General"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,14"/>
 
-                                <!-- Download output path -->
-                                <TextBlock Text="Download output path"
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="Download output path"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
-                                           Margin="0,0,0,4"/>
-                                <DockPanel Margin="0,0,0,16">
+                                           Margin="0,7,10,16"/>
+                                <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,16">
                                     <Button x:Name="BrowseOutputButton"
                                             Content="Browse..."
                                             DockPanel.Dock="Right"
@@ -1165,12 +2223,12 @@
                                              Style="{StaticResource FluentTextBox}"/>
                                 </DockPanel>
 
-                                <!-- Evergreen apps path (read-only) -->
-                                <TextBlock Text="Evergreen apps path"
+                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                           Text="Evergreen apps path"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
-                                           Margin="0,0,0,4"/>
-                                <DockPanel Margin="0,0,0,24">
+                                           Margin="0,7,10,16"/>
+                                <DockPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,16">
                                     <Button x:Name="OpenEvergreenAppsFolderButton"
                                             Content="Open folder"
                                             DockPanel.Dock="Right"
@@ -1184,66 +2242,335 @@
                                              ToolTip="Path returned by Get-EvergreenAppsPath"/>
                                 </DockPanel>
 
-                                <!-- Log verbosity -->
-                                <TextBlock Text="Log verbosity"
+                                <TextBlock Grid.Row="3" Grid.Column="0"
+                                           Text="Preferences"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
-                                           Margin="0,0,0,4"/>
-                                <ComboBox x:Name="LogVerbosityComboBox"
-                                          Style="{StaticResource FluentComboBox}"
-                                          Margin="0,0,0,16"
-                                          Height="32">
-                                    <ComboBoxItem Content="Normal"/>
-                                    <ComboBoxItem Content="Verbose"/>
-                                </ComboBox>
+                                           Margin="0,7,10,16"/>
+                                <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                                <!-- Theme -->
-                                <TextBlock Text="Theme"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="12"
-                                           Margin="0,0,0,4"/>
-                                <ComboBox x:Name="ThemeComboBox"
-                                          Style="{StaticResource FluentComboBox}"
-                                          Margin="0,0,0,16"
-                                          Height="32">
-                                    <ComboBoxItem Content="Light"/>
-                                    <ComboBoxItem Content="Dark"/>
-                                </ComboBox>
+                                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                               Text="Log verbosity"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="LogVerbosityComboBox"
+                                              Grid.Row="1" Grid.Column="0"
+                                              Style="{StaticResource FluentComboBox}"
+                                              Height="32">
+                                        <ComboBoxItem Content="Normal"/>
+                                        <ComboBoxItem Content="Verbose"/>
+                                    </ComboBox>
 
-                                <!-- Startup view -->
-                                <TextBlock Text="Startup view"
+                                    <TextBlock Grid.Row="0" Grid.Column="2"
+                                               Text="Theme"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="ThemeComboBox"
+                                              Grid.Row="1" Grid.Column="2"
+                                              Style="{StaticResource FluentComboBox}"
+                                              Height="32">
+                                        <ComboBoxItem Content="Light"/>
+                                        <ComboBoxItem Content="Dark"/>
+                                    </ComboBox>
+
+                                    <CheckBox x:Name="ShowImportTabCheckBox"
+                                              Grid.Row="2"
+                                              Grid.Column="0"
+                                              Grid.ColumnSpan="3"
+                                              Content="Show Import tab"
+                                              Style="{StaticResource FluentCheckBox}"
+                                              Margin="0,10,0,0"
+                                              ToolTip="Enable to display the Import tab in the navigation rail."/>
+                                </Grid>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0"
+                                           Text="Startup view"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
-                                           Margin="0,0,0,4"/>
+                                           Margin="0,7,10,16"/>
                                 <ComboBox x:Name="StartupViewComboBox"
+                                          Grid.Row="4" Grid.Column="1"
                                           Style="{StaticResource FluentComboBox}"
-                                          Margin="0,0,0,24"
+                                          Margin="0,0,0,16"
                                           Height="32">
                                     <ComboBoxItem Content="Apps"/>
                                     <ComboBoxItem Content="Download"/>
                                     <ComboBoxItem Content="Library"/>
+                                    <ComboBoxItem Content="Import"/>
                                     <ComboBoxItem Content="Settings"/>
+                                    <ComboBoxItem Content="About"/>
                                 </ComboBox>
 
-                                <!-- Cache -->
-                                <TextBlock Text="App version cache"
+                                <TextBlock Grid.Row="5" Grid.Column="0"
+                                           Text="App version cache"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
-                                           Margin="0,0,0,4"/>
-                                <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fetch via Evergreen on next selection."
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="12"
-                                           TextWrapping="Wrap"
-                                           Margin="0,0,0,8"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                                    <Button x:Name="OpenCacheFolderButton"
-                                            Content="Open cache folder"
-                                            Style="{StaticResource FluentSecondaryButton}"
-                                            Margin="0,0,8,0"/>
-                                    <Button x:Name="ClearCacheButton"
-                                            Content="Clear cache"
-                                            Style="{StaticResource FluentSecondaryButton}"/>
+                                           Margin="0,2,10,0"/>
+                                <StackPanel Grid.Row="5" Grid.Column="1">
+                                    <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fetch via Evergreen on next selection."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,8"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button x:Name="OpenCacheFolderButton"
+                                                Content="Open cache folder"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Margin="0,0,8,0"/>
+                                        <Button x:Name="ClearCacheButton"
+                                                Content="Clear cache"
+                                                Style="{StaticResource FluentSecondaryButton}"/>
+                                    </StackPanel>
                                 </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14"
+                                Margin="0,12,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                                           Text="Nerdio Manager"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,14"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="NerdioShellApps.psm1 path"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,7,10,16"/>
+                                <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,16">
+                                    <StackPanel Orientation="Horizontal"
+                                                DockPanel.Dock="Right"
+                                                Margin="8,0,0,0">
+                                        <Button x:Name="NerdioBrowseModulePathSettingsButton"
+                                                Content="Browse"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Margin="0,0,8,0"/>
+                                        <Button x:Name="NerdioReloadModuleSettingsButton"
+                                                Content="Reload"
+                                                Style="{StaticResource FluentSecondaryButton}"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="NerdioModulePathSettingsBox"
+                                             Style="{StaticResource FluentTextBox}"/>
+                                </DockPanel>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                           Text="Module status"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,2,10,0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1"
+                                           x:Name="NerdioModuleStatusLabel"
+                                           Text="NerdioShellApps module not loaded."
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"/>
+                            </Grid>
+                        </Border>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14"
+                                Margin="0,12,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                                           Text="Microsoft Intune"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,14"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="IntuneWin32App module"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,7,10,16"/>
+                                <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,16">
+                                    <Button x:Name="IntuneReloadModuleSettingsButton"
+                                            Content="Reload"
+                                            DockPanel.Dock="Right"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="8,0,0,0"/>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Ellipse x:Name="IntuneSettingsModuleStatusDot"
+                                                 Style="{StaticResource StatusDot}"
+                                                 Fill="{DynamicResource ControlBorderBrush}"/>
+                                        <TextBlock x:Name="IntuneSettingsModuleStatusLabel"
+                                                   Text="Module not checked."
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                           Text="Package output path"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,7,10,0"/>
+                                <DockPanel Grid.Row="2" Grid.Column="1">
+                                    <Button x:Name="IntuneBrowsePackageOutputButton"
+                                            Content="Browse..."
+                                            DockPanel.Dock="Right"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="8,0,0,0"/>
+                                    <TextBox x:Name="IntunePackageOutputPathBox"
+                                             Style="{StaticResource FluentTextBox}"
+                                             ToolTip="Folder where .intunewin packages are written during the Package step"/>
+                                </DockPanel>
+                            </Grid>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- About view -->
+            <Grid x:Name="AboutPanel"
+                  Visibility="Collapsed"
+                  Background="{DynamicResource WindowBackgroundBrush}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="22,18,22,12" MaxWidth="760" HorizontalAlignment="Left">
+
+                        <TextBlock Text="About"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Module"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="AboutNameValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Version"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="AboutVersionValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Prerelease"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="AboutPrereleaseValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Author"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="AboutAuthorValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Company"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="AboutCompanyValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Copyright"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="AboutCopyrightValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="License"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="AboutLicenseValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="Project"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" Margin="0,0,10,8"/>
+                                <TextBlock Grid.Row="7" Grid.Column="1" x:Name="AboutProjectUriValue"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            </Grid>
+                        </Border>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14"
+                                Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Description"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock x:Name="AboutDescriptionValue"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 

@@ -49,6 +49,8 @@ function Set-DarkTheme {
     $res['ToggleThumbBrush'] = NewBrush   0   0   0   # #000000
     $res['SecondaryButtonBackgroundBrush'] = NewBrush  45  68  64   # #2D4440 - visible above window bg
     $res['SecondaryButtonBorderBrush']     = NewBrush  90 123 119   # #5A7B77 - visible mid-tone border
+    $res['StatusPositiveBrush'] = NewBrush 137 194 160   # Softer green for dark mode table highlights
+    $res['StatusErrorBrush']    = NewBrush 210 132 132   # Softer red for dark mode table highlights
 
     $Window.Background = $res['WindowBackgroundBrush']
     if ($null -ne $ThemeLabelTextBlock) {

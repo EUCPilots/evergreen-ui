@@ -1,0 +1,15 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "Invoke-Pester": true,
+        "Import-Module": true,
+        "Out-Null": true,
+        "ForEach-Object": true,
+        "Get-Module": true,
+        "Invoke-ScriptAnalyzer": true,
+        "StaticResource": true,
+        "FluentTabControl": true,
+        "Set-Content": true,
+        "ConvertFrom-Json": true,
+        "ConvertTo-Json": true
+    }
+}

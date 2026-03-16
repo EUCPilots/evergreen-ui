@@ -57,9 +57,9 @@ function Invoke-AppDownload {
 
         # Pre-compute queue counts on the background thread.
         $pending = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' }).Count
-        $done    = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
-        $failed  = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
-        $total   = $SyncHash.DownloadQueue.Count
+        $done = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Done' }).Count
+        $failed = @($SyncHash.DownloadQueue | Where-Object { $_.Status -eq 'Failed' }).Count
+        $total = $SyncHash.DownloadQueue.Count
         $queueText = "Queue: $total items (Pending: $pending, Done: $done, Failed: $failed)"
 
         # Dispatch only simple .NET property writes to the UI thread.
