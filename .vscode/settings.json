@@ -7,6 +7,9 @@
         "Get-Module": true,
         "Invoke-ScriptAnalyzer": true,
         "StaticResource": true,
-        "FluentTabControl": true
+        "FluentTabControl": true,
+        "Set-Content": true,
+        "ConvertFrom-Json": true,
+        "ConvertTo-Json": true
     }
 }
