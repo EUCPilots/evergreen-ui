@@ -49,9 +49,9 @@ Describe 'Get-FilterableProperties' {
     It 'Returns filterable properties excluding display-only columns' {
         InModuleScope EvergreenUI {
             $edgeData = @(
-                [PSCustomObject]@{ Version='145.0.0'; Channel='Stable'; Architecture='x64'; Type='msi'; URI='https://example.com/edge-x64.msi'; Date='2026-03-01' }
-                [PSCustomObject]@{ Version='145.0.0'; Channel='Stable'; Architecture='x86'; Type='msi'; URI='https://example.com/edge-x86.msi'; Date='2026-03-01' }
-                [PSCustomObject]@{ Version='145.0.0'; Channel='Beta';   Architecture='x64'; Type='msi'; URI='https://example.com/edge-beta-x64.msi'; Date='2026-03-01' }
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Stable'; Architecture='x64'; Type='msi'; URI='https://example.com/edge-x64.msi'; Date='2026-03-01'; Sha='abc'; Sha1='abc1'; Sha256='abc256'; Hash='h1' }
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Stable'; Architecture='x86'; Type='msi'; URI='https://example.com/edge-x86.msi'; Date='2026-03-01'; Sha='def'; Sha1='def1'; Sha256='def256'; Hash='h2' }
+                [PSCustomObject]@{ Version='145.0.0'; Channel='Beta';   Architecture='x64'; Type='msi'; URI='https://example.com/edge-beta-x64.msi'; Date='2026-03-01'; Sha='ghi'; Sha1='ghi1'; Sha256='ghi256'; Hash='h3' }
             )
             $result = Get-FilterableProperties -AppResults $edgeData
             $result.Name | Should -Contain 'Architecture'
@@ -60,6 +60,10 @@ Describe 'Get-FilterableProperties' {
             $result.Name | Should -Not -Contain 'Version'
             $result.Name | Should -Not -Contain 'URI'
             $result.Name | Should -Not -Contain 'Date'
+            $result.Name | Should -Not -Contain 'Sha'
+            $result.Name | Should -Not -Contain 'Sha1'
+            $result.Name | Should -Not -Contain 'Sha256'
+            $result.Name | Should -Not -Contain 'Hash'
         }
     }
 
