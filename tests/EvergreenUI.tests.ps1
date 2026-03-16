@@ -155,6 +155,7 @@ Describe 'Set-UIConfig and Get-UIConfig round-trip' {
                 $config = Get-UIConfig
                 $config.Theme = 'Dark'
                 $config.OutputPath = 'C:\TestOutput'
+                $config.StartupView = 'Update'
                 $config.ImportSettings.CurrentProvider = 'Intune'
                 $config.NerdioSettings.NmeResourceGroup = 'rg-ops'
                 $config.NerdioSettings.NmeStorageAccount = 'stgapps01'
@@ -164,6 +165,7 @@ Describe 'Set-UIConfig and Get-UIConfig round-trip' {
                 $loaded = Get-UIConfig
                 $loaded.Theme      | Should -Be 'Dark'
                 $loaded.OutputPath | Should -Be 'C:\TestOutput'
+                $loaded.StartupView | Should -Be 'Update'
                 $loaded.ImportSettings.CurrentProvider | Should -Be 'Intune'
                 $loaded.NerdioSettings.NmeResourceGroup | Should -Be 'rg-ops'
                 $loaded.NerdioSettings.NmeStorageAccount | Should -Be 'stgapps01'

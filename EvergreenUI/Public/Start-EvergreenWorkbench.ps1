@@ -139,6 +139,10 @@ $syncHash = [hashtable]::Synchronized(@{
         LibraryDetailsListView                          = $null
         LibraryStatusLabel                              = $null
         LibraryUpdateButton                             = $null
+        UpdateOutputTextBox                             = $null
+        UpdateOutputScrollViewer                        = $null
+        RunUpdateEvergreenButton                        = $null
+        UpdateStatusLabel                               = $null
         LibraryData                                     = @()
         ActiveBackgroundOperations                      = [System.Collections.Generic.List[object]]::new()
         BackgroundOperationsTimer                       = $null
@@ -233,6 +237,7 @@ $navDownload = $window.FindName('NavDownload')
 $navLibrary = $window.FindName('NavLibrary')
 $navImport = $window.FindName('NavImport')
 $navSettings = $window.FindName('NavSettings')
+$navUpdate = $window.FindName('NavUpdate')
 $navAbout = $window.FindName('NavAbout')
 
 $appsPanel = $window.FindName('AppsPanel')
@@ -240,6 +245,7 @@ $downloadPanel = $window.FindName('DownloadPanel')
 $libraryPanel = $window.FindName('LibraryPanel')
 $importPanel = $window.FindName('ImportPanel')
 $settingsPanel = $window.FindName('SettingsPanel')
+$updatePanel = $window.FindName('UpdatePanel')
 $aboutPanel = $window.FindName('AboutPanel')
 
 $refreshAppsButton = $window.FindName('RefreshAppsButton')
@@ -265,6 +271,11 @@ $syncHash.LibraryContentsListView = $window.FindName('LibraryContentsListView')
 $syncHash.LibraryDetailsListView = $window.FindName('LibraryDetailsListView')
 $syncHash.LibraryStatusLabel = $window.FindName('LibraryStatusLabel')
 $syncHash.LibraryUpdateButton = $window.FindName('LibraryUpdateButton')
+$syncHash.RunUpdateEvergreenButton = $window.FindName('RunUpdateEvergreenButton')
+$syncHash.UpdateOutputTextBox = $window.FindName('UpdateOutputTextBox')
+$syncHash.UpdateOutputScrollViewer = $window.FindName('UpdateOutputScrollViewer')
+$syncHash.UpdateStatusLabel = $window.FindName('UpdateStatusLabel')
+$clearUpdateOutputButton = $window.FindName('ClearUpdateOutputButton')
 
 $syncHash.DownloadQueueListView = $window.FindName('DownloadQueueListView')
 $syncHash.QueueCountLabel = $window.FindName('QueueCountLabel')
@@ -1170,6 +1181,9 @@ $getCurrentStartupView = {
     }
     elseif ($navSettings.IsChecked) {
         return 'Settings'
+    }
+    elseif ($navUpdate.IsChecked) {
+        return 'Update'
     }
     elseif ($navAbout.IsChecked) {
         return 'About'
@@ -3737,6 +3751,102 @@ $startLibraryUpdate = {
     & $registerBackgroundOperation -Name 'LibraryUpdate' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
 }
 
+$startUpdateEvergreen = {
+    if ($syncHash.IsRunning) {
+        Write-UILog -SyncHash $syncHash -Message 'Another operation is currently running.' -Level Warning
+        return
+    }
+
+    $syncHash.IsRunning = $true
+    if ($null -ne $syncHash.RunUpdateEvergreenButton) {
+        $syncHash.RunUpdateEvergreenButton.IsEnabled = $false
+    }
+    if ($null -ne $syncHash.UpdateStatusLabel) {
+        $syncHash.UpdateStatusLabel.Text = 'Running Update-Evergreen...'
+    }
+
+    $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+    $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
+    $writeUpdateOutputPath = Join-Path -Path $privateRoot -ChildPath 'Write-UpdateOutput.ps1'
+
+    $rs = New-WpfRunspace -SyncHash $syncHash
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
+
+    [void]$ps.AddScript({
+            param(
+                [string]$WriteUILogPath,
+                [string]$WriteUpdateOutputPath
+            )
+
+            . $WriteUILogPath
+            . $WriteUpdateOutputPath
+
+            try {
+                Import-Module Evergreen -ErrorAction Stop | Out-Null
+
+                Write-UpdateOutput -SyncHash $syncHash -Message 'Update-Evergreen' -Level Cmd
+                Write-UILog -SyncHash $syncHash -Message 'Update-Evergreen' -Level Cmd
+
+                Update-Evergreen *>&1 | ForEach-Object {
+                    $record = $_
+                    $lineLevel = 'Info'
+                    $lineMessage = ''
+
+                    if ($record -is [System.Management.Automation.ErrorRecord]) {
+                        $lineLevel = 'Error'
+                        $lineMessage = $record.ToString()
+                    }
+                    elseif ($record -is [System.Management.Automation.WarningRecord]) {
+                        $lineLevel = 'Warning'
+                        $lineMessage = [string]$record.Message
+                    }
+                    elseif ($record -is [System.Management.Automation.VerboseRecord]) {
+                        $lineMessage = [string]$record.Message
+                    }
+                    elseif ($record -is [System.Management.Automation.DebugRecord]) {
+                        $lineMessage = [string]$record.Message
+                    }
+                    elseif ($record -is [System.Management.Automation.InformationRecord]) {
+                        $lineMessage = [string]$record.MessageData
+                    }
+                    elseif ($record -is [System.Management.Automation.ProgressRecord]) {
+                        $lineMessage = "$([string]$record.Activity): $([string]$record.StatusDescription)"
+                    }
+                    else {
+                        $lineMessage = [string]$record
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($lineMessage)) {
+                        Write-UpdateOutput -SyncHash $syncHash -Message $lineMessage -Level $lineLevel
+                        Write-UILog -SyncHash $syncHash -Message $lineMessage -Level $lineLevel
+                    }
+                }
+
+                Write-UpdateOutput -SyncHash $syncHash -Message 'Update-Evergreen completed.' -Level Info
+                Write-UILog -SyncHash $syncHash -Message 'Update-Evergreen completed.' -Level Info
+            }
+            catch {
+                Write-UpdateOutput -SyncHash $syncHash -Message "Update-Evergreen failed: $_" -Level Error
+                Write-UILog -SyncHash $syncHash -Message "Update-Evergreen failed: $_" -Level Error
+            }
+            finally {
+                $syncHash.Window.Dispatcher.Invoke([action] {
+                        $syncHash.IsRunning = $false
+                        if ($null -ne $syncHash.RunUpdateEvergreenButton) {
+                            $syncHash.RunUpdateEvergreenButton.IsEnabled = $true
+                        }
+                        if ($null -ne $syncHash.UpdateStatusLabel) {
+                            $syncHash.UpdateStatusLabel.Text = 'Ready to run Update-Evergreen.'
+                        }
+                    }, 'Normal')
+            }
+        }).AddArgument($writeUILogPath).AddArgument($writeUpdateOutputPath)
+
+    $async = $ps.BeginInvoke()
+    & $registerBackgroundOperation -Name 'UpdateEvergreen' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
+}
+
 # Apply initial log state from config
 $isLogVisible = [bool]$syncHash.Config.LogVisible
 if ($isLogVisible) {
@@ -3867,6 +3977,9 @@ $window.add_Loaded({
             'Settings' {
                 $navSettings.IsChecked = $true
             }
+            'Update' {
+                $navUpdate.IsChecked = $true
+            }
             'About' {
                 $navAbout.IsChecked = $true
             }
@@ -3989,6 +4102,7 @@ $panelMap = @{
     NavLibrary  = $libraryPanel
     NavImport   = $importPanel
     NavSettings = $settingsPanel
+    NavUpdate   = $updatePanel
     NavAbout    = $aboutPanel
 }
 
@@ -4004,7 +4118,7 @@ $navCheckedHandler = {
     }
 }
 
-foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navSettings, $navAbout)) {
+foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navSettings, $navUpdate, $navAbout)) {
     $navBtn.add_Checked($navCheckedHandler)
 }
 
@@ -4032,6 +4146,12 @@ $navImport.add_Checked({
         & $refreshNerdioApiAuthUi
         & $refreshNerdioAzureAuthUi
         & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
+    })
+
+$navUpdate.add_Checked({
+        if ($null -ne $syncHash.UpdateStatusLabel -and -not $syncHash.IsRunning) {
+            $syncHash.UpdateStatusLabel.Text = 'Ready to run Update-Evergreen.'
+        }
     })
 
 $importProviderTabControl.add_SelectionChanged({
@@ -4563,6 +4683,20 @@ $syncHash.LibraryUpdateButton.add_Click({
         & $startLibraryUpdate
     })
 
+if ($null -ne $syncHash.RunUpdateEvergreenButton) {
+    $syncHash.RunUpdateEvergreenButton.add_Click({
+            & $startUpdateEvergreen
+        })
+}
+
+if ($null -ne $clearUpdateOutputButton) {
+    $clearUpdateOutputButton.add_Click({
+            if ($null -ne $syncHash.UpdateOutputTextBox) {
+                $syncHash.UpdateOutputTextBox.Clear()
+            }
+        })
+}
+
 $syncHash.LibraryContentsListView.add_MouseDoubleClick({
         $selected = $syncHash.LibraryContentsListView.SelectedItem
         & $loadLibraryAppDetails -SelectedLibraryItem $selected
@@ -4661,7 +4795,8 @@ $navSettings.add_Checked({
             'Library' { $startupViewComboBox.SelectedIndex = 2 }
             'Import' { $startupViewComboBox.SelectedIndex = 3 }
             'Settings' { $startupViewComboBox.SelectedIndex = 4 }
-            'About' { $startupViewComboBox.SelectedIndex = 5 }
+            'Update' { $startupViewComboBox.SelectedIndex = 5 }
+            'About' { $startupViewComboBox.SelectedIndex = 6 }
             default { $startupViewComboBox.SelectedIndex = 0 }
         }
     })

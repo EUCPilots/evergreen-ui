@@ -17,7 +17,7 @@
         LogVisible   : bool    - whether the progress log panel is expanded
         LogHeight    : int     - log panel height in pixels
         ShowImportTab: bool    - whether the Import tab is visible in navigation
-        StartupView  : string  - 'Apps' | 'Download' | 'Library' | 'Import' | 'Settings' | 'About'
+        StartupView  : string  - 'Apps' | 'Download' | 'Library' | 'Import' | 'Settings' | 'Update' | 'About'
         LastAppName  : string  - last selected app in Apps view
         WindowWidth  : int     - last window width
         WindowHeight : int     - last window height

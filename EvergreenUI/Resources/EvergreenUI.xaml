@@ -659,6 +659,9 @@
                 <RadioButton x:Name="NavSettings"
                              Content="Settings"
                              Style="{StaticResource NavRailRadioButton}"/>
+                <RadioButton x:Name="NavUpdate"
+                             Content="Update"
+                             Style="{StaticResource NavRailRadioButton}"/>
                 <RadioButton x:Name="NavAbout"
                              Content="About"
                              Style="{StaticResource NavRailRadioButton}"/>
@@ -2316,6 +2319,7 @@
                                     <ComboBoxItem Content="Library"/>
                                     <ComboBoxItem Content="Import"/>
                                     <ComboBoxItem Content="Settings"/>
+                                    <ComboBoxItem Content="Update"/>
                                     <ComboBoxItem Content="About"/>
                                 </ComboBox>
 
@@ -2468,6 +2472,72 @@
 
                     </StackPanel>
                 </ScrollViewer>
+            </Grid>
+
+            <!-- Update view -->
+            <Grid x:Name="UpdatePanel"
+                  Visibility="Collapsed"
+                  Background="{DynamicResource WindowBackgroundBrush}">
+                <Grid Margin="22,18,22,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <TextBlock Text="Update"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   DockPanel.Dock="Left"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button x:Name="RunUpdateEvergreenButton"
+                                Content="Run Update-Evergreen"
+                                Style="{StaticResource FluentButton}"
+                                Padding="12,6"
+                                Margin="0,0,8,0"/>
+                        <Button x:Name="ClearUpdateOutputButton"
+                                Content="Clear output"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Padding="12,6"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="2"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                            Background="{DynamicResource ControlBackgroundBrush}"
+                            CornerRadius="4"
+                            Padding="0">
+                        <ScrollViewer x:Name="UpdateOutputScrollViewer"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      Background="{DynamicResource ControlBackgroundBrush}">
+                            <TextBox x:Name="UpdateOutputTextBox"
+                                     IsReadOnly="True"
+                                     AcceptsReturn="True"
+                                     TextWrapping="NoWrap"
+                                     FontFamily="Consolas"
+                                     FontSize="12"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     Background="{DynamicResource ControlBackgroundBrush}"
+                                     BorderThickness="0"
+                                     Padding="8,6"
+                                     VerticalAlignment="Top"/>
+                        </ScrollViewer>
+                    </Border>
+
+                    <TextBlock Grid.Row="3"
+                               x:Name="UpdateStatusLabel"
+                               Text="Ready to run Update-Evergreen."
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,9,0,0"/>
+                </Grid>
             </Grid>
 
             <!-- About view -->
