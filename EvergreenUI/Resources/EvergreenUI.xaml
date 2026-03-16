@@ -1355,7 +1355,8 @@
                                                         Grid.Column="3"
                                                         Content="Compare with Intune Win32 apps"
                                                         Style="{StaticResource FluentButton}"
-                                                        Padding="10,6"/>
+                                                    Padding="10,6"
+                                                    IsEnabled="False"/>
                                             </Grid>
                                         </Border>
 
@@ -1426,7 +1427,7 @@
                                                 <ListView x:Name="IntuneWin32AppsListView"
                                                           Style="{StaticResource FluentListView}"
                                                           BorderThickness="0"
-                                                          SelectionMode="Single">
+                                                          SelectionMode="Extended">
                                                     <ListView.Resources>
                                                         <Style TargetType="GridViewColumnHeader">
                                                             <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
@@ -1539,14 +1540,8 @@
                                     <DockPanel LastChildFill="True">
                                         <StackPanel Orientation="Horizontal"
                                                     DockPanel.Dock="Right">
-                                            <Button x:Name="IntunePackageButton"
-                                                    Content="Package selected"
-                                                    Style="{StaticResource FluentSecondaryButton}"
-                                                    Padding="12,6"
-                                                    IsEnabled="False"
-                                                    Margin="0,0,8,0"/>
                                             <Button x:Name="IntuneApplyImportButton"
-                                                    Content="Import Win32 app"
+                                                    Content="Import as new Win32 app"
                                                     Style="{StaticResource FluentButton}"
                                                     Padding="12,6"
                                                     IsEnabled="False"/>
@@ -1629,7 +1624,8 @@
                                                     Grid.Column="3"
                                                     Content="Compare with Shell Apps"
                                                     Style="{StaticResource FluentButton}"
-                                                    Padding="10,6"/>
+                                                    Padding="10,6"
+                                                    IsEnabled="False"/>
                                             </Grid>
                                         </Border>
 
@@ -2260,6 +2256,7 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <TextBlock Grid.Row="0" Grid.Column="0"
@@ -2287,6 +2284,15 @@
                                         <ComboBoxItem Content="Light"/>
                                         <ComboBoxItem Content="Dark"/>
                                     </ComboBox>
+
+                                    <CheckBox x:Name="ShowImportTabCheckBox"
+                                              Grid.Row="2"
+                                              Grid.Column="0"
+                                              Grid.ColumnSpan="3"
+                                              Content="Show Import tab"
+                                              Style="{StaticResource FluentCheckBox}"
+                                              Margin="0,10,0,0"
+                                              ToolTip="Enable to display the Import tab in the navigation rail."/>
                                 </Grid>
 
                                 <TextBlock Grid.Row="4" Grid.Column="0"
