@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<helpItems schema="maml" xmlns="http://msh" xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10">
+  <command:command>
+    <command:details>
+      <command:name>Start-EvergreenWorkbench</command:name>
+      <maml:description>
+        <maml:para>Launches the Evergreen Workbench graphical interface.</maml:para>
+      </maml:description>
+      <maml:copyright>
+        <maml:para>(c) 2026 EUC Pilots. Licensed under the MIT Licence.</maml:para>
+      </maml:copyright>
+      <command:verb>Start</command:verb>
+      <command:noun>EvergreenWorkbench</command:noun>
+      <dev:version>1.0.8</dev:version>
+    </command:details>
+    <maml:description>
+      <maml:para>Start-EvergreenWorkbench is the public entry point for the EvergreenUI module. It verifies required dependencies, loads WPF assemblies, and opens the Evergreen Workbench window.</maml:para>
+      <maml:para>The command runs on Windows only. If the current thread is not STA, the command automatically restarts itself on an STA runspace so the WPF interface can be created safely.</maml:para>
+      <maml:para>This command has no parameters. Configure behavior from the Settings view in the UI. Preferences are persisted to $env:APPDATA\EvergreenUI\settings.json.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Start-EvergreenWorkbench</maml:name>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters />
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+          <maml:uri />
+        </dev:type>
+        <maml:description>
+          <maml:para>You cannot pipe objects to this command.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.Void</maml:name>
+          <maml:uri />
+        </dev:type>
+        <maml:description>
+          <maml:para>This command does not return output objects.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <command:terminatingErrors>
+      <maml:description>
+        <maml:para>The command throws terminating errors for missing dependencies or failures initializing required UI resources.</maml:para>
+      </maml:description>
+    </command:terminatingErrors>
+    <maml:alertSet>
+      <maml:title>Notes</maml:title>
+      <maml:alert>
+        <maml:para>Windows only.</maml:para>
+      </maml:alert>
+      <maml:alert>
+        <maml:para>Requires the Evergreen module to be installed.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>---------- EXAMPLE 1 ----------</maml:title>
+        <dev:code>Start-EvergreenWorkbench</dev:code>
+        <dev:remarks>
+          <maml:para>Opens the Evergreen Workbench window.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>---------- EXAMPLE 2 ----------</maml:title>
+        <dev:code>Import-Module EvergreenUI
+Start-EvergreenWorkbench</dev:code>
+        <dev:remarks>
+          <maml:para>Imports the module in the current session and launches the Workbench.</maml:para>
+        </dev:remarks>
+      </command:example>
+    </command:examples>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Evergreen documentation</maml:linkText>
+        <maml:uri>https://eucpilots.com/evergreen-docs/</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>EvergreenUI project repository</maml:linkText>
+        <maml:uri>https://github.com/EUCPilots/evergreen-ui</maml:uri>
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+</helpItems>

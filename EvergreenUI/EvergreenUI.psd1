@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.0.7'
+    ModuleVersion     = '1.0.8'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -30,6 +30,7 @@
     FileList = @(
         'EvergreenUI.psd1'
         'EvergreenUI.psm1'
+        'en-US\EvergreenUI-help.xml'
         'Resources\EvergreenUI.xaml'
         'Public\Start-EvergreenWorkbench.ps1'
         'Private\Get-EvergreenAppList.ps1'
@@ -58,7 +59,7 @@
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Pre-release version. Add support for importing Win32 packages into Microsoft Intune and Nerdio Manager. Adds ''Update'' tab'
+            ReleaseNotes = 'Pre-release. Adds Start-EvergreenWorkbench function. Import module and run Start-EvergreenWorkbench to launch the Evergreen Workbench.'
             Prerelease   = 'beta'
         }
     }
