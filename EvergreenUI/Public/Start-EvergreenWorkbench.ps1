@@ -1431,6 +1431,30 @@ $applyIntunePathsToConfig = {
     Set-UIConfig -Config $syncHash.Config
 }
 
+$getThemeStatusBrush = {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResourceKey,
+
+        [Parameter(Mandatory = $true)]
+        [System.Windows.Media.Brush]$FallbackBrush
+    )
+
+    $themeBrush = $null
+    if ($null -ne $window -and $null -ne $window.Resources -and $window.Resources.Contains($ResourceKey)) {
+        $candidate = $window.Resources[$ResourceKey]
+        if ($candidate -is [System.Windows.Media.Brush]) {
+            $themeBrush = [System.Windows.Media.Brush]$candidate
+        }
+    }
+
+    if ($null -ne $themeBrush) {
+        return $themeBrush
+    }
+
+    return $FallbackBrush
+}
+
 $refreshNerdioModuleStatus = {
     param(
         [bool]$IsLoaded,
@@ -1440,10 +1464,10 @@ $refreshNerdioModuleStatus = {
     if ($null -eq $nerdioModuleStatusLabel) { return }
 
     if ($IsLoaded) {
-        $nerdioModuleStatusLabel.Foreground = [System.Windows.Media.Brushes]::LightGreen
+        $nerdioModuleStatusLabel.Foreground = & $getThemeStatusBrush -ResourceKey 'StatusPositiveBrush' -FallbackBrush ([System.Windows.Media.Brushes]::LightGreen)
     }
     else {
-        $nerdioModuleStatusLabel.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+        $nerdioModuleStatusLabel.Foreground = & $getThemeStatusBrush -ResourceKey 'StatusErrorBrush' -FallbackBrush ([System.Windows.Media.Brushes]::OrangeRed)
     }
 
     $nerdioModuleStatusLabel.Text = $Message
@@ -3016,15 +3040,17 @@ $refreshIntuneModuleStatus = {
     if ($null -eq $intuneSettingsModuleStatusLabel) { return }
 
     if ($IsLoaded) {
-        $intuneSettingsModuleStatusLabel.Foreground = [System.Windows.Media.Brushes]::LightGreen
+        $statusBrush = & $getThemeStatusBrush -ResourceKey 'StatusPositiveBrush' -FallbackBrush ([System.Windows.Media.Brushes]::LightGreen)
+        $intuneSettingsModuleStatusLabel.Foreground = $statusBrush
         if ($null -ne $intuneSettingsModuleStatusDot) {
-            $intuneSettingsModuleStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
+            $intuneSettingsModuleStatusDot.Fill = $statusBrush
         }
     }
     else {
-        $intuneSettingsModuleStatusLabel.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+        $statusBrush = & $getThemeStatusBrush -ResourceKey 'StatusErrorBrush' -FallbackBrush ([System.Windows.Media.Brushes]::OrangeRed)
+        $intuneSettingsModuleStatusLabel.Foreground = $statusBrush
         if ($null -ne $intuneSettingsModuleStatusDot) {
-            $intuneSettingsModuleStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+            $intuneSettingsModuleStatusDot.Fill = $statusBrush
         }
     }
 
