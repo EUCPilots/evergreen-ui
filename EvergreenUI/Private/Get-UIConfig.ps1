@@ -39,6 +39,7 @@ function Get-UIConfig {
         LogVisible        = $false
         LogHeight         = 150
         ShowImportTab     = $false
+        ShowInstallTab    = $false
         StartupView       = 'Apps'
         LastAppName       = ''
         WindowWidth       = 1200
@@ -61,6 +62,9 @@ function Get-UIConfig {
         IntuneSettings    = [PSCustomObject]@{
             DefinitionsPath   = ''
             PackageOutputPath = ''
+        }
+        InstallSettings   = [PSCustomObject]@{
+            DefinitionsPath   = ''
         }
         AzureAuthSettings = [PSCustomObject]@{
             TenantId              = ''
@@ -120,6 +124,17 @@ function Get-UIConfig {
             }
         }
 
+        if ($null -eq $json.InstallSettings) {
+            $json | Add-Member -NotePropertyName 'InstallSettings' -NotePropertyValue $default.InstallSettings -Force
+        }
+        else {
+            foreach ($prop in $default.InstallSettings.PSObject.Properties.Name) {
+                if ($null -eq $json.InstallSettings.$prop) {
+                    $json.InstallSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.InstallSettings.$prop -Force
+                }
+            }
+        }
+
         if ($null -eq $json.AzureAuthSettings) {
             $json | Add-Member -NotePropertyName 'AzureAuthSettings' -NotePropertyValue $default.AzureAuthSettings -Force
         }
@@ -137,6 +152,11 @@ function Get-UIConfig {
 
         if ($null -eq $json.ShowImportTab) {
             $json.ShowImportTab = [bool]$default.ShowImportTab
+        }
+
+        if ($null -eq $json.ShowInstallTab) {
+            # Backward compatibility: before this setting existed, Install visibility followed ShowImportTab.
+            $json.ShowInstallTab = [bool]$json.ShowImportTab
         }
 
         return $json
