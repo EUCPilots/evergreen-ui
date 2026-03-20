@@ -80,11 +80,6 @@ function Invoke-LocalPackageInstall {
         return (& $fail "Latest version resolution failed: $err")
     }
 
-    $installCommand = [string]$DefinitionObject.Program.InstallCommand
-    if ([string]::IsNullOrWhiteSpace($installCommand)) {
-        return (& $fail 'Program.InstallCommand is missing from App.json.')
-    }
-
     $appFolderName = [System.IO.Path]::GetFileName([System.IO.Path]::GetDirectoryName($DefinitionPath))
     if ([string]::IsNullOrWhiteSpace($appFolderName)) {
         $appFolderName = [string]$DefinitionObject.Application.Name
@@ -94,61 +89,114 @@ function Invoke-LocalPackageInstall {
         $appFolderName = 'InstallPackage'
     }
 
-    $sourcePath = Join-Path -Path $WorkingPath -ChildPath "$appFolderName\Source"
-    if (-not (Test-Path -LiteralPath $sourcePath -PathType Container)) {
+    # Working directory for this app: <WorkingPath>\<AppFolderName>
+    $appWorkingDir = Join-Path -Path $WorkingPath -ChildPath $appFolderName
+    if (-not (Test-Path -LiteralPath $appWorkingDir -PathType Container)) {
         try {
-            $null = New-Item -Path $sourcePath -ItemType Directory -Force -ErrorAction Stop
+            $null = New-Item -Path $appWorkingDir -ItemType Directory -Force -ErrorAction Stop
         }
         catch {
-            return (& $fail "Failed to create source path '$sourcePath': $($_.Exception.Message)")
+            return (& $fail "Failed to create working directory '$appWorkingDir': $($_.Exception.Message)")
         }
     }
 
-    try {
-        $definitionDir = [System.IO.Path]::GetDirectoryName($DefinitionPath)
-        $definitionSourceDir = Join-Path -Path $definitionDir -ChildPath 'Source'
-        if (Test-Path -LiteralPath $definitionSourceDir -PathType Container) {
-            Write-UILog -SyncHash $SyncHash -Message "Install: copying source content from '$definitionSourceDir'." -Level Info
-            Copy-Item -Path "$definitionSourceDir\*" -Destination $sourcePath -Recurse -Force -ErrorAction Stop
-        }
+    $definitionDir = [System.IO.Path]::GetDirectoryName($DefinitionPath)
+    $definitionParentDir = [System.IO.Path]::GetDirectoryName($definitionDir)
+    $definitionSourceDir = Join-Path -Path $definitionDir -ChildPath 'Source'
+    $sharedInstallPs1Source = if ([string]::IsNullOrWhiteSpace($definitionParentDir)) {
+        ''
     }
-    catch {
-        return (& $fail "Failed to copy source content: $($_.Exception.Message)")
+    else {
+        Join-Path -Path $definitionParentDir -ChildPath 'Install.ps1'
     }
 
+    # Copy Install.ps1 to the working directory. Prefer the package root,
+    # then the Source folder, then the shared intune template used by
+    # evergreen-packages package definitions.
+    $installPs1Source = @(
+        (Join-Path -Path $definitionDir -ChildPath 'Install.ps1')
+        (Join-Path -Path $definitionSourceDir -ChildPath 'Install.ps1')
+        $sharedInstallPs1Source
+    ) | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_) -and (Test-Path -LiteralPath $_ -PathType Leaf)
+    } | Select-Object -First 1
+
+    $installPs1Target = Join-Path -Path $appWorkingDir -ChildPath 'Install.ps1'
+    if (-not [string]::IsNullOrWhiteSpace([string]$installPs1Source)) {
+        try {
+            Write-UILog -SyncHash $SyncHash -Message "Install: copying Install.ps1 from '$installPs1Source' to '$installPs1Target'." -Level Info
+            Copy-Item -LiteralPath $installPs1Source -Destination $installPs1Target -Force -ErrorAction Stop
+        }
+        catch {
+            return (& $fail "Failed to copy Install.ps1: $($_.Exception.Message)")
+        }
+    }
+
+    # Copy support files from <Package>\Source\ into the working directory
+    if (Test-Path -LiteralPath $definitionSourceDir -PathType Container) {
+        try {
+            Write-UILog -SyncHash $SyncHash -Message "Install: copying support files from '$definitionSourceDir'." -Level Info
+            Copy-Item -Path "$definitionSourceDir\*" -Destination $appWorkingDir -Recurse -Force -ErrorAction Stop
+        }
+        catch {
+            return (& $fail "Failed to copy source content: $($_.Exception.Message)")
+        }
+    }
+
+    # Download the latest installer to the working directory
     if (-not [string]::IsNullOrWhiteSpace([string]$LatestVersionResult.URI)) {
         try {
-            Write-UILog -SyncHash $SyncHash -Message "Install: downloading latest installer to '$sourcePath'." -Level Info
-            [void]@($LatestVersionResult.ResolvedArtifact | Save-EvergreenApp -LiteralPath $sourcePath -ErrorAction Stop)
+            Write-UILog -SyncHash $SyncHash -Message "Install: downloading latest installer to '$appWorkingDir'." -Level Info
+            [void]@($LatestVersionResult.ResolvedArtifact | Save-EvergreenApp -LiteralPath $appWorkingDir -ErrorAction Stop)
         }
         catch {
             return (& $fail "Failed to download installer: $($_.Exception.Message)")
         }
     }
 
-    Write-UILog -SyncHash $SyncHash -Message "Install: executing command '$installCommand'." -Level Cmd
+    # Determine install command: prefer Install.ps1, fall back to Program.InstallCommand
+    $useInstallPs1 = Test-Path -LiteralPath $installPs1Target -PathType Leaf
+    $fallbackCommand = [string]$DefinitionObject.Program.InstallCommand
+
+    if (-not $useInstallPs1 -and [string]::IsNullOrWhiteSpace($fallbackCommand)) {
+        return (& $fail 'No Install.ps1 found in the package directory, Source directory, or shared package template location, and Program.InstallCommand is missing from App.json.')
+    }
 
     $process = $null
     try {
-        $process = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $installCommand -WorkingDirectory $sourcePath -Wait -PassThru -ErrorAction Stop
+        if ($useInstallPs1) {
+            $escapedWorkingDir = $appWorkingDir.Replace("'", "''")
+            $installScriptCommand = "Set-Location -LiteralPath '$escapedWorkingDir'; & '.\\Install.ps1'"
+            Write-UILog -SyncHash $SyncHash -Message "Install: running Install.ps1 from '$appWorkingDir' with current directory '$appWorkingDir'." -Level Cmd
+            $process = Start-Process -FilePath 'powershell.exe' `
+                -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-NonInteractive', '-Command', $installScriptCommand `
+                -WorkingDirectory $appWorkingDir -Wait -PassThru -ErrorAction Stop
+        }
+        else {
+            Write-UILog -SyncHash $SyncHash -Message "Install: executing command '$fallbackCommand'." -Level Cmd
+            $process = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $fallbackCommand `
+                -WorkingDirectory $appWorkingDir -Wait -PassThru -ErrorAction Stop
+        }
     }
     catch {
-        return (& $fail "Failed to execute install command: $($_.Exception.Message)")
+        return (& $fail "Failed to execute install: $($_.Exception.Message)")
     }
 
     $exitCode = if ($null -eq $process) { -1 } else { [int]$process.ExitCode }
     $succeeded = $exitCode -eq 0 -or $exitCode -eq 3010
 
     if (-not $succeeded) {
-        return (& $fail "Install command returned exit code $exitCode.")
+        return (& $fail "Installer exited with code $exitCode.")
     }
+
+    $resolvedCommand = if ($useInstallPs1) { "powershell.exe -Command Set-Location -LiteralPath '$appWorkingDir'; & '.\\Install.ps1'" } else { $fallbackCommand }
 
     return [PSCustomObject]@{
         Succeeded         = $true
         ExitCode          = $exitCode
-        WorkingDirectory  = $sourcePath
+        WorkingDirectory  = $appWorkingDir
         DownloadedVersion = [string]$LatestVersionResult.Version
-        InstallCommand    = $installCommand
+        InstallCommand    = $resolvedCommand
         Error             = ''
     }
 }
