@@ -902,6 +902,7 @@ function Start-EvergreenWorkbench {
 
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
         $helperScripts = @(
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
@@ -956,7 +957,7 @@ function Start-EvergreenWorkbench {
                 }
 
                 return $result
-            }).AddArgument(@($helperScripts)).AddArgument(@($definitionRows)).AddArgument($outputPath)
+            }).AddArgument(@($helperScripts)).AddArgument(@($definitionRows)).AddArgument($installCacheRootPath)
 
         $syncHash.PendingInstallPS = $ps
         $syncHash.PendingInstallRunspace = $rs
@@ -1026,7 +1027,7 @@ function Start-EvergreenWorkbench {
 
                     # After latest lookup finishes, show highest-priority statuses first.
                     $syncHash.InstallSortProperty = 'InstallStatus'
-                    $syncHash.InstallSortDirection = 'Descending'
+                    $syncHash.InstallSortDirection = 'Ascending'
 
                     & $refreshInstallRows
                 }
@@ -1103,6 +1104,7 @@ function Start-EvergreenWorkbench {
 
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
         $helperScripts = @(
             'Write-UILog.ps1'
             'Get-IntunePackageLatestVersion.ps1'
@@ -1119,7 +1121,8 @@ function Start-EvergreenWorkbench {
                 param(
                     [string[]]$HelperScripts,
                     [object[]]$InstallActions,
-                    [string]$OutputPath
+                    [string]$OutputPath,
+                    [string]$CacheRootPath
                 )
 
                 $result = [PSCustomObject]@{
@@ -1159,7 +1162,7 @@ function Start-EvergreenWorkbench {
                             continue
                         }
 
-                        $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$action.DefinitionPath) -DefinitionObject $definitionObject -CacheRootPath $OutputPath
+                        $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$action.DefinitionPath) -DefinitionObject $definitionObject -CacheRootPath $CacheRootPath
                         if (-not $latestResult.Succeeded) {
                             $failed.Add([PSCustomObject]@{
                                     Name           = [string]$action.Name
@@ -1198,7 +1201,7 @@ function Start-EvergreenWorkbench {
                 }
 
                 return $result
-            }).AddArgument(@($helperScripts)).AddArgument(@($installActions)).AddArgument($outputPath)
+            }).AddArgument(@($helperScripts)).AddArgument(@($installActions)).AddArgument($outputPath).AddArgument($installCacheRootPath)
 
         $syncHash.PendingInstallPS = $ps
         $syncHash.PendingInstallRunspace = $rs
