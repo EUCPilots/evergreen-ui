@@ -653,6 +653,9 @@
                 <RadioButton x:Name="NavImport"
                              Content="Import"
                              Style="{StaticResource NavRailRadioButton}"/>
+                <RadioButton x:Name="NavInstall"
+                             Content="Install"
+                             Style="{StaticResource NavRailRadioButton}"/>
                 <Rectangle Height="1"
                            Fill="{DynamicResource ControlBorderBrush}"
                            Margin="14,8"/>
@@ -2179,6 +2182,276 @@
                 </Grid>
             </Grid>
 
+            <!-- Install view -->
+            <Grid x:Name="InstallPanel"
+                  Visibility="Collapsed"
+                  Background="{DynamicResource WindowBackgroundBrush}">
+                <Grid Margin="22,18,22,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+                        <TextBlock Text="Install"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   DockPanel.Dock="Left"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <Border Grid.Row="1"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                            Background="{DynamicResource ControlBackgroundBrush}"
+                            CornerRadius="4"
+                            Margin="0,0,0,12"
+                            ClipToBounds="True">
+                        <DockPanel>
+
+                            <Border DockPanel.Dock="Top"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="10,8"
+                                    Background="{DynamicResource WindowBackgroundBrush}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="InstallDefinitionsPathBox"
+                                             Grid.Column="0"
+                                             Style="{StaticResource FluentTextBox}"
+                                             Margin="0,0,6,0"
+                                             ToolTip="Path to package definitions that contain App.json files"/>
+                                    <TextBlock Text="Path to package definitions..."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               IsHitTestVisible="False"
+                                               Margin="10,0,6,0"
+                                               VerticalAlignment="Center"
+                                               FontSize="13"
+                                               Grid.Column="0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=InstallDefinitionsPathBox}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Button x:Name="InstallBrowseDefinitionsButton"
+                                            Grid.Column="1"
+                                            Content="Browse"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="0,0,6,0"
+                                            Padding="10,6"/>
+                                    <Button x:Name="InstallLoadDefinitionsButton"
+                                            Grid.Column="2"
+                                            Content="Load definitions"
+                                            Style="{StaticResource FluentSecondaryButton}"
+                                            Margin="0,0,6,0"
+                                            Padding="10,6"/>
+                                        <Button x:Name="InstallResolveLatestButton"
+                                            Grid.Column="3"
+                                            Content="Find latest versions"
+                                            Style="{StaticResource FluentButton}"
+                                            IsEnabled="False"
+                                            Padding="10,6"/>
+                                </Grid>
+                            </Border>
+
+                            <Border DockPanel.Dock="Top"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="12,8"
+                                    Background="{DynamicResource ControlBackgroundBrush}">
+                                <DockPanel LastChildFill="True">
+                                    <StackPanel Orientation="Horizontal"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,12,0"
+                                                DockPanel.Dock="Left">
+                                        <TextBlock x:Name="InstallDefinitionsCountLabel"
+                                                   Text="0 loaded"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,10,0"/>
+                                        <TextBlock x:Name="InstallActionableCountLabel"
+                                                   Text="0 actionable"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal"
+                                                VerticalAlignment="Center"
+                                                DockPanel.Dock="Right">
+                                        <Ellipse x:Name="InstallElevationStatusDot"
+                                                 Width="8"
+                                                 Height="8"
+                                                 Fill="Gold"
+                                                 VerticalAlignment="Center"
+                                                 Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="InstallElevationStatusLabel"
+                                                   Text="Elevation not checked"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border x:Name="InstallLoadingPanel"
+                                    DockPanel.Dock="Top"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="12,8"
+                                    Background="{DynamicResource WindowBackgroundBrush}"
+                                    Visibility="Collapsed">
+                                <StackPanel>
+                                    <TextBlock x:Name="InstallLoadingLabel"
+                                               Text="Working..."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="11"
+                                               Margin="0,0,0,6"/>
+                                    <ProgressBar x:Name="InstallProgressBar"
+                                                 IsIndeterminate="True"
+                                                 Height="3"
+                                                 Foreground="{DynamicResource AccentBrush}"
+                                                 Background="{DynamicResource ControlBorderBrush}"
+                                                 BorderThickness="0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Grid>
+                                <ListView x:Name="InstallPackagesListView"
+                                          Style="{StaticResource FluentListView}"
+                                          BorderThickness="0"
+                                          SelectionMode="Extended">
+                                    <ListView.Resources>
+                                        <Style TargetType="GridViewColumnHeader">
+                                            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                            <Setter Property="FontSize" Value="11"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Padding" Value="12,6"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+                                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                        </Style>
+                                    </ListView.Resources>
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="MinHeight" Value="32"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListViewItem">
+                                                        <Border x:Name="bd"
+                                                                Background="Transparent"
+                                                                Padding="{TemplateBinding Padding}">
+                                                            <GridViewRowPresenter Content="{TemplateBinding Content}"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding InstallStatus}" Value="Installed (up to date)">
+                                                                <Setter TargetName="bd" Property="Background" Value="#1A4CAF50"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding InstallStatus}" Value="Installed (update needed)">
+                                                                <Setter TargetName="bd" Property="Background" Value="#1AFFB300"/>
+                                                            </DataTrigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="App" DisplayMemberBinding="{Binding Name}" Width="190"/>
+                                            <GridViewColumn Header="Publisher" DisplayMemberBinding="{Binding Publisher}" Width="140"/>
+                                            <GridViewColumn Header="Installed" DisplayMemberBinding="{Binding InstalledVersion}" Width="100"/>
+                                            <GridViewColumn Header="Latest" DisplayMemberBinding="{Binding LatestVersion}" Width="100"/>
+                                            <GridViewColumn Header="Status" DisplayMemberBinding="{Binding InstallStatus}" Width="170"/>
+                                            <GridViewColumn Header="Action" DisplayMemberBinding="{Binding InstallAction}" Width="120"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                                <StackPanel HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Margin="16">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasItems, ElementName=InstallPackagesListView}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Text="No package definitions loaded for local install."
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="Load package definitions, find latest versions, then install selected packages."
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Grid>
+
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Row="2"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                            Background="{DynamicResource ControlBackgroundBrush}"
+                            CornerRadius="4"
+                            Padding="12,10">
+                        <DockPanel LastChildFill="True">
+                            <StackPanel Orientation="Horizontal"
+                                        DockPanel.Dock="Right">
+                                <Button x:Name="InstallApplyButton"
+                                        Content="Install selected"
+                                        Style="{StaticResource FluentButton}"
+                                        Padding="12,6"
+                                        IsEnabled="False"/>
+                            </StackPanel>
+                            <TextBlock x:Name="InstallActionStatusLabel"
+                                       Text=""
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"
+                                       FontSize="12"/>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+
             <!-- Settings view -->
             <Grid x:Name="SettingsPanel"
                   Visibility="Collapsed"
@@ -2266,6 +2539,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <TextBlock Grid.Row="0" Grid.Column="0"
@@ -2302,6 +2576,15 @@
                                               Style="{StaticResource FluentCheckBox}"
                                               Margin="0,10,0,0"
                                               ToolTip="Enable to display the Import tab in the navigation rail."/>
+
+                                    <CheckBox x:Name="ShowInstallTabCheckBox"
+                                              Grid.Row="3"
+                                              Grid.Column="0"
+                                              Grid.ColumnSpan="3"
+                                              Content="Show Install tab"
+                                              Style="{StaticResource FluentCheckBox}"
+                                              Margin="0,8,0,0"
+                                              ToolTip="Enable to display the Install tab in the navigation rail."/>
                                 </Grid>
 
                                 <TextBlock Grid.Row="4" Grid.Column="0"
@@ -2318,6 +2601,7 @@
                                     <ComboBoxItem Content="Download"/>
                                     <ComboBoxItem Content="Library"/>
                                     <ComboBoxItem Content="Import"/>
+                                    <ComboBoxItem Content="Install"/>
                                     <ComboBoxItem Content="Settings"/>
                                     <ComboBoxItem Content="Update"/>
                                     <ComboBoxItem Content="About"/>

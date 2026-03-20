@@ -53,7 +53,7 @@ Import-Module ./evergreen-ui/EvergreenUI/EvergreenUI.psd1
 
 ```powershell
 Import-Module EvergreenUI
-Start-EvergreenUI
+Start-EvergreenWorkbench
 ```
 
 ## Repository structure
@@ -73,7 +73,7 @@ EvergreenUI/
 │   ├── EvergreenUI.psm1           # Root module (dot-sources Public + Private)
 │   │
 │   ├── Public/
-│   │   └── Start-EvergreenUI.ps1  # Only exported function — launches the GUI
+│   │   └── Start-EvergreenWorkbench.ps1  # Only exported function — launches the GUI
 │   │
 │   └── Private/
 │       ├── themes/

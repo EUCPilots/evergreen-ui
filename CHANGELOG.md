@@ -14,5 +14,5 @@ Version numbering mirrors the Evergreen module convention: `YearMonth.Build`.
 - Architecture and design documentation (`docs/plan.md`, `docs/filter-design.md`)
 - Static HTML UI prototype with dummy data (`prototype/EvergreenUI-Prototype.html`)
 - Module scaffold: `EvergreenUI.psd1`, `EvergreenUI.psm1`
-- Public function stub: `Start-EvergreenUI`
+- Public function stub: `Start-EvergreenWorkbench`
 - Private function stubs: all helpers listed in design plan

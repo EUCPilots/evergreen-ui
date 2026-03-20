@@ -8,7 +8,7 @@
     returns the installed version as a string. If not found, throws a
     terminating error with an actionable message.
 
-    Called once from Start-EvergreenUI before the window is constructed. The
+    Called once from Start-EvergreenWorkbench before the window is constructed. The
     result is also used to populate the module status indicator in the title bar.
 
 .OUTPUTS

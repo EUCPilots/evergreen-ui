@@ -150,6 +150,16 @@ function Start-EvergreenWorkbench {
             IntuneComparisonRows                            = @()
             IntuneSortProperty                              = ''
             IntuneSortDirection                             = 'Ascending'
+            PendingInstallTimer                             = $null
+            PendingInstallPS                                = $null
+            PendingInstallRunspace                          = $null
+            PendingInstallAsync                             = $null
+            IsInstallLoading                                = $false
+            InstallActionButtonStates                       = @{}
+            InstallDefinitionRows                           = @()
+            InstallRows                                     = @()
+            InstallSortProperty                             = ''
+            InstallSortDirection                            = 'Ascending'
             PendingNerdioShellAppsTimer                     = $null
             PendingNerdioShellAppsPS                        = $null
             PendingNerdioShellAppsRunspace                  = $null
@@ -227,6 +237,7 @@ function Start-EvergreenWorkbench {
     $navDownload = $window.FindName('NavDownload')
     $navLibrary = $window.FindName('NavLibrary')
     $navImport = $window.FindName('NavImport')
+    $navInstall = $window.FindName('NavInstall')
     $navSettings = $window.FindName('NavSettings')
     $navUpdate = $window.FindName('NavUpdate')
     $navAbout = $window.FindName('NavAbout')
@@ -235,6 +246,7 @@ function Start-EvergreenWorkbench {
     $downloadPanel = $window.FindName('DownloadPanel')
     $libraryPanel = $window.FindName('LibraryPanel')
     $importPanel = $window.FindName('ImportPanel')
+    $installPanel = $window.FindName('InstallPanel')
     $settingsPanel = $window.FindName('SettingsPanel')
     $updatePanel = $window.FindName('UpdatePanel')
     $aboutPanel = $window.FindName('AboutPanel')
@@ -290,6 +302,7 @@ function Start-EvergreenWorkbench {
     $evergreenAppsPathBox = $window.FindName('EvergreenAppsPathBox')
     $logVerbosityComboBox = $window.FindName('LogVerbosityComboBox')
     $showImportTabCheckBox = $window.FindName('ShowImportTabCheckBox')
+    $showInstallTabCheckBox = $window.FindName('ShowInstallTabCheckBox')
     $startupViewComboBox = $window.FindName('StartupViewComboBox')
     $browseOutputButton = $window.FindName('BrowseOutputButton')
     $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
@@ -331,6 +344,21 @@ function Start-EvergreenWorkbench {
     $intuneImportLoadingPanel = $window.FindName('IntuneImportLoadingPanel')
     $intuneImportLoadingLabel = $window.FindName('IntuneImportLoadingLabel')
     $intuneImportProgressBar = $window.FindName('IntuneImportProgressBar')
+    # Local Install controls
+    $installDefinitionsPathBox = $window.FindName('InstallDefinitionsPathBox')
+    $installBrowseDefinitionsButton = $window.FindName('InstallBrowseDefinitionsButton')
+    $installLoadDefinitionsButton = $window.FindName('InstallLoadDefinitionsButton')
+    $installResolveLatestButton = $window.FindName('InstallResolveLatestButton')
+    $installDefinitionsCountLabel = $window.FindName('InstallDefinitionsCountLabel')
+    $installActionableCountLabel = $window.FindName('InstallActionableCountLabel')
+    $installElevationStatusDot = $window.FindName('InstallElevationStatusDot')
+    $installElevationStatusLabel = $window.FindName('InstallElevationStatusLabel')
+    $installLoadingPanel = $window.FindName('InstallLoadingPanel')
+    $installLoadingLabel = $window.FindName('InstallLoadingLabel')
+    $installProgressBar = $window.FindName('InstallProgressBar')
+    $installPackagesListView = $window.FindName('InstallPackagesListView')
+    $installApplyButton = $window.FindName('InstallApplyButton')
+    $installActionStatusLabel = $window.FindName('InstallActionStatusLabel')
     # Intune Settings controls
     $intuneReloadModuleSettingsButton = $window.FindName('IntuneReloadModuleSettingsButton')
     $intuneSettingsModuleStatusDot = $window.FindName('IntuneSettingsModuleStatusDot')
@@ -382,6 +410,8 @@ function Start-EvergreenWorkbench {
     $syncHash.IntuneImportLoadingPanel = $intuneImportLoadingPanel
     $syncHash.IntuneActionStatusLabel = $intuneActionStatusLabel
     $syncHash.IntuneWin32AppsListView = $intuneWin32AppsListView
+    $syncHash.InstallLoadingLabel = $installLoadingLabel
+    $syncHash.InstallActionStatusLabel = $installActionStatusLabel
 
     $aboutNameValue.Text = [string]$moduleMetadata.Name
     $aboutVersionValue.Text = [string]$moduleMetadata.Version
@@ -469,6 +499,43 @@ function Start-EvergreenWorkbench {
         }
     }
 
+    $updateInstallRowActionButtons = {
+        $selectedItems = if ($null -eq $installPackagesListView) { @() } else { @($installPackagesListView.SelectedItems) }
+
+        $hasActionable = @($selectedItems | Where-Object {
+                [string]$_.InstallAction -eq 'Install' -or [string]$_.InstallAction -eq 'Update'
+            }).Count -gt 0
+
+        if ($null -ne $installApplyButton) {
+            $installApplyButton.IsEnabled = (-not $syncHash.IsInstallLoading) -and $hasActionable
+        }
+
+        if ($null -ne $installResolveLatestButton) {
+            $installResolveLatestButton.IsEnabled = (-not $syncHash.IsInstallLoading) -and (@($syncHash.InstallDefinitionRows).Count -gt 0)
+        }
+    }
+
+    $setInstallElevationState = {
+        $isElevated = & $testInstallElevationState
+        if ($null -ne $installElevationStatusDot) {
+            $installElevationStatusDot.Fill = if ($isElevated) {
+                [System.Windows.Media.Brushes]::LightGreen
+            }
+            else {
+                [System.Windows.Media.Brushes]::Gold
+            }
+        }
+
+        if ($null -ne $installElevationStatusLabel) {
+            $installElevationStatusLabel.Text = if ($isElevated) {
+                'Workbench is running as administrator'
+            }
+            else {
+                'Not elevated - installers may prompt for UAC'
+            }
+        }
+    }
+
     $applyIntuneListSort = {
         if ($null -eq $intuneWin32AppsListView -or $null -eq $intuneWin32AppsListView.ItemsSource) {
             return
@@ -488,6 +555,34 @@ function Start-EvergreenWorkbench {
         }
 
         $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($intuneWin32AppsListView.ItemsSource)
+        if ($null -eq $view) {
+            return
+        }
+
+        $view.SortDescriptions.Clear()
+        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
+        $view.Refresh()
+    }
+
+    $applyInstallListSort = {
+        if ($null -eq $installPackagesListView -or $null -eq $installPackagesListView.ItemsSource) {
+            return
+        }
+
+        $sortProperty = [string]$syncHash.InstallSortProperty
+        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+            return
+        }
+
+        $sortDirectionText = [string]$syncHash.InstallSortDirection
+        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
+            [System.ComponentModel.ListSortDirection]::Descending
+        }
+        else {
+            [System.ComponentModel.ListSortDirection]::Ascending
+        }
+
+        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($installPackagesListView.ItemsSource)
         if ($null -eq $view) {
             return
         }
@@ -552,6 +647,626 @@ function Start-EvergreenWorkbench {
         }
 
         & $updateIntuneRowActionButtons
+    }
+
+    $setInstallLoadingState = {
+        param(
+            [bool]$IsLoading,
+            [string]$Message = ''
+        )
+
+        $syncHash.IsInstallLoading = $IsLoading
+
+        foreach ($button in @($installLoadDefinitionsButton, $installResolveLatestButton, $installApplyButton)) {
+            if ($null -eq $button) {
+                continue
+            }
+
+            if ($IsLoading) {
+                $syncHash.InstallActionButtonStates[$button.Name] = [bool]$button.IsEnabled
+                $button.IsEnabled = $false
+            }
+            else {
+                if ($syncHash.InstallActionButtonStates.ContainsKey($button.Name)) {
+                    $button.IsEnabled = [bool]$syncHash.InstallActionButtonStates[$button.Name]
+                }
+            }
+        }
+
+        if (-not $IsLoading) {
+            $syncHash.InstallActionButtonStates.Clear()
+        }
+
+        if ($null -ne $installLoadingPanel) {
+            $installLoadingPanel.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+        }
+
+        if ($null -ne $installLoadingLabel) {
+            if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
+                $installLoadingLabel.Text = $Message
+            }
+            elseif (-not $IsLoading) {
+                $installLoadingLabel.Text = 'Working...'
+            }
+        }
+
+        if ($null -ne $installProgressBar) {
+            $installProgressBar.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+        }
+
+        if ($null -ne $installActionStatusLabel) {
+            if ($IsLoading) {
+                $installActionStatusLabel.Text = if ([string]::IsNullOrWhiteSpace($Message)) { 'Working...' } else { $Message }
+            }
+            elseif ([string]::IsNullOrWhiteSpace([string]$installActionStatusLabel.Text)) {
+                $installActionStatusLabel.Text = ''
+            }
+        }
+
+        & $updateInstallRowActionButtons
+    }
+
+    $refreshInstallRows = {
+        $definitionRows = @($syncHash.InstallDefinitionRows)
+        $rows = [System.Collections.Generic.List[object]]::new()
+        $actionableCount = 0
+
+        foreach ($definitionRow in $definitionRows) {
+            $definitionObject = $definitionRow.DefinitionObject
+            $installedVersion = '-'
+            $detectionStatus = 'Not evaluated'
+            $installStatus = 'Needs latest check'
+            $installAction = '-'
+            $latestVersion = [string]$definitionRow.LatestVersion
+
+            if ([string]$definitionRow.DefinitionValid -ne 'Yes' -or $null -eq $definitionObject) {
+                $installStatus = [string]$definitionRow.Status
+                $installAction = 'Fix definition'
+            }
+            else {
+                $detectionResult = Test-LocalPackageDetection -DefinitionObject $definitionObject
+                if (-not $detectionResult.Succeeded) {
+                    $detectionStatus = 'Detection failed'
+                    $installStatus = if ([string]::IsNullOrWhiteSpace([string]$detectionResult.Error)) { 'Detection failed' } else { [string]$detectionResult.Error }
+                    $installAction = 'Needs review'
+                }
+                else {
+                    if (-not [string]::IsNullOrWhiteSpace([string]$detectionResult.DetectedVersion)) {
+                        $installedVersion = [string]$detectionResult.DetectedVersion
+                    }
+                    elseif ($detectionResult.Installed) {
+                        $installedVersion = 'Installed'
+                    }
+
+                    $detectionStatus = [string]$detectionResult.Status
+
+                    if (-not $detectionResult.Installed) {
+                        $installStatus = 'Not installed'
+                        $installAction = 'Install'
+                    }
+                    elseif ([string]::IsNullOrWhiteSpace($latestVersion)) {
+                        $installStatus = 'Installed (latest not checked)'
+                        $installAction = '-'
+                    }
+                    else {
+                        $installedComparable = & $parseComparableVersion -VersionText $installedVersion
+                        $latestComparable = & $parseComparableVersion -VersionText $latestVersion
+                        if ($installedComparable.Success -and $latestComparable.Success -and $installedComparable.Parsed -lt $latestComparable.Parsed) {
+                            $installStatus = 'Installed (update needed)'
+                            $installAction = 'Update'
+                        }
+                        elseif ($installedComparable.Success -and $latestComparable.Success) {
+                            $installStatus = 'Installed (up to date)'
+                            $installAction = '-'
+                        }
+                        else {
+                            $installStatus = 'Installed (compare unavailable)'
+                            $installAction = '-'
+                        }
+                    }
+                }
+            }
+
+            if ($installAction -eq 'Install' -or $installAction -eq 'Update') {
+                $actionableCount++
+            }
+
+            $rows.Add([PSCustomObject]@{
+                    Name              = [string]$definitionRow.Name
+                    Publisher         = [string]$definitionRow.Publisher
+                    DefinitionVersion = [string]$definitionRow.Version
+                    InstalledVersion  = $installedVersion
+                    LatestVersion     = if ([string]::IsNullOrWhiteSpace($latestVersion)) { '-' } else { $latestVersion }
+                    DetectionStatus   = $detectionStatus
+                    InstallStatus     = $installStatus
+                    InstallAction     = $installAction
+                    DefinitionPath    = [string]$definitionRow.DefinitionPath
+                    DefinitionObject  = $definitionObject
+                })
+        }
+
+        $sortedRows = @($rows | Sort-Object -Property @{ Expression = {
+                    if ([string]$_.InstallAction -eq 'Install') { 0 }
+                    elseif ([string]$_.InstallAction -eq 'Update') { 1 }
+                    else { 2 }
+                }
+            }, Publisher, Name)
+
+        $syncHash.InstallRows = $sortedRows
+        if ($null -ne $installPackagesListView) {
+            $installPackagesListView.ItemsSource = $sortedRows
+            & $applyInstallListSort
+        }
+
+        if ($null -ne $installDefinitionsCountLabel) {
+            $validCount = @($definitionRows | Where-Object { [string]$_.DefinitionValid -eq 'Yes' }).Count
+            $installDefinitionsCountLabel.Text = "$($definitionRows.Count) loaded ($validCount valid)"
+        }
+
+        if ($null -ne $installActionableCountLabel) {
+            $installActionableCountLabel.Text = "$actionableCount actionable"
+        }
+
+        if ($null -ne $installActionStatusLabel -and -not $syncHash.IsInstallLoading) {
+            $upToDate = @($sortedRows | Where-Object { [string]$_.InstallStatus -eq 'Installed (up to date)' }).Count
+            $needsInstall = @($sortedRows | Where-Object { [string]$_.InstallAction -eq 'Install' }).Count
+            $needsUpdate = @($sortedRows | Where-Object { [string]$_.InstallAction -eq 'Update' }).Count
+            $installActionStatusLabel.Text = "Install: $needsInstall | Update: $needsUpdate | Up to date: $upToDate"
+        }
+
+        & $updateInstallRowActionButtons
+    }
+
+    $loadInstallDefinitions = {
+        $definitionsRoot = & $normalizeDirectoryPath -PathValue ([string]$installDefinitionsPathBox.Text)
+        $installDefinitionsPathBox.Text = $definitionsRoot
+        & $applyInstallPathsToConfig
+
+        if ([string]::IsNullOrWhiteSpace($definitionsRoot)) {
+            $syncHash.InstallDefinitionRows = @()
+            & $refreshInstallRows
+            Write-UILog -SyncHash $syncHash -Message 'Install: provide a package definitions folder path first.' -Level Warning
+            return
+        }
+
+        $definitionResult = Get-InstallPackageDefinitions -DefinitionsRoot $definitionsRoot
+        if (-not $definitionResult.Succeeded) {
+            $syncHash.InstallDefinitionRows = @()
+            & $refreshInstallRows
+            Write-UILog -SyncHash $syncHash -Message "Install: failed to load definitions: $($definitionResult.Error)" -Level Error
+            return
+        }
+
+        $enrichedRows = @($definitionResult.Rows | ForEach-Object {
+                [PSCustomObject]@{
+                    DefinitionId         = [string]$_.DefinitionId
+                    DefinitionPath       = [string]$_.DefinitionPath
+                    Name                 = [string]$_.Name
+                    Publisher            = [string]$_.Publisher
+                    Version              = [string]$_.Version
+                    Status               = [string]$_.Status
+                    DefinitionValid      = [string]$_.DefinitionValid
+                    PSPackageFactoryGuid = [string]$_.PSPackageFactoryGuid
+                    DefinitionObject     = $_.DefinitionObject
+                    LatestVersion        = ''
+                }
+            })
+
+        $syncHash.InstallDefinitionRows = $enrichedRows
+        & $setInstallElevationState
+        & $refreshInstallRows
+
+        Write-UILog -SyncHash $syncHash -Message "Install: loaded $($enrichedRows.Count) App.json definitions." -Level Info
+    }
+
+    $resolveInstallLatestVersions = {
+        if ($syncHash.IsInstallLoading) {
+            Write-UILog -SyncHash $syncHash -Message 'Install: another operation is already in progress.' -Level Warning
+            return
+        }
+
+        $definitionRows = @($syncHash.InstallDefinitionRows | Where-Object {
+                [string]$_.DefinitionValid -eq 'Yes' -and -not [string]::IsNullOrWhiteSpace([string]$_.DefinitionPath)
+            })
+
+        if ($definitionRows.Count -eq 0) {
+            Write-UILog -SyncHash $syncHash -Message 'Install: no valid definitions loaded.' -Level Warning
+            return
+        }
+
+        $outputPath = & $normalizeDirectoryPath -PathValue ([string]$outputPathBox.Text)
+        if ([string]::IsNullOrWhiteSpace($outputPath)) {
+            Write-UILog -SyncHash $syncHash -Message 'Install: set a download output path on the Downloads tab first.' -Level Warning
+            return
+        }
+
+        if (-not (Test-Path -LiteralPath $outputPath -PathType Container)) {
+            try {
+                $null = New-Item -Path $outputPath -ItemType Directory -Force -ErrorAction Stop
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Install: failed to create output path '$outputPath': $($_.Exception.Message)" -Level Error
+                return
+            }
+        }
+
+        if ($null -ne $syncHash.PendingInstallTimer -and $syncHash.PendingInstallTimer.IsEnabled) {
+            $syncHash.PendingInstallTimer.Stop()
+            $syncHash.PendingInstallTimer = $null
+        }
+        foreach ($key in @('PendingInstallPS', 'PendingInstallRunspace', 'PendingInstallAsync')) {
+            $syncHash[$key] = $null
+        }
+
+        & $setInstallLoadingState -IsLoading $true -Message "Resolving latest versions for $($definitionRows.Count) package(s)..."
+
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
+        $helperScripts = @(
+            'Get-IntunePackageLatestVersion.ps1'
+            'Get-InstallPackageLatestVersion.ps1'
+        ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
+
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+
+        [void]$ps.AddScript({
+                param(
+                    [string[]]$HelperScripts,
+                    [object[]]$DefinitionRows,
+                    [string]$CacheRootPath
+                )
+
+                $result = [PSCustomObject]@{
+                    Success = $false
+                    Rows    = @()
+                    Error   = ''
+                }
+
+                try {
+                    foreach ($scriptPath in $HelperScripts) {
+                        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                            throw "Required helper script not found: $scriptPath"
+                        }
+                        . $scriptPath
+                    }
+
+                    if (-not (Get-Command -Name 'Save-EvergreenApp' -ErrorAction SilentlyContinue)) {
+                        Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
+                    }
+
+                    $rows = [System.Collections.Generic.List[object]]::new()
+                    foreach ($definitionRow in $DefinitionRows) {
+                        $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$definitionRow.DefinitionPath) -DefinitionObject $definitionRow.DefinitionObject -CacheRootPath $CacheRootPath
+                        $rows.Add([PSCustomObject]@{
+                                DefinitionPath = [string]$definitionRow.DefinitionPath
+                                Succeeded      = [bool]$latestResult.Succeeded
+                                LatestVersion  = [string]$latestResult.Version
+                                LatestError    = [string]$latestResult.Error
+                                IsFromCache    = [bool]$latestResult.IsFromCache
+                            })
+                    }
+
+                    $result.Success = $true
+                    $result.Rows = @($rows)
+                }
+                catch {
+                    $result.Error = $_.Exception.Message
+                }
+
+                return $result
+            }).AddArgument(@($helperScripts)).AddArgument(@($definitionRows)).AddArgument($installCacheRootPath)
+
+        $syncHash.PendingInstallPS = $ps
+        $syncHash.PendingInstallRunspace = $rs
+        $syncHash.PendingInstallAsync = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(350)
+        $syncHash.PendingInstallTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingInstallAsync -or -not $syncHash.PendingInstallAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingInstallTimer) {
+                    $syncHash.PendingInstallTimer.Stop()
+                    $syncHash.PendingInstallTimer = $null
+                }
+
+                $result = $null
+                try {
+                    $output = $syncHash.PendingInstallPS.EndInvoke($syncHash.PendingInstallAsync)
+                    $result = if ($null -ne $output -and $output.Count -gt 0) { $output[$output.Count - 1] } else { $null }
+                }
+                catch {
+                    $result = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $_.Exception.Message }
+                }
+                finally {
+                    try { $syncHash.PendingInstallPS.Dispose() } catch {}
+                    try { $syncHash.PendingInstallRunspace.Dispose() } catch {}
+                    $syncHash.PendingInstallPS = $null
+                    $syncHash.PendingInstallRunspace = $null
+                    $syncHash.PendingInstallAsync = $null
+                }
+
+                try {
+                    if ($null -eq $result -or -not $result.Success) {
+                        $err = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown latest version error.' } else { [string]$result.Error }
+                        Write-UILog -SyncHash $syncHash -Message "Install: latest version resolution failed: $err" -Level Error
+                    }
+                    else {
+                        $latestMap = @{}
+                        foreach ($row in @($result.Rows)) {
+                            $latestMap[[string]$row.DefinitionPath] = $row
+                        }
+
+                        foreach ($definitionRow in @($syncHash.InstallDefinitionRows)) {
+                            $key = [string]$definitionRow.DefinitionPath
+                            if (-not $latestMap.ContainsKey($key)) {
+                                continue
+                            }
+
+                            $latestRow = $latestMap[$key]
+                            if ([bool]$latestRow.Succeeded) {
+                                $definitionRow.LatestVersion = [string]$latestRow.LatestVersion
+                            }
+                            else {
+                                $definitionRow.LatestVersion = ''
+                                Write-UILog -SyncHash $syncHash -Message "Install: latest lookup failed for '$([string]$definitionRow.Name)': $([string]$latestRow.LatestError)" -Level Warning
+                            }
+                        }
+
+                        $cacheCount = @($result.Rows | Where-Object { [bool]$_.Succeeded -and [bool]$_.IsFromCache }).Count
+                        $freshCount = @($result.Rows | Where-Object { [bool]$_.Succeeded -and -not [bool]$_.IsFromCache }).Count
+                        Write-UILog -SyncHash $syncHash -Message "Install: latest version resolution complete ($freshCount live, $cacheCount cache)." -Level Info
+                    }
+
+                    # After latest lookup finishes, show highest-priority statuses first.
+                    $syncHash.InstallSortProperty = 'InstallStatus'
+                    $syncHash.InstallSortDirection = 'Ascending'
+
+                    & $refreshInstallRows
+                }
+                finally {
+                    & $setInstallLoadingState -IsLoading $false
+                }
+            })
+
+        $pollTimer.Start()
+    }
+
+    $startInstallSelectedOperation = {
+        if ($syncHash.IsInstallLoading) {
+            Write-UILog -SyncHash $syncHash -Message 'Install: another operation is already in progress.' -Level Warning
+            return
+        }
+
+        $selectedRows = @($installPackagesListView.SelectedItems)
+        $actionableRows = @($selectedRows | Where-Object {
+                [string]$_.InstallAction -eq 'Install' -or [string]$_.InstallAction -eq 'Update'
+            })
+
+        if ($actionableRows.Count -eq 0) {
+            Write-UILog -SyncHash $syncHash -Message 'Install: select one or more rows with Install or Update action.' -Level Warning
+            return
+        }
+
+        $outputPath = & $normalizeDirectoryPath -PathValue ([string]$outputPathBox.Text)
+        if ([string]::IsNullOrWhiteSpace($outputPath)) {
+            Write-UILog -SyncHash $syncHash -Message 'Install: set a download output path on the Downloads tab first.' -Level Warning
+            return
+        }
+
+        if (-not (Test-Path -LiteralPath $outputPath -PathType Container)) {
+            try {
+                $null = New-Item -Path $outputPath -ItemType Directory -Force -ErrorAction Stop
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Install: failed to create output path '$outputPath': $($_.Exception.Message)" -Level Error
+                return
+            }
+        }
+
+        if (-not (& $testInstallElevationState)) {
+            Write-UILog -SyncHash $syncHash -Message 'Install: running without elevation. Installer may trigger a UAC prompt.' -Level Warning
+        }
+
+        if ($null -ne $syncHash.PendingInstallTimer -and $syncHash.PendingInstallTimer.IsEnabled) {
+            $syncHash.PendingInstallTimer.Stop()
+            $syncHash.PendingInstallTimer = $null
+        }
+        foreach ($key in @('PendingInstallPS', 'PendingInstallRunspace', 'PendingInstallAsync')) {
+            $syncHash[$key] = $null
+        }
+
+        $installActions = [System.Collections.Generic.List[object]]::new()
+        foreach ($row in $actionableRows) {
+            if ([string]::IsNullOrWhiteSpace([string]$row.DefinitionPath)) {
+                continue
+            }
+
+            $installActions.Add([PSCustomObject]@{
+                    Name           = [string]$row.Name
+                    DefinitionPath = [string]$row.DefinitionPath
+                })
+        }
+
+        if ($installActions.Count -eq 0) {
+            Write-UILog -SyncHash $syncHash -Message 'Install: no valid definition paths were selected.' -Level Warning
+            return
+        }
+
+        & $setInstallLoadingState -IsLoading $true -Message "Installing $($installActions.Count) package(s)..."
+
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
+        $helperScripts = @(
+            'Write-UILog.ps1'
+            'Get-IntunePackageLatestVersion.ps1'
+            'Get-InstallPackageLatestVersion.ps1'
+            'Invoke-LocalPackageInstall.ps1'
+            'Test-LocalPackageDetection.ps1'
+        ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
+
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+
+        [void]$ps.AddScript({
+                param(
+                    [string[]]$HelperScripts,
+                    [object[]]$InstallActions,
+                    [string]$OutputPath,
+                    [string]$CacheRootPath
+                )
+
+                $result = [PSCustomObject]@{
+                    Success   = $false
+                    Completed = @()
+                    Failed    = @()
+                    Error     = ''
+                }
+
+                try {
+                    foreach ($scriptPath in $HelperScripts) {
+                        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                            throw "Required helper script not found: $scriptPath"
+                        }
+                        . $scriptPath
+                    }
+
+                    if (-not (Get-Command -Name 'Save-EvergreenApp' -ErrorAction SilentlyContinue)) {
+                        Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
+                    }
+
+                    $completed = [System.Collections.Generic.List[object]]::new()
+                    $failed = [System.Collections.Generic.List[object]]::new()
+
+                    foreach ($action in $InstallActions) {
+                        $definitionObject = $null
+                        try {
+                            $definitionObject = Get-Content -LiteralPath $action.DefinitionPath -Raw -ErrorAction Stop |
+                            ConvertFrom-Json -ErrorAction Stop
+                        }
+                        catch {
+                            $failed.Add([PSCustomObject]@{
+                                    Name           = [string]$action.Name
+                                    DefinitionPath = [string]$action.DefinitionPath
+                                    Error          = "Failed to load App.json: $($_.Exception.Message)"
+                                })
+                            continue
+                        }
+
+                        $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$action.DefinitionPath) -DefinitionObject $definitionObject -CacheRootPath $CacheRootPath
+                        if (-not $latestResult.Succeeded) {
+                            $failed.Add([PSCustomObject]@{
+                                    Name           = [string]$action.Name
+                                    DefinitionPath = [string]$action.DefinitionPath
+                                    Error          = "Latest lookup failed: $($latestResult.Error)"
+                                })
+                            continue
+                        }
+
+                        $installResult = Invoke-LocalPackageInstall -DefinitionPath ([string]$action.DefinitionPath) -DefinitionObject $definitionObject -WorkingPath $OutputPath -LatestVersionResult $latestResult -SyncHash $syncHash
+                        if (-not $installResult.Succeeded) {
+                            $failed.Add([PSCustomObject]@{
+                                    Name           = [string]$action.Name
+                                    DefinitionPath = [string]$action.DefinitionPath
+                                    Error          = [string]$installResult.Error
+                                })
+                            continue
+                        }
+
+                        $detectionResult = Test-LocalPackageDetection -DefinitionObject $definitionObject
+                        $completed.Add([PSCustomObject]@{
+                                Name             = [string]$action.Name
+                                DefinitionPath   = [string]$action.DefinitionPath
+                                InstalledVersion = [string]$detectionResult.DetectedVersion
+                                LatestVersion    = [string]$latestResult.Version
+                                ExitCode         = [int]$installResult.ExitCode
+                            })
+                    }
+
+                    $result.Success = $true
+                    $result.Completed = @($completed)
+                    $result.Failed = @($failed)
+                }
+                catch {
+                    $result.Error = $_.Exception.Message
+                }
+
+                return $result
+            }).AddArgument(@($helperScripts)).AddArgument(@($installActions)).AddArgument($outputPath).AddArgument($installCacheRootPath)
+
+        $syncHash.PendingInstallPS = $ps
+        $syncHash.PendingInstallRunspace = $rs
+        $syncHash.PendingInstallAsync = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(400)
+        $syncHash.PendingInstallTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingInstallAsync -or -not $syncHash.PendingInstallAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingInstallTimer) {
+                    $syncHash.PendingInstallTimer.Stop()
+                    $syncHash.PendingInstallTimer = $null
+                }
+
+                $result = $null
+                try {
+                    $output = $syncHash.PendingInstallPS.EndInvoke($syncHash.PendingInstallAsync)
+                    $result = if ($null -ne $output -and $output.Count -gt 0) { $output[$output.Count - 1] } else { $null }
+                }
+                catch {
+                    $result = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $_.Exception.Message }
+                }
+                finally {
+                    try { $syncHash.PendingInstallPS.Dispose() } catch {}
+                    try { $syncHash.PendingInstallRunspace.Dispose() } catch {}
+                    $syncHash.PendingInstallPS = $null
+                    $syncHash.PendingInstallRunspace = $null
+                    $syncHash.PendingInstallAsync = $null
+                }
+
+                try {
+                    if ($null -eq $result -or -not $result.Success) {
+                        $err = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown install error.' } else { [string]$result.Error }
+                        Write-UILog -SyncHash $syncHash -Message "Install: operation failed: $err" -Level Error
+                    }
+                    else {
+                        foreach ($item in @($result.Completed)) {
+                            Write-UILog -SyncHash $syncHash -Message "Install: completed '$([string]$item.Name)' (exit code $([int]$item.ExitCode))." -Level Info
+                            foreach ($definitionRow in @($syncHash.InstallDefinitionRows)) {
+                                if ([string]$definitionRow.DefinitionPath -eq [string]$item.DefinitionPath) {
+                                    $definitionRow.LatestVersion = [string]$item.LatestVersion
+                                    break
+                                }
+                            }
+                        }
+
+                        foreach ($item in @($result.Failed)) {
+                            Write-UILog -SyncHash $syncHash -Message "Install: failed '$([string]$item.Name)': $([string]$item.Error)" -Level Error
+                        }
+                    }
+
+                    & $setInstallElevationState
+                    & $refreshInstallRows
+                }
+                finally {
+                    & $setInstallLoadingState -IsLoading $false
+                }
+            })
+
+        $pollTimer.Start()
     }
 
     $startIntuneImportOperation = {
@@ -1123,39 +1838,56 @@ function Start-EvergreenWorkbench {
     }
 
     $setImportTabVisibility = {
-        param([bool]$IsVisible)
+        param(
+            [bool]$ShowImport,
+            [bool]$ShowInstall
+        )
 
         if ($null -ne $navImport) {
-            $navImport.Visibility = if ($IsVisible) {
+            $navImport.Visibility = if ($ShowImport) {
                 [System.Windows.Visibility]::Visible
             }
             else {
                 [System.Windows.Visibility]::Collapsed
             }
 
-            if (-not $IsVisible -and $navImport.IsChecked) {
+            if (-not $ShowImport -and $navImport.IsChecked) {
+                $navApps.IsChecked = $true
+            }
+        }
+
+        if ($null -ne $navInstall) {
+            $navInstall.Visibility = if ($ShowInstall) {
+                [System.Windows.Visibility]::Visible
+            }
+            else {
+                [System.Windows.Visibility]::Collapsed
+            }
+
+            if (-not $ShowInstall -and $navInstall.IsChecked) {
                 $navApps.IsChecked = $true
             }
         }
 
         if ($null -ne $startupViewComboBox) {
-            $importStartupItem = $null
+            $startupItems = @{}
             foreach ($candidate in @($startupViewComboBox.Items)) {
-                if ($candidate -is [System.Windows.Controls.ComboBoxItem] -and [string]$candidate.Content -eq 'Import') {
-                    $importStartupItem = $candidate
-                    break
+                if ($candidate -is [System.Windows.Controls.ComboBoxItem]) {
+                    $startupItems[[string]$candidate.Content] = $candidate
                 }
             }
 
-            if ($null -ne $importStartupItem) {
-                $importStartupItem.IsEnabled = $IsVisible
+            if ($startupItems.ContainsKey('Import')) {
+                $startupItems['Import'].IsEnabled = $ShowImport
+            }
+            if ($startupItems.ContainsKey('Install')) {
+                $startupItems['Install'].IsEnabled = $ShowInstall
             }
 
-            if (-not $IsVisible -and [string]$syncHash.Config.StartupView -eq 'Import') {
+            $startupView = [string]$syncHash.Config.StartupView
+            if (($startupView -eq 'Import' -and -not $ShowImport) -or ($startupView -eq 'Install' -and -not $ShowInstall)) {
                 $syncHash.Config.StartupView = 'Apps'
-                if ($startupViewComboBox.SelectedIndex -eq 3) {
-                    $startupViewComboBox.SelectedIndex = 0
-                }
+                $startupViewComboBox.SelectedIndex = 0
             }
         }
     }
@@ -1169,6 +1901,9 @@ function Start-EvergreenWorkbench {
         }
         elseif ($navImport.IsChecked) {
             return 'Import'
+        }
+        elseif ($navInstall.IsChecked) {
+            return 'Install'
         }
         elseif ($navSettings.IsChecked) {
             return 'Settings'
@@ -1194,6 +1929,7 @@ function Start-EvergreenWorkbench {
         $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
         $syncHash.Config.StartupView = & $getCurrentStartupView
         $syncHash.Config.ShowImportTab = if ($null -eq $showImportTabCheckBox) { [bool]$syncHash.Config.ShowImportTab } else { [bool]$showImportTabCheckBox.IsChecked }
+        $syncHash.Config.ShowInstallTab = if ($null -eq $showInstallTabCheckBox) { [bool]$syncHash.Config.ShowInstallTab } else { [bool]$showInstallTabCheckBox.IsChecked }
         $syncHash.Config.LogVisible = [bool]$logToggleButton.IsChecked
 
         if ($syncHash.Config.LogVisible) {
@@ -1228,6 +1964,14 @@ function Start-EvergreenWorkbench {
 
         $syncHash.Config.IntuneSettings.DefinitionsPath = & $normalizeDirectoryPath -PathValue ([string]$intuneDefinitionsPathBox.Text)
         $syncHash.Config.IntuneSettings.PackageOutputPath = & $normalizeDirectoryPath -PathValue ([string]$intunePackageOutputPathBox.Text)
+
+        if ($null -eq $syncHash.Config.InstallSettings) {
+            $syncHash.Config | Add-Member -NotePropertyName 'InstallSettings' -NotePropertyValue ([PSCustomObject]@{
+                    DefinitionsPath = ''
+                }) -Force
+        }
+
+        $syncHash.Config.InstallSettings.DefinitionsPath = & $normalizeDirectoryPath -PathValue ([string]$installDefinitionsPathBox.Text)
 
         $syncHash.Config.AzureAuthSettings.TenantId = [string]$importTenantIdBox.Text
         $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$nerdioTenantIdBox.Text
@@ -1458,6 +2202,30 @@ function Start-EvergreenWorkbench {
         $syncHash.Config.IntuneSettings.DefinitionsPath = (& $normalizeDirectoryPath -PathValue $definitionsPath)
         $syncHash.Config.IntuneSettings.PackageOutputPath = (& $normalizeDirectoryPath -PathValue $packageOutputPath)
         Set-UIConfig -Config $syncHash.Config
+    }
+
+    $applyInstallPathsToConfig = {
+        $definitionsPath = if ($null -eq $installDefinitionsPathBox) { '' } else { [string]$installDefinitionsPathBox.Text }
+
+        if ($null -eq $syncHash.Config.InstallSettings) {
+            $syncHash.Config | Add-Member -NotePropertyName 'InstallSettings' -NotePropertyValue ([PSCustomObject]@{
+                    DefinitionsPath = ''
+                }) -Force
+        }
+
+        $syncHash.Config.InstallSettings.DefinitionsPath = (& $normalizeDirectoryPath -PathValue $definitionsPath)
+        Set-UIConfig -Config $syncHash.Config
+    }
+
+    $testInstallElevationState = {
+        try {
+            $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+            $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+            return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        }
+        catch {
+            return $false
+        }
     }
 
     $getThemeStatusBrush = {
@@ -3917,6 +4685,10 @@ function Start-EvergreenWorkbench {
             $nerdioDefinitionsPathBox.Text = [string]$syncHash.Config.NerdioSettings.DefinitionsPath
             $intuneDefinitionsPathBox.Text = [string]$syncHash.Config.IntuneSettings.DefinitionsPath
             $intunePackageOutputPathBox.Text = [string]$syncHash.Config.IntuneSettings.PackageOutputPath
+            if ($null -ne $syncHash.Config.InstallSettings) {
+                $installDefinitionsPathBox.Text = [string]$syncHash.Config.InstallSettings.DefinitionsPath
+            }
+            & $setInstallElevationState
             [void](& $loadNerdioShellAppsModule)
             [void](& $loadIntuneWin32AppModule)
             & $refreshImportAuthUi
@@ -3927,10 +4699,16 @@ function Start-EvergreenWorkbench {
             if ($null -eq $syncHash.Config.ShowImportTab) {
                 $syncHash.Config.ShowImportTab = $false
             }
+            if ($null -eq $syncHash.Config.ShowInstallTab) {
+                $syncHash.Config.ShowInstallTab = [bool]$syncHash.Config.ShowImportTab
+            }
             if ($null -ne $showImportTabCheckBox) {
                 $showImportTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowImportTab
             }
-            & $setImportTabVisibility -IsVisible ([bool]$syncHash.Config.ShowImportTab)
+            if ($null -ne $showInstallTabCheckBox) {
+                $showInstallTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowInstallTab
+            }
+            & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall ([bool]$syncHash.Config.ShowInstallTab)
 
             $syncHash.SettingsLastSavedJson = $syncHash.Config | ConvertTo-Json -Depth 5
             if ($null -eq $syncHash.SettingsAutoSaveTimer) {
@@ -3960,6 +4738,14 @@ function Start-EvergreenWorkbench {
                 'Import' {
                     if ([bool]$syncHash.Config.ShowImportTab) {
                         $navImport.IsChecked = $true
+                    }
+                    else {
+                        $navApps.IsChecked = $true
+                    }
+                }
+                'Install' {
+                    if ([bool]$syncHash.Config.ShowInstallTab) {
+                        $navInstall.IsChecked = $true
                     }
                     else {
                         $navApps.IsChecked = $true
@@ -4047,6 +4833,10 @@ function Start-EvergreenWorkbench {
                 elseif ($navImport.IsChecked) {
                     & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
                 }
+                elseif ($navInstall.IsChecked) {
+                    & $setInstallElevationState
+                    & $refreshInstallRows
+                }
                 $e.Handled = $true
                 return
             }
@@ -4092,6 +4882,7 @@ function Start-EvergreenWorkbench {
         NavDownload = $downloadPanel
         NavLibrary  = $libraryPanel
         NavImport   = $importPanel
+        NavInstall  = $installPanel
         NavSettings = $settingsPanel
         NavUpdate   = $updatePanel
         NavAbout    = $aboutPanel
@@ -4109,7 +4900,7 @@ function Start-EvergreenWorkbench {
         }
     }
 
-    foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navSettings, $navUpdate, $navAbout)) {
+    foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navInstall, $navSettings, $navUpdate, $navAbout)) {
         $navBtn.add_Checked($navCheckedHandler)
     }
 
@@ -4137,6 +4928,11 @@ function Start-EvergreenWorkbench {
             & $refreshNerdioApiAuthUi
             & $refreshNerdioAzureAuthUi
             & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
+        })
+
+    $navInstall.add_Checked({
+            & $setInstallElevationState
+            & $refreshInstallRows
         })
 
     $navUpdate.add_Checked({
@@ -4412,6 +5208,78 @@ function Start-EvergreenWorkbench {
 
     $intuneReloadModuleSettingsButton.add_Click({
             [void](& $loadIntuneWin32AppModule -Force)
+        })
+
+    $installBrowseDefinitionsButton.add_Click({
+            $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+            $dlg.Description = 'Select package definitions folder for local install'
+            if (-not [string]::IsNullOrWhiteSpace($installDefinitionsPathBox.Text)) {
+                $dlg.SelectedPath = $installDefinitionsPathBox.Text
+            }
+
+            if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+                $installDefinitionsPathBox.Text = $normalised
+                & $applyInstallPathsToConfig
+            }
+        })
+
+    $installLoadDefinitionsButton.add_Click({
+            & $loadInstallDefinitions
+        })
+
+    $installDefinitionsPathBox.add_LostFocus({
+            $normalised = & $normalizeDirectoryPath -PathValue $installDefinitionsPathBox.Text
+            $installDefinitionsPathBox.Text = $normalised
+            & $applyInstallPathsToConfig
+        })
+
+    $installResolveLatestButton.add_Click({
+            & $resolveInstallLatestVersions
+        })
+
+    $installPackagesListView.add_SelectionChanged({
+            & $updateInstallRowActionButtons
+        })
+
+    $installPackagesListView.AddHandler(
+        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+        [System.Windows.RoutedEventHandler] {
+            param($eventSender, $routedEventArgs)
+
+            $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
+            if ($null -eq $header -or $null -eq $header.Column) {
+                return
+            }
+
+            if ($header.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) {
+                return
+            }
+
+            $sortProperty = ''
+            $binding = $header.Column.DisplayMemberBinding -as [System.Windows.Data.Binding]
+            if ($null -ne $binding -and $null -ne $binding.Path) {
+                $sortProperty = [string]$binding.Path.Path
+            }
+
+            if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+                return
+            }
+
+            $newDirection = 'Ascending'
+            if ([string]$syncHash.InstallSortProperty -eq $sortProperty -and [string]$syncHash.InstallSortDirection -eq 'Ascending') {
+                $newDirection = 'Descending'
+            }
+
+            $syncHash.InstallSortProperty = $sortProperty
+            $syncHash.InstallSortDirection = $newDirection
+
+            & $applyInstallListSort
+        }
+    )
+
+    $installApplyButton.add_Click({
+            & $startInstallSelectedOperation
         })
 
     $refreshAppsButton.add_Click({
@@ -4741,7 +5609,7 @@ function Start-EvergreenWorkbench {
                 $selected = 'Apps'
             }
 
-            if ($selected -eq 'Import' -and -not [bool]$syncHash.Config.ShowImportTab) {
+            if (($selected -eq 'Import' -and -not [bool]$syncHash.Config.ShowImportTab) -or ($selected -eq 'Install' -and -not [bool]$syncHash.Config.ShowInstallTab)) {
                 $selected = 'Apps'
                 $startupViewComboBox.SelectedIndex = 0
             }
@@ -4779,15 +5647,19 @@ function Start-EvergreenWorkbench {
             if ($null -ne $showImportTabCheckBox) {
                 $showImportTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowImportTab
             }
-            & $setImportTabVisibility -IsVisible ([bool]$syncHash.Config.ShowImportTab)
+            if ($null -ne $showInstallTabCheckBox) {
+                $showInstallTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowInstallTab
+            }
+            & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall ([bool]$syncHash.Config.ShowInstallTab)
 
             switch ([string]$syncHash.Config.StartupView) {
                 'Download' { $startupViewComboBox.SelectedIndex = 1 }
                 'Library' { $startupViewComboBox.SelectedIndex = 2 }
                 'Import' { $startupViewComboBox.SelectedIndex = 3 }
-                'Settings' { $startupViewComboBox.SelectedIndex = 4 }
-                'Update' { $startupViewComboBox.SelectedIndex = 5 }
-                'About' { $startupViewComboBox.SelectedIndex = 6 }
+                'Install' { $startupViewComboBox.SelectedIndex = 4 }
+                'Settings' { $startupViewComboBox.SelectedIndex = 5 }
+                'Update' { $startupViewComboBox.SelectedIndex = 6 }
+                'About' { $startupViewComboBox.SelectedIndex = 7 }
                 default { $startupViewComboBox.SelectedIndex = 0 }
             }
         })
@@ -4796,7 +5668,16 @@ function Start-EvergreenWorkbench {
         $showImportTabCheckBox.add_Click({
                 $showImport = [bool]$showImportTabCheckBox.IsChecked
                 $syncHash.Config.ShowImportTab = $showImport
-                & $setImportTabVisibility -IsVisible $showImport
+                & $setImportTabVisibility -ShowImport $showImport -ShowInstall ([bool]$syncHash.Config.ShowInstallTab)
+                Set-UIConfig -Config $syncHash.Config
+            })
+    }
+
+    if ($null -ne $showInstallTabCheckBox) {
+        $showInstallTabCheckBox.add_Click({
+                $showInstall = [bool]$showInstallTabCheckBox.IsChecked
+                $syncHash.Config.ShowInstallTab = $showInstall
+                & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall $showInstall
                 Set-UIConfig -Config $syncHash.Config
             })
     }

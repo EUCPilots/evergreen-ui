@@ -6,7 +6,7 @@
 .DESCRIPTION
     Root module file. Dot-sources all Private helper functions and then all
     Public functions. Only functions listed in FunctionsToExport in the manifest
-    (Start-EvergreenUI) are exposed to the caller.
+    (Start-EvergreenWorkbench) are exposed to the caller.
 
 .NOTES
     - Windows only. Requires WPF assemblies (PresentationFramework etc.).

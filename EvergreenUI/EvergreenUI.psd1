@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.0.8'
+    ModuleVersion     = '1.0.9'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -34,6 +34,8 @@
         'Resources\EvergreenUI.xaml'
         'Public\Start-EvergreenWorkbench.ps1'
         'Private\Get-EvergreenAppList.ps1'
+        'Private\Get-InstallPackageDefinitions.ps1'
+        'Private\Get-InstallPackageLatestVersion.ps1'
         'Private\Get-FilterableProperties.ps1'
         'Private\Get-IntunePackageLatestVersion.ps1'
         'Private\Get-UIConfig.ps1'
@@ -42,11 +44,13 @@
         'Private\Invoke-FilterUpdate.ps1'
         'Private\Invoke-IntuneGraphWin32Import.ps1'
         'Private\Invoke-IntunePackageBuild.ps1'
+        'Private\Invoke-LocalPackageInstall.ps1'
         'Private\Invoke-LibraryUpdate.ps1'
         'Private\New-FilterPanel.ps1'
         'Private\New-WpfRunspace.ps1'
         'Private\Set-IntuneGraphWin32Supersedence.ps1'
         'Private\Set-UIConfig.ps1'
+        'Private\Test-LocalPackageDetection.ps1'
         'Private\Test-EvergreenModule.ps1'
         'Private\Write-UILog.ps1'
         'Private\themes\Set-DarkTheme.ps1'
@@ -59,7 +63,7 @@
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Pre-release. Adds Start-EvergreenWorkbench function. Import module and run Start-EvergreenWorkbench to launch the Evergreen Workbench.'
+            ReleaseNotes = 'Pre-release. Local download and install of application packages works.'
             Prerelease   = 'beta'
         }
     }
