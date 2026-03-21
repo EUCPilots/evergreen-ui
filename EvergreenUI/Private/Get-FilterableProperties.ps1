@@ -14,6 +14,9 @@
            7–20 unique values → MultiListBox   (scrollable multi-select listbox)
            21+ unique values  → TextBox        (free-text contains-match)
 
+    Special cases (applied before cardinality check):
+      Language property → always ComboBox (dropdown of available locale values)
+
     Also performs URI-based Type derivation: if the result set has no Type
     property but all rows have a URI, a synthetic 'Type (derived)' property is
     created by extracting the file extension from each URI.
@@ -28,7 +31,7 @@
         DisplayName  : string  - friendly label for the UI
         UniqueValues : string[] - sorted distinct values
         Count        : int    - number of unique values
-        ControlType  : string - 'CheckBoxStrip' | 'MultiListBox' | 'TextBox'
+        ControlType  : string - 'CheckBoxStrip' | 'MultiListBox' | 'ComboBox' | 'TextBox'
         IsSynthetic  : bool   - true if derived from URI rather than a real property
 
 .EXAMPLE
@@ -89,7 +92,8 @@ function Get-FilterableProperties {
             Sort-Object -Unique
         )
 
-        $controlType = if ($allValues.Count -le 6) { 'CheckBoxStrip' }
+        $controlType = if ($propName -eq 'Language') { 'ComboBox' }
+        elseif ($allValues.Count -le 6) { 'CheckBoxStrip' }
         elseif ($allValues.Count -le 20) { 'MultiListBox' }
         else { 'TextBox' }
 

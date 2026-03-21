@@ -163,6 +163,38 @@ function New-FilterPanel {
                 [void]$groupPanel.Children.Add($listBox)
             }
 
+            'ComboBox' {
+                $comboBox = [System.Windows.Controls.ComboBox]::new()
+                $comboBox.MinWidth = 220
+                $comboBox.Height = 32
+                $comboBox.Style = $SyncHash.Window.Resources['FluentComboBox']
+
+                [void]$comboBox.Items.Add('(All)')
+                foreach ($value in $uniqueValues) {
+                    [void]$comboBox.Items.Add([string]$value)
+                }
+                $comboBox.SelectedIndex = 0
+
+                $allValues = [string[]]$uniqueValues
+
+                $comboBox.add_SelectionChanged({
+                        $selected = [System.Collections.Generic.HashSet[string]]::new(
+                            [System.StringComparer]::OrdinalIgnoreCase
+                        )
+                        $choice = [string]$comboBox.SelectedItem
+                        if ($choice -eq '(All)' -or [string]::IsNullOrEmpty($choice)) {
+                            foreach ($v in $allValues) { [void]$selected.Add($v) }
+                        }
+                        else {
+                            [void]$selected.Add($choice)
+                        }
+                        $SyncHash.FilterState[$propName] = $selected
+                        & $OnChangeCallback
+                    }.GetNewClosure())
+
+                [void]$groupPanel.Children.Add($comboBox)
+            }
+
             default {
                 $textBox = [System.Windows.Controls.TextBox]::new()
                 $textBox.MinWidth = 220

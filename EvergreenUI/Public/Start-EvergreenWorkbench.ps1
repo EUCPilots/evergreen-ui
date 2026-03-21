@@ -5321,7 +5321,7 @@ function Start-EvergreenWorkbench {
 
             $selectedApp = $appsComboBox.SelectedItem
             if ($null -ne $selectedApp) {
-                $appDetailTitle.Text = "$($selectedApp.Name) Version Details"
+                $appDetailTitle.Text = "$($selectedApp.Name)"
 
                 # Load from cache if available; otherwise show the panel empty (user clicks Refresh)
                 $cachePath = & $getAppCacheFile -AppName $selectedApp.Name
