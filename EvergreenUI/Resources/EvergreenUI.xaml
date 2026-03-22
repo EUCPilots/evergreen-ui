@@ -162,6 +162,7 @@
         <Style x:Key="FluentCheckBox" TargetType="CheckBox">
             <Setter Property="Foreground"               Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="Cursor"                   Value="Hand"/>
+            <Setter Property="Height"                   Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
