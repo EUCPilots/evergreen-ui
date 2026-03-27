@@ -12,7 +12,7 @@
 .PARAMETER Config
     A PSCustomObject (typically the output of Get-UIConfig, modified by the
     user's session) to persist. Must contain at minimum: OutputPath, LibraryPath,
-    Theme, LogVerbosity, LogHeight.
+    Theme, LogHeight.
 
 .EXAMPLE
     $config = Get-UIConfig

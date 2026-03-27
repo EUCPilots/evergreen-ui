@@ -13,7 +13,6 @@
         OutputPath   : string  - last-used download output path
         LibraryPath  : string  - last-used library path
         Theme        : string  - 'Light' or 'Dark'
-        LogVerbosity : string  - 'Normal' or 'Verbose'
         LogVisible   : bool    - whether the progress log panel is expanded
         LogHeight    : int     - log panel height in pixels
         ShowImportTab: bool    - whether the Import tab is visible in navigation
@@ -35,11 +34,10 @@ function Get-UIConfig {
         OutputPath        = (Join-Path -Path ([System.Environment]::GetFolderPath('UserProfile')) -ChildPath 'Downloads')
         LibraryPath       = ''
         Theme             = 'Light'
-        LogVerbosity      = 'Normal'
         LogVisible        = $false
         LogHeight         = 150
-        ShowImportTab     = $false
-        ShowInstallTab    = $false
+        ShowImportTab     = $true
+        ShowInstallTab    = $true
         StartupView       = 'Apps'
         LastAppName       = ''
         WindowWidth       = 1200

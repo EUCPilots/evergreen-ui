@@ -300,7 +300,6 @@ function Start-EvergreenWorkbench {
 
     $outputPathBox = $window.FindName('OutputPathBox')
     $evergreenAppsPathBox = $window.FindName('EvergreenAppsPathBox')
-    $logVerbosityComboBox = $window.FindName('LogVerbosityComboBox')
     $showImportTabCheckBox = $window.FindName('ShowImportTabCheckBox')
     $showInstallTabCheckBox = $window.FindName('ShowInstallTabCheckBox')
     $startupViewComboBox = $window.FindName('StartupViewComboBox')
@@ -5676,13 +5675,6 @@ function Start-EvergreenWorkbench {
             Set-UIConfig -Config $syncHash.Config
         })
 
-    $logVerbosityComboBox.add_SelectionChanged({
-            $item = $logVerbosityComboBox.SelectedItem
-            if ($null -eq $item) { return }
-            $syncHash.Config.LogVerbosity = [string]$item.Content
-            Set-UIConfig -Config $syncHash.Config
-        })
-
     $themeComboBox.add_SelectionChanged({
             $item = $themeComboBox.SelectedItem
             if ($null -eq $item) { return }
@@ -5738,9 +5730,6 @@ function Start-EvergreenWorkbench {
             else {
                 & $refreshIntuneModuleStatus -IsLoaded $false -Message 'IntuneWin32App module not loaded. Install from the PowerShell Gallery and click Reload.'
             }
-
-            $desiredVerbosity = [string]$syncHash.Config.LogVerbosity
-            $logVerbosityComboBox.SelectedIndex = if ($desiredVerbosity -eq 'Verbose') { 1 } else { 0 }
 
             $themeComboBox.SelectedIndex = if ([string]$syncHash.Config.Theme -eq 'Dark') { 1 } else { 0 }
             if ($null -ne $showImportTabCheckBox) {
