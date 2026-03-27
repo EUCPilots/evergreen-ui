@@ -1490,6 +1490,29 @@
                                                             <Setter Property="BorderThickness"            Value="0,0,1,1"/>
                                                             <Setter Property="HorizontalContentAlignment" Value="Left"/>
                                                         </Style>
+
+                                                        <Style x:Key="IntuneActionCellStyle"
+                                                               TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Import new app">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource StatusPositiveBrush}"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Import new version and supersede">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource StatusPositiveBrush}"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Fix in definition">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource StatusWarningBrush}"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+
+                                                        <DataTemplate x:Key="IntuneActionCellTemplate">
+                                                            <TextBlock Text="{Binding ImportAction}" Style="{StaticResource IntuneActionCellStyle}"/>
+                                                        </DataTemplate>
                                                     </ListView.Resources>
                                                     <ListView.ItemContainerStyle>
                                                         <Style TargetType="ListViewItem">
@@ -1509,14 +1532,11 @@
                                                                                                   VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                                                                         </Border>
                                                                         <ControlTemplate.Triggers>
-                                                                            <DataTrigger Binding="{Binding ImportAction}" Value="Import as new app">
+                                                                            <DataTrigger Binding="{Binding UpdateRequired}" Value="No">
                                                                                 <Setter TargetName="bd" Property="Background" Value="#1A4CAF50"/>
                                                                             </DataTrigger>
                                                                             <DataTrigger Binding="{Binding UpdateRequired}" Value="Yes">
                                                                                 <Setter TargetName="bd" Property="Background" Value="#1AFFB300"/>
-                                                                            </DataTrigger>
-                                                                            <DataTrigger Binding="{Binding UpdateRequired}" Value="Unknown">
-                                                                                <Setter TargetName="bd" Property="Background" Value="#143B82F6"/>
                                                                             </DataTrigger>
                                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                                 <Setter TargetName="bd" Property="Background"
@@ -1536,15 +1556,12 @@
                                                     </ListView.ItemContainerStyle>
                                                     <ListView.View>
                                                         <GridView>
-                                                            <GridViewColumn Header="Intune App"          DisplayMemberBinding="{Binding IntuneDisplayName}"     Width="170"/>
-                                                            <GridViewColumn Header="Definition"          DisplayMemberBinding="{Binding DefinitionDisplayName}" Width="170"/>
-                                                            <GridViewColumn Header="Publisher"           DisplayMemberBinding="{Binding DisplayPublisher}"      Width="120"/>
-                                                            <GridViewColumn Header="Intune Version"      DisplayMemberBinding="{Binding IntuneVersion}"         Width="95"/>
-                                                            <GridViewColumn Header="Definition Version"  DisplayMemberBinding="{Binding DefinitionVersion}"     Width="105"/>
-                                                            <GridViewColumn Header="Matched"             DisplayMemberBinding="{Binding IsMatched}"             Width="70"/>
-                                                            <GridViewColumn Header="Update Required"     DisplayMemberBinding="{Binding UpdateRequired}"        Width="105"/>
-                                                            <GridViewColumn Header="Status"              DisplayMemberBinding="{Binding MatchStatus}"           Width="170"/>
-                                                            <GridViewColumn Header="Action"              DisplayMemberBinding="{Binding ImportAction}"          Width="130"/>
+                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="200"/>
+                                                            <GridViewColumn Header="Publisher"       DisplayMemberBinding="{Binding DisplayPublisher}" Width="130"/>
+                                                            <GridViewColumn Header="Intune Version"  DisplayMemberBinding="{Binding IntuneVersion}"   Width="110"/>
+                                                            <GridViewColumn Header="Latest"          DisplayMemberBinding="{Binding DefinitionVersion}" Width="110"/>
+                                                            <GridViewColumn Header="Status"          DisplayMemberBinding="{Binding MatchStatus}"     Width="200"/>
+                                                            <GridViewColumn Header="Action"          CellTemplate="{StaticResource IntuneActionCellTemplate}" Width="130"/>
                                                         </GridView>
                                                     </ListView.View>
                                                 </ListView>
@@ -1592,7 +1609,7 @@
                                         <StackPanel Orientation="Horizontal"
                                                     DockPanel.Dock="Right">
                                             <Button x:Name="IntuneApplyImportButton"
-                                                    Content="Import as new Win32 app"
+                                                    Content="Import Win32 app"
                                                     Style="{StaticResource FluentButton}"
                                                     Padding="12,6"
                                                     IsEnabled="False"/>
@@ -1787,17 +1804,73 @@
                                                     <DataTemplate x:Key="NerdioStatusCellTemplate">
                                                         <TextBlock Text="{Binding MatchStatus}" Style="{StaticResource NerdioStatusCellStyle}"/>
                                                     </DataTemplate>
+
+                                                    <Style x:Key="NerdioActionCellStyle"
+                                                           TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Update">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusPositiveBrush}"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Import">
+                                                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+
+                                                    <DataTemplate x:Key="NerdioActionCellTemplate">
+                                                        <TextBlock Text="{Binding Action}" Style="{StaticResource NerdioActionCellStyle}"/>
+                                                    </DataTemplate>
                                                 </ListView.Resources>
+                                                <ListView.ItemContainerStyle>
+                                                    <Style TargetType="ListViewItem">
+                                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                        <Setter Property="MinHeight"                  Value="32"/>
+                                                        <Setter Property="Padding"                    Value="0"/>
+                                                        <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
+                                                        <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ListViewItem">
+                                                                    <Border x:Name="bd"
+                                                                            Background="Transparent"
+                                                                            Padding="{TemplateBinding Padding}">
+                                                                        <GridViewRowPresenter Content="{TemplateBinding Content}"
+                                                                                              HorizontalAlignment="Stretch"
+                                                                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <DataTrigger Binding="{Binding Action}" Value="Update">
+                                                                            <Setter TargetName="bd" Property="Background" Value="#1AFFB300"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Action}" Value="Import">
+                                                                            <Setter TargetName="bd" Property="Background" Value="#1A4CAF50"/>
+                                                                        </DataTrigger>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsSelected" Value="True">
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ListView.ItemContainerStyle>
                                                 <ListView.View>
                                                     <GridView>
-                                                        <GridViewColumn Header="Status"           CellTemplate="{StaticResource NerdioStatusCellTemplate}"         Width="230"/>
-                                                        <GridViewColumn Header="Publisher"        DisplayMemberBinding="{Binding Publisher}"        Width="170"/>
-                                                        <GridViewColumn Header="Definition App Name"         DisplayMemberBinding="{Binding AppName}"          Width="210"/>
-                                                        <GridViewColumn Header="Shell App Name"       DisplayMemberBinding="{Binding NerdioAppName}"    Width="210"/>
-                                                        <GridViewColumn Header="Shell App Version"   DisplayMemberBinding="{Binding NerdioVersion}"    Width="125"/>
-                                                        <GridViewColumn Header="Evergreen Version" DisplayMemberBinding="{Binding EvergreenVersion}" Width="130"/>
-                                                        <GridViewColumn Header="Shell App Id"    DisplayMemberBinding="{Binding NerdioAppId}"      Width="170"/>
-                                                        <GridViewColumn Header="Authority"         DisplayMemberBinding="{Binding RowType}"          Width="105"/>
+                                                        <GridViewColumn Header="App"               DisplayMemberBinding="{Binding DisplayName}"      Width="155"/>
+                                                        <GridViewColumn Header="Publisher"          DisplayMemberBinding="{Binding Publisher}"        Width="130"/>
+                                                        <GridViewColumn Header="Shell App"          DisplayMemberBinding="{Binding NerdioAppName}"    Width="165"/>
+                                                        <GridViewColumn Header="Versions"           DisplayMemberBinding="{Binding VersionCount}"     Width="75"/>
+                                                        <GridViewColumn Header="Shell App Version"  DisplayMemberBinding="{Binding NerdioVersion}"    Width="115"/>
+                                                        <GridViewColumn Header="Latest"             DisplayMemberBinding="{Binding EvergreenVersion}" Width="115"/>
+                                                        <GridViewColumn Header="Status"             CellTemplate="{StaticResource NerdioStatusCellTemplate}" Width="200"/>
+                                                        <GridViewColumn Header="Action"             CellTemplate="{StaticResource NerdioActionCellTemplate}" Width="80"/>
                                                     </GridView>
                                                 </ListView.View>
                                             </ListView>
@@ -1850,7 +1923,7 @@
                                                     IsEnabled="False"
                                                     Margin="0,0,8,0"/>
                                             <Button x:Name="NerdioImportNewButton"
-                                                    Content="Import as new Shell App"
+                                                    Content="Import Shell App"
                                                     Style="{StaticResource FluentButton}"
                                                     Padding="12,6"
                                                     IsEnabled="False"/>

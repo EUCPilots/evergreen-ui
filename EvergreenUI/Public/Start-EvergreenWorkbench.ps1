@@ -488,7 +488,7 @@ function Start-EvergreenWorkbench {
         $selectedItems = if ($null -eq $intuneWin32AppsListView) { @() } else { @($intuneWin32AppsListView.SelectedItems) }
 
         $hasActionable = $selectedItems | Where-Object {
-            [string]$_.ImportAction -eq 'Import as new app' -or [string]$_.ImportAction -eq 'Update app'
+            [string]$_.ImportAction -eq 'Import new app' -or [string]$_.ImportAction -eq 'Import new version and supersede'
         }
 
         $canImport = ($null -ne $hasActionable) -and (-not $syncHash.IsIntuneImportLoading)
@@ -1376,7 +1376,7 @@ function Start-EvergreenWorkbench {
         # Gather actionable rows from the list view selection
         $selectedRows = @($intuneWin32AppsListView.SelectedItems)
         $actionableRows = @($selectedRows | Where-Object {
-                [string]$_.ImportAction -eq 'Import as new app' -or [string]$_.ImportAction -eq 'Update app'
+                [string]$_.ImportAction -eq 'Import new app' -or [string]$_.ImportAction -eq 'Import new version and supersede'
             })
 
         if ($actionableRows.Count -eq 0) {
@@ -1418,7 +1418,7 @@ function Start-EvergreenWorkbench {
                     AppName          = [string]$row.DefinitionDisplayName
                     DefinitionPath   = $defPath
                     PreviousAppId    = [string]$row.IntuneAppId
-                    IsUpdate         = ([string]$row.ImportAction -eq 'Update app')
+                    IsUpdate         = ([string]$row.IsMatched -eq 'Yes' -and [string]$row.UpdateRequired -eq 'Yes')
                     PSPackageFactory = [string]$row.PSPackageFactoryGuid
                 })
         }
@@ -2134,7 +2134,7 @@ function Start-EvergreenWorkbench {
                 & $setIntuneConnectionStatus -Brush ([System.Windows.Media.Brushes]::OrangeRed) -Text 'Signed in, Intune token failed'
             }
 
-            $importSignInButton.IsEnabled = $true
+            $importSignInButton.IsEnabled = $false
             $importSignOutButton.IsEnabled = $true
             return
         }
@@ -2194,7 +2194,7 @@ function Start-EvergreenWorkbench {
             $connectedText = if ([string]::IsNullOrWhiteSpace($hostName)) { 'Connected' } else { $hostName }
             $nerdioApiAuthStatusLabel.Text = $connectedText
             & $applyStateToImportTab -Brush ([System.Windows.Media.Brushes]::LightGreen) -LabelText $connectedText
-            $nerdioApiSignInButton.IsEnabled = $true
+            $nerdioApiSignInButton.IsEnabled = $false
             $nerdioApiSignOutButton.IsEnabled = $true
             return
         }
@@ -2228,7 +2228,7 @@ function Start-EvergreenWorkbench {
             $tenant = if ([string]::IsNullOrWhiteSpace($state.TenantId)) { '' } else { " | tenant: $($state.TenantId)" }
             $sub = if ([string]::IsNullOrWhiteSpace($state.SubscriptionName)) { '' } else { " | sub: $($state.SubscriptionName)" }
             $nerdioAzureAuthStatusLabel.Text = "$account$tenant$sub"
-            $nerdioAzureSignInButton.IsEnabled = $true
+            $nerdioAzureSignInButton.IsEnabled = $false
             $nerdioAzureSignOutButton.IsEnabled = $true
             return
         }
@@ -2546,10 +2546,12 @@ function Start-EvergreenWorkbench {
             $guidText = [string]$intuneRow.NotesGuid
             $lookupKey = if ([string]::IsNullOrWhiteSpace($guidText)) { '' } else { $guidText.Trim().ToLowerInvariant() }
 
+            $intuneDisplayName = [string]$intuneRow.DisplayName
             $baseRow = [PSCustomObject]@{
                 RowType               = 'Intune'
                 IntuneAppId           = [string]$intuneRow.IntuneAppId
-                IntuneDisplayName     = [string]$intuneRow.DisplayName
+                IntuneDisplayName     = $intuneDisplayName
+                DisplayName           = $intuneDisplayName
                 DefinitionDisplayName = '-'
                 DisplayPublisher      = [string]$intuneRow.Publisher
                 IntuneVersion         = [string]$intuneRow.DisplayVersion
@@ -2565,7 +2567,6 @@ function Start-EvergreenWorkbench {
 
             if ([string]$intuneRow.NotesValid -ne 'Yes') {
                 $baseRow.MatchStatus = 'Invalid notes JSON'
-                $baseRow.ImportAction = 'Needs review'
                 $comparisonRows.Add($baseRow)
                 $unknownCount++
                 $intuneOnlyCount++
@@ -2574,7 +2575,6 @@ function Start-EvergreenWorkbench {
 
             if ([string]::IsNullOrWhiteSpace($lookupKey)) {
                 $baseRow.MatchStatus = 'Missing GUID in notes'
-                $baseRow.ImportAction = 'Needs review'
                 $comparisonRows.Add($baseRow)
                 $unknownCount++
                 $intuneOnlyCount++
@@ -2595,7 +2595,7 @@ function Start-EvergreenWorkbench {
 
             if ($matchedDefinitions.Count -gt 1) {
                 $baseRow.MatchStatus = 'Duplicate definition GUID'
-                $baseRow.ImportAction = 'Fix definitions'
+                $baseRow.ImportAction = 'Fix in definition'
                 $comparisonRows.Add($baseRow)
                 $unknownCount++
                 continue
@@ -2619,7 +2619,6 @@ function Start-EvergreenWorkbench {
             if (-not $intuneParsed.Success -or -not $definitionParsed.Success) {
                 $baseRow.UpdateRequired = 'Unknown'
                 $baseRow.MatchStatus = 'Matched (needs review)'
-                $baseRow.ImportAction = 'Needs review'
                 $comparisonRows.Add($baseRow)
                 $matchedCount++
                 $unknownCount++
@@ -2629,7 +2628,7 @@ function Start-EvergreenWorkbench {
             if ($definitionParsed.Parsed -gt $intuneParsed.Parsed) {
                 $baseRow.UpdateRequired = 'Yes'
                 $baseRow.MatchStatus = 'Matched (update required)'
-                $baseRow.ImportAction = 'Update app'
+                $baseRow.ImportAction = 'Import new version and supersede'
                 $updateRequiredCount++
             }
             else {
@@ -2661,24 +2660,26 @@ function Start-EvergreenWorkbench {
                 }
             }
 
+            $defDisplayName = [string]$definitionRow.Name
             $matchStatus = 'Definition not in Intune'
-            $importAction = 'Import as new app'
+            $importAction = 'Import new app'
             $updateRequired = 'Unknown'
 
             if (-not $isValid) {
                 $matchStatus = if ([string]::IsNullOrWhiteSpace($status)) { 'Invalid definition' } else { $status }
-                $importAction = 'Fix definition'
+                $importAction = '-'
             }
             elseif ($isDuplicateGuid) {
                 $matchStatus = 'Duplicate definition GUID'
-                $importAction = 'Fix definitions'
+                $importAction = 'Fix in definition'
             }
 
             $comparisonRows.Add([PSCustomObject]@{
                     RowType               = 'Definition'
                     IntuneAppId           = ''
                     IntuneDisplayName     = '-'
-                    DefinitionDisplayName = [string]$definitionRow.Name
+                    DisplayName           = $defDisplayName
+                    DefinitionDisplayName = $defDisplayName
                     DisplayPublisher      = [string]$definitionRow.Publisher
                     IntuneVersion         = '-'
                     DefinitionVersion     = [string]$definitionRow.Version
@@ -2702,7 +2703,7 @@ function Start-EvergreenWorkbench {
         $sortedRows = @(
             $comparisonRows | Sort-Object -Property `
             @{ Expression = {
-                    if ([string]$_.ImportAction -eq 'Import as new app') { return 0 }
+                    if ([string]$_.ImportAction -eq 'Import new app') { return 0 }
                     if ([string]$_.UpdateRequired -eq 'Yes') { return 1 }
                     if ([string]$_.UpdateRequired -eq 'Unknown') { return 2 }
                     if ([string]$_.RowType -eq 'Intune') { return 3 }
@@ -3062,13 +3063,16 @@ function Start-EvergreenWorkbench {
                 DefinitionPath   = [string]$definitionRow.DefinitionPath
                 Publisher        = $publisher
                 AppName          = $appName
+                DisplayName      = $appName
                 NerdioAppName    = '-'
                 NerdioAppId      = ''
+                VersionCount     = '-'
                 DefinitionValid  = $definitionValid
                 MatchStatus      = '-'
                 NerdioVersion    = '-'
                 EvergreenVersion = '-'
                 UpdateNeeded     = '-'
+                Action           = '-'
                 IsMatched        = 'No'
                 IsNewApp         = 'No'
                 HasDefinition    = 'Yes'
@@ -3100,6 +3104,7 @@ function Start-EvergreenWorkbench {
                 $baseRow.MatchStatus = 'No matching Shell App'
                 $baseRow.CompareMessage = 'Definition has no match in Nerdio Manager.'
                 $baseRow.IsNewApp = 'Yes'
+                $baseRow.Action = 'Import'
                 $definitionOnlyCount++
                 $comparisonRows.Add($baseRow)
                 continue
@@ -3122,6 +3127,7 @@ function Start-EvergreenWorkbench {
             $baseRow.NerdioAppName = [string]$matchedShellApp.Name
             $baseRow.NerdioAppId = [string]$matchedShellApp.Id
             $baseRow.NerdioVersion = [string]$matchedShellApp.LatestVersion
+            $baseRow.VersionCount = if ([string]$matchedShellApp.VersionCount -match '^\d+$') { [string]$matchedShellApp.VersionCount } else { '-' }
             $null = $matchedShellAppIds.Add([string]$matchedShellApp.Id)
             $matchedCount++
 
@@ -3171,6 +3177,7 @@ function Start-EvergreenWorkbench {
             if ($evergreenParsed.Parsed -gt $nerdioParsed.Parsed) {
                 $baseRow.MatchStatus = 'Matched (update available)'
                 $baseRow.UpdateNeeded = 'Yes'
+                $baseRow.Action = 'Update'
                 $baseRow.CompareMessage = 'Evergreen version is newer than Nerdio latest version.'
                 $updateCount++
             }
@@ -3189,18 +3196,22 @@ function Start-EvergreenWorkbench {
                 continue
             }
 
+            $nerdioOnlyName = [string]$shellAppRow.Name
             $comparisonRows.Add([PSCustomObject]@{
                     RowType          = 'Nerdio'
                     DefinitionPath   = ''
                     Publisher        = [string]$shellAppRow.Publisher
-                    AppName          = [string]$shellAppRow.Name
-                    NerdioAppName    = [string]$shellAppRow.Name
+                    AppName          = '-'
+                    DisplayName      = $nerdioOnlyName
+                    NerdioAppName    = $nerdioOnlyName
                     NerdioAppId      = $shellAppId
+                    VersionCount     = if ([string]$shellAppRow.VersionCount -match '^\d+$') { [string]$shellAppRow.VersionCount } else { '-' }
                     DefinitionValid  = '-'
                     MatchStatus      = 'No local definition'
                     NerdioVersion    = [string]$shellAppRow.LatestVersion
                     EvergreenVersion = '-'
                     UpdateNeeded     = '-'
+                    Action           = '-'
                     IsMatched        = 'No'
                     IsNewApp         = 'No'
                     HasDefinition    = 'No'
@@ -5079,9 +5090,11 @@ function Start-EvergreenWorkbench {
             & $startNerdioAzureSignOut
         })
 
-    # Enable/disable the Azure sign-in button based on whether Subscription ID is provided
+    # Enable/disable the Azure sign-in button based on whether Subscription ID is provided,
+    # but only when not already signed in (sign-in is disabled while authenticated).
     $nmeSubscriptionIdBox.add_TextChanged({
-            $nerdioAzureSignInButton.IsEnabled = -not [string]::IsNullOrWhiteSpace($nmeSubscriptionIdBox.Text)
+            $notAuthenticated = -not [bool]$syncHash.NerdioAzureAuthState.IsAuthenticated
+            $nerdioAzureSignInButton.IsEnabled = $notAuthenticated -and (-not [string]::IsNullOrWhiteSpace($nmeSubscriptionIdBox.Text))
             $syncHash.Config.NerdioSettings.NmeSubscriptionId = [string]$nmeSubscriptionIdBox.Text
             Set-UIConfig -Config $syncHash.Config
         })
