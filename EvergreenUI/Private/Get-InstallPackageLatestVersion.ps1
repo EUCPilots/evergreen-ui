@@ -118,14 +118,30 @@ function Get-InstallPackageLatestVersion {
 
     if ($null -ne $matchedEntry) {
         [DateTime]$retrievedUtc = [DateTime]::MinValue
-        $entryTimestamp = [string]$matchedEntry.RetrievedUtc
-        if ([DateTime]::TryParseExact(
-                $entryTimestamp,
+        $rawTimestamp = $matchedEntry.RetrievedUtc
+        $timestampOk = $false
+        if ($rawTimestamp -is [DateTime]) {
+            $retrievedUtc = [DateTime]$rawTimestamp
+            $timestampOk = $true
+        }
+        elseif ([DateTime]::TryParseExact(
+                [string]$rawTimestamp,
                 'o',
                 [System.Globalization.CultureInfo]::InvariantCulture,
                 [System.Globalization.DateTimeStyles]::RoundtripKind,
                 [ref]$retrievedUtc
             )) {
+            $timestampOk = $true
+        }
+        elseif ([DateTime]::TryParse(
+                [string]$rawTimestamp,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::None,
+                [ref]$retrievedUtc
+            )) {
+            $timestampOk = $true
+        }
+        if ($timestampOk) {
             $maxAge = [TimeSpan]::FromHours([Math]::Max(1, $CacheMaxAgeHours))
             if (($nowUtc - $retrievedUtc.ToUniversalTime()) -le $maxAge) {
                 return [PSCustomObject]@{

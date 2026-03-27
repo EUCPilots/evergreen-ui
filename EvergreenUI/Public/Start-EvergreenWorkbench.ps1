@@ -852,11 +852,88 @@ function Start-EvergreenWorkbench {
                 }
             })
 
+        # Hydrate LatestVersion from cache so values are visible immediately on load.
+        $cacheFile = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI\install-latest-cache.json'
+        $cacheHits = 0
+        $cacheExpired = 0
+        $cacheFailed = 0
+        if (Test-Path -LiteralPath $cacheFile -PathType Leaf) {
+            try {
+                $raw = Get-Content -LiteralPath $cacheFile -Raw -ErrorAction Stop
+                if ([string]::IsNullOrWhiteSpace($raw)) {
+                    Write-UILog -SyncHash $syncHash -Message 'Install: cache file is empty.' -Level Warning
+                }
+                else {
+                    $parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
+                    $cacheEntries = if ($parsed -is [System.Array]) { @($parsed) } elseif ($null -ne $parsed) { @($parsed) } else { @() }
+                    Write-UILog -SyncHash $syncHash -Message "Install: read $($cacheEntries.Count) entr$(if ($cacheEntries.Count -eq 1) {'y'} else {'ies'}) from cache '$cacheFile'." -Level Info
+                    $nowUtc = [DateTime]::UtcNow
+                    foreach ($row in $enrichedRows) {
+                        $rowPath = ([string]$row.DefinitionPath).Trim()
+                        $matchedEntry = $null
+                        foreach ($c in $cacheEntries) {
+                            if ($null -ne $c -and ([string]$c.DefinitionPath).Trim() -ieq $rowPath) {
+                                $matchedEntry = $c
+                                break
+                            }
+                        }
+                        if ($null -eq $matchedEntry) { continue }
+                        if (-not [bool]$matchedEntry.Succeeded) { $cacheFailed++; continue }
+
+                        # ConvertFrom-Json may auto-parse ISO 8601 strings into [DateTime] objects.
+                        # Handle both the raw DateTime case and the string case.
+                        [DateTime]$retrievedUtc = [DateTime]::MinValue
+                        $timestampOk = $false
+                        $rawTimestamp = $matchedEntry.RetrievedUtc
+                        if ($rawTimestamp -is [DateTime]) {
+                            $retrievedUtc = [DateTime]$rawTimestamp
+                            $timestampOk = $true
+                        }
+                        elseif ([DateTime]::TryParseExact([string]$rawTimestamp, 'o',
+                                [System.Globalization.CultureInfo]::InvariantCulture,
+                                [System.Globalization.DateTimeStyles]::RoundtripKind,
+                                [ref]$retrievedUtc)) {
+                            $timestampOk = $true
+                        }
+                        elseif ([DateTime]::TryParse([string]$rawTimestamp,
+                                [System.Globalization.CultureInfo]::InvariantCulture,
+                                [System.Globalization.DateTimeStyles]::None,
+                                [ref]$retrievedUtc)) {
+                            $timestampOk = $true
+                        }
+
+                        if ($timestampOk) {
+                            if (($nowUtc - $retrievedUtc.ToUniversalTime()) -le [TimeSpan]::FromHours(24)) {
+                                $row.LatestVersion = [string]$matchedEntry.Version
+                                $cacheHits++
+                            }
+                            else {
+                                $cacheExpired++
+                            }
+                        }
+                    }
+                    $cacheSkipParts = @()
+                    if ($cacheExpired -gt 0) { $cacheSkipParts += "$cacheExpired expired" }
+                    if ($cacheFailed -gt 0) { $cacheSkipParts += "$cacheFailed failed" }
+                    if ($cacheSkipParts.Count -gt 0) {
+                        Write-UILog -SyncHash $syncHash -Message "Install: cache skipped $($cacheSkipParts -join ', ')." -Level Info
+                    }
+                }
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Install: cache read error - $($_.Exception.Message)" -Level Warning
+            }
+        }
+        else {
+            Write-UILog -SyncHash $syncHash -Message "Install: no cache file found at '$cacheFile'." -Level Info
+        }
+
         $syncHash.InstallDefinitionRows = $enrichedRows
         & $setInstallElevationState
         & $refreshInstallRows
 
-        Write-UILog -SyncHash $syncHash -Message "Install: loaded $($enrichedRows.Count) App.json definitions." -Level Info
+        $cacheMsg = if ($cacheHits -gt 0) { " ($cacheHits with cached latest version)" } else { '' }
+        Write-UILog -SyncHash $syncHash -Message "Install: loaded $($enrichedRows.Count) App.json definitions$cacheMsg." -Level Info
     }
 
     $resolveInstallLatestVersions = {
@@ -904,6 +981,7 @@ function Start-EvergreenWorkbench {
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
         $helperScripts = @(
+            'Write-UILog.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
         ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
@@ -937,6 +1015,14 @@ function Start-EvergreenWorkbench {
                         Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
                     }
 
+                    $cacheFilePath = Join-Path -Path $CacheRootPath -ChildPath 'install-latest-cache.json'
+                    if (Test-Path -LiteralPath $cacheFilePath -PathType Leaf) {
+                        Write-UILog -SyncHash $syncHash -Message "Install: reading latest version cache from '$cacheFilePath'." -Level Info
+                    }
+                    else {
+                        Write-UILog -SyncHash $syncHash -Message "Install: no cache found at '$cacheFilePath', all versions will be fetched live." -Level Info
+                    }
+
                     $rows = [System.Collections.Generic.List[object]]::new()
                     foreach ($definitionRow in $DefinitionRows) {
                         $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$definitionRow.DefinitionPath) -DefinitionObject $definitionRow.DefinitionObject -CacheRootPath $CacheRootPath
@@ -947,6 +1033,11 @@ function Start-EvergreenWorkbench {
                                 LatestError    = [string]$latestResult.Error
                                 IsFromCache    = [bool]$latestResult.IsFromCache
                             })
+                    }
+
+                    $writeCount = @($rows | Where-Object { -not [bool]$_.IsFromCache }).Count
+                    if ($writeCount -gt 0) {
+                        Write-UILog -SyncHash $syncHash -Message "Install: wrote $writeCount $(if ($writeCount -eq 1) { 'entry' } else { 'entries' }) to cache at '$cacheFilePath'." -Level Info
                     }
 
                     $result.Success = $true
@@ -1163,6 +1254,14 @@ function Start-EvergreenWorkbench {
                         }
 
                         $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$action.DefinitionPath) -DefinitionObject $definitionObject -CacheRootPath $CacheRootPath
+                        if (-not [string]::IsNullOrWhiteSpace([string]$latestResult.CacheFile)) {
+                            if ([bool]$latestResult.IsFromCache) {
+                                Write-UILog -SyncHash $syncHash -Message "Install: cache read for '$([string]$action.Name)' — $([string]$latestResult.Version) from '$([string]$latestResult.CacheFile)'." -Level Info
+                            }
+                            elseif ([bool]$latestResult.Succeeded) {
+                                Write-UILog -SyncHash $syncHash -Message "Install: wrote to cache for '$([string]$action.Name)' — $([string]$latestResult.Version) at '$([string]$latestResult.CacheFile)'." -Level Info
+                            }
+                        }
                         if (-not $latestResult.Succeeded) {
                             $failed.Add([PSCustomObject]@{
                                     Name           = [string]$action.Name

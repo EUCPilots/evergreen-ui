@@ -2501,6 +2501,7 @@
                                             Content="Browse..."
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource FluentSecondaryButton}"
+                                            Width="{Binding ElementName=OpenEvergreenAppsFolderButton, Path=ActualWidth}"
                                             Margin="8,0,0,0"/>
                                     <TextBox x:Name="OutputPathBox"
                                              Style="{StaticResource FluentTextBox}"/>
@@ -2723,6 +2724,7 @@
                                             Content="Reload"
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource FluentSecondaryButton}"
+                                            Width="{Binding ElementName=IntuneBrowsePackageOutputButton, Path=ActualWidth}"
                                             Margin="8,0,0,0"/>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <Ellipse x:Name="IntuneSettingsModuleStatusDot"
