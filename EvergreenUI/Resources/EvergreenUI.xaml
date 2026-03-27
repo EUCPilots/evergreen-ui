@@ -2645,56 +2645,66 @@
                                 <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="32"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                                    <!-- Theme selector (left) -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0"
                                                Text="Theme"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="12"
                                                Margin="0,0,0,4"/>
                                     <ComboBox x:Name="ThemeComboBox"
-                                              Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                                              Grid.Row="1" Grid.Column="0"
                                               Style="{StaticResource FluentComboBox}"
                                               Height="32">
                                         <ComboBoxItem Content="Light"/>
                                         <ComboBoxItem Content="Dark"/>
                                     </ComboBox>
 
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                                               Text="Show Import tab"
-                                               VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                               Margin="0,10,0,0"
-                                               ToolTip="Enable to display the Import tab in the navigation rail."/>
-                                    <ToggleButton x:Name="ShowImportTabCheckBox"
-                                                  Grid.Row="2" Grid.Column="2"
-                                                  Style="{StaticResource FluentToggleSwitch}"
-                                                  HorizontalAlignment="Right"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,10,0,0"
-                                                  ToolTip="Enable to display the Import tab in the navigation rail."/>
-
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
-                                               Text="Show Install tab"
-                                               VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                               Margin="0,8,0,0"
-                                               ToolTip="Enable to display the Install tab in the navigation rail."/>
-                                    <ToggleButton x:Name="ShowInstallTabCheckBox"
-                                                  Grid.Row="3" Grid.Column="2"
-                                                  Style="{StaticResource FluentToggleSwitch}"
-                                                  HorizontalAlignment="Right"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,8,0,0"
-                                                  ToolTip="Enable to display the Install tab in the navigation rail."/>
+                                    <!-- Tab visibility toggles (right) -->
+                                    <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="2"
+                                                VerticalAlignment="Center">
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="Show Import tab"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       ToolTip="Enable to display the Import tab in the navigation rail."/>
+                                            <ToggleButton x:Name="ShowImportTabCheckBox"
+                                                          Grid.Column="1"
+                                                          Style="{StaticResource FluentToggleSwitch}"
+                                                          VerticalAlignment="Center"
+                                                          Margin="16,0,0,0"
+                                                          ToolTip="Enable to display the Import tab in the navigation rail."/>
+                                        </Grid>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="Show Install tab"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       ToolTip="Enable to display the Install tab in the navigation rail."/>
+                                            <ToggleButton x:Name="ShowInstallTabCheckBox"
+                                                          Grid.Column="1"
+                                                          Style="{StaticResource FluentToggleSwitch}"
+                                                          VerticalAlignment="Center"
+                                                          Margin="16,0,0,0"
+                                                          ToolTip="Enable to display the Install tab in the navigation rail."/>
+                                        </Grid>
+                                    </StackPanel>
                                 </Grid>
 
                                 <TextBlock Grid.Row="4" Grid.Column="0"
