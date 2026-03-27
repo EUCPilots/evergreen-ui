@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-03-27
+
+### Added
+- Import tab / Microsoft Intune: `DisplayName` property added to all comparison rows and used as the **App** column — matched rows show the Intune app name, unmatched rows show the definition name
+- Import tab / Nerdio Shell Apps: **Versions** column shows the total count of versions present on the Shell App
+
+### Changed
+- Import tab / Microsoft Intune: columns reduced from 9 to 6 — **App**, **Publisher**, **Intune Version**, **Latest**, **Status**, **Action**; removed Definition, Matched, Update Required, and Definition Version columns
+- Import tab / Microsoft Intune: Action column values rationalised — `Import new app` (definition not in Intune), `Import new version and supersede` (matched app with update available), `Fix in definition` (duplicate GUID across definitions), `-` (no action required)
+- Import tab / Microsoft Intune: row colours updated — green tint for matched apps that are current; amber tint for matched apps with an update available; transparent background for all other rows
+- Import tab / Nerdio Shell Apps: columns restructured — **App**, **Publisher**, **Shell App**, **Versions**, **Shell App Version**, **Latest**, **Status**, **Action**; removed Definition App column
+- Import tab / Nerdio Shell Apps: Action column values — `Update`, `Import`, or `-`; same row colour scheme as the Intune tab
+- Import tab / Authentication: sign-in buttons are disabled while a session is already authenticated and re-enabled when the user signs out
+- Settings tab: Preferences section reorganised — Theme selector occupies the left half of the row; **Show Import tab** and **Show Install tab** toggle switches are grouped on the right half within the same row
+- Import tab / Microsoft Intune: `IsUpdate` flag passed to the import runspace is now derived from `IsMatched` and `UpdateRequired` row properties rather than the `ImportAction` string, making the distinction between a new app and a supersedence update independent of the display label
+
+### Fixed
+- Install tab: **Load definitions** now correctly populates the Latest Version column from the cache; `ConvertFrom-Json` was silently converting ISO 8601 timestamp strings into `[DateTime]` objects, causing all `TryParseExact` calls to return `$false` and produce zero cache hits with no warning in the log
+
 ## [1.0.10] - 2026-03-27
 
 ### Added
