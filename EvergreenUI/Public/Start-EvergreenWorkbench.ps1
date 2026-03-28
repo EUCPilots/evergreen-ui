@@ -118,6 +118,7 @@ function Start-EvergreenWorkbench {
             LibraryDetailsListView                          = $null
             LibraryStatusLabel                              = $null
             LibraryUpdateButton                             = $null
+            LibraryUpdateProgressBar                        = $null
             UpdateOutputTextBox                             = $null
             UpdateOutputScrollViewer                        = $null
             RunUpdateEvergreenButton                        = $null
@@ -259,6 +260,7 @@ function Start-EvergreenWorkbench {
     $clearFiltersButton = $window.FindName('ClearFiltersButton')
     $exportCsvButton = $window.FindName('ExportCsvButton')
     $addToLibraryButton = $window.FindName('AddToLibraryButton')
+    $appsActionStatusLabel = $window.FindName('AppsActionStatusLabel')
     $addToQueueButton = $window.FindName('AddToQueueButton')
 
     $removeQueueItemButton = $window.FindName('RemoveQueueItemButton')
@@ -275,6 +277,7 @@ function Start-EvergreenWorkbench {
     $syncHash.LibraryDetailsListView = $window.FindName('LibraryDetailsListView')
     $syncHash.LibraryStatusLabel = $window.FindName('LibraryStatusLabel')
     $syncHash.LibraryUpdateButton = $window.FindName('LibraryUpdateButton')
+    $syncHash.LibraryUpdateProgressBar = $window.FindName('LibraryUpdateProgressBar')
     $syncHash.RunUpdateEvergreenButton = $window.FindName('RunUpdateEvergreenButton')
     $syncHash.UpdateOutputTextBox = $window.FindName('UpdateOutputTextBox')
     $syncHash.UpdateOutputScrollViewer = $window.FindName('UpdateOutputScrollViewer')
@@ -4483,7 +4486,11 @@ function Start-EvergreenWorkbench {
 
             Write-UILog -SyncHash $syncHash -Message "Get-EvergreenLibrary -Path '$path'" -Level Cmd
             $items = @()
-            $libraryObj = Get-EvergreenLibrary -Path $path -ErrorAction Stop
+            $libraryWarnings = @()
+            $libraryObj = Get-EvergreenLibrary -Path $path -ErrorAction Stop -WarningVariable libraryWarnings
+            foreach ($w in $libraryWarnings) {
+                Write-UILog -SyncHash $syncHash -Message "Get-EvergreenLibrary: $w" -Level Warning
+            }
             $inventory = if ($libraryObj.PSObject.Properties.Name -contains 'Inventory') {
                 @($libraryObj.Inventory)
             }
@@ -4590,6 +4597,9 @@ function Start-EvergreenWorkbench {
 
         $syncHash.IsRunning = $true
         $syncHash.LibraryUpdateButton.IsEnabled = $false
+        if ($null -ne $syncHash.LibraryUpdateProgressBar) {
+            $syncHash.LibraryUpdateProgressBar.Visibility = [System.Windows.Visibility]::Visible
+        }
 
         $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
         $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
@@ -4620,6 +4630,9 @@ function Start-EvergreenWorkbench {
                             $syncHash.IsRunning = $false
                             if ($null -ne $syncHash.LibraryUpdateButton) {
                                 $syncHash.LibraryUpdateButton.IsEnabled = $true
+                            }
+                            if ($null -ne $syncHash.LibraryUpdateProgressBar) {
+                                $syncHash.LibraryUpdateProgressBar.Visibility = [System.Windows.Visibility]::Collapsed
                             }
                             & $syncHash.RefreshLibraryView
                         }, 'Normal')
@@ -5481,6 +5494,7 @@ function Start-EvergreenWorkbench {
             $filterWrapPanel.Children.Clear()
             $syncHash.FilterState = @{}
             $addToLibraryButton.IsEnabled = $false
+            if ($null -ne $appsActionStatusLabel) { $appsActionStatusLabel.Text = '' }
 
             $selectedApp = $appsComboBox.SelectedItem
             if ($null -ne $selectedApp) {
@@ -5638,9 +5652,26 @@ function Start-EvergreenWorkbench {
             try {
                 $libraryRoot | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $libraryJsonPath -Encoding UTF8
                 Write-UILog -SyncHash $syncHash -Message "Added '$appName' to library (filter: '$filterString')." -Level Info
+
+                # Show inline success feedback and auto-clear after 3 seconds
+                if ($null -ne $appsActionStatusLabel) {
+                    $appsActionStatusLabel.Foreground = & $getThemeStatusBrush -ResourceKey 'StatusPositiveBrush' -FallbackBrush ([System.Windows.Media.Brushes]::LightGreen)
+                    $appsActionStatusLabel.Text = "Added '$appName' to library"
+                    $clearTimer = [System.Windows.Threading.DispatcherTimer]::new()
+                    $clearTimer.Interval = [TimeSpan]::FromSeconds(3)
+                    $clearTimer.add_Tick({
+                        $appsActionStatusLabel.Text = ''
+                        $clearTimer.Stop()
+                    }.GetNewClosure())
+                    $clearTimer.Start()
+                }
             }
             catch {
                 Write-UILog -SyncHash $syncHash -Message "Failed to write EvergreenLibrary.json: $_" -Level Error
+                if ($null -ne $appsActionStatusLabel) {
+                    $appsActionStatusLabel.Foreground = & $getThemeStatusBrush -ResourceKey 'StatusErrorBrush' -FallbackBrush ([System.Windows.Media.Brushes]::OrangeRed)
+                    $appsActionStatusLabel.Text = "Failed to update library"
+                }
             }
         })
 

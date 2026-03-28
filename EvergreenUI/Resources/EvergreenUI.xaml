@@ -996,6 +996,13 @@
                                                FontSize="12"
                                                VerticalAlignment="Center"
                                                DockPanel.Dock="Left"/>
+                                    <TextBlock x:Name="AppsActionStatusLabel"
+                                               Text=""
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               VerticalAlignment="Center"
+                                               Margin="12,0,0,0"
+                                               DockPanel.Dock="Left"/>
                                     <StackPanel Orientation="Horizontal"
                                                 DockPanel.Dock="Right">
                                         <Button x:Name="ClearFiltersButton"
@@ -1162,6 +1169,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
@@ -1205,16 +1213,16 @@
                                 Padding="10,6"/>
 
                         <Button Grid.Column="2"
-                                x:Name="LibraryOpenFolderButton"
-                                Content="Open folder"
+                                x:Name="LibraryNewButton"
+                                Content="New Library"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 MinWidth="50"
                                 Margin="0,18,6,0"
                                 Padding="10,6"/>
 
                         <Button Grid.Column="3"
-                                x:Name="LibraryNewButton"
-                                Content="New Library"
+                                x:Name="LibraryOpenFolderButton"
+                                Content="Open folder"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 MinWidth="50"
                                 Margin="0,18,6,0"
@@ -1237,7 +1245,17 @@
                                 Padding="10,6"/>
                     </Grid>
 
-                    <Border Grid.Row="2"
+                    <ProgressBar x:Name="LibraryUpdateProgressBar"
+                                 Grid.Row="2"
+                                 Visibility="Collapsed"
+                                 IsIndeterminate="True"
+                                 Height="3"
+                                 Margin="0,0,0,8"
+                                 Foreground="{DynamicResource AccentBrush}"
+                                 Background="{DynamicResource ControlBorderBrush}"
+                                 BorderThickness="0"/>
+
+                    <Border Grid.Row="3"
                             BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorderBrush}"
                             Background="{DynamicResource ControlBackgroundBrush}"
@@ -1276,14 +1294,14 @@
                         </DockPanel>
                     </Border>
 
-                    <TextBlock Grid.Row="3"
+                    <TextBlock Grid.Row="4"
                                x:Name="LibraryStatusLabel"
                                Text="Select an app row to view versions from library."
                                Foreground="{DynamicResource TextSecondaryBrush}"
                                VerticalAlignment="Center"
                                Margin="0,9,0,7"/>
 
-                    <Border Grid.Row="4"
+                    <Border Grid.Row="5"
                             BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorderBrush}"
                             Background="{DynamicResource ControlBackgroundBrush}"
