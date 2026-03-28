@@ -1008,6 +1008,12 @@
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Padding="10,6"
                                                 Margin="0,0,6,0"/>
+                                        <Button x:Name="AddToLibraryButton"
+                                                Content="Add to Library"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="10,6"
+                                                Margin="0,0,6,0"
+                                                IsEnabled="False"/>
                                         <Button x:Name="AddToQueueButton"
                                                 Content="Add to download queue"
                                                 Style="{StaticResource FluentButton}"
@@ -1208,7 +1214,7 @@
 
                         <Button Grid.Column="3"
                                 x:Name="LibraryNewButton"
-                                Content="New library"
+                                Content="New Library"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 MinWidth="50"
                                 Margin="0,18,6,0"
@@ -1216,7 +1222,7 @@
 
                         <Button Grid.Column="4"
                                 x:Name="LibraryRefreshButton"
-                                Content="Refresh library"
+                                Content="Refresh Library"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 MinWidth="50"
                                 Margin="0,18,6,0"
@@ -1224,7 +1230,7 @@
 
                         <Button Grid.Column="5"
                                 x:Name="LibraryUpdateButton"
-                                Content="Update library"
+                                Content="Update Library"
                                 Style="{StaticResource FluentButton}"
                                 MinWidth="50"
                                 Margin="0,18,0,0"

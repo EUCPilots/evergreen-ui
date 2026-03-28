@@ -258,6 +258,7 @@ function Start-EvergreenWorkbench {
     $filterWrapPanel = $window.FindName('FilterWrapPanel')
     $clearFiltersButton = $window.FindName('ClearFiltersButton')
     $exportCsvButton = $window.FindName('ExportCsvButton')
+    $addToLibraryButton = $window.FindName('AddToLibraryButton')
     $addToQueueButton = $window.FindName('AddToQueueButton')
 
     $removeQueueItemButton = $window.FindName('RemoveQueueItemButton')
@@ -1755,6 +1756,16 @@ function Start-EvergreenWorkbench {
         Invoke-FilterUpdate -SyncHash $syncHash
         $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
         $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
+        & $updateAddToLibraryButtonState
+    }
+
+    # Enables AddToLibraryButton only when an app is loaded AND a valid EvergreenLibrary.json exists.
+    $updateAddToLibraryButtonState = {
+        $appSelected = $null -ne $appsComboBox.SelectedItem -and $syncHash.CurrentAppResults.Count -gt 0
+        $libraryPath = $syncHash.Config.LibraryPath
+        $jsonExists  = (-not [string]::IsNullOrWhiteSpace($libraryPath)) -and
+                       (Test-Path -LiteralPath (Join-Path $libraryPath 'EvergreenLibrary.json'))
+        $addToLibraryButton.IsEnabled = $appSelected -and $jsonExists
     }
 
     $loadAppVersions = {
@@ -5469,6 +5480,7 @@ function Start-EvergreenWorkbench {
             $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
             $filterWrapPanel.Children.Clear()
             $syncHash.FilterState = @{}
+            $addToLibraryButton.IsEnabled = $false
 
             $selectedApp = $appsComboBox.SelectedItem
             if ($null -ne $selectedApp) {
@@ -5554,6 +5566,81 @@ function Start-EvergreenWorkbench {
                 catch {
                     Write-UILog -SyncHash $syncHash -Message "Export failed: $_" -Level Error
                 }
+            }
+        })
+
+    $addToLibraryButton.add_Click({
+            $selectedApp  = $appsComboBox.SelectedItem
+            $libraryPath  = $syncHash.Config.LibraryPath
+            $libraryJsonPath = Join-Path -Path $libraryPath -ChildPath 'EvergreenLibrary.json'
+
+            if ($null -eq $selectedApp -or [string]::IsNullOrWhiteSpace($libraryPath)) {
+                Write-UILog -SyncHash $syncHash -Message 'Select an application and ensure a library path is configured.' -Level Warning
+                return
+            }
+            if (-not (Test-Path -LiteralPath $libraryJsonPath)) {
+                Write-UILog -SyncHash $syncHash -Message "EvergreenLibrary.json not found at: $libraryPath" -Level Error
+                return
+            }
+
+            # Build filter string from FilterState — skip synthetic _DerivedType property.
+            $filterClauses = @()
+            foreach ($propName in $syncHash.FilterState.Keys) {
+                if ($propName -eq '_DerivedType') { continue }
+
+                $selected = @($syncHash.FilterState[$propName])
+                $allValues = @($syncHash.CurrentAppResults |
+                    Select-Object -ExpandProperty $propName -ErrorAction SilentlyContinue |
+                    Where-Object { $null -ne $_ } |
+                    Sort-Object -Unique)
+
+                # All values selected means no restriction on this property
+                if ($selected.Count -ge $allValues.Count) { continue }
+
+                if ($selected.Count -eq 1) {
+                    $filterClauses += "`$_.$propName -eq `"$($selected[0])`""
+                }
+                else {
+                    $orParts = $selected | ForEach-Object { "`$_.$propName -eq `"$_`"" }
+                    $filterClauses += "($($orParts -join ' -or '))"
+                }
+            }
+            $filterString = $filterClauses -join ' -and '
+
+            try {
+                $raw = Get-Content -LiteralPath $libraryJsonPath -Raw -Encoding UTF8
+                $libraryRoot = ConvertFrom-Json -InputObject $raw
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Failed to read EvergreenLibrary.json: $_" -Level Error
+                return
+            }
+
+            $appName = [string]$selectedApp.Name
+
+            # EvergreenLibrary.json has a root wrapper object with an Applications array.
+            # Locate that wrapper and update its Applications list.
+            $wrapper = $libraryRoot | Where-Object { $_.PSObject.Properties.Name -contains 'Applications' } | Select-Object -First 1
+            if ($null -eq $wrapper) {
+                Write-UILog -SyncHash $syncHash -Message 'EvergreenLibrary.json does not contain an Applications array. Cannot add entry.' -Level Error
+                return
+            }
+
+            $newEntry = [PSCustomObject]@{
+                Name         = $appName
+                EvergreenApp = $appName
+                Filter       = $filterString
+            }
+
+            # Overwrite any existing entry for this app, then append the new one
+            $wrapper.Applications = @($wrapper.Applications | Where-Object { $_.Name -ne $appName }) + $newEntry
+
+            try {
+                $libraryRoot | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $libraryJsonPath -Encoding UTF8
+                Write-UILog -SyncHash $syncHash -Message "Added '$appName' to library (filter: '$filterString')." -Level Info
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Failed to write EvergreenLibrary.json: $_" -Level Error
             }
         })
 
@@ -5652,6 +5739,7 @@ function Start-EvergreenWorkbench {
                 $syncHash.Config.LibraryPath = $dlg.SelectedPath
                 Set-UIConfig -Config $syncHash.Config
                 & $refreshLibraryView
+                & $updateAddToLibraryButtonState
             }
         })
 
@@ -5669,6 +5757,7 @@ function Start-EvergreenWorkbench {
                 $syncHash.Config.LibraryPath = $path
                 Set-UIConfig -Config $syncHash.Config
                 & $refreshLibraryView
+                & $updateAddToLibraryButtonState
             }
             catch {
                 Write-UILog -SyncHash $syncHash -Message "Failed to create library: $_" -Level Error
