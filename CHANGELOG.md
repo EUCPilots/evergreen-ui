@@ -1,8 +1,14 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [CHANGELOG.md] - 2026-03-28
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Added
+- Apps tab: **Add to Library** button writes the selected application and active filter state to `EvergreenLibrary.json` in the configured library path; the button is only enabled when an app is loaded and a valid `EvergreenLibrary.json` exists
+- Apps tab: inline status label next to the action buttons confirms a successful **Add to Library** operation with the app name (auto-clears after 3 seconds) or shows an error in red if the write fails
+- Library tab: indeterminate progress bar appears below the path controls while **Update Library** is running and collapses on completion
+
+### Fixed
+- Library tab: warnings emitted by `Get-EvergreenLibrary` (e.g. missing app directories) are now captured and forwarded to the workbench log instead of being written to the PowerShell host
 
 ## [1.0.11] - 2026-03-27
 
