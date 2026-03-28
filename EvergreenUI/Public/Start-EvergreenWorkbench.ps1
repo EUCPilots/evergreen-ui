@@ -5037,11 +5037,51 @@ function Start-EvergreenWorkbench {
             & $refreshNerdioApiAuthUi
             & $refreshNerdioAzureAuthUi
             & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
+
+            # Auto-load local definitions only — do not query Intune or Nerdio Manager.
+            # Skip if compare data is already populated: definitions are already visible in
+            # the comparison view, and re-loading when IntuneWin32Rows / NerdioShellAppRows
+            # are non-empty would cause refreshComparison to call external APIs for matched rows.
+            $savedIntunePath = if ($null -ne $syncHash.Config.IntuneSettings) {
+                [string]$syncHash.Config.IntuneSettings.DefinitionsPath
+            }
+            else {
+                ''
+            }
+            if (-not [string]::IsNullOrWhiteSpace($savedIntunePath) -and
+                (Test-Path -LiteralPath $savedIntunePath -PathType Container) -and
+                $syncHash.IntuneWin32Rows.Count -eq 0) {
+                & $loadIntuneDefinitions
+            }
+
+            $savedNerdioPath = if ($null -ne $syncHash.Config.NerdioSettings) {
+                [string]$syncHash.Config.NerdioSettings.DefinitionsPath
+            }
+            else {
+                ''
+            }
+            if (-not [string]::IsNullOrWhiteSpace($savedNerdioPath) -and
+                (Test-Path -LiteralPath $savedNerdioPath -PathType Container) -and
+                $syncHash.NerdioShellAppRows.Count -eq 0) {
+                & $loadNerdioDefinitions
+            }
         })
 
     $navInstall.add_Checked({
             & $setInstallElevationState
-            & $refreshInstallRows
+            $savedInstallPath = if ($null -ne $syncHash.Config.InstallSettings) {
+                [string]$syncHash.Config.InstallSettings.DefinitionsPath
+            }
+            else {
+                ''
+            }
+            if (-not [string]::IsNullOrWhiteSpace($savedInstallPath) -and
+                (Test-Path -LiteralPath $savedInstallPath -PathType Container)) {
+                & $loadInstallDefinitions
+            }
+            else {
+                & $refreshInstallRows
+            }
         })
 
     $navUpdate.add_Checked({
