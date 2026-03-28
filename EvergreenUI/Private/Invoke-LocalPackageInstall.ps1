@@ -110,7 +110,25 @@ function Invoke-LocalPackageInstall {
         Join-Path -Path $definitionParentDir -ChildPath 'Install.ps1'
     }
 
-    # Copy Install.ps1 to the working directory. Prefer the package root,
+    # Download the latest installer first so we know the exact directory
+    # Save-EvergreenApp -Path creates a subdirectory tree; capture the result
+    # to resolve where the installer actually landed.
+    $downloadDir = $appWorkingDir
+    if (-not [string]::IsNullOrWhiteSpace([string]$LatestVersionResult.URI)) {
+        try {
+            Write-UILog -SyncHash $SyncHash -Message "Install: downloading latest installer to '$appWorkingDir'." -Level Info
+            $downloadResults = @($LatestVersionResult.ResolvedArtifact | Save-EvergreenApp -Path $appWorkingDir -ErrorAction Stop)
+            if ($downloadResults.Count -gt 0) {
+                $downloadDir = [System.IO.Path]::GetDirectoryName($downloadResults[0].FullName)
+                Write-UILog -SyncHash $SyncHash -Message "Install: installer saved to '$downloadDir'." -Level Info
+            }
+        }
+        catch {
+            return (& $fail "Failed to download installer: $($_.Exception.Message)")
+        }
+    }
+
+    # Copy Install.ps1 to the download directory. Prefer the package root,
     # then the Source folder, then the shared intune template used by
     # evergreen-packages package definitions.
     $installPs1Source = @(
@@ -121,7 +139,7 @@ function Invoke-LocalPackageInstall {
         -not [string]::IsNullOrWhiteSpace([string]$_) -and (Test-Path -LiteralPath $_ -PathType Leaf)
     } | Select-Object -First 1
 
-    $installPs1Target = Join-Path -Path $appWorkingDir -ChildPath 'Install.ps1'
+    $installPs1Target = Join-Path -Path $downloadDir -ChildPath 'Install.ps1'
     if (-not [string]::IsNullOrWhiteSpace([string]$installPs1Source)) {
         try {
             Write-UILog -SyncHash $SyncHash -Message "Install: copying Install.ps1 from '$installPs1Source' to '$installPs1Target'." -Level Info
@@ -132,25 +150,14 @@ function Invoke-LocalPackageInstall {
         }
     }
 
-    # Copy support files from <Package>\Source\ into the working directory
+    # Copy support files from <Package>\Source\ into the download directory
     if (Test-Path -LiteralPath $definitionSourceDir -PathType Container) {
         try {
-            Write-UILog -SyncHash $SyncHash -Message "Install: copying support files from '$definitionSourceDir'." -Level Info
-            Copy-Item -Path "$definitionSourceDir\*" -Destination $appWorkingDir -Recurse -Force -ErrorAction Stop
+            Write-UILog -SyncHash $SyncHash -Message "Install: copying support files from '$definitionSourceDir' to '$downloadDir'." -Level Info
+            Copy-Item -Path "$definitionSourceDir\*" -Destination $downloadDir -Recurse -Force -ErrorAction Stop
         }
         catch {
             return (& $fail "Failed to copy source content: $($_.Exception.Message)")
-        }
-    }
-
-    # Download the latest installer to the working directory
-    if (-not [string]::IsNullOrWhiteSpace([string]$LatestVersionResult.URI)) {
-        try {
-            Write-UILog -SyncHash $SyncHash -Message "Install: downloading latest installer to '$appWorkingDir'." -Level Info
-            [void]@($LatestVersionResult.ResolvedArtifact | Save-EvergreenApp -LiteralPath $appWorkingDir -ErrorAction Stop)
-        }
-        catch {
-            return (& $fail "Failed to download installer: $($_.Exception.Message)")
         }
     }
 
@@ -165,17 +172,17 @@ function Invoke-LocalPackageInstall {
     $process = $null
     try {
         if ($useInstallPs1) {
-            $escapedWorkingDir = $appWorkingDir.Replace("'", "''")
+            $escapedWorkingDir = $downloadDir.Replace("'", "''")
             $installScriptCommand = "Set-Location -LiteralPath '$escapedWorkingDir'; & '.\\Install.ps1'"
-            Write-UILog -SyncHash $SyncHash -Message "Install: running Install.ps1 from '$appWorkingDir' with current directory '$appWorkingDir'." -Level Cmd
+            Write-UILog -SyncHash $SyncHash -Message "Install: running Install.ps1 from '$downloadDir'." -Level Cmd
             $process = Start-Process -FilePath 'powershell.exe' `
                 -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-NonInteractive', '-Command', $installScriptCommand `
-                -WorkingDirectory $appWorkingDir -Wait -PassThru -ErrorAction Stop
+                -WorkingDirectory $downloadDir -Wait -PassThru -ErrorAction Stop
         }
         else {
             Write-UILog -SyncHash $SyncHash -Message "Install: executing command '$fallbackCommand'." -Level Cmd
             $process = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $fallbackCommand `
-                -WorkingDirectory $appWorkingDir -Wait -PassThru -ErrorAction Stop
+                -WorkingDirectory $downloadDir -Wait -PassThru -ErrorAction Stop
         }
     }
     catch {
@@ -189,12 +196,12 @@ function Invoke-LocalPackageInstall {
         return (& $fail "Installer exited with code $exitCode.")
     }
 
-    $resolvedCommand = if ($useInstallPs1) { "powershell.exe -Command Set-Location -LiteralPath '$appWorkingDir'; & '.\\Install.ps1'" } else { $fallbackCommand }
+    $resolvedCommand = if ($useInstallPs1) { "powershell.exe -Command Set-Location -LiteralPath '$downloadDir'; & '.\\Install.ps1'" } else { $fallbackCommand }
 
     return [PSCustomObject]@{
         Succeeded         = $true
         ExitCode          = $exitCode
-        WorkingDirectory  = $appWorkingDir
+        WorkingDirectory  = $downloadDir
         DownloadedVersion = [string]$LatestVersionResult.Version
         InstallCommand    = $resolvedCommand
         Error             = ''

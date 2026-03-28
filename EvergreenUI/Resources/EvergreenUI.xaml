@@ -2609,7 +2609,7 @@
                                            Margin="0,7,10,16"/>
                                 <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,16">
                                     <Button x:Name="BrowseOutputButton"
-                                            Content="Browse..."
+                                            Content="Browse"
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource FluentSecondaryButton}"
                                             Width="{Binding ElementName=OpenEvergreenAppsFolderButton, Path=ActualWidth}"
@@ -2864,7 +2864,7 @@
                                            Margin="0,7,10,0"/>
                                 <DockPanel Grid.Row="2" Grid.Column="1">
                                     <Button x:Name="IntuneBrowsePackageOutputButton"
-                                            Content="Browse..."
+                                            Content="Browse"
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource FluentSecondaryButton}"
                                             Margin="8,0,0,0"/>
