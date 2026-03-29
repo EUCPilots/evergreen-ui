@@ -5,7 +5,8 @@
       "Bash(grep -n \"$navApps.add_Checked\\\\|InstallPanel.*Visibility\\\\|AppsPanel.*Visibility\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
       "Bash(grep -n \"$navCheckedHandler\\\\s*=\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
       "Bash(grep -n \"$panelMap\\\\s*=\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
-      "Bash(grep -n \"DefinitionsPath.*$syncHash.Config\" /c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)"
+      "Bash(grep -n \"DefinitionsPath.*$syncHash.Config\" /c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
+      "Bash(grep -r \"\\\\.Add_Checked\\\\|\\\\.Add_Click\\\\|RadioButton\\\\|NavApps\" C:projects_EUCPilotsevergreen-ui --include=*.ps1)"
     ]
   }
 }
