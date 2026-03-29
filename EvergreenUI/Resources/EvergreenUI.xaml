@@ -1635,7 +1635,8 @@
                                             <Button x:Name="IntuneApplyImportButton"
                                                     Content="Import Win32 app"
                                                     Style="{StaticResource FluentButton}"
-                                                    Padding="12,6"
+                                                    Height="32"
+                                                    Padding="12,0"
                                                     IsEnabled="False"/>
                                         </StackPanel>
                                         <TextBlock x:Name="IntuneActionStatusLabel"
@@ -1957,6 +1958,344 @@
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center"
                                                    FontSize="12"/>
+                                    </DockPanel>
+                                </Border>
+
+                            </Grid>
+                        </TabItem>
+
+                        <!-- ── Microsoft 365 Apps tab ── -->
+                        <TabItem Header="Microsoft 365 Apps"
+                                 Style="{StaticResource FluentTabItem}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="4"
+                                        Margin="0,0,0,12"
+                                        ClipToBounds="True">
+                                    <DockPanel>
+
+                                        <!-- Path input and load buttons -->
+                                        <Border DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="10,8"
+                                                Background="{DynamicResource WindowBackgroundBrush}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="M365ConfigPathBox"
+                                                         Grid.Column="0"
+                                                         Style="{StaticResource FluentTextBox}"
+                                                         Margin="0,0,6,0"/>
+                                                <TextBlock Text="Path to M365 App configuration files..."
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           IsHitTestVisible="False"
+                                                           Margin="10,0,6,0"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           Grid.Column="0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, ElementName=M365ConfigPathBox}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Button x:Name="M365BrowseConfigButton"
+                                                        Grid.Column="1"
+                                                        Content="Browse"
+                                                        Style="{StaticResource FluentSecondaryButton}"
+                                                        Margin="0,0,6,0"
+                                                        Padding="10,6"/>
+                                                <Button x:Name="M365LoadConfigsButton"
+                                                        Grid.Column="2"
+                                                        Content="Load configurations"
+                                                        Style="{StaticResource FluentButton}"
+                                                        Padding="10,6"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Count and version status -->
+                                        <Border DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,8"
+                                                Background="{DynamicResource ControlBackgroundBrush}">
+                                            <StackPanel Orientation="Horizontal"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock x:Name="M365ConfigsCountLabel"
+                                                           Text="0 configurations"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Loading panel -->
+                                        <Border x:Name="M365ConfigsLoadingPanel"
+                                                DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,8"
+                                                Background="{DynamicResource WindowBackgroundBrush}"
+                                                Visibility="Collapsed">
+                                            <StackPanel>
+                                                <TextBlock x:Name="M365ConfigsLoadingLabel"
+                                                           Text="Loading..."
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="11"
+                                                           Margin="0,0,0,6"/>
+                                                <ProgressBar x:Name="M365ConfigsProgressBar"
+                                                             IsIndeterminate="True"
+                                                             Height="3"
+                                                             Foreground="{DynamicResource AccentBrush}"
+                                                             Background="{DynamicResource ControlBorderBrush}"
+                                                             BorderThickness="0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Configurations list -->
+                                        <Grid>
+                                            <ListView x:Name="M365ConfigsListView"
+                                                      Style="{StaticResource FluentListView}"
+                                                      BorderThickness="0"
+                                                      SelectionMode="Single">
+                                                <ListView.Resources>
+                                                    <Style TargetType="GridViewColumnHeader">
+                                                        <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
+                                                        <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Setter Property="FontSize"                   Value="11"/>
+                                                        <Setter Property="FontWeight"                 Value="SemiBold"/>
+                                                        <Setter Property="Padding"                    Value="12,6"/>
+                                                        <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
+                                                        <Setter Property="BorderThickness"            Value="0,0,1,1"/>
+                                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                                    </Style>
+
+                                                    <Style x:Key="M365StatusCellStyle"
+                                                           TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Valid">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusPositiveBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="No ID">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusErrorBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Invalid ID">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusErrorBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Invalid XML">
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusErrorBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+
+                                                    <DataTemplate x:Key="M365StatusCellTemplate">
+                                                        <TextBlock Text="{Binding Status}" Style="{StaticResource M365StatusCellStyle}"/>
+                                                    </DataTemplate>
+                                                </ListView.Resources>
+                                                <ListView.ItemContainerStyle>
+                                                    <Style TargetType="ListViewItem">
+                                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                        <Setter Property="MinHeight"                  Value="32"/>
+                                                        <Setter Property="Padding"                    Value="0"/>
+                                                        <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
+                                                        <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ListViewItem">
+                                                                    <Border x:Name="bd"
+                                                                            Background="Transparent"
+                                                                            Padding="{TemplateBinding Padding}">
+                                                                        <GridViewRowPresenter Content="{TemplateBinding Content}"
+                                                                                              HorizontalAlignment="Stretch"
+                                                                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="Valid">
+                                                                            <Setter TargetName="bd" Property="Background" Value="#0A4CAF50"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="No ID">
+                                                                            <Setter TargetName="bd" Property="Background" Value="#0AFF3333"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="Invalid XML">
+                                                                            <Setter TargetName="bd" Property="Background" Value="#0AFF3333"/>
+                                                                        </DataTrigger>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsSelected" Value="True">
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ListView.ItemContainerStyle>
+                                                <ListView.View>
+                                                    <GridView>
+                                                        <GridViewColumn Header="Filename"     DisplayMemberBinding="{Binding FileName}"         Width="180"/>
+                                                        <GridViewColumn Header="Display Name" DisplayMemberBinding="{Binding DisplayName}"      Width="320"/>
+                                                        <GridViewColumn Header="Products"     DisplayMemberBinding="{Binding Products}"         Width="220"/>
+                                                        <GridViewColumn Header="Status"       CellTemplate="{StaticResource M365StatusCellTemplate}" Width="90"/>
+                                                    </GridView>
+                                                </ListView.View>
+                                            </ListView>
+                                            <StackPanel HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Margin="16">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasItems, ElementName=M365ConfigsListView}" Value="False">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <TextBlock Text="No M365 configurations loaded."
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"/>
+                                                <TextBlock Text="Browse to your configuration directory and click Load configurations."
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="11"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- Action buttons bar -->
+                                <Border Grid.Row="1"
+                                        BorderThickness="1"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        CornerRadius="4"
+                                        Padding="12,10">
+                                    <DockPanel LastChildFill="True">
+                                        <StackPanel Orientation="Horizontal"
+                                                    DockPanel.Dock="Right">
+                                            <Button x:Name="M365ImportNerdioButton"
+                                                    Content="Import Nerdio Manager Shell App"
+                                                    Style="{StaticResource FluentSecondaryButton}"
+                                                    Height="32"
+                                                    Padding="12,0"
+                                                    IsEnabled="False"
+                                                    Margin="0,0,8,0"/>
+                                            <Button x:Name="M365ImportIntuneButton"
+                                                    Content="Import Intune Win32App"
+                                                    Style="{StaticResource FluentButton}"
+                                                    Height="32"
+                                                    Padding="12,0"
+                                                    IsEnabled="False"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal"
+                                                    DockPanel.Dock="Left"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="Channel"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0"/>
+                                            <ComboBox x:Name="M365ChannelCombo"
+                                                      Style="{StaticResource FluentComboBox}"
+                                                      Width="180"
+                                                      Height="32"
+                                                      Margin="0,0,8,0">
+                                                <ComboBoxItem Content="BetaChannel"/>
+                                                <ComboBoxItem Content="CurrentPreview"/>
+                                                <ComboBoxItem Content="Current"/>
+                                                <ComboBoxItem Content="MonthlyEnterprise"/>
+                                                <ComboBoxItem Content="PerpetualVL2021"/>
+                                                <ComboBoxItem Content="SemiAnnualPreview"/>
+                                                <ComboBoxItem Content="SemiAnnual"/>
+                                                <ComboBoxItem Content="PerpetualVL2019"/>
+                                            </ComboBox>
+                                            <TextBlock x:Name="M365EvergreenVersionLabel"
+                                                       Text="—"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,16,0"/>
+                                            <TextBlock Text="Company name"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0"/>
+                                            <TextBox x:Name="M365CompanyNameBox"
+                                                     Style="{StaticResource FluentTextBox}"
+                                                     Width="160"
+                                                     Height="32"
+                                                     Margin="0,0,16,0"/>
+                                            <Ellipse x:Name="M365IntuneAuthStatusDot"
+                                                     Width="9"
+                                                     Height="9"
+                                                     Fill="OrangeRed"
+                                                     Stroke="{DynamicResource ControlBorderBrush}"
+                                                     StrokeThickness="1"
+                                                     VerticalAlignment="Center"/>
+                                            <TextBlock Text="Intune:"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="11"
+                                                       Margin="5,0,4,0"/>
+                                            <TextBlock x:Name="M365IntuneAuthStatusLabel"
+                                                       Text="Not signed in"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="11"
+                                                       Margin="0,0,12,0"/>
+                                            <Ellipse x:Name="M365NerdioAuthStatusDot"
+                                                     Width="9"
+                                                     Height="9"
+                                                     Fill="OrangeRed"
+                                                     Stroke="{DynamicResource ControlBorderBrush}"
+                                                     StrokeThickness="1"
+                                                     VerticalAlignment="Center"/>
+                                            <TextBlock Text="Nerdio Manager:"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="11"
+                                                       Margin="5,0,4,0"/>
+                                            <TextBlock x:Name="M365NerdioAuthStatusLabel"
+                                                       Text="Not connected"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="11"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="M365ActionStatusLabel"
+                                                   Text=""
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="12"
+                                                   Margin="16,0,0,0"/>
                                     </DockPanel>
                                 </Border>
 

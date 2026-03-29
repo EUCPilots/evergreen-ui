@@ -177,6 +177,18 @@ function Start-EvergreenWorkbench {
             NerdioShellAppRows                              = @()
             NerdioComparisonRows                            = @()
             NerdioSelectedComparisonRow                     = $null
+            IsM365ImportLoading                             = $false
+            PendingM365ImportTimer                          = $null
+            PendingM365ImportPS                             = $null
+            PendingM365ImportRunspace                       = $null
+            PendingM365ImportAsync                          = $null
+            IsM365EvergreenLoading                          = $false
+            PendingM365EvergreenTimer                       = $null
+            PendingM365EvergreenPS                          = $null
+            PendingM365EvergreenRunspace                    = $null
+            PendingM365EvergreenAsync                       = $null
+            M365ConfigRows                                  = @()
+            M365EvergreenRows                               = @()
             ImportCurrentProvider                           = 'Nerdio'
             AzureAuthState                                  = [PSCustomObject]@{
                 IsAuthenticated    = $false
@@ -401,6 +413,25 @@ function Start-EvergreenWorkbench {
     $nerdioAzureSignInButton = $window.FindName('NerdioAzureSignInButton')
     $nerdioAzureSignOutButton = $window.FindName('NerdioAzureSignOutButton')
     $intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
+    # Microsoft 365 Apps controls
+    $m365ConfigPathBox         = $window.FindName('M365ConfigPathBox')
+    $m365BrowseConfigButton    = $window.FindName('M365BrowseConfigButton')
+    $m365LoadConfigsButton     = $window.FindName('M365LoadConfigsButton')
+    $m365ChannelCombo          = $window.FindName('M365ChannelCombo')
+    $m365CompanyNameBox        = $window.FindName('M365CompanyNameBox')
+    $m365ConfigsCountLabel     = $window.FindName('M365ConfigsCountLabel')
+    $m365EvergreenVersionLabel = $window.FindName('M365EvergreenVersionLabel')
+    $m365IntuneAuthStatusDot   = $window.FindName('M365IntuneAuthStatusDot')
+    $m365IntuneAuthStatusLabel = $window.FindName('M365IntuneAuthStatusLabel')
+    $m365NerdioAuthStatusDot   = $window.FindName('M365NerdioAuthStatusDot')
+    $m365NerdioAuthStatusLabel = $window.FindName('M365NerdioAuthStatusLabel')
+    $m365ConfigsLoadingPanel   = $window.FindName('M365ConfigsLoadingPanel')
+    $m365ConfigsLoadingLabel   = $window.FindName('M365ConfigsLoadingLabel')
+    $m365ConfigsProgressBar    = $window.FindName('M365ConfigsProgressBar')
+    $m365ConfigsListView       = $window.FindName('M365ConfigsListView')
+    $m365ImportIntuneButton    = $window.FindName('M365ImportIntuneButton')
+    $m365ImportNerdioButton    = $window.FindName('M365ImportNerdioButton')
+    $m365ActionStatusLabel     = $window.FindName('M365ActionStatusLabel')
     # Log row is RowDefinitions[3]; track its height for collapse/restore
     $logRowDef = $rootGrid.RowDefinitions[3]
 
@@ -415,6 +446,11 @@ function Start-EvergreenWorkbench {
     $syncHash.IntuneWin32AppsListView = $intuneWin32AppsListView
     $syncHash.InstallLoadingLabel = $installLoadingLabel
     $syncHash.InstallActionStatusLabel = $installActionStatusLabel
+    $syncHash.M365ConfigsLoadingPanel   = $m365ConfigsLoadingPanel
+    $syncHash.M365ConfigsLoadingLabel   = $m365ConfigsLoadingLabel
+    $syncHash.M365ActionStatusLabel     = $m365ActionStatusLabel
+    $syncHash.M365EvergreenVersionLabel = $m365EvergreenVersionLabel
+    $syncHash.M365ConfigsListView       = $m365ConfigsListView
 
     $aboutNameValue.Text = [string]$moduleMetadata.Name
     $aboutVersionValue.Text = [string]$moduleMetadata.Version
@@ -1640,6 +1676,731 @@ function Start-EvergreenWorkbench {
         $pollTimer.Start()
     }
 
+    # ── Microsoft 365 Apps tab scriptblocks ──────────────────────────────────
+
+    $updateM365ActionButtons = {
+        $selected   = if ($null -ne $m365ConfigsListView) { $m365ConfigsListView.SelectedItem } else { $null }
+        $hasValid   = ($null -ne $selected) -and ([string]$selected.Status -eq 'Valid')
+        $notLoading = -not $syncHash.IsM365ImportLoading
+
+        $intuneReady  = $hasValid -and $notLoading -and
+                        $syncHash.AzureAuthState.IsAuthenticated -and
+                        $syncHash.AzureAuthState.IntuneConnected
+
+        $nerdioReady  = $hasValid -and $notLoading -and
+                        $syncHash.NerdioApiAuthState.IsAuthenticated
+
+        if ($null -ne $m365ImportIntuneButton) { $m365ImportIntuneButton.IsEnabled = $intuneReady }
+        if ($null -ne $m365ImportNerdioButton) { $m365ImportNerdioButton.IsEnabled = $nerdioReady }
+    }
+
+    $setM365LoadingState = {
+        param(
+            [bool]$IsLoading,
+            [string]$Message = ''
+        )
+
+        $syncHash.IsM365ImportLoading = $IsLoading
+
+        & $updateM365ActionButtons
+
+        if ($null -ne $m365ConfigsLoadingPanel) {
+            $m365ConfigsLoadingPanel.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+        }
+
+        if ($null -ne $m365ConfigsLoadingLabel) {
+            if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
+                $m365ConfigsLoadingLabel.Text = $Message
+            }
+            elseif (-not $IsLoading) {
+                $m365ConfigsLoadingLabel.Text = 'Loading...'
+            }
+        }
+
+        if ($null -ne $m365ActionStatusLabel) {
+            if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
+                $m365ActionStatusLabel.Text = $Message
+            }
+            elseif (-not $IsLoading) {
+                $m365ActionStatusLabel.Text = ''
+            }
+        }
+    }
+
+    $loadM365EvergreenVersions = {
+        # Cancel any in-progress Evergreen fetch
+        if ($null -ne $syncHash.PendingM365EvergreenTimer -and $syncHash.PendingM365EvergreenTimer.IsEnabled) {
+            $syncHash.PendingM365EvergreenTimer.Stop()
+            $syncHash.PendingM365EvergreenTimer = $null
+        }
+        foreach ($key in @('PendingM365EvergreenPS', 'PendingM365EvergreenRunspace', 'PendingM365EvergreenAsync')) {
+            $syncHash[$key] = $null
+        }
+
+        $syncHash.IsM365EvergreenLoading = $true
+
+        if ($null -ne $m365ConfigsLoadingPanel) { $m365ConfigsLoadingPanel.Visibility = 'Visible' }
+        if ($null -ne $m365ConfigsLoadingLabel) { $m365ConfigsLoadingLabel.Text = 'Fetching latest M365 versions from Evergreen...' }
+
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $writeUILogScript = Join-Path -Path $privateRootPath -ChildPath 'Write-UILog.ps1'
+
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+
+        [void]$ps.AddScript({
+                param([string]$WriteUILogScript)
+                try {
+                    if (Test-Path -LiteralPath $WriteUILogScript -PathType Leaf) { . $WriteUILogScript }
+                    if (-not (Get-Command -Name 'Get-EvergreenApp' -ErrorAction SilentlyContinue)) {
+                        Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
+                    }
+                    $rows = @(Get-EvergreenApp -Name 'Microsoft365Apps' -ErrorAction Stop)
+                    return $rows
+                }
+                catch {
+                    Write-UILog -SyncHash $syncHash -Message "M365: failed to fetch Evergreen versions: $($_.Exception.Message)" -Level Error
+                    return @()
+                }
+            }).AddArgument($writeUILogScript)
+
+        $syncHash.PendingM365EvergreenPS = $ps
+        $syncHash.PendingM365EvergreenRunspace = $rs
+        $syncHash.PendingM365EvergreenAsync = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+        $syncHash.PendingM365EvergreenTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingM365EvergreenAsync -or -not $syncHash.PendingM365EvergreenAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingM365EvergreenTimer) {
+                    $syncHash.PendingM365EvergreenTimer.Stop()
+                    $syncHash.PendingM365EvergreenTimer = $null
+                }
+
+                $evRows = @()
+                try {
+                    $output = $syncHash.PendingM365EvergreenPS.EndInvoke($syncHash.PendingM365EvergreenAsync)
+                    if ($null -ne $output -and $output.Count -gt 0) { $evRows = @($output) }
+                }
+                catch {}
+                finally {
+                    try { $syncHash.PendingM365EvergreenPS.Dispose() } catch {}
+                    try { $syncHash.PendingM365EvergreenRunspace.Dispose() } catch {}
+                    $syncHash.PendingM365EvergreenPS = $null
+                    $syncHash.PendingM365EvergreenRunspace = $null
+                    $syncHash.PendingM365EvergreenAsync = $null
+                    $syncHash.IsM365EvergreenLoading = $false
+                }
+
+                $syncHash.M365EvergreenRows = $evRows
+
+                # Update EvergreenVersion on each config row
+                $selectedChannel = if ($null -ne $m365ChannelCombo) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
+                foreach ($row in $syncHash.M365ConfigRows) {
+                    $match = $evRows | Where-Object { $_.Channel -eq $row.Channel } |
+                        Sort-Object -Property { [System.Version]$_.Version } -Descending |
+                        Select-Object -First 1
+                    if ($null -ne $match) {
+                        $row.EvergreenVersion = [string]$match.Version
+                    }
+                }
+
+                if ($null -ne $m365ConfigsListView) { $m365ConfigsListView.Items.Refresh() }
+
+                # Update version label for the currently selected channel
+                if (-not [string]::IsNullOrWhiteSpace($selectedChannel)) {
+                    $channelMatch = $evRows | Where-Object { $_.Channel -eq $selectedChannel } |
+                        Sort-Object -Property { [System.Version]$_.Version } -Descending |
+                        Select-Object -First 1
+                    if ($null -ne $channelMatch -and $null -ne $m365EvergreenVersionLabel) {
+                        $m365EvergreenVersionLabel.Text = [string]$channelMatch.Version
+                    }
+                }
+
+                if ($null -ne $m365ConfigsLoadingPanel) { $m365ConfigsLoadingPanel.Visibility = 'Collapsed' }
+            })
+
+        $pollTimer.Start()
+    }
+
+    $loadM365Configs = {
+        $configPath = & $normalizeDirectoryPath -PathValue ([string]$m365ConfigPathBox.Text)
+        $m365ConfigPathBox.Text = $configPath
+        & $applyM365PathsToConfig
+
+        if ([string]::IsNullOrWhiteSpace($configPath)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: configuration path is not set.' -Level Warning
+            return
+        }
+
+        if (-not (Test-Path -LiteralPath $configPath -PathType Container)) {
+            Write-UILog -SyncHash $syncHash -Message "M365: configuration path does not exist: '$configPath'" -Level Warning
+            return
+        }
+
+        Write-UILog -SyncHash $syncHash -Message "M365: loading configurations from '$configPath'..." -Level Info
+
+        try {
+            $rows = @(Get-M365AppConfigurations -DefinitionsRoot $configPath)
+        }
+        catch {
+            Write-UILog -SyncHash $syncHash -Message "M365: failed to load configurations: $($_.Exception.Message)" -Level Error
+            return
+        }
+
+        $syncHash.M365ConfigRows = $rows
+
+        $observableRows = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
+        foreach ($row in $rows) { $observableRows.Add($row) }
+        $m365ConfigsListView.ItemsSource = $observableRows
+
+        $validCount = ($rows | Where-Object { $_.Status -eq 'Valid' }).Count
+        $m365ConfigsCountLabel.Text = "$($rows.Count) configuration$(if ($rows.Count -ne 1) {'s'}) ($validCount valid)"
+
+        Write-UILog -SyncHash $syncHash -Message "M365: loaded $($rows.Count) configuration(s)." -Level Info
+
+        & $loadM365EvergreenVersions
+    }
+
+    $startM365IntuneImport = {
+        if ($syncHash.IsM365ImportLoading) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: another import action is already in progress.' -Level Warning
+            return
+        }
+
+        $selectedRow = $m365ConfigsListView.SelectedItem
+        if ($null -eq $selectedRow) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: no configuration selected.' -Level Warning
+            return
+        }
+
+        if ([string]$selectedRow.Status -ne 'Valid') {
+            Write-UILog -SyncHash $syncHash -Message "M365: selected configuration '$([string]$selectedRow.FileName)' is not valid (status: $([string]$selectedRow.Status))." -Level Warning
+            return
+        }
+
+        $configDirPath = & $normalizeDirectoryPath -PathValue ([string]$m365ConfigPathBox.Text)
+        if ([string]::IsNullOrWhiteSpace($configDirPath) -or -not (Test-Path -LiteralPath $configDirPath -PathType Container)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: configuration directory path is not valid.' -Level Warning
+            return
+        }
+
+        # Package output path — re-use Intune output path setting as M365 shares the same working area
+        $packageOutputPath = & $normalizeDirectoryPath -PathValue ([string]$intunePackageOutputPathBox.Text)
+        if ([string]::IsNullOrWhiteSpace($packageOutputPath)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: package output path is not configured. Set it in the Microsoft Intune Win32 Apps pane first.' -Level Warning
+            return
+        }
+
+        if (-not (Test-Path -LiteralPath $packageOutputPath -PathType Container)) {
+            try { $null = New-Item -ItemType Directory -Path $packageOutputPath -Force -ErrorAction Stop }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "M365: cannot create package output path '$packageOutputPath': $($_.Exception.Message)" -Level Error
+                return
+            }
+        }
+
+        if (-not (& $loadIntuneWin32AppModule)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: IntuneWin32App module is required for packaging but could not be loaded.' -Level Warning
+            return
+        }
+
+        $channel     = if ($null -ne $m365ChannelCombo -and $null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
+        $companyName = [string]$m365CompanyNameBox.Text.Trim()
+        $tenantId    = [string]$syncHash.Config.AzureAuthSettings.TenantId
+
+        if ([string]::IsNullOrWhiteSpace($channel)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: no channel selected.' -Level Warning
+            return
+        }
+
+        if ([string]::IsNullOrWhiteSpace($companyName)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: company name is required.' -Level Warning
+            return
+        }
+
+        if ([string]::IsNullOrWhiteSpace($tenantId)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: tenant ID is required. Sign in on the Authentication tab first.' -Level Warning
+            return
+        }
+
+        $displayName = [string]$selectedRow.DisplayName
+
+        # Resolve the App.json template bundled with the module
+        $appJsonTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath '..\Resources\m365-app.json'
+        $appJsonTemplatePath = if (Test-Path -LiteralPath $appJsonTemplatePath -PathType Leaf) {
+            (Resolve-Path -LiteralPath $appJsonTemplatePath).Path
+        } else { '' }
+
+        if ([string]::IsNullOrWhiteSpace($appJsonTemplatePath)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: App.json template not found in module Resources folder.' -Level Warning
+            return
+        }
+
+        # Capture variables for closure
+        $capturedRow               = $selectedRow
+        $capturedConfigDirPath     = $configDirPath
+        $capturedChannel           = $channel
+        $capturedCompanyName       = $companyName
+        $capturedTenantId          = $tenantId
+        $capturedPackageOutputPath = $packageOutputPath
+        $capturedAppJsonTemplate   = $appJsonTemplatePath
+
+        & $setM365LoadingState -IsLoading $true -Message "Building package for '$displayName'..."
+        Write-UILog -SyncHash $syncHash -Message "M365: starting Intune import for '$displayName' (channel: $channel)..." -Level Info
+
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $helperScripts = @(
+            'Write-UILog.ps1'
+            'Invoke-M365AppPackageBuild.ps1'
+            'Invoke-IntuneGraphWin32Import.ps1'
+        ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
+
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+
+        [void]$ps.AddScript({
+                param(
+                    [string[]]      $HelperScripts,
+                    [PSCustomObject]$ConfigRow,
+                    [string]        $ConfigDirectoryPath,
+                    [string]        $Channel,
+                    [string]        $CompanyName,
+                    [string]        $TenantId,
+                    [string]        $WorkingPath,
+                    [string]        $AppJsonTemplatePath
+                )
+
+                $result = [PSCustomObject]@{
+                    Success     = $false
+                    DisplayName = [string]$ConfigRow.DisplayName
+                    AppId       = ''
+                    Version     = ''
+                    Error       = ''
+                }
+
+                try {
+                    foreach ($scriptPath in $HelperScripts) {
+                        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                            throw "Required helper script not found: $scriptPath"
+                        }
+                        . $scriptPath
+                    }
+
+                    if (-not (Get-Command -Name 'Get-EvergreenApp' -ErrorAction SilentlyContinue)) {
+                        Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
+                    }
+
+                    if (-not (Get-Command -Name 'New-IntuneWin32AppPackage' -ErrorAction SilentlyContinue)) {
+                        Import-Module -Name IntuneWin32App -ErrorAction Stop | Out-Null
+                    }
+
+                    $buildResult = Invoke-M365AppPackageBuild `
+                        -ConfigRow            $ConfigRow `
+                        -ConfigDirectoryPath  $ConfigDirectoryPath `
+                        -Channel              $Channel `
+                        -CompanyName          $CompanyName `
+                        -TenantId             $TenantId `
+                        -WorkingPath          $WorkingPath `
+                        -AppJsonTemplatePath  $AppJsonTemplatePath `
+                        -SyncHash             $syncHash
+
+                    if (-not $buildResult.Succeeded) {
+                        throw "Package build failed: $($buildResult.Error)"
+                    }
+
+                    $result.Version = $buildResult.Version
+
+                    if ([string]::IsNullOrWhiteSpace($buildResult.AppJsonPath) -or
+                        -not (Test-Path -LiteralPath $buildResult.AppJsonPath -PathType Leaf)) {
+                        throw "App.json was not produced by the build step."
+                    }
+
+                    $appJsonContent   = Get-Content -LiteralPath $buildResult.AppJsonPath -Raw -ErrorAction Stop | ConvertFrom-Json
+                    $psPackageGuid    = [string]$appJsonContent.Information.PSPackageFactoryGuid
+                    $importDisplayName = [string]$appJsonContent.Information.DisplayName
+
+                    $syncHash.Window.Dispatcher.Invoke([action] {
+                            if ($null -ne $syncHash.M365ActionStatusLabel) {
+                                $syncHash.M365ActionStatusLabel.Text = 'Uploading to Intune...'
+                            }
+                            if ($null -ne $syncHash.M365ConfigsLoadingLabel) {
+                                $syncHash.M365ConfigsLoadingLabel.Text = "Uploading '$importDisplayName' to Intune..."
+                            }
+                        }, 'Normal')
+
+                    $importResult = Invoke-IntuneGraphWin32Import `
+                        -DefinitionObject     $appJsonContent `
+                        -DefinitionPath       $buildResult.AppJsonPath `
+                        -IntuneWinPath        $buildResult.IntuneWinPath `
+                        -SetupFilePath        $buildResult.SetupFileUsed `
+                        -DownloadedVersion    $buildResult.Version `
+                        -PSPackageFactoryGuid $psPackageGuid `
+                        -SyncHash             $syncHash
+
+                    if (-not $importResult.Succeeded) {
+                        throw "Intune import failed: $($importResult.Error)"
+                    }
+
+                    $result.AppId   = $importResult.IntuneAppId
+                    $result.Success = $true
+                }
+                catch {
+                    $result.Error = $_.Exception.Message
+                }
+
+                return $result
+            })
+        [void]$ps.AddArgument(@($helperScripts))
+        [void]$ps.AddArgument($capturedRow)
+        [void]$ps.AddArgument($capturedConfigDirPath)
+        [void]$ps.AddArgument($capturedChannel)
+        [void]$ps.AddArgument($capturedCompanyName)
+        [void]$ps.AddArgument($capturedTenantId)
+        [void]$ps.AddArgument($capturedPackageOutputPath)
+        [void]$ps.AddArgument($capturedAppJsonTemplate)
+
+        $syncHash.PendingM365ImportPS = $ps
+        $syncHash.PendingM365ImportRunspace = $rs
+        $syncHash.PendingM365ImportAsync = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+        $syncHash.PendingM365ImportTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingM365ImportAsync -or -not $syncHash.PendingM365ImportAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingM365ImportTimer) {
+                    $syncHash.PendingM365ImportTimer.Stop()
+                    $syncHash.PendingM365ImportTimer = $null
+                }
+
+                $result = $null
+                try {
+                    $output = $syncHash.PendingM365ImportPS.EndInvoke($syncHash.PendingM365ImportAsync)
+                    $result = if ($null -ne $output -and $output.Count -gt 0) { $output[$output.Count - 1] } else { $null }
+                }
+                catch {
+                    $result = [PSCustomObject]@{ Success = $false; DisplayName = ''; AppId = ''; Version = ''; Error = $_.Exception.Message }
+                }
+                finally {
+                    try { $syncHash.PendingM365ImportPS.Dispose() } catch {}
+                    try { $syncHash.PendingM365ImportRunspace.Dispose() } catch {}
+                    $syncHash.PendingM365ImportPS = $null
+                    $syncHash.PendingM365ImportRunspace = $null
+                    $syncHash.PendingM365ImportAsync = $null
+                }
+
+                try {
+                    if ($null -eq $result -or -not $result.Success) {
+                        $errMsg = if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Error)) { 'Unknown error during M365 Intune import.' } else { $result.Error }
+                        Write-UILog -SyncHash $syncHash -Message "M365: Intune import failed: $errMsg" -Level Error
+                    }
+                    else {
+                        Write-UILog -SyncHash $syncHash -Message "M365: Intune import succeeded - '$([string]$result.DisplayName)' v$([string]$result.Version) (id: $([string]$result.AppId))" -Level Info
+                    }
+                }
+                finally {
+                    & $setM365LoadingState -IsLoading $false
+                }
+            })
+
+        $pollTimer.Start()
+    }
+
+    $startM365NerdioImport = {
+        if ($syncHash.IsM365ImportLoading) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: another import action is already in progress.' -Level Warning
+            return
+        }
+
+        $selectedRow = $m365ConfigsListView.SelectedItem
+        if ($null -eq $selectedRow) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: no configuration selected.' -Level Warning
+            return
+        }
+
+        if ([string]$selectedRow.Status -ne 'Valid') {
+            Write-UILog -SyncHash $syncHash -Message "M365: selected configuration '$([string]$selectedRow.FileName)' is not valid." -Level Warning
+            return
+        }
+
+        $configDirPath = & $normalizeDirectoryPath -PathValue ([string]$m365ConfigPathBox.Text)
+        if ([string]::IsNullOrWhiteSpace($configDirPath) -or -not (Test-Path -LiteralPath $configDirPath -PathType Container)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: configuration directory path is not valid.' -Level Warning
+            return
+        }
+
+        $packageOutputPath = & $normalizeDirectoryPath -PathValue ([string]$intunePackageOutputPathBox.Text)
+        if ([string]::IsNullOrWhiteSpace($packageOutputPath)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: package output path is not configured. Set it in the Microsoft Intune Win32 Apps pane first.' -Level Warning
+            return
+        }
+
+        if (-not (Test-Path -LiteralPath $packageOutputPath -PathType Container)) {
+            try { $null = New-Item -ItemType Directory -Path $packageOutputPath -Force -ErrorAction Stop }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "M365: cannot create package output path '$packageOutputPath': $($_.Exception.Message)" -Level Error
+                return
+            }
+        }
+
+        if (-not (& $loadIntuneWin32AppModule)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: IntuneWin32App module is required for packaging but could not be loaded.' -Level Warning
+            return
+        }
+
+        $modulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
+        if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: Nerdio module path is not configured or does not exist.' -Level Error
+            return
+        }
+
+        $channel     = if ($null -ne $m365ChannelCombo -and $null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
+        $companyName = [string]$m365CompanyNameBox.Text.Trim()
+        $tenantId    = [string]$syncHash.Config.AzureAuthSettings.TenantId
+
+        if ([string]::IsNullOrWhiteSpace($channel)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: no channel selected.' -Level Warning
+            return
+        }
+
+        if ([string]::IsNullOrWhiteSpace($companyName)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: company name is required.' -Level Warning
+            return
+        }
+
+        $displayName = [string]$selectedRow.DisplayName
+
+        $nerdioAuthContext = [PSCustomObject]@{
+            TenantId       = [string]$nerdioTenantIdBox.Text
+            NmeHost        = [string]$nmeHostBox.Text
+            ClientId       = [string]$nmeClientIdBox.Text
+            ApiScope       = [string]$nmeApiScopeBox.Text
+            OAuthTokenUrl  = [string]$nmeOAuthTokenUrlBox.Text
+            ClientSecret   = [string]$nmeClientSecretBox.Password
+            SubscriptionId = [string]$nmeSubscriptionIdBox.Text
+            ResourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
+            StorageAccount = [string]$nmeStorageAccountCombo.SelectedItem
+            Container      = [string]$nmeContainerCombo.SelectedItem
+        }
+
+        $capturedRow               = $selectedRow
+        $capturedConfigDirPath     = $configDirPath
+        $capturedChannel           = $channel
+        $capturedCompanyName       = $companyName
+        $capturedTenantId          = $tenantId
+        $capturedPackageOutputPath = $packageOutputPath
+        $capturedModulePath        = $modulePath
+        $capturedNerdioAuth        = $nerdioAuthContext
+
+        & $setM365LoadingState -IsLoading $true -Message "Building package for '$displayName'..."
+        Write-UILog -SyncHash $syncHash -Message "M365: starting Nerdio Shell App import for '$displayName' (channel: $channel)..." -Level Info
+
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $helperScripts = @(
+            'Write-UILog.ps1'
+            'Invoke-M365AppPackageBuild.ps1'
+        ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
+
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+
+        [void]$ps.AddScript({
+                param(
+                    [string[]]      $HelperScripts,
+                    [PSCustomObject]$ConfigRow,
+                    [string]        $ConfigDirectoryPath,
+                    [string]        $Channel,
+                    [string]        $CompanyName,
+                    [string]        $TenantId,
+                    [string]        $WorkingPath,
+                    [string]        $NerdioModulePath,
+                    [PSCustomObject]$NerdioAuthContext
+                )
+
+                $result = [PSCustomObject]@{
+                    Success     = $false
+                    DisplayName = [string]$ConfigRow.DisplayName
+                    Version     = ''
+                    Error       = ''
+                }
+
+                try {
+                    foreach ($scriptPath in $HelperScripts) {
+                        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                            throw "Required helper script not found: $scriptPath"
+                        }
+                        . $scriptPath
+                    }
+
+                    if (-not (Get-Command -Name 'Get-EvergreenApp' -ErrorAction SilentlyContinue)) {
+                        Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
+                    }
+
+                    if (-not (Get-Command -Name 'New-IntuneWin32AppPackage' -ErrorAction SilentlyContinue)) {
+                        Import-Module -Name IntuneWin32App -ErrorAction Stop | Out-Null
+                    }
+
+                    $buildResult = Invoke-M365AppPackageBuild `
+                        -ConfigRow           $ConfigRow `
+                        -ConfigDirectoryPath $ConfigDirectoryPath `
+                        -Channel             $Channel `
+                        -CompanyName         $CompanyName `
+                        -TenantId            $TenantId `
+                        -WorkingPath         $WorkingPath `
+                        -SyncHash            $syncHash
+
+                    if (-not $buildResult.Succeeded) {
+                        throw "Package build failed: $($buildResult.Error)"
+                    }
+
+                    $result.Version = $buildResult.Version
+
+                    $syncHash.Window.Dispatcher.Invoke([action] {
+                            if ($null -ne $syncHash.M365ActionStatusLabel) {
+                                $syncHash.M365ActionStatusLabel.Text = 'Uploading to Nerdio Manager...'
+                            }
+                            if ($null -ne $syncHash.M365ConfigsLoadingLabel) {
+                                $syncHash.M365ConfigsLoadingLabel.Text = "Uploading '$([string]$ConfigRow.DisplayName)' to Nerdio Manager..."
+                            }
+                        }, 'Normal')
+
+                    Import-Module -Name $NerdioModulePath -Force -ErrorAction Stop | Out-Null
+
+                    $module = Get-Module -Name NerdioShellApps -ErrorAction SilentlyContinue
+                    if ($null -ne $module -and $null -ne $module.SessionState -and $null -ne $module.SessionState.PSVariable) {
+                        $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
+                    }
+
+                    $setNmeCredCmd  = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials' -ErrorAction SilentlyContinue
+                    $connectNmeCmd  = Get-Command -Name 'NerdioShellApps\Connect-Nme'         -ErrorAction SilentlyContinue
+                    $newShellFileCmd = Get-Command -Name 'NerdioShellApps\New-ShellAppFile'   -ErrorAction SilentlyContinue
+                    $newShellAppCmd  = Get-Command -Name 'NerdioShellApps\New-ShellApp'       -ErrorAction SilentlyContinue
+
+                    if ($null -eq $setNmeCredCmd)  { throw 'Set-NmeCredentials not found in NerdioShellApps module.' }
+                    if ($null -eq $connectNmeCmd)   { throw 'Connect-Nme not found in NerdioShellApps module.' }
+                    if ($null -eq $newShellFileCmd) { throw 'New-ShellAppFile not found in NerdioShellApps module.' }
+                    if ($null -eq $newShellAppCmd)  { throw 'New-ShellApp not found in NerdioShellApps module.' }
+
+                    foreach ($required in @(
+                            @{ Name = 'Tenant ID'; Value = [string]$NerdioAuthContext.TenantId },
+                            @{ Name = 'NME Host'; Value = [string]$NerdioAuthContext.NmeHost },
+                            @{ Name = 'Client ID'; Value = [string]$NerdioAuthContext.ClientId },
+                            @{ Name = 'API Scope'; Value = [string]$NerdioAuthContext.ApiScope },
+                            @{ Name = 'Client Secret'; Value = [string]$NerdioAuthContext.ClientSecret }
+                        )) {
+                        if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
+                            throw "Nerdio API $($required.Name) is required."
+                        }
+                    }
+
+                    & $setNmeCredCmd `
+                        -ClientId           ([string]$NerdioAuthContext.ClientId) `
+                        -ClientSecret       ([string]$NerdioAuthContext.ClientSecret) `
+                        -TenantId           ([string]$NerdioAuthContext.TenantId) `
+                        -ApiScope           ([string]$NerdioAuthContext.ApiScope) `
+                        -OAuthToken         ([string]$NerdioAuthContext.OAuthTokenUrl) `
+                        -SubscriptionId     ([string]$NerdioAuthContext.SubscriptionId) `
+                        -ResourceGroupName  ([string]$NerdioAuthContext.ResourceGroup) `
+                        -StorageAccountName ([string]$NerdioAuthContext.StorageAccount) `
+                        -ContainerName      ([string]$NerdioAuthContext.Container) `
+                        -NmeHost            ([string]$NerdioAuthContext.NmeHost)
+
+                    $null = & $connectNmeCmd -PassThru
+
+                    # Upload .intunewin to Azure Blob Storage and create a new Shell App
+                    $blobUri = & $newShellFileCmd -FilePath $buildResult.IntuneWinPath
+                    $null = & $newShellAppCmd `
+                        -Name        ([string]$ConfigRow.DisplayName) `
+                        -Version     $buildResult.Version `
+                        -InstallCmd  'setup.exe /configure Install-Microsoft365Apps.xml' `
+                        -UninstallCmd 'setup.exe /configure Uninstall-Microsoft365Apps.xml' `
+                        -FileUri     $blobUri
+
+                    $result.Success = $true
+                }
+                catch {
+                    $result.Error = $_.Exception.Message
+                }
+
+                return $result
+            })
+        [void]$ps.AddArgument(@($helperScripts))
+        [void]$ps.AddArgument($capturedRow)
+        [void]$ps.AddArgument($capturedConfigDirPath)
+        [void]$ps.AddArgument($capturedChannel)
+        [void]$ps.AddArgument($capturedCompanyName)
+        [void]$ps.AddArgument($capturedTenantId)
+        [void]$ps.AddArgument($capturedPackageOutputPath)
+        [void]$ps.AddArgument($capturedModulePath)
+        [void]$ps.AddArgument($capturedNerdioAuth)
+
+        $syncHash.PendingM365ImportPS = $ps
+        $syncHash.PendingM365ImportRunspace = $rs
+        $syncHash.PendingM365ImportAsync = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+        $syncHash.PendingM365ImportTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingM365ImportAsync -or -not $syncHash.PendingM365ImportAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingM365ImportTimer) {
+                    $syncHash.PendingM365ImportTimer.Stop()
+                    $syncHash.PendingM365ImportTimer = $null
+                }
+
+                $result = $null
+                try {
+                    $output = $syncHash.PendingM365ImportPS.EndInvoke($syncHash.PendingM365ImportAsync)
+                    $result = if ($null -ne $output -and $output.Count -gt 0) { $output[$output.Count - 1] } else { $null }
+                }
+                catch {
+                    $result = [PSCustomObject]@{ Success = $false; DisplayName = ''; Version = ''; Error = $_.Exception.Message }
+                }
+                finally {
+                    try { $syncHash.PendingM365ImportPS.Dispose() } catch {}
+                    try { $syncHash.PendingM365ImportRunspace.Dispose() } catch {}
+                    $syncHash.PendingM365ImportPS = $null
+                    $syncHash.PendingM365ImportRunspace = $null
+                    $syncHash.PendingM365ImportAsync = $null
+                }
+
+                try {
+                    if ($null -eq $result -or -not $result.Success) {
+                        $errMsg = if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Error)) { 'Unknown error during M365 Nerdio import.' } else { $result.Error }
+                        Write-UILog -SyncHash $syncHash -Message "M365: Nerdio import failed: $errMsg" -Level Error
+                    }
+                    else {
+                        Write-UILog -SyncHash $syncHash -Message "M365: Nerdio Shell App created for '$([string]$result.DisplayName)' v$([string]$result.Version)." -Level Info
+                    }
+                }
+                finally {
+                    & $setM365LoadingState -IsLoading $false
+                }
+            })
+
+        $pollTimer.Start()
+    }
+
     # Apply persisted window size with safe minimums
     $window.Width = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
     $window.Height = [Math]::Max(600, [double]$syncHash.Config.WindowHeight)
@@ -1909,6 +2670,8 @@ function Start-EvergreenWorkbench {
             '^Nerdio(\s+Manager)?$' { return 'Nerdio' }
             '^Intune$' { return 'Intune' }
             '^Microsoft\s+Intune$' { return 'Intune' }
+            '^M365$' { return 'M365' }
+            '^Microsoft\s+365.*$' { return 'M365' }
             default { return 'Nerdio' }
         }
     }
@@ -1929,7 +2692,12 @@ function Start-EvergreenWorkbench {
             $syncHash.Config.ImportSettings.CurrentProvider = $resolvedProvider
         }
 
-        $targetIndex = if ($resolvedProvider -eq 'Intune') { 0 } else { 1 }
+        $targetIndex = switch ($resolvedProvider) {
+            'Intune'  { 0 }
+            'Nerdio'  { 1 }
+            'M365'    { 2 }
+            default   { 1 }
+        }
         if ($importProviderTabControl.SelectedIndex -ne $targetIndex) {
             $importProviderTabControl.SelectedIndex = $targetIndex
         }
@@ -2123,6 +2891,14 @@ function Start-EvergreenWorkbench {
             if ($null -ne $intuneConnectionStatusLabel) {
                 $intuneConnectionStatusLabel.Text = $Text
             }
+
+            if ($null -ne $m365IntuneAuthStatusDot) {
+                $m365IntuneAuthStatusDot.Fill = $Brush
+            }
+
+            if ($null -ne $m365IntuneAuthStatusLabel) {
+                $m365IntuneAuthStatusLabel.Text = $Text
+            }
         }
 
         if ($state.IsAuthInProgress) {
@@ -2163,6 +2939,7 @@ function Start-EvergreenWorkbench {
         }
         $importSignInButton.IsEnabled = $true
         $importSignOutButton.IsEnabled = $false
+        & $updateM365ActionButtons
     }
 
     $syncHash.RefreshImportAuthUi = $refreshImportAuthUi
@@ -2180,6 +2957,14 @@ function Start-EvergreenWorkbench {
 
             if ($null -ne $nerdioImportAuthStatusLabel) {
                 $nerdioImportAuthStatusLabel.Text = $LabelText
+            }
+
+            if ($null -ne $m365NerdioAuthStatusDot) {
+                $m365NerdioAuthStatusDot.Fill = $Brush
+            }
+
+            if ($null -ne $m365NerdioAuthStatusLabel) {
+                $m365NerdioAuthStatusLabel.Text = $LabelText
             }
         }
 
@@ -2224,6 +3009,7 @@ function Start-EvergreenWorkbench {
         }
         $nerdioApiSignInButton.IsEnabled = $true
         $nerdioApiSignOutButton.IsEnabled = $false
+        & $updateM365ActionButtons
     }
 
     $refreshNerdioAzureAuthUi = {
@@ -2313,6 +3099,12 @@ function Start-EvergreenWorkbench {
 
         $syncHash.Config.IntuneSettings.DefinitionsPath = (& $normalizeDirectoryPath -PathValue $definitionsPath)
         $syncHash.Config.IntuneSettings.PackageOutputPath = (& $normalizeDirectoryPath -PathValue $packageOutputPath)
+        Set-UIConfig -Config $syncHash.Config
+    }
+
+    $applyM365PathsToConfig = {
+        $definitionsPath = if ($null -eq $m365ConfigPathBox) { '' } else { [string]$m365ConfigPathBox.Text }
+        $syncHash.Config.M365Settings.DefinitionsPath = (& $normalizeDirectoryPath -PathValue $definitionsPath)
         Set-UIConfig -Config $syncHash.Config
     }
 
@@ -4821,6 +5613,17 @@ function Start-EvergreenWorkbench {
             if ($null -ne $syncHash.Config.InstallSettings) {
                 $installDefinitionsPathBox.Text = [string]$syncHash.Config.InstallSettings.DefinitionsPath
             }
+            if ($null -ne $syncHash.Config.M365Settings) {
+                $m365ConfigPathBox.Text = [string]$syncHash.Config.M365Settings.DefinitionsPath
+                $savedM365Channel = [string]$syncHash.Config.M365Settings.Channel
+                if (-not [string]::IsNullOrWhiteSpace($savedM365Channel) -and $null -ne $m365ChannelCombo) {
+                    $channelItem = $m365ChannelCombo.Items | Where-Object { $_.Content -eq $savedM365Channel } | Select-Object -First 1
+                    if ($null -ne $channelItem) { $m365ChannelCombo.SelectedItem = $channelItem }
+                }
+                if ($null -ne $m365CompanyNameBox) {
+                    $m365CompanyNameBox.Text = [string]$syncHash.Config.M365Settings.CompanyName
+                }
+            }
             & $setInstallElevationState
             [void](& $loadNerdioShellAppsModule)
             [void](& $loadIntuneWin32AppModule)
@@ -5089,6 +5892,18 @@ function Start-EvergreenWorkbench {
                 $syncHash.NerdioShellAppRows.Count -eq 0) {
                 & $loadNerdioDefinitions
             }
+
+            $savedM365Path = if ($null -ne $syncHash.Config.M365Settings) {
+                [string]$syncHash.Config.M365Settings.DefinitionsPath
+            }
+            else {
+                ''
+            }
+            if (-not [string]::IsNullOrWhiteSpace($savedM365Path) -and
+                (Test-Path -LiteralPath $savedM365Path -PathType Container) -and
+                $syncHash.M365ConfigRows.Count -eq 0) {
+                & $loadM365Configs
+            }
         })
 
     $navInstall.add_Checked({
@@ -5117,9 +5932,13 @@ function Start-EvergreenWorkbench {
     $importProviderTabControl.add_SelectionChanged({
             param($s, $e)
             if ($s -ne $importProviderTabControl) { return }
-            # Index 2 is the shared Authentication tab - not a provider workflow, nothing to switch
-            if ($importProviderTabControl.SelectedIndex -eq 2) { return }
-            $provider = if ($importProviderTabControl.SelectedIndex -eq 0) { 'Intune' } else { 'Nerdio' }
+            # Index 3 is the shared Authentication tab - not a provider workflow, nothing to switch
+            if ($importProviderTabControl.SelectedIndex -eq 3) { return }
+            $provider = switch ($importProviderTabControl.SelectedIndex) {
+                0       { 'Intune' }
+                1       { 'Nerdio' }
+                default { 'M365' }
+            }
             & $setImportProvider -Provider $provider -Persist
         })
 
@@ -5285,6 +6104,66 @@ function Start-EvergreenWorkbench {
     $nerdioImportNewButton.add_Click({
             if (-not (& $requireImportAuth -ActionName 'Import new Shell App' -Provider 'Nerdio')) { return }
             Write-UILog -SyncHash $syncHash -Message 'Nerdio: import as new Shell App is not implemented yet.' -Level Info
+        })
+
+    # ── Microsoft 365 Apps tab event handlers ────────────────────────────────
+
+    $m365BrowseConfigButton.add_Click({
+            $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
+            $dlg.Description = 'Select Microsoft 365 Apps configuration files folder'
+            if (-not [string]::IsNullOrWhiteSpace($m365ConfigPathBox.Text)) {
+                $dlg.SelectedPath = $m365ConfigPathBox.Text
+            }
+
+            if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+                $m365ConfigPathBox.Text = $normalised
+                & $applyM365PathsToConfig
+            }
+        })
+
+    $m365LoadConfigsButton.add_Click({
+            & $loadM365Configs
+        })
+
+    $m365ConfigPathBox.add_LostFocus({
+            $normalised = & $normalizeDirectoryPath -PathValue $m365ConfigPathBox.Text
+            $m365ConfigPathBox.Text = $normalised
+            & $applyM365PathsToConfig
+        })
+
+    $m365ChannelCombo.add_SelectionChanged({
+            $selectedChannel = if ($null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
+            $syncHash.Config.M365Settings.Channel = $selectedChannel
+            Set-UIConfig -Config $syncHash.Config
+
+            if ($syncHash.M365EvergreenRows.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($selectedChannel)) {
+                $match = $syncHash.M365EvergreenRows | Where-Object { $_.Channel -eq $selectedChannel } |
+                    Sort-Object -Property { [System.Version]$_.Version } -Descending |
+                    Select-Object -First 1
+                if ($null -ne $match -and $null -ne $m365EvergreenVersionLabel) {
+                    $m365EvergreenVersionLabel.Text = [string]$match.Version
+                }
+            }
+        })
+
+    $m365CompanyNameBox.add_LostFocus({
+            $syncHash.Config.M365Settings.CompanyName = $m365CompanyNameBox.Text.Trim()
+            Set-UIConfig -Config $syncHash.Config
+        })
+
+    $m365ConfigsListView.add_SelectionChanged({
+            & $updateM365ActionButtons
+        })
+
+    $m365ImportIntuneButton.add_Click({
+            if (-not (& $requireImportAuth -ActionName 'M365 Intune import')) { return }
+            & $startM365IntuneImport
+        })
+
+    $m365ImportNerdioButton.add_Click({
+            if (-not (& $requireImportAuth -ActionName 'M365 Nerdio import' -Provider 'Nerdio')) { return }
+            & $startM365NerdioImport
         })
 
     $intuneRefreshCatalogButton.add_Click({

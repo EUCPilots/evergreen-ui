@@ -61,6 +61,12 @@ function Get-UIConfig {
             DefinitionsPath   = ''
             PackageOutputPath = ''
         }
+        M365Settings      = [PSCustomObject]@{
+            DefinitionsPath   = ''
+            PackageOutputPath = ''
+            Channel           = 'MonthlyEnterprise'
+            CompanyName       = ''
+        }
         InstallSettings   = [PSCustomObject]@{
             DefinitionsPath   = ''
         }
@@ -118,6 +124,17 @@ function Get-UIConfig {
             foreach ($prop in $default.IntuneSettings.PSObject.Properties.Name) {
                 if ($null -eq $json.IntuneSettings.$prop) {
                     $json.IntuneSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.IntuneSettings.$prop -Force
+                }
+            }
+        }
+
+        if ($null -eq $json.M365Settings) {
+            $json | Add-Member -NotePropertyName 'M365Settings' -NotePropertyValue $default.M365Settings -Force
+        }
+        else {
+            foreach ($prop in $default.M365Settings.PSObject.Properties.Name) {
+                if ($null -eq $json.M365Settings.$prop) {
+                    $json.M365Settings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.M365Settings.$prop -Force
                 }
             }
         }
