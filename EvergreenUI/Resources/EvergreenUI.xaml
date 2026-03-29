@@ -634,6 +634,56 @@
             </Setter>
         </Style>
 
+        <!-- ── GridViewColumnHeader — shared Fluent style (hover uses AccentLightBrush) ── -->
+        <Style TargetType="GridViewColumnHeader">
+            <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="FontSize"                   Value="11"/>
+            <Setter Property="FontWeight"                 Value="SemiBold"/>
+            <Setter Property="Padding"                    Value="12,6"/>
+            <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
+            <Setter Property="BorderThickness"            Value="0,0,1,1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridViewColumnHeader">
+                        <Grid>
+                            <Border x:Name="bd"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter x:Name="HeaderContent"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True"/>
+                            </Border>
+                            <Thumb x:Name="PART_HeaderGripper"
+                                   HorizontalAlignment="Right"
+                                   Width="2"
+                                   Cursor="SizeWE"
+                                   Background="Transparent"
+                                   BorderThickness="0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
+                            </Trigger>
+                            <Trigger Property="Role" Value="Padding">
+                                <Setter TargetName="bd"            Property="BorderThickness" Value="0"/>
+                                <Setter TargetName="HeaderContent" Property="Visibility"      Value="Collapsed"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
     <!-- ══════════════════════════════════ Root grid ════════════════════════════════════ -->
@@ -1110,18 +1160,6 @@
                                           BorderBrush="{DynamicResource ControlBorderBrush}"
                                           BorderThickness="0,1,0,0"
                                           SelectionMode="Extended">
-                                    <ListView.Resources>
-                                        <Style TargetType="GridViewColumnHeader">
-                                            <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
-                                            <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
-                                            <Setter Property="FontSize"                   Value="11"/>
-                                            <Setter Property="FontWeight"                 Value="SemiBold"/>
-                                            <Setter Property="Padding"                    Value="12,6"/>
-                                            <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
-                                            <Setter Property="BorderThickness"            Value="0,0,1,1"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                        </Style>
-                                    </ListView.Resources>
                                     <ListView.View>
                                         <GridView>
                                             <GridViewColumn Header="Version"       DisplayMemberBinding="{Binding Version}"       Width="130"/>
@@ -1198,18 +1236,6 @@
                         <ListView x:Name="DownloadQueueListView"
                                   Style="{StaticResource FluentListView}"
                                   SelectionMode="Single">
-                            <ListView.Resources>
-                                <Style TargetType="GridViewColumnHeader">
-                                    <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
-                                    <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
-                                    <Setter Property="FontSize"                   Value="11"/>
-                                    <Setter Property="FontWeight"                 Value="SemiBold"/>
-                                    <Setter Property="Padding"                    Value="12,6"/>
-                                    <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
-                                    <Setter Property="BorderThickness"            Value="0,0,1,1"/>
-                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                </Style>
-                            </ListView.Resources>
                             <ListView.View>
                                 <GridView>
                                     <GridViewColumn Header="Status"       DisplayMemberBinding="{Binding Status}"        Width="110"/>
@@ -1347,18 +1373,6 @@
                             <ListView x:Name="LibraryContentsListView"
                                       Style="{StaticResource FluentListView}"
                                       SelectionMode="Single">
-                                <ListView.Resources>
-                                    <Style TargetType="GridViewColumnHeader">
-                                        <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
-                                        <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
-                                        <Setter Property="FontSize"                   Value="11"/>
-                                        <Setter Property="FontWeight"                 Value="SemiBold"/>
-                                        <Setter Property="Padding"                    Value="12,6"/>
-                                        <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
-                                        <Setter Property="BorderThickness"            Value="0,0,1,1"/>
-                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                    </Style>
-                                </ListView.Resources>
                                 <ListView.View>
                                     <GridView>
                                         <GridViewColumn Header="App"      DisplayMemberBinding="{Binding Name}"          Width="220"/>
@@ -1393,18 +1407,6 @@
                             <ListView x:Name="LibraryDetailsListView"
                                       Style="{StaticResource FluentListView}"
                                       SelectionMode="Single">
-                                <ListView.Resources>
-                                    <Style TargetType="GridViewColumnHeader">
-                                        <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
-                                        <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
-                                        <Setter Property="FontSize"                   Value="11"/>
-                                        <Setter Property="FontWeight"                 Value="SemiBold"/>
-                                        <Setter Property="Padding"                    Value="12,6"/>
-                                        <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
-                                        <Setter Property="BorderThickness"            Value="0,0,1,1"/>
-                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                    </Style>
-                                </ListView.Resources>
                                 <ListView.View>
                                     <GridView/>
                                 </ListView.View>
@@ -1585,16 +1587,6 @@
                                                           BorderThickness="0"
                                                           SelectionMode="Extended">
                                                     <ListView.Resources>
-                                                        <Style TargetType="GridViewColumnHeader">
-                                                            <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
-                                                            <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
-                                                            <Setter Property="FontSize"                   Value="11"/>
-                                                            <Setter Property="FontWeight"                 Value="SemiBold"/>
-                                                            <Setter Property="Padding"                    Value="12,6"/>
-                                                            <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
-                                                            <Setter Property="BorderThickness"            Value="0,0,1,1"/>
-                                                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                                        </Style>
 
                                                         <Style x:Key="IntuneActionCellStyle"
                                                                TargetType="TextBlock">
@@ -1876,16 +1868,6 @@
                                                       BorderThickness="0"
                                                       SelectionMode="Single">
                                                 <ListView.Resources>
-                                                    <Style TargetType="GridViewColumnHeader">
-                                                        <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
-                                                        <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
-                                                        <Setter Property="FontSize"                   Value="11"/>
-                                                        <Setter Property="FontWeight"                 Value="SemiBold"/>
-                                                        <Setter Property="Padding"                    Value="12,6"/>
-                                                        <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
-                                                        <Setter Property="BorderThickness"            Value="0,0,1,1"/>
-                                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                                    </Style>
 
                                                     <Style x:Key="NerdioStatusCellStyle"
                                                            TargetType="TextBlock">
@@ -2199,16 +2181,6 @@
                                                       BorderThickness="0"
                                                       SelectionMode="Single">
                                                 <ListView.Resources>
-                                                    <Style TargetType="GridViewColumnHeader">
-                                                        <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
-                                                        <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
-                                                        <Setter Property="FontSize"                   Value="11"/>
-                                                        <Setter Property="FontWeight"                 Value="SemiBold"/>
-                                                        <Setter Property="Padding"                    Value="12,6"/>
-                                                        <Setter Property="BorderBrush"                Value="{DynamicResource ControlBorderBrush}"/>
-                                                        <Setter Property="BorderThickness"            Value="0,0,1,1"/>
-                                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                                    </Style>
 
                                                     <Style x:Key="M365StatusCellStyle"
                                                            TargetType="TextBlock">
@@ -2896,18 +2868,6 @@
                                           Style="{StaticResource FluentListView}"
                                           BorderThickness="0"
                                           SelectionMode="Extended">
-                                    <ListView.Resources>
-                                        <Style TargetType="GridViewColumnHeader">
-                                            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
-                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-                                            <Setter Property="FontSize" Value="11"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="Padding" Value="12,6"/>
-                                            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
-                                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                        </Style>
-                                    </ListView.Resources>
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
