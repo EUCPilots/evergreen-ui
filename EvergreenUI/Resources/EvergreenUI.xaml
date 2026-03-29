@@ -1231,8 +1231,7 @@
                             BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorderBrush}"
                             Background="{DynamicResource ControlBackgroundBrush}"
-                            CornerRadius="4"
-                            Padding="10">
+                            CornerRadius="4">
                         <ListView x:Name="DownloadQueueListView"
                                   Style="{StaticResource FluentListView}"
                                   SelectionMode="Single">
