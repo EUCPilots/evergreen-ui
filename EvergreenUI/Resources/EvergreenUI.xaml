@@ -645,7 +645,7 @@
             <RowDefinition Height="175" MinHeight="40"/>        <!-- 3  Status + Log  -->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="140"/>     <!-- Nav rail -->
+            <ColumnDefinition Width="180"/>     <!-- Nav rail -->
             <ColumnDefinition Width="*"/>       <!-- Content  -->
         </Grid.ColumnDefinitions>
 
@@ -679,34 +679,110 @@
                 BorderThickness="0,0,1,0"
                 Background="{DynamicResource WindowBackgroundBrush}">
             <StackPanel Margin="4,12,4,0">
+                <!-- Hamburger toggle to collapse/expand the nav rail -->
+                <Button x:Name="NavToggleButton"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Cursor="Hand"
+                        FocusVisualStyle="{x:Null}"
+                        Padding="17,10,14,10"
+                        Margin="4,0,4,4">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" CornerRadius="4" Background="Transparent" Margin="0,1">
+                                <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <TextBlock FontFamily="Segoe MDL2 Assets"
+                               Text="&#xE700;"
+                               FontSize="16"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                </Button>
                 <RadioButton x:Name="NavApps"
-                             Content="Apps"
                              IsChecked="True"
-                             Style="{StaticResource NavRailRadioButton}"/>
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE71D;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavAppsLabel" Text="Apps" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
                 <RadioButton x:Name="NavDownload"
-                             Content="Download"
-                             Style="{StaticResource NavRailRadioButton}"/>
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE896;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavDownloadLabel" Text="Download" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
                 <RadioButton x:Name="NavLibrary"
-                             Content="Library"
-                             Style="{StaticResource NavRailRadioButton}"/>
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8F1;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavLibraryLabel" Text="Library" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
                 <RadioButton x:Name="NavImport"
-                             Content="Import"
-                             Style="{StaticResource NavRailRadioButton}"/>
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8B5;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavImportLabel" Text="Import" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
                 <RadioButton x:Name="NavInstall"
-                             Content="Install"
-                             Style="{StaticResource NavRailRadioButton}"/>
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE7B8;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavInstallLabel" Text="Install" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
                 <Rectangle Height="1"
                            Fill="{DynamicResource ControlBorderBrush}"
                            Margin="14,8"/>
                 <RadioButton x:Name="NavSettings"
-                             Content="Settings"
-                             Style="{StaticResource NavRailRadioButton}"/>
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE713;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavSettingsLabel" Text="Settings" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
                 <RadioButton x:Name="NavUpdate"
-                             Content="Update"
-                             Style="{StaticResource NavRailRadioButton}"/>
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE895;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavUpdateLabel" Text="Update" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
                 <RadioButton x:Name="NavAbout"
-                             Content="About"
-                             Style="{StaticResource NavRailRadioButton}"/>
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE946;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavAboutLabel" Text="About" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
             </StackPanel>
         </Border>
 

@@ -246,6 +246,7 @@ function Start-EvergreenWorkbench {
     $evergreenStatusDot = $window.FindName('EvergreenStatusDot')
     $themeComboBox = $window.FindName('ThemeComboBox')
 
+    $navToggleButton = $window.FindName('NavToggleButton')
     $navApps = $window.FindName('NavApps')
     $navDownload = $window.FindName('NavDownload')
     $navLibrary = $window.FindName('NavLibrary')
@@ -5844,6 +5845,22 @@ function Start-EvergreenWorkbench {
     foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navInstall, $navSettings, $navUpdate, $navAbout)) {
         $navBtn.add_Checked($navCheckedHandler)
     }
+
+    # Collapse/expand nav rail when hamburger button is clicked
+    $navRailLabels = @('NavAppsLabel', 'NavDownloadLabel', 'NavLibraryLabel', 'NavImportLabel',
+        'NavInstallLabel', 'NavSettingsLabel', 'NavUpdateLabel', 'NavAboutLabel') |
+        ForEach-Object { $window.FindName($_) }
+    $navToggleButton.add_Click({
+            $navColumn = $rootGrid.ColumnDefinitions[0]
+            if ($navColumn.Width.Value -gt 64) {
+                $navColumn.Width = [System.Windows.GridLength]::new(64)
+                foreach ($lbl in $navRailLabels) { $lbl.Visibility = [System.Windows.Visibility]::Collapsed }
+            }
+            else {
+                $navColumn.Width = [System.Windows.GridLength]::new(180)
+                foreach ($lbl in $navRailLabels) { $lbl.Visibility = [System.Windows.Visibility]::Visible }
+            }
+        })
 
     $navApps.add_Checked({
             if ($null -eq $syncHash.AppList -or $syncHash.AppList.Count -eq 0) {
