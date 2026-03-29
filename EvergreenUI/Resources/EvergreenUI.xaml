@@ -1440,10 +1440,9 @@
                                                 BorderThickness="0,0,0,1"
                                                 Padding="12,8"
                                                 Background="{DynamicResource ControlBackgroundBrush}">
-                                            <DockPanel LastChildFill="True">
+                                            <DockPanel LastChildFill="False">
                                                 <StackPanel Orientation="Horizontal"
                                                             VerticalAlignment="Center"
-                                                            Margin="0,0,12,0"
                                                             DockPanel.Dock="Left">
                                                     <TextBlock x:Name="IntuneDefinitionsCountLabel"
                                                                Text="0 loaded"
@@ -1461,11 +1460,17 @@
                                                             VerticalAlignment="Center"
                                                             DockPanel.Dock="Right">
                                                     <Ellipse x:Name="IntuneConnectionStatusDot"
-                                                             Width="8"
-                                                             Height="8"
+                                                             Width="9"
+                                                             Height="9"
                                                              Fill="OrangeRed"
-                                                             VerticalAlignment="Center"
-                                                             Margin="0,0,6,0"/>
+                                                             Stroke="{DynamicResource ControlBorderBrush}"
+                                                             StrokeThickness="1"
+                                                             VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Intune:"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="5,0,4,0"/>
                                                     <TextBlock x:Name="IntuneConnectionStatusLabel"
                                                                Text="Not signed in"
                                                                FontSize="11"
@@ -1727,10 +1732,9 @@
                                                 BorderThickness="0,0,0,1"
                                                 Padding="12,8"
                                                 Background="{DynamicResource ControlBackgroundBrush}">
-                                            <DockPanel LastChildFill="True">
+                                            <DockPanel LastChildFill="False">
                                                 <StackPanel Orientation="Horizontal"
                                                             VerticalAlignment="Center"
-                                                            Margin="0,0,12,0"
                                                             DockPanel.Dock="Left">
                                                     <TextBlock x:Name="NerdioDefinitionsCountLabel"
                                                                Text="0 definitions"
@@ -1754,12 +1758,16 @@
                                                              Stroke="{DynamicResource ControlBorderBrush}"
                                                              StrokeThickness="1"
                                                              VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Nerdio Manager:"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="11"
+                                                               Margin="5,0,4,0"/>
                                                     <TextBlock x:Name="NerdioImportAuthStatusLabel"
                                                                Text="Not signed in"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
-                                                               FontSize="11"
-                                                               Margin="6,0,0,0"/>
+                                                               FontSize="11"/>
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
@@ -2036,14 +2044,53 @@
                                                 BorderThickness="0,0,0,1"
                                                 Padding="12,8"
                                                 Background="{DynamicResource ControlBackgroundBrush}">
-                                            <StackPanel Orientation="Horizontal"
-                                                        VerticalAlignment="Center">
+                                            <DockPanel LastChildFill="False">
                                                 <TextBlock x:Name="M365ConfigsCountLabel"
                                                            Text="0 configurations"
                                                            FontSize="11"
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           VerticalAlignment="Center"/>
-                                            </StackPanel>
+                                                           VerticalAlignment="Center"
+                                                           DockPanel.Dock="Left"/>
+                                                <StackPanel Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            DockPanel.Dock="Right">
+                                                    <Ellipse x:Name="M365IntuneAuthStatusDot"
+                                                             Width="9"
+                                                             Height="9"
+                                                             Fill="OrangeRed"
+                                                             Stroke="{DynamicResource ControlBorderBrush}"
+                                                             StrokeThickness="1"
+                                                             VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Intune:"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="11"
+                                                               Margin="5,0,4,0"/>
+                                                    <TextBlock x:Name="M365IntuneAuthStatusLabel"
+                                                               Text="Not signed in"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="11"
+                                                               Margin="0,0,16,0"/>
+                                                    <Ellipse x:Name="M365NerdioAuthStatusDot"
+                                                             Width="9"
+                                                             Height="9"
+                                                             Fill="OrangeRed"
+                                                             Stroke="{DynamicResource ControlBorderBrush}"
+                                                             StrokeThickness="1"
+                                                             VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Nerdio Manager:"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="11"
+                                                               Margin="5,0,4,0"/>
+                                                    <TextBlock x:Name="M365NerdioAuthStatusLabel"
+                                                               Text="Not connected"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="11"/>
+                                                </StackPanel>
+                                            </DockPanel>
                                         </Border>
 
                                         <!-- Loading panel -->
@@ -2252,43 +2299,7 @@
                                             <TextBox x:Name="M365CompanyNameBox"
                                                      Style="{StaticResource FluentTextBox}"
                                                      Width="200"
-                                                     Height="32"
-                                                     Margin="0,0,16,0"/>
-                                            <Ellipse x:Name="M365IntuneAuthStatusDot"
-                                                     Width="9"
-                                                     Height="9"
-                                                     Fill="OrangeRed"
-                                                     Stroke="{DynamicResource ControlBorderBrush}"
-                                                     StrokeThickness="1"
-                                                     VerticalAlignment="Center"/>
-                                            <TextBlock Text="Intune:"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="11"
-                                                       Margin="5,0,4,0"/>
-                                            <TextBlock x:Name="M365IntuneAuthStatusLabel"
-                                                       Text="Not signed in"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="11"
-                                                       Margin="0,0,12,0"/>
-                                            <Ellipse x:Name="M365NerdioAuthStatusDot"
-                                                     Width="9"
-                                                     Height="9"
-                                                     Fill="OrangeRed"
-                                                     Stroke="{DynamicResource ControlBorderBrush}"
-                                                     StrokeThickness="1"
-                                                     VerticalAlignment="Center"/>
-                                            <TextBlock Text="Nerdio Manager:"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="11"
-                                                       Margin="5,0,4,0"/>
-                                            <TextBlock x:Name="M365NerdioAuthStatusLabel"
-                                                       Text="Not connected"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="11"/>
+                                                     Height="32"/>
                                         </StackPanel>
                                         <TextBlock x:Name="M365ActionStatusLabel"
                                                    Text=""

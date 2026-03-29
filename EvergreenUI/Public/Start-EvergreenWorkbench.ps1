@@ -4887,6 +4887,7 @@ function Start-EvergreenWorkbench {
         if (-not (& $loadNerdioShellAppsModule)) {
             $syncHash.NerdioApiAuthState.ErrorMessage = 'NerdioShellApps module is not loaded.'
             & $refreshNerdioApiAuthUi
+            Write-UILog -SyncHash $syncHash -Message 'Nerdio API sign-in failed: NerdioShellApps module could not be loaded. Check the module path in settings.' -Level Error
             return
         }
 
@@ -4931,8 +4932,12 @@ function Start-EvergreenWorkbench {
         & $refreshNerdioApiAuthUi
 
         try {
-            & $setNmeCredentialsCommand -ClientId $clientId -ClientSecret $clientSecret -TenantId $tenant -ApiScope $apiScope -OAuthToken $oAuthTokenUrl -SubscriptionId $subscriptionId -ResourceGroupName $resourceGroup -StorageAccountName $storageAccount -ContainerName $container -NmeHost $nmeHost
-            $null = & $connectNmeCommand -PassThru
+            & $setNmeCredentialsCommand -ClientId $clientId -ClientSecret $clientSecret -TenantId $tenant -ApiScope $apiScope -OAuthToken $oAuthTokenUrl -SubscriptionId $subscriptionId -ResourceGroupName $resourceGroup -StorageAccountName $storageAccount -ContainerName $container -NmeHost $nmeHost -ErrorAction Stop
+
+            $nmeContext = & $connectNmeCommand -PassThru -ErrorAction Stop
+            if ($null -eq $nmeContext) {
+                throw 'Connect-Nme returned no connection context. Verify the NME host URL and credentials.'
+            }
 
             $syncHash.NerdioApiAuthState.IsAuthenticated = $true
             $syncHash.NerdioApiAuthState.AccountId = $clientId
