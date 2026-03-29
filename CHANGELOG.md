@@ -1,6 +1,31 @@
 # Changelog
 
-## [CHANGELOG.md] - 2026-03-28
+## [1.0.13] - 2026-03-29
+
+### Added
+- Import tab / Microsoft 365 Apps: new sub-tab for packaging and importing Microsoft 365 Apps configurations into Intune and Nerdio Manager
+- Import tab / Microsoft 365 Apps: browse a directory of Office Deployment Tool XML configuration files; table displays Filename, Display Name, Products, and Status columns
+- Import tab / Microsoft 365 Apps: Channel selector and Company Name input in the action bar; version label next to the Channel selector shows the latest Evergreen version for the selected channel
+- Import tab / Microsoft 365 Apps: separate Intune and Nerdio Manager connection status indicators in the configuration status bar
+- Import tab / Microsoft 365 Apps: **Import Intune Win32App** and **Import Nerdio Manager Shell App** buttons enabled only when a valid configuration is selected and the respective service is authenticated
+- Import tab / Microsoft 365 Apps: build workflow downloads `setup.exe` via Evergreen, copies and updates the configuration XML with the selected Channel, TenantId, and CompanyName, then packages with `New-IntuneWin32AppPackage`
+- Import tab / Microsoft 365 Apps: `App.json` is copied from the bundled `Resources/m365-app.json` template into the package directory and updated with version, display name, GUID, program commands, architecture, and detection rule values before Intune upload
+- `Get-M365AppConfigurations` private function: parses Office Deployment Tool XML files, extracts products, architecture, and VDI flag, validates Configuration GUIDs, and returns display names in `"Products: Environment, Architecture"` format
+- `Invoke-M365AppPackageBuild` private function: full package build pipeline for Microsoft 365 Apps including Evergreen download, XML update, and `.intunewin` packaging; produces an updated `App.json` alongside the package
+- `Get-UIConfig`: `M365Settings` block added with `DefinitionsPath`, `PackageOutputPath`, `Channel`, and `CompanyName` defaults
+
+### Changed
+- Import tab: Microsoft 365 Apps sub-tab inserted between Nerdio Manager Shell Apps and Authentication tabs
+- Import tab / Microsoft 365 Apps: Channel and Company Name XML placeholders (`#Channel`) are resolved at packaging time from the user's dropdown selection; Channel is no longer read from the XML for display purposes
+- Import tab / Intune and Nerdio Manager: connection status indicators updated to match the Microsoft 365 Apps tab — 9×9 ellipse with border stroke, service-name prefix label ("Intune:" / "Nerdio Manager:"), and status text right-aligned in the count bar
+- Import tab / Intune and Nerdio Manager: count bar `DockPanel` changed to `LastChildFill="False"` so the right-docked status indicators correctly snap to the right edge
+- Import tab / Microsoft Intune Win32 Apps: Import Win32 app button height pinned to 32 px to match the Nerdio Manager Shell Apps tab
+- Nerdio Manager authentication: `Connect-Nme` called with `-ErrorAction Stop` so non-terminating errors are promoted to terminating and caught by the existing error handler; return value checked for null with an explicit failure message; `Set-NmeCredentials` also called with `-ErrorAction Stop`; module-load failure path now writes to the progress log
+
+### Fixed
+- Nerdio Manager authentication: failures produced no log output when the NerdioShellApps module could not be loaded silently (empty path) or when `Connect-Nme` wrote non-terminating errors rather than throwing — both cases are now logged
+
+## [1.0.12] - 2026-03-28
 
 ### Added
 - Apps tab: **Add to Library** button writes the selected application and active filter state to `EvergreenLibrary.json` in the configured library path; the button is only enabled when an app is loaded and a valid `EvergreenLibrary.json` exists
