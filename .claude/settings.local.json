@@ -1,23 +1,24 @@
 {
+  "env": {
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1"
+  },
+  "defaultShell": "powershell",
   "permissions": {
     "allow": [
-      "Bash(grep -n \"function Get-UIConfig\\\\|Get-UIConfig\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Private/*.ps1)",
-      "Bash(grep -n \"$navApps.add_Checked\\\\|InstallPanel.*Visibility\\\\|AppsPanel.*Visibility\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
-      "Bash(grep -n \"$navCheckedHandler\\\\s*=\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
-      "Bash(grep -n \"$panelMap\\\\s*=\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
-      "Bash(grep -n \"DefinitionsPath.*$syncHash.Config\" /c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
-      "Bash(grep -r \"\\\\.Add_Checked\\\\|\\\\.Add_Click\\\\|RadioButton\\\\|NavApps\" C:projects_EUCPilotsevergreen-ui --include=*.ps1)",
-      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse | Format-Table -AutoSize\")",
-      "Bash(pwsh -NoProfile -Command \"Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction SilentlyContinue; Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse | Format-Table -AutoSize\")",
-      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI/Private/Format-LogEntry.ps1, ./EvergreenUI/Private/Merge-ConfigSection.ps1, ./EvergreenUI/Private/Get-SafeFolderName.ps1, ./EvergreenUI/Private/Get-UIConfig.ps1, ./EvergreenUI/Private/Write-UILog.ps1, ./EvergreenUI/Private/Write-UpdateOutput.ps1 -Severity Error,Warning | Format-Table RuleName,Severity,ScriptName,Line,Message -AutoSize\")",
-      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse -Severity Error,Warning | Where-Object { $_.ScriptName -match ''Format-LogEntry|Merge-ConfigSection|Get-SafeFolderName|Get-UIConfig|Write-UILog|Write-UpdateOutput|Invoke-IntunePackageBuild|Invoke-FilterUpdate|Invoke-LocalPackageInstall|Test-LocalPackageDetection|Get-InstallPackage|Set-UIConfig|Invoke-AzureSignIn|Invoke-IntuneGraphWin32Import'' } | Format-Table RuleName,Severity,ScriptName,Line,Message -Wrap\")",
-      "Bash(pwsh -NoProfile -Command \":*)",
-      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse -Severity Error,Warning | Where-Object { $_.ScriptName -match ''Format-LogEntry|Merge-ConfigSection|Get-SafeFolderName|Get-UIConfig|Write-UILog|Write-UpdateOutput|Invoke-IntunePackageBuild|Invoke-FilterUpdate|Invoke-LocalPackageInstall|Test-LocalPackageDetection|Get-InstallPackage|Set-UIConfig|Invoke-AzureSignIn|Invoke-IntuneGraphWin32Import'' } | Format-Table RuleName,Severity,ScriptName,Line -AutoSize\")",
-      "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Detailed\")",
-      "Bash(git stash:*)",
-      "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Normal\")",
-      "Bash(xargs grep:*)",
-      "Bash(python3 -c \":*)"
+      "PowerShell(Select-String -Pattern 'function Get-UIConfig|Get-UIConfig' -Path ./EvergreenUI/Private/*.ps1)",
+      "PowerShell(Select-String -Pattern '\\$navApps\\.add_Checked|InstallPanel.*Visibility|AppsPanel.*Visibility' -Path ./EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
+      "PowerShell(Select-String -Pattern '\\$navCheckedHandler\\s*=' -Path ./EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
+      "PowerShell(Select-String -Pattern '\\$panelMap\\s*=' -Path ./EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
+      "PowerShell(Select-String -Pattern 'DefinitionsPath.*\\$syncHash\\.Config' -Path ./EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
+      "PowerShell(Get-ChildItem -Path . -Recurse -Filter *.ps1 | Select-String -Pattern '\\.Add_Checked|\\.Add_Click|RadioButton|NavApps')",
+      "PowerShell(Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse | Format-Table -AutoSize)",
+      "PowerShell(Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction SilentlyContinue; Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse | Format-Table -AutoSize)",
+      "PowerShell(Invoke-ScriptAnalyzer -Path ./EvergreenUI/Private/Format-LogEntry.ps1, ./EvergreenUI/Private/Merge-ConfigSection.ps1, ./EvergreenUI/Private/Get-SafeFolderName.ps1, ./EvergreenUI/Private/Get-UIConfig.ps1, ./EvergreenUI/Private/Write-UILog.ps1, ./EvergreenUI/Private/Write-UpdateOutput.ps1 -Severity Error,Warning | Format-Table RuleName,Severity,ScriptName,Line,Message -AutoSize)",
+      "PowerShell(Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse -Severity Error,Warning | Where-Object { $_.ScriptName -match 'Format-LogEntry|Merge-ConfigSection|Get-SafeFolderName|Get-UIConfig|Write-UILog|Write-UpdateOutput|Invoke-IntunePackageBuild|Invoke-FilterUpdate|Invoke-LocalPackageInstall|Test-LocalPackageDetection|Get-InstallPackage|Set-UIConfig|Invoke-AzureSignIn|Invoke-IntuneGraphWin32Import' } | Format-Table RuleName,Severity,ScriptName,Line,Message -Wrap)",
+      "PowerShell(Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse -Severity Error,Warning | Where-Object { $_.ScriptName -match 'Format-LogEntry|Merge-ConfigSection|Get-SafeFolderName|Get-UIConfig|Write-UILog|Write-UpdateOutput|Invoke-IntunePackageBuild|Invoke-FilterUpdate|Invoke-LocalPackageInstall|Test-LocalPackageDetection|Get-InstallPackage|Set-UIConfig|Invoke-AzureSignIn|Invoke-IntuneGraphWin32Import' } | Format-Table RuleName,Severity,ScriptName,Line -AutoSize)",
+      "PowerShell(Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Detailed)",
+      "PowerShell(Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Normal)",
+      "PowerShell(git stash:*)"
     ]
   }
 }
