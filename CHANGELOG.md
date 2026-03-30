@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.14] - 2026-03-30
+
+### Added
+- Progress log entries are now written to a per-session log file at `%LocalAppData%\EvergreenUI\logs\EvergreenUI-<timestamp>.log` (UTF-8, no BOM); a new file is created on each launch of the Workbench
+- `Format-LogEntry` private function: shared timestamp and level-prefix formatting used by `Write-UILog` and `Write-UpdateOutput`, eliminating duplicated formatting logic
+- `Merge-ConfigSection` private function: merges missing default properties into a loaded config section, replacing six identical `foreach`/`Add-Member` blocks in `Get-UIConfig`
+- `Get-SafeFolderName` private function: sanitises a definition file's parent directory name for use as a working folder name; applied in `Invoke-IntunePackageBuild` and `Invoke-LocalPackageInstall`
+
+### Changed
+- Navigation rail is now collapsible via a hamburger toggle button; nav items show icon and label when expanded (180 px) and icon only when collapsed (64 px); label visibility is toggled via named `TextBlock` controls (`NavAppsLabel`, `NavDownloadLabel`, etc.)
+- NerdioShellApps PowerShell module moved from `support/` into `Resources/` and is loaded automatically from the bundled path at runtime; the Nerdio Manager module-path setting and its associated Settings page controls have been removed
+- `Write-UILog` and `Write-UpdateOutput` now delegate to `Format-LogEntry` for consistent `[HH:mm:ss] [LEVEL]` formatting
+- `Get-UIConfig` simplified by replacing repeated merge loops with `Merge-ConfigSection` calls
+- `Format-LogEntry.ps1` is now dot-sourced into every background runspace before `Write-UILog.ps1` so log formatting is available in all runspaces
+- `Get-SafeFolderName.ps1` is now dot-sourced into the Intune import and Install runspaces so the helper is available where needed
+- Post-import Nerdio verification context (`PendingNerdioPostImportVerifyAppId`, `PendingNerdioPostImportExpectedEvergreenVersion`) is now stored in `$syncHash` at dispatch time rather than being re-read from captured local variables in the completion timer tick, fixing a strict-mode variable-not-set error after a successful Shell App version add
+- Install tab: elevation/UAC status indicator right-aligned to match sign-in status indicators on the Import tabs (DockPanel `LastChildFill` changed from `True` to `False`)
+- Download queue list view: padding removed from the wrapping border to tighten spacing
+- `GridViewColumnHeader` style extracted to a single shared style in `Window.Resources`, removing duplicated per-`ListView` header style definitions
+
+### Fixed
+- Background runspaces (Download All, Library Update, Update-Evergreen, Install resolve/run, Intune import, M365 package build) all failed silently because `Format-LogEntry` was not dot-sourced into the runspace session; every `Write-UILog` call threw a "term not recognised" error that was caught and swallowed, leaving no log output and no work performed
+- Intune Win32 import and Install run runspaces failed with "term not recognised" for `Get-SafeFolderName` after the function was extracted in the observability refactor
+- Install tab "Find latest versions" logged an error (`Format-LogEntry` not recognised) and performed no version resolution
+- Nerdio Shell App "Add version" logged a strict-mode error (`$shellAppId` cannot be retrieved) when attempting to set post-import verification context in the completion handler
+- Install tab elevation status indicator no longer stretches across the full status bar width
+- NerdioShellApps module updated for Windows PowerShell 5.1 compatibility: PS 7-only ternary and null-coalescing operators replaced, temp directory detection rewritten using Windows-compatible environment checks, `PSStyle` fallback added for informational logging
+- Em dash characters (`—`) replaced with hyphens in string literals across private functions; UTF-8 em dashes were misread by PowerShell 5.1 as Windows-1252, causing the middle byte (`0x94`) to be interpreted as a closing double-quote and breaking script parsing on import
+
 ## [1.0.13] - 2026-03-29
 
 ### Added
