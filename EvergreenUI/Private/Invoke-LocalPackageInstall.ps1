@@ -80,11 +80,11 @@ function Invoke-LocalPackageInstall {
         return (& $fail "Latest version resolution failed: $err")
     }
 
-    $appFolderName = [System.IO.Path]::GetFileName([System.IO.Path]::GetDirectoryName($DefinitionPath))
+    $appFolderName = Get-SafeFolderName -DefinitionPath $DefinitionPath
     if ([string]::IsNullOrWhiteSpace($appFolderName)) {
         $appFolderName = [string]$DefinitionObject.Application.Name
+        $appFolderName = [System.Text.RegularExpressions.Regex]::Replace($appFolderName, '[^\w\-\.]', '_').Trim('_')
     }
-    $appFolderName = [System.Text.RegularExpressions.Regex]::Replace($appFolderName, '[^\w\-\.]', '_').Trim('_')
     if ([string]::IsNullOrWhiteSpace($appFolderName)) {
         $appFolderName = 'InstallPackage'
     }
@@ -165,7 +165,13 @@ function Invoke-LocalPackageInstall {
     $useInstallPs1 = Test-Path -LiteralPath $installPs1Target -PathType Leaf
     $fallbackCommand = [string]$DefinitionObject.Program.InstallCommand
 
-    if (-not $useInstallPs1 -and [string]::IsNullOrWhiteSpace($fallbackCommand)) {
+    if ($useInstallPs1) {
+        Write-UILog -SyncHash $SyncHash -Message "Install method: Install.ps1 at '$installPs1Target'." -Level Info
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($fallbackCommand)) {
+        Write-UILog -SyncHash $SyncHash -Message "Install method: Program.InstallCommand from App.json (no Install.ps1 found)." -Level Info
+    }
+    else {
         return (& $fail 'No Install.ps1 found in the package directory, Source directory, or shared package template location, and Program.InstallCommand is missing from App.json.')
     }
 

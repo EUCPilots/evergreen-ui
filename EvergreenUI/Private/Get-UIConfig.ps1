@@ -46,7 +46,6 @@ function Get-UIConfig {
             CurrentProvider = 'Nerdio'
         }
         NerdioSettings    = [PSCustomObject]@{
-            ModulePath        = ''
             NmeHost           = ''
             NmeClientId       = ''
             NmeApiScope       = ''
@@ -99,66 +98,20 @@ function Get-UIConfig {
             }
         }
 
+        # Merge nested settings sections - Merge-ConfigSection handles null (returns default)
+        # and missing keys (adds from default), ensuring forward-compat with new settings.
+        $json.NerdioSettings    = Merge-ConfigSection -Loaded $json.NerdioSettings    -Default $default.NerdioSettings
+        $json.IntuneSettings    = Merge-ConfigSection -Loaded $json.IntuneSettings    -Default $default.IntuneSettings
+        $json.M365Settings      = Merge-ConfigSection -Loaded $json.M365Settings      -Default $default.M365Settings
+        $json.InstallSettings   = Merge-ConfigSection -Loaded $json.InstallSettings   -Default $default.InstallSettings
+        $json.AzureAuthSettings = Merge-ConfigSection -Loaded $json.AzureAuthSettings -Default $default.AzureAuthSettings
+
+        # ImportSettings has a special case: if present but CurrentProvider is blank, restore the default.
         if ($null -eq $json.ImportSettings) {
             $json | Add-Member -NotePropertyName 'ImportSettings' -NotePropertyValue $default.ImportSettings -Force
         }
         elseif ($null -eq $json.ImportSettings.CurrentProvider -or [string]::IsNullOrWhiteSpace([string]$json.ImportSettings.CurrentProvider)) {
             $json.ImportSettings | Add-Member -NotePropertyName 'CurrentProvider' -NotePropertyValue 'Nerdio' -Force
-        }
-
-        if ($null -eq $json.NerdioSettings) {
-            $json | Add-Member -NotePropertyName 'NerdioSettings' -NotePropertyValue $default.NerdioSettings -Force
-        }
-        else {
-            foreach ($prop in $default.NerdioSettings.PSObject.Properties.Name) {
-                if ($null -eq $json.NerdioSettings.$prop) {
-                    $json.NerdioSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.NerdioSettings.$prop -Force
-                }
-            }
-        }
-
-        if ($null -eq $json.IntuneSettings) {
-            $json | Add-Member -NotePropertyName 'IntuneSettings' -NotePropertyValue $default.IntuneSettings -Force
-        }
-        else {
-            foreach ($prop in $default.IntuneSettings.PSObject.Properties.Name) {
-                if ($null -eq $json.IntuneSettings.$prop) {
-                    $json.IntuneSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.IntuneSettings.$prop -Force
-                }
-            }
-        }
-
-        if ($null -eq $json.M365Settings) {
-            $json | Add-Member -NotePropertyName 'M365Settings' -NotePropertyValue $default.M365Settings -Force
-        }
-        else {
-            foreach ($prop in $default.M365Settings.PSObject.Properties.Name) {
-                if ($null -eq $json.M365Settings.$prop) {
-                    $json.M365Settings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.M365Settings.$prop -Force
-                }
-            }
-        }
-
-        if ($null -eq $json.InstallSettings) {
-            $json | Add-Member -NotePropertyName 'InstallSettings' -NotePropertyValue $default.InstallSettings -Force
-        }
-        else {
-            foreach ($prop in $default.InstallSettings.PSObject.Properties.Name) {
-                if ($null -eq $json.InstallSettings.$prop) {
-                    $json.InstallSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.InstallSettings.$prop -Force
-                }
-            }
-        }
-
-        if ($null -eq $json.AzureAuthSettings) {
-            $json | Add-Member -NotePropertyName 'AzureAuthSettings' -NotePropertyValue $default.AzureAuthSettings -Force
-        }
-        else {
-            foreach ($prop in $default.AzureAuthSettings.PSObject.Properties.Name) {
-                if ($null -eq $json.AzureAuthSettings.$prop) {
-                    $json.AzureAuthSettings | Add-Member -NotePropertyName $prop -NotePropertyValue $default.AzureAuthSettings.$prop -Force
-                }
-            }
         }
 
         if ([string]::IsNullOrWhiteSpace([string]$json.OutputPath)) {

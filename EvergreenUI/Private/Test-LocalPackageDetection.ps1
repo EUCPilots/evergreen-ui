@@ -121,6 +121,7 @@ function Test-LocalPackageDetection {
 
             $ruleType = [string]$rule.Type
             $rulePassed = $false
+            Write-Verbose "EvergreenUI: Detection rule $ruleCount - type=$ruleType"
 
             switch ($ruleType) {
                 'File' {
@@ -149,10 +150,15 @@ function Test-LocalPackageDetection {
                             }
 
                             $rulePassed = & $compareValues -Operator ([string]$rule.Operator) -Left $currentVersion -Right ([string]$rule.VersionValue)
+                            Write-Verbose "EvergreenUI: File rule - path='$targetPath' detectedVersion='$currentVersion' expectedVersion='$([string]$rule.VersionValue)' passed=$rulePassed"
                         }
                         else {
                             $rulePassed = $true
+                            Write-Verbose "EvergreenUI: File rule (existence) - path='$targetPath' passed=$rulePassed"
                         }
+                    }
+                    else {
+                        Write-Verbose "EvergreenUI: File rule - path='$targetPath' not found; rule failed"
                     }
                 }
                 'Registry' {
@@ -161,6 +167,7 @@ function Test-LocalPackageDetection {
                         $method = [string]$rule.DetectionMethod
                         if ($method -eq 'Existence') {
                             $rulePassed = $true
+                            Write-Verbose "EvergreenUI: Registry rule (existence) - key='$registryPath' passed=$rulePassed"
                         }
                         else {
                             $valueName = [string]$rule.ValueName
@@ -178,7 +185,11 @@ function Test-LocalPackageDetection {
 
                             $expectedValue = if ($method -eq 'Version') { [string]$rule.DetectionValue } else { [string]$rule.DetectionValue }
                             $rulePassed = & $compareValues -Operator ([string]$rule.Operator) -Left $currentValue -Right $expectedValue
+                            Write-Verbose "EvergreenUI: Registry rule ($method) - key='$registryPath' value='$valueName' detected='$currentValue' expected='$expectedValue' passed=$rulePassed"
                         }
+                    }
+                    else {
+                        Write-Verbose "EvergreenUI: Registry rule - key='$registryPath' not found; rule failed"
                     }
                 }
                 'MSI' {
@@ -227,11 +238,16 @@ function Test-LocalPackageDetection {
                             else {
                                 $rulePassed = & $compareValues -Operator ([string]$rule.ProductVersionOperator) -Left $matchedVersion -Right $expectedVersion
                             }
+                            Write-Verbose "EvergreenUI: MSI rule - productCode='{$normalizedCode}' detectedVersion='$matchedVersion' expectedVersion='$expectedVersion' passed=$rulePassed"
+                        }
+                        else {
+                            Write-Verbose "EvergreenUI: MSI rule - productCode='{$normalizedCode}' not found in uninstall keys; rule failed"
                         }
                     }
                 }
                 default {
                     $rulePassed = $false
+                    Write-Verbose "EvergreenUI: Unknown rule type '$ruleType'; rule failed"
                 }
             }
 

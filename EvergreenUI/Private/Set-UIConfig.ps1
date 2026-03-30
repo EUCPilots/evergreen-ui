@@ -42,6 +42,7 @@ function Set-UIConfig {
         # This reduces the chance of partial/truncated files on unexpected termination.
         [System.IO.File]::WriteAllText($tempPath, $json, [System.Text.UTF8Encoding]::new($false))
         Move-Item -Path $tempPath -Destination $configPath -Force -ErrorAction Stop
+        Write-Verbose "EvergreenUI: Config saved to '$configPath'."
     }
     catch {
         if (Test-Path -Path $tempPath -PathType Leaf) {

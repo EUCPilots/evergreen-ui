@@ -36,6 +36,8 @@ function Start-EvergreenWorkbench {
     Add-Type -AssemblyName WindowsBase
     Add-Type -AssemblyName System.Windows.Forms
 
+    $nerdioBundledModulePath = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Resources\NerdioShellApps.psm1'
+
     # Load saved config
     $config = Get-UIConfig
 
@@ -104,6 +106,7 @@ function Start-EvergreenWorkbench {
             Window                                          = $null
             LogTextBox                                      = $null
             LogScrollViewer                                 = $null
+            LogFilePath                                     = ''
             IsRunning                                       = $false
             AppList                                         = $null
             CurrentAppResults                               = $null
@@ -324,10 +327,6 @@ function Start-EvergreenWorkbench {
     $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
     $clearCacheButton = $window.FindName('ClearCacheButton')
     $openCacheFolderButton = $window.FindName('OpenCacheFolderButton')
-    $nerdioModulePathSettingsBox = $window.FindName('NerdioModulePathSettingsBox')
-    $nerdioBrowseModulePathSettingsButton = $window.FindName('NerdioBrowseModulePathSettingsButton')
-    $nerdioReloadModuleSettingsButton = $window.FindName('NerdioReloadModuleSettingsButton')
-    $nerdioModuleStatusLabel = $window.FindName('NerdioModuleStatusLabel')
     $aboutNameValue = $window.FindName('AboutNameValue')
     $aboutVersionValue = $window.FindName('AboutVersionValue')
     $aboutPrereleaseValue = $window.FindName('AboutPrereleaseValue')
@@ -1021,6 +1020,7 @@ function Start-EvergreenWorkbench {
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
@@ -1237,7 +1237,9 @@ function Start-EvergreenWorkbench {
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Get-SafeFolderName.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
             'Invoke-LocalPackageInstall.ps1'
@@ -1296,10 +1298,10 @@ function Start-EvergreenWorkbench {
                         $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$action.DefinitionPath) -DefinitionObject $definitionObject -CacheRootPath $CacheRootPath
                         if (-not [string]::IsNullOrWhiteSpace([string]$latestResult.CacheFile)) {
                             if ([bool]$latestResult.IsFromCache) {
-                                Write-UILog -SyncHash $syncHash -Message "Install: cache read for '$([string]$action.Name)' — $([string]$latestResult.Version) from '$([string]$latestResult.CacheFile)'." -Level Info
+                                Write-UILog -SyncHash $syncHash -Message "Install: cache read for '$([string]$action.Name)' - $([string]$latestResult.Version) from '$([string]$latestResult.CacheFile)'." -Level Info
                             }
                             elseif ([bool]$latestResult.Succeeded) {
-                                Write-UILog -SyncHash $syncHash -Message "Install: wrote to cache for '$([string]$action.Name)' — $([string]$latestResult.Version) at '$([string]$latestResult.CacheFile)'." -Level Info
+                                Write-UILog -SyncHash $syncHash -Message "Install: wrote to cache for '$([string]$action.Name)' - $([string]$latestResult.Version) at '$([string]$latestResult.CacheFile)'." -Level Info
                             }
                         }
                         if (-not $latestResult.Succeeded) {
@@ -1485,7 +1487,9 @@ function Start-EvergreenWorkbench {
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Get-SafeFolderName.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Invoke-IntunePackageBuild.ps1'
             'Invoke-IntuneGraphWin32Import.ps1'
@@ -1745,6 +1749,7 @@ function Start-EvergreenWorkbench {
 
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $formatLogEntryScript = Join-Path -Path $privateRootPath -ChildPath 'Format-LogEntry.ps1'
         $writeUILogScript = Join-Path -Path $privateRootPath -ChildPath 'Write-UILog.ps1'
 
         $rs = New-WpfRunspace -SyncHash $syncHash
@@ -1752,8 +1757,9 @@ function Start-EvergreenWorkbench {
         $ps.Runspace = $rs
 
         [void]$ps.AddScript({
-                param([string]$WriteUILogScript)
+                param([string]$FormatLogEntryScript, [string]$WriteUILogScript)
                 try {
+                    if (Test-Path -LiteralPath $FormatLogEntryScript -PathType Leaf) { . $FormatLogEntryScript }
                     if (Test-Path -LiteralPath $WriteUILogScript -PathType Leaf) { . $WriteUILogScript }
                     if (-not (Get-Command -Name 'Get-EvergreenApp' -ErrorAction SilentlyContinue)) {
                         Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
@@ -1765,7 +1771,7 @@ function Start-EvergreenWorkbench {
                     Write-UILog -SyncHash $syncHash -Message "M365: failed to fetch Evergreen versions: $($_.Exception.Message)" -Level Error
                     return @()
                 }
-            }).AddArgument($writeUILogScript)
+            }).AddArgument($formatLogEntryScript).AddArgument($writeUILogScript)
 
         $syncHash.PendingM365EvergreenPS = $ps
         $syncHash.PendingM365EvergreenRunspace = $rs
@@ -1893,7 +1899,7 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        # Package output path — re-use Intune output path setting as M365 shares the same working area
+        # Package output path - re-use Intune output path setting as M365 shares the same working area
         $packageOutputPath = & $normalizeDirectoryPath -PathValue ([string]$intunePackageOutputPathBox.Text)
         if ([string]::IsNullOrWhiteSpace($packageOutputPath)) {
             Write-UILog -SyncHash $syncHash -Message 'M365: package output path is not configured. Set it in the Microsoft Intune Win32 Apps pane first.' -Level Warning
@@ -1960,6 +1966,7 @@ function Start-EvergreenWorkbench {
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Invoke-M365AppPackageBuild.ps1'
             'Invoke-IntuneGraphWin32Import.ps1'
@@ -2163,9 +2170,9 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        $modulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
+        $modulePath = & $normalizeDirectoryPath -PathValue $nerdioBundledModulePath
         if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
-            Write-UILog -SyncHash $syncHash -Message 'M365: Nerdio module path is not configured or does not exist.' -Level Error
+            Write-UILog -SyncHash $syncHash -Message "M365: bundled Nerdio module is missing: $modulePath" -Level Error
             return
         }
 
@@ -2213,6 +2220,7 @@ function Start-EvergreenWorkbench {
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Invoke-M365AppPackageBuild.ps1'
         ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
@@ -2820,7 +2828,6 @@ function Start-EvergreenWorkbench {
             }
         }
 
-        $syncHash.Config.NerdioSettings.ModulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
         $syncHash.Config.NerdioSettings.NmeHost = [string]$nmeHostBox.Text
         $syncHash.Config.NerdioSettings.NmeClientId = [string]$nmeClientIdBox.Text
         $syncHash.Config.NerdioSettings.NmeApiScope = [string]$nmeApiScopeBox.Text
@@ -3157,24 +3164,6 @@ function Start-EvergreenWorkbench {
         return $FallbackBrush
     }
 
-    $refreshNerdioModuleStatus = {
-        param(
-            [bool]$IsLoaded,
-            [string]$Message
-        )
-
-        if ($null -eq $nerdioModuleStatusLabel) { return }
-
-        if ($IsLoaded) {
-            $nerdioModuleStatusLabel.Foreground = & $getThemeStatusBrush -ResourceKey 'StatusPositiveBrush' -FallbackBrush ([System.Windows.Media.Brushes]::LightGreen)
-        }
-        else {
-            $nerdioModuleStatusLabel.Foreground = & $getThemeStatusBrush -ResourceKey 'StatusErrorBrush' -FallbackBrush ([System.Windows.Media.Brushes]::OrangeRed)
-        }
-
-        $nerdioModuleStatusLabel.Text = $Message
-    }
-
     $setNerdioModuleQuietLogging = {
         param(
             [string]$Preference = 'SilentlyContinue'
@@ -3194,20 +3183,10 @@ function Start-EvergreenWorkbench {
     $loadNerdioShellAppsModule = {
         param([switch]$Force)
 
-        $pathValue = [string]$nerdioModulePathSettingsBox.Text
-        $path = & $normalizeDirectoryPath -PathValue $pathValue
-        $nerdioModulePathSettingsBox.Text = $path
-        $syncHash.Config.NerdioSettings.ModulePath = $path
-        Set-UIConfig -Config $syncHash.Config
+        $path = & $normalizeDirectoryPath -PathValue $nerdioBundledModulePath
 
-        if ([string]::IsNullOrWhiteSpace($path)) {
-            & $refreshNerdioModuleStatus -IsLoaded $false -Message 'NerdioShellApps module path is not configured.'
-            return $false
-        }
-
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-            & $refreshNerdioModuleStatus -IsLoaded $false -Message "Module file not found: $path"
-            Write-UILog -SyncHash $syncHash -Message "Nerdio module was not loaded because the file was not found: $path" -Level Warning
+        if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            Write-UILog -SyncHash $syncHash -Message "Nerdio module was not loaded because the bundled file was not found: $path" -Level Warning
             return $false
         }
 
@@ -3218,12 +3197,10 @@ function Start-EvergreenWorkbench {
 
             Import-Module -Name $path -Force:$Force -ErrorAction Stop | Out-Null
             & $setNerdioModuleQuietLogging -Preference 'SilentlyContinue'
-            & $refreshNerdioModuleStatus -IsLoaded $true -Message "Loaded module: $path"
             Write-UILog -SyncHash $syncHash -Message "Loaded NerdioShellApps module from '$path'." -Level Info
             return $true
         }
         catch {
-            & $refreshNerdioModuleStatus -IsLoaded $false -Message "Failed to load module: $($_.Exception.Message)"
             Write-UILog -SyncHash $syncHash -Message "Failed to load NerdioShellApps module: $($_.Exception.Message)" -Level Error
             return $false
         }
@@ -4209,11 +4186,11 @@ function Start-EvergreenWorkbench {
             $syncHash[$pendingOp] = $null
         }
 
-        $modulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
+        $modulePath = & $normalizeDirectoryPath -PathValue $nerdioBundledModulePath
         if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
             $syncHash.NerdioShellAppRows = @()
             $nerdioShellAppsCountLabel.Text = '0 apps'
-            Write-UILog -SyncHash $syncHash -Message 'Nerdio: module path is not configured or does not exist.' -Level Error
+            Write-UILog -SyncHash $syncHash -Message "Nerdio: bundled module is missing: $modulePath" -Level Error
             & $refreshNerdioComparison
             return
         }
@@ -4548,9 +4525,9 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        $modulePath = & $normalizeDirectoryPath -PathValue ([string]$nerdioModulePathSettingsBox.Text)
+        $modulePath = & $normalizeDirectoryPath -PathValue $nerdioBundledModulePath
         if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
-            Write-UILog -SyncHash $syncHash -Message 'Nerdio: module path is not configured or does not exist.' -Level Error
+            Write-UILog -SyncHash $syncHash -Message "Nerdio: bundled module is missing: $modulePath" -Level Error
             return
         }
 
@@ -4673,6 +4650,8 @@ function Start-EvergreenWorkbench {
         $syncHash.PendingNerdioAddVersionAsync = $ps.BeginInvoke()
 
         $syncHash.PendingNerdioAddVersionAppName = $appName
+        $syncHash.PendingNerdioPostImportVerifyAppId = $shellAppId
+        $syncHash.PendingNerdioPostImportExpectedEvergreenVersion = [string]$selectedRow.EvergreenVersion
 
         $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
         $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
@@ -4721,9 +4700,7 @@ function Start-EvergreenWorkbench {
                     $syncHash.PendingNerdioAddVersionAppName = $null
                     Write-UILog -SyncHash $syncHash -Message "Nerdio: successfully added new version to Shell App '$completedAppName'." -Level Info
                     try {
-                        $syncHash.PendingNerdioPostImportVerifyAppId = [string]$shellAppId
                         $syncHash.PendingNerdioPostImportVerifyAppName = [string]$completedAppName
-                        $syncHash.PendingNerdioPostImportExpectedEvergreenVersion = [string]$selectedRow.EvergreenVersion
                         & $setNerdioShellAppsLoadingState -IsLoading $false
                         & $loadNerdioShellApps
                     }
@@ -4888,7 +4865,7 @@ function Start-EvergreenWorkbench {
         if (-not (& $loadNerdioShellAppsModule)) {
             $syncHash.NerdioApiAuthState.ErrorMessage = 'NerdioShellApps module is not loaded.'
             & $refreshNerdioApiAuthUi
-            Write-UILog -SyncHash $syncHash -Message 'Nerdio API sign-in failed: NerdioShellApps module could not be loaded. Check the module path in settings.' -Level Error
+            Write-UILog -SyncHash $syncHash -Message 'Nerdio API sign-in failed: NerdioShellApps module could not be loaded from Resources.' -Level Error
             return
         }
 
@@ -5184,6 +5161,7 @@ function Start-EvergreenWorkbench {
         }
 
         $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+        $formatLogEntryPath = Join-Path -Path $privateRoot -ChildPath 'Format-LogEntry.ps1'
         $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
         $invokeDownloadPath = Join-Path -Path $privateRoot -ChildPath 'Invoke-AppDownload.ps1'
 
@@ -5193,10 +5171,12 @@ function Start-EvergreenWorkbench {
 
         [void]$ps.AddScript({
                 param(
+                    [string]$FormatLogEntryPath,
                     [string]$WriteUILogPath,
                     [string]$InvokeDownloadPath
                 )
 
+                . $FormatLogEntryPath
                 . $WriteUILogPath
                 . $InvokeDownloadPath
 
@@ -5243,7 +5223,7 @@ function Start-EvergreenWorkbench {
                             }
                         }, 'Normal')
                 }
-            }).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
+            }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
 
         $async = $ps.BeginInvoke()
         & $registerBackgroundOperation -Name 'QueueDownload' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
@@ -5400,6 +5380,7 @@ function Start-EvergreenWorkbench {
         }
 
         $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+        $formatLogEntryPath = Join-Path -Path $privateRoot -ChildPath 'Format-LogEntry.ps1'
         $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
         $invokeLibraryUpdatePath = Join-Path -Path $privateRoot -ChildPath 'Invoke-LibraryUpdate.ps1'
 
@@ -5409,10 +5390,12 @@ function Start-EvergreenWorkbench {
 
         [void]$ps.AddScript({
                 param(
+                    [string]$FormatLogEntryPath,
                     [string]$WriteUILogPath,
                     [string]$InvokeLibraryUpdatePath
                 )
 
+                . $FormatLogEntryPath
                 . $WriteUILogPath
                 . $InvokeLibraryUpdatePath
 
@@ -5435,7 +5418,7 @@ function Start-EvergreenWorkbench {
                             & $syncHash.RefreshLibraryView
                         }, 'Normal')
                 }
-            }).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
+            }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
 
         $async = $ps.BeginInvoke()
         & $registerBackgroundOperation -Name 'LibraryUpdate' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
@@ -5456,6 +5439,7 @@ function Start-EvergreenWorkbench {
         }
 
         $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+        $formatLogEntryPath = Join-Path -Path $privateRoot -ChildPath 'Format-LogEntry.ps1'
         $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
         $writeUpdateOutputPath = Join-Path -Path $privateRoot -ChildPath 'Write-UpdateOutput.ps1'
 
@@ -5465,10 +5449,12 @@ function Start-EvergreenWorkbench {
 
         [void]$ps.AddScript({
                 param(
+                    [string]$FormatLogEntryPath,
                     [string]$WriteUILogPath,
                     [string]$WriteUpdateOutputPath
                 )
 
+                . $FormatLogEntryPath
                 . $WriteUILogPath
                 . $WriteUpdateOutputPath
 
@@ -5531,7 +5517,7 @@ function Start-EvergreenWorkbench {
                             }
                         }, 'Normal')
                 }
-            }).AddArgument($writeUILogPath).AddArgument($writeUpdateOutputPath)
+            }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($writeUpdateOutputPath)
 
         $async = $ps.BeginInvoke()
         & $registerBackgroundOperation -Name 'UpdateEvergreen' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
@@ -5550,6 +5536,13 @@ function Start-EvergreenWorkbench {
         $logToggleButton.IsChecked = $false
         $logToggleButton.Content = 'Show progress log'
     }
+
+    # Create per-session log file under %LocalAppData%\EvergreenUI\logs\
+    $logDir = Join-Path -Path $env:LocalAppData -ChildPath 'EvergreenUI\logs'
+    if (-not (Test-Path -LiteralPath $logDir)) {
+        New-Item -Path $logDir -ItemType Directory -Force | Out-Null
+    }
+    $syncHash.LogFilePath = Join-Path -Path $logDir -ChildPath ("EvergreenUI-{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'))
 
     # Event: Window.Loaded
     $window.add_Loaded({
@@ -5607,7 +5600,6 @@ function Start-EvergreenWorkbench {
             $libraryPathViewBox.Text = $syncHash.Config.LibraryPath
             $importTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.TenantId
             $nerdioTenantIdBox.Text = [string]$syncHash.Config.AzureAuthSettings.NerdioTenantId
-            $nerdioModulePathSettingsBox.Text = [string]$syncHash.Config.NerdioSettings.ModulePath
             $nmeHostBox.Text = [string]$syncHash.Config.NerdioSettings.NmeHost
             $nmeClientIdBox.Text = [string]$syncHash.Config.NerdioSettings.NmeClientId
             $nmeApiScopeBox.Text = [string]$syncHash.Config.NerdioSettings.NmeApiScope
@@ -5887,7 +5879,7 @@ function Start-EvergreenWorkbench {
             & $refreshNerdioAzureAuthUi
             & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
 
-            # Auto-load local definitions only — do not query Intune or Nerdio Manager.
+            # Auto-load local definitions only - do not query Intune or Nerdio Manager.
             # Skip if compare data is already populated: definitions are already visible in
             # the comparison view, and re-loading when IntuneWin32Rows / NerdioShellAppRows
             # are non-empty would cause refreshComparison to call external APIs for matched rows.
@@ -6498,7 +6490,7 @@ function Start-EvergreenWorkbench {
                 return
             }
 
-            # Build filter string from FilterState — skip synthetic _DerivedType property.
+            # Build filter string from FilterState - skip synthetic _DerivedType property.
             $filterClauses = @()
             foreach ($propName in $syncHash.FilterState.Keys) {
                 if ($propName -eq '_DerivedType') { continue }
@@ -6787,15 +6779,6 @@ function Start-EvergreenWorkbench {
     $navSettings.add_Checked({
             $outputPathBox.Text = $syncHash.Config.OutputPath
             $evergreenAppsPathBox.Text = (Get-EvergreenAppsPath)
-            $nerdioModulePathSettingsBox.Text = [string]$syncHash.Config.NerdioSettings.ModulePath
-
-            $nerdioLoaded = $null -ne (Get-Module -Name NerdioShellApps)
-            if ($nerdioLoaded) {
-                & $refreshNerdioModuleStatus -IsLoaded $true -Message 'NerdioShellApps module is loaded.'
-            }
-            else {
-                & $refreshNerdioModuleStatus -IsLoaded $false -Message 'NerdioShellApps module not loaded. Select a module path and click Reload.'
-            }
 
             $intuneLoaded = $null -ne (Get-Module -Name IntuneWin32App)
             if ($intuneLoaded) {
@@ -6905,32 +6888,6 @@ function Start-EvergreenWorkbench {
             }
         })
 
-    $nerdioBrowseModulePathSettingsButton.add_Click({
-            $dlg = [System.Windows.Forms.OpenFileDialog]::new()
-            $dlg.Title = 'Select NerdioShellApps module file'
-            $dlg.Filter = 'PowerShell module files (*.psm1)|*.psm1|All files (*.*)|*.*'
-            $dlg.CheckFileExists = $true
-            $dlg.Multiselect = $false
-            if (-not [string]::IsNullOrWhiteSpace($nerdioModulePathSettingsBox.Text)) {
-                try {
-                    $currentDir = Split-Path -Path $nerdioModulePathSettingsBox.Text -Parent
-                    if (Test-Path -LiteralPath $currentDir -PathType Container) {
-                        $dlg.InitialDirectory = $currentDir
-                    }
-                }
-                catch {}
-            }
-
-            if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-                $nerdioModulePathSettingsBox.Text = $dlg.FileName
-                [void](& $loadNerdioShellAppsModule -Force)
-            }
-        })
-
-    $nerdioReloadModuleSettingsButton.add_Click({
-            [void](& $loadNerdioShellAppsModule -Force)
-        })
-
     # Settings: Open cache folder
     $openEvergreenAppsFolderButton.add_Click({
             $folderPath = $evergreenAppsPathBox.Text
@@ -6976,10 +6933,6 @@ function Start-EvergreenWorkbench {
             $syncHash.Config.OutputPath = $normalised
             Set-UIConfig -Config $syncHash.Config
             & $updateDownloadAllButtonState
-        })
-
-    $nerdioModulePathSettingsBox.add_LostFocus({
-            [void](& $loadNerdioShellAppsModule)
         })
 
     # Show window (blocking)

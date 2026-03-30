@@ -1,6 +1,5 @@
-#Requires -PSEdition Core
-#Requires -Module Az.Accounts, Az.Storage, Evergreen, VcRedist
 [CmdletBinding()]
+param ()
 
 # Configure the environment
 $ProgressPreference = "SilentlyContinue"
@@ -29,6 +28,42 @@ $script:env = [PSCustomObject] @{
     storageAccountName = $null
     containerName      = $null
     nmeHost            = $null
+}
+
+$psStyleVar = Get-Variable -Name "PSStyle" -Scope Global -ErrorAction "SilentlyContinue"
+if ($psStyleVar) {
+    $script:logStyle = $psStyleVar.Value
+}
+else {
+    $global:PSStyle = [PSCustomObject]@{
+        Foreground = [PSCustomObject]@{
+            Green  = ""
+            Cyan   = ""
+            Yellow = ""
+        }
+    }
+    $script:logStyle = $global:PSStyle
+}
+
+function Get-TrimmedValueOrNull {
+    param (
+        [Parameter(Mandatory = $false)]
+        [System.String] $Value,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.SwitchParameter] $TrimTrailingSlash
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $null
+    }
+
+    $trimmedValue = $Value.Trim()
+    if ($TrimTrailingSlash) {
+        return $trimmedValue.TrimEnd('/')
+    }
+
+    return $trimmedValue
 }
 
 function Set-NmeCredentials {
@@ -65,20 +100,20 @@ function Set-NmeCredentials {
     )
 
     $script:creds = [PSCustomObject] @{
-        ClientId       = [string]::IsNullOrWhiteSpace($ClientId) ? $null : $ClientId.Trim()
-        ClientSecret   = [string]::IsNullOrWhiteSpace($ClientSecret) ? $null : $ClientSecret.Trim()
-        TenantId       = [string]::IsNullOrWhiteSpace($TenantId) ? $null : $TenantId.Trim()
-        ApiScope       = [string]::IsNullOrWhiteSpace($ApiScope) ? $null : $ApiScope.Trim()
+        ClientId       = Get-TrimmedValueOrNull -Value $ClientId
+        ClientSecret   = Get-TrimmedValueOrNull -Value $ClientSecret
+        TenantId       = Get-TrimmedValueOrNull -Value $TenantId
+        ApiScope       = Get-TrimmedValueOrNull -Value $ApiScope
         NmeUri         = $null
-        SubscriptionId = [string]::IsNullOrWhiteSpace($SubscriptionId) ? $null : $SubscriptionId.Trim()
-        OAuthToken     = [string]::IsNullOrWhiteSpace($OAuthToken) ? $null : $OAuthToken.Trim()
+        SubscriptionId = Get-TrimmedValueOrNull -Value $SubscriptionId
+        OAuthToken     = Get-TrimmedValueOrNull -Value $OAuthToken
     }
 
     $script:env = [PSCustomObject] @{
-        resourceGroupName  = [string]::IsNullOrWhiteSpace($ResourceGroupName) ? $null : $ResourceGroupName.Trim()
-        storageAccountName = [string]::IsNullOrWhiteSpace($StorageAccountName) ? $null : $StorageAccountName.Trim()
-        containerName      = [string]::IsNullOrWhiteSpace($ContainerName) ? $null : $ContainerName.Trim()
-        nmeHost            = [string]::IsNullOrWhiteSpace($NmeHost) ? $null : $NmeHost.Trim().TrimEnd('/')
+        resourceGroupName  = Get-TrimmedValueOrNull -Value $ResourceGroupName
+        storageAccountName = Get-TrimmedValueOrNull -Value $StorageAccountName
+        containerName      = Get-TrimmedValueOrNull -Value $ContainerName
+        nmeHost            = Get-TrimmedValueOrNull -Value $NmeHost -TrimTrailingSlash
     }
 }
 
@@ -129,23 +164,23 @@ function Connect-Nme {
 }
 
 function Get-TempDirectory {
-    switch -Regex ($PSVersionTable.OS) {
-        'Windows' {
-            return $env:TEMP ?? $env:TMP ?? "$env:USERPROFILE\AppData\Local\Temp"
+    if ($env:OS -eq 'Windows_NT') {
+        if (-not [string]::IsNullOrWhiteSpace($env:TEMP)) {
+            return $env:TEMP
         }
-        'Darwin' {
-            return $env:TMPDIR ?? '/tmp'
+
+        if (-not [string]::IsNullOrWhiteSpace($env:TMP)) {
+            return $env:TMP
         }
-        'Ubuntu' {
-            return $env:TMPDIR ?? '/tmp'
-        }
-        'Linux' {
-            return $env:TMPDIR ?? '/tmp'
-        }
-        default {
-            throw "Unsupported OS: $($PSVersionTable.OS)"
-        }
+
+        return (Join-Path -Path $env:USERPROFILE -ChildPath 'AppData\Local\Temp')
     }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:TMPDIR)) {
+        return $env:TMPDIR
+    }
+
+    return '/tmp'
 }
 
 function Get-MD5Hash {

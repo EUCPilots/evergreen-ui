@@ -44,6 +44,7 @@ function Get-InstallPackageDefinitions {
     try {
         $definitionFiles = @(Get-ChildItem -LiteralPath $DefinitionsRoot -Recurse -File -ErrorAction Stop |
                 Where-Object { $_.Name -ieq 'App.json' })
+        Write-Verbose "EvergreenUI: Found $($definitionFiles.Count) App.json definition file(s) under '$DefinitionsRoot'."
     }
     catch {
         $result.Error = "Failed to enumerate App.json files: $($_.Exception.Message)"
@@ -93,6 +94,7 @@ function Get-InstallPackageDefinitions {
         }
         catch {
             $status = 'Invalid JSON'
+            Write-Verbose "EvergreenUI: Failed to parse '$($definitionFile.FullName)': $($_.Exception.Message)"
         }
 
         $rows.Add([PSCustomObject]@{

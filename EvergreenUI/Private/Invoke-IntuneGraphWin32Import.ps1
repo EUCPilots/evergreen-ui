@@ -397,7 +397,8 @@ function Invoke-IntuneGraphWin32Import {
                 }
             }
             catch {
-                # Ignore secondary parse/read errors when building diagnostics.
+                # best-effort - secondary read/parse errors when building diagnostics must not mask the primary error
+                Write-Verbose "EvergreenUI: Could not read Graph error response body (ignored): $($_.Exception.Message)"
             }
         }
 
@@ -471,7 +472,13 @@ function Invoke-IntuneGraphWin32Import {
                 $fileStatus = Invoke-MgGraphRequest -Method GET -Uri $fileUri -OutputType PSObject -ErrorAction Stop
                 $sasUri = [string]$fileStatus.azureStorageUri
             }
-            catch { }
+            catch {
+                # best-effort - transient Graph errors during SAS URI polling should not abort the loop
+                Write-UILog -Message "SAS URI poll attempt $pollingAttempts/$maxPollingAttempts failed (retrying): $($_.Exception.Message)" -Level Warning -SyncHash $SyncHash
+            }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($sasUri)) {
+            Write-UILog -Message "SAS URI obtained after $pollingAttempts attempt(s)." -Level Info -SyncHash $SyncHash
         }
     }
 
@@ -591,7 +598,10 @@ function Invoke-IntuneGraphWin32Import {
                     $failureDetails = $fileStatus | ConvertTo-Json -Depth 12 -Compress
                     Write-UILog -Message "Commit failure details: $failureDetails" -Level Error -SyncHash $SyncHash
                 }
-                catch {}
+                catch {
+                    # best-effort - JSON serialisation of diagnostic details is non-fatal
+                    Write-UILog -Message 'Could not serialise commit failure details for logging.' -Level Warning -SyncHash $SyncHash
+                }
                 return (& $fail "File commit reached failed state: $uploadState")
             }
         }

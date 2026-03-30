@@ -15,7 +15,9 @@
       "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse -Severity Error,Warning | Where-Object { $_.ScriptName -match ''Format-LogEntry|Merge-ConfigSection|Get-SafeFolderName|Get-UIConfig|Write-UILog|Write-UpdateOutput|Invoke-IntunePackageBuild|Invoke-FilterUpdate|Invoke-LocalPackageInstall|Test-LocalPackageDetection|Get-InstallPackage|Set-UIConfig|Invoke-AzureSignIn|Invoke-IntuneGraphWin32Import'' } | Format-Table RuleName,Severity,ScriptName,Line -AutoSize\")",
       "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Detailed\")",
       "Bash(git stash:*)",
-      "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Normal\")"
+      "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Normal\")",
+      "Bash(xargs grep:*)",
+      "Bash(python3 -c \":*)"
     ]
   }
 }

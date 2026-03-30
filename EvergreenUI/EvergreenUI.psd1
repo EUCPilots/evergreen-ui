@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.0.13'
+    ModuleVersion     = '1.0.14'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -32,6 +32,7 @@
         'EvergreenUI.psm1'
         'en-US\EvergreenUI-help.xml'
         'Resources\EvergreenUI.xaml'
+        'Resources\NerdioShellApps.psm1'
         'Public\Start-EvergreenWorkbench.ps1'
         'Private\Get-EvergreenAppList.ps1'
         'Private\Get-InstallPackageDefinitions.ps1'
@@ -63,7 +64,7 @@
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Pre-release. Adds support for import Microsoft 365 Apps packages into Intune and Nerdio Manager.'
+            ReleaseNotes = 'Pre-release. Adds collapsible sidebar with menu item icons. Integrates NerdioShellApps.psm1. Updates loggin and improved code base.'
             Prerelease   = 'beta'
         }
     }

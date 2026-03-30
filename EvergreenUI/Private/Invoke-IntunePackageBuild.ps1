@@ -101,12 +101,12 @@ function Invoke-IntunePackageBuild {
     # Build a safe folder name from the definition file path
     $appFolderName = ''
     if (-not [string]::IsNullOrWhiteSpace($definitionPath)) {
-        $appFolderName = [System.IO.Path]::GetFileName([System.IO.Path]::GetDirectoryName($definitionPath))
+        $appFolderName = Get-SafeFolderName -DefinitionPath $definitionPath
     }
     if ([string]::IsNullOrWhiteSpace($appFolderName)) {
         $appFolderName = [string]$definitionObject.Application.Name
+        $appFolderName = [System.Text.RegularExpressions.Regex]::Replace($appFolderName, '[^\w\-\.]', '_').Trim('_')
     }
-    $appFolderName = [System.Text.RegularExpressions.Regex]::Replace($appFolderName, '[^\w\-\.]', '_').Trim('_')
     if ([string]::IsNullOrWhiteSpace($appFolderName)) {
         $appFolderName = 'IntunePackage'
     }
@@ -118,26 +118,31 @@ function Invoke-IntunePackageBuild {
     foreach ($dir in @($sourcePath, $outputPath)) {
         if (-not (Test-Path -LiteralPath $dir)) {
             $null = New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop
+            Write-UILog -Message "Created working directory: $dir" -Level Info -SyncHash $SyncHash
         }
     }
 
     # Remove any stale .intunewin files from the output folder
-    Get-ChildItem -LiteralPath $outputPath -Filter '*.intunewin' -ErrorAction SilentlyContinue |
-        Remove-Item -Force -ErrorAction SilentlyContinue
+    $staleFiles = @(Get-ChildItem -LiteralPath $outputPath -Filter '*.intunewin' -ErrorAction SilentlyContinue)
+    if ($staleFiles.Count -gt 0) {
+        Write-UILog -Message "Removing $($staleFiles.Count) stale .intunewin file(s) from output folder." -Level Info -SyncHash $SyncHash
+        $staleFiles | Remove-Item -Force -ErrorAction SilentlyContinue
+    }
 
     # Copy Source folder content from the definition directory if it exists
     if (-not [string]::IsNullOrWhiteSpace($definitionPath)) {
         $definitionDir = [System.IO.Path]::GetDirectoryName($definitionPath)
         $definitionSrcDir = Join-Path -Path $definitionDir -ChildPath 'Source'
         if (Test-Path -LiteralPath $definitionSrcDir -PathType Container) {
-            Write-UILog -Message "Copying source content from '$definitionSrcDir'..." -Level Info -SyncHash $SyncHash
             $isPSADT = Test-Path -LiteralPath (Join-Path -Path $definitionSrcDir -ChildPath 'Invoke-AppDeployToolkit.ps1')
             if ($isPSADT) {
+                Write-UILog -Message "Copying PSADT source content from '$definitionSrcDir' (excluding deploy script until installer is staged)..." -Level Info -SyncHash $SyncHash
                 # For PSADT packages, exclude the deploy script until the installer is in place
                 $null = Copy-Item -Path "$definitionSrcDir\*" -Destination $sourcePath -Recurse -Force `
                     -Exclude 'Invoke-AppDeployToolkit.ps1' -ErrorAction Stop
             }
             else {
+                Write-UILog -Message "Copying source content from '$definitionSrcDir'..." -Level Info -SyncHash $SyncHash
                 $null = Copy-Item -Path "$definitionSrcDir\*" -Destination $sourcePath -Recurse -Force -ErrorAction Stop
             }
         }
@@ -179,6 +184,7 @@ function Invoke-IntunePackageBuild {
     # If PSADT deploy script now exists in source, adjust setup file name
     if (Test-Path -LiteralPath (Join-Path -Path $sourcePath -ChildPath 'Invoke-AppDeployToolkit.ps1')) {
         $setupFile = 'Deploy-Application.exe'
+        Write-UILog -Message "PSADT deploy script detected; setup file overridden to 'Deploy-Application.exe'." -Level Info -SyncHash $SyncHash
     }
 
     # Verify IntuneWin32App module is available for packaging

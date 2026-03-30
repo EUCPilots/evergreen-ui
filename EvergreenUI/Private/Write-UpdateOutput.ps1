@@ -35,15 +35,7 @@ function Write-UpdateOutput {
     if ([string]::IsNullOrWhiteSpace($Message)) { return }
     if ($null -eq $SyncHash.UpdateOutputTextBox -or $null -eq $SyncHash.UpdateOutputScrollViewer) { return }
 
-    $timestamp = Get-Date -Format 'HH:mm:ss'
-    $prefix = switch ($Level) {
-        'Warning' { 'WARN' }
-        'Error' { 'ERROR' }
-        'Cmd' { 'CMD' }
-        default { 'INFO' }
-    }
-
-    $line = "[$timestamp] [$prefix] $Message"
+    $line = Format-LogEntry -Message $Message -Level $Level
 
     $SyncHash.Window.Dispatcher.Invoke([action]{
             $SyncHash.UpdateOutputTextBox.AppendText("$line`r`n")

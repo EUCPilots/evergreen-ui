@@ -42,14 +42,21 @@ function Write-UILog {
 
     if ([string]::IsNullOrWhiteSpace($Message)) { return }
 
-    $timestamp = Get-Date -Format 'HH:mm:ss'
-    $prefix = switch ($Level) {
-        'Warning' { 'WARN' }
-        'Error' { 'ERROR' }
-        'Cmd' { 'CMD' }
-        default { 'INFO' }
+    $logEntry = Format-LogEntry -Message $Message -Level $Level
+
+    if (-not [string]::IsNullOrEmpty($SyncHash.LogFilePath)) {
+        try {
+            [System.IO.File]::AppendAllText(
+                $SyncHash.LogFilePath,
+                "$logEntry`r`n",
+                [System.Text.UTF8Encoding]::new($false)
+            )
+        }
+        catch {
+            # best-effort - file logging failure must not abort the caller
+            Write-Verbose "EvergreenUI: log file write failed: $($_.Exception.Message)"
+        }
     }
-    $logEntry = "[$timestamp] [$prefix] $Message"
 
     $SyncHash.Window.Dispatcher.Invoke([action] {
             $SyncHash.LogTextBox.AppendText("$logEntry`r`n")

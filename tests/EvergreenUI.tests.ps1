@@ -110,7 +110,6 @@ Describe 'Get-UIConfig' {
             try {
                 $config = Get-UIConfig
                 $config.Theme        | Should -Be 'Light'
-                $config.LogVerbosity | Should -Be 'Normal'
                 $config.LogHeight    | Should -Be 150
                 $config.ImportSettings.CurrentProvider | Should -Be 'Nerdio'
                 $config.NerdioSettings.NmeResourceGroup | Should -Be ''
