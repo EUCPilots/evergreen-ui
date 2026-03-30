@@ -14,7 +14,7 @@
     Log level. Determines the prefix string. Defaults to 'Info'.
 
 .OUTPUTS
-    string — formatted log line, ready to append to a log control.
+    string - formatted log line, ready to append to a log control.
 
 .EXAMPLE
     Format-LogEntry -Message 'Download complete.' -Level Info

@@ -17,7 +17,7 @@
     name should be sanitised).
 
 .OUTPUTS
-    string — sanitised folder name safe for use as a directory name.
+    string - sanitised folder name safe for use as a directory name.
 
 .EXAMPLE
     Get-SafeFolderName -DefinitionPath 'C:\Definitions\Microsoft Teams\App.json'

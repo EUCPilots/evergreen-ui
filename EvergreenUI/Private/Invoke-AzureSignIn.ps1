@@ -90,7 +90,7 @@ function Invoke-AzureSignOut {
         }
     }
     catch {
-        # best-effort — sign-out must never block UI flow
+        # best-effort - sign-out must never block UI flow
         Write-Verbose "EvergreenUI: Disconnect-MgGraph failed (ignored): $($_.Exception.Message)"
     }
 
@@ -101,7 +101,7 @@ function Invoke-AzureSignOut {
         Clear-AzContext -Scope Process -Force -ErrorAction SilentlyContinue | Out-Null
     }
     catch {
-        # best-effort — sign-out must never block UI flow
+        # best-effort - sign-out must never block UI flow
         Write-Verbose "EvergreenUI: Az sign-out step failed (ignored): $($_.Exception.Message)"
     }
 }
@@ -137,7 +137,7 @@ function Invoke-NerdioAzureSignIn {
                 Update-AzConfig -DefaultSubscriptionForLogin $sub -Scope Process -AppliesTo Az -ErrorAction Stop | Out-Null
             }
             catch {
-                # best-effort — older Az.Accounts builds may not support all process-scoped settings
+                # best-effort - older Az.Accounts builds may not support all process-scoped settings
                 Write-Verbose "EvergreenUI: Update-AzConfig step failed (ignored): $($_.Exception.Message)"
             }
         }
@@ -150,7 +150,7 @@ function Invoke-NerdioAzureSignIn {
                 Enable-AzContextAutosave -Scope CurrentUser -ErrorAction SilentlyContinue | Out-Null
             }
             catch {
-                # best-effort — default is already enabled; failure here is non-blocking
+                # best-effort - default is already enabled; failure here is non-blocking
                 Write-Verbose "EvergreenUI: Enable-AzContextAutosave failed (ignored): $($_.Exception.Message)"
             }
         }
@@ -202,7 +202,7 @@ function Invoke-NerdioAzureSignOut {
         Clear-AzContext     -Scope Process -Force -ErrorAction SilentlyContinue | Out-Null
     }
     catch {
-        # best-effort — sign-out must never block UI flow
+        # best-effort - sign-out must never block UI flow
         Write-Verbose "EvergreenUI: Nerdio Az sign-out step failed (ignored): $($_.Exception.Message)"
     }
 }

@@ -6,18 +6,18 @@ Evergreen Workbench ships as a separate PowerShell module so it never modifies t
 
 ![](docs/ui.png)
 
-> **Status:** Pre-release — core functionality implemented; published to PSGallery as beta.
+> **Status:** Pre-release - core functionality implemented; published to PSGallery as beta.
 
 ## Features
 
-- **Apps view** — search and browse all 500+ Evergreen-supported applications; inspect version and download metadata returned by `Get-EvergreenApp`
-- **Dynamic filters** — filter panel builds itself at runtime from whatever properties a given app actually returns (Architecture, Channel, Ring, Language, Type, Release, etc.)
-- **Download queue** — select multiple app/version combinations and download them sequentially via `Save-EvergreenApp`
-- **Library management** — inspect and update an Evergreen library on disk using `Start-EvergreenLibraryUpdate` and related cmdlets
-- **Import tab (placeholder)** — switch between provider workflows (Nerdio Manager and Microsoft Intune) using left-side workflow navigation, ready for provider-specific implementation phases
-- **Fluent UI design** — light and dark themes aligned to the Evergreen docs brand palette
-- **Real-time log panel** — timestamped progress log with `Info`, `Warning`, and `Error` levels, updated live from background runspaces
-- **Session persistence** — last-used paths, theme, window size, and startup view stored in `$env:APPDATA\EvergreenUI\settings.json`
+- **Apps view** - search and browse all 500+ Evergreen-supported applications; inspect version and download metadata returned by `Get-EvergreenApp`
+- **Dynamic filters** - filter panel builds itself at runtime from whatever properties a given app actually returns (Architecture, Channel, Ring, Language, Type, Release, etc.)
+- **Download queue** - select multiple app/version combinations and download them sequentially via `Save-EvergreenApp`
+- **Library management** - inspect and update an Evergreen library on disk using `Start-EvergreenLibraryUpdate` and related cmdlets
+- **Import tab (placeholder)** - switch between provider workflows (Nerdio Manager and Microsoft Intune) using left-side workflow navigation, ready for provider-specific implementation phases
+- **Fluent UI design** - light and dark themes aligned to the Evergreen docs brand palette
+- **Real-time log panel** - timestamped progress log with `Info`, `Warning`, and `Error` levels, updated live from background runspaces
+- **Session persistence** - last-used paths, theme, window size, and startup view stored in `$env:APPDATA\EvergreenUI\settings.json`
 
 ## Requirements
 
@@ -73,7 +73,7 @@ EvergreenUI/
 │   ├── EvergreenUI.psm1           # Root module (dot-sources Public + Private)
 │   │
 │   ├── Public/
-│   │   └── Start-EvergreenWorkbench.ps1  # Only exported function — launches the GUI
+│   │   └── Start-EvergreenWorkbench.ps1  # Only exported function - launches the GUI
 │   │
 │   └── Private/
 │       ├── themes/
@@ -99,10 +99,10 @@ EvergreenUI/
 
 Full design decisions are recorded in the `/docs` folder:
 
-- [`docs/plan.md`](docs/plan.md) — module architecture, view layouts, threading model, build phases
-- [`docs/filter-design.md`](docs/filter-design.md) — dynamic filter panel design, property taxonomy, edge case handling
+- [`docs/plan.md`](docs/plan.md) - module architecture, view layouts, threading model, build phases
+- [`docs/filter-design.md`](docs/filter-design.md) - dynamic filter panel design, property taxonomy, edge case handling
 
-A static interactive HTML prototype is available at [`prototype/EvergreenUI-Prototype.html`](prototype/EvergreenUI-Prototype.html) — open it in any browser to explore the intended UI with dummy data. No server or build step required.
+A static interactive HTML prototype is available at [`prototype/EvergreenUI-Prototype.html`](prototype/EvergreenUI-Prototype.html) - open it in any browser to explore the intended UI with dummy data. No server or build step required.
 
 ## Contributing
 

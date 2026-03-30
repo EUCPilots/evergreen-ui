@@ -1300,10 +1300,10 @@ function Start-EvergreenWorkbench {
                         $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$action.DefinitionPath) -DefinitionObject $definitionObject -CacheRootPath $CacheRootPath
                         if (-not [string]::IsNullOrWhiteSpace([string]$latestResult.CacheFile)) {
                             if ([bool]$latestResult.IsFromCache) {
-                                Write-UILog -SyncHash $syncHash -Message "Install: cache read for '$([string]$action.Name)' — $([string]$latestResult.Version) from '$([string]$latestResult.CacheFile)'." -Level Info
+                                Write-UILog -SyncHash $syncHash -Message "Install: cache read for '$([string]$action.Name)' - $([string]$latestResult.Version) from '$([string]$latestResult.CacheFile)'." -Level Info
                             }
                             elseif ([bool]$latestResult.Succeeded) {
-                                Write-UILog -SyncHash $syncHash -Message "Install: wrote to cache for '$([string]$action.Name)' — $([string]$latestResult.Version) at '$([string]$latestResult.CacheFile)'." -Level Info
+                                Write-UILog -SyncHash $syncHash -Message "Install: wrote to cache for '$([string]$action.Name)' - $([string]$latestResult.Version) at '$([string]$latestResult.CacheFile)'." -Level Info
                             }
                         }
                         if (-not $latestResult.Succeeded) {
@@ -1901,7 +1901,7 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        # Package output path — re-use Intune output path setting as M365 shares the same working area
+        # Package output path - re-use Intune output path setting as M365 shares the same working area
         $packageOutputPath = & $normalizeDirectoryPath -PathValue ([string]$intunePackageOutputPathBox.Text)
         if ([string]::IsNullOrWhiteSpace($packageOutputPath)) {
             Write-UILog -SyncHash $syncHash -Message 'M365: package output path is not configured. Set it in the Microsoft Intune Win32 Apps pane first.' -Level Warning
@@ -5913,7 +5913,7 @@ function Start-EvergreenWorkbench {
             & $refreshNerdioAzureAuthUi
             & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
 
-            # Auto-load local definitions only — do not query Intune or Nerdio Manager.
+            # Auto-load local definitions only - do not query Intune or Nerdio Manager.
             # Skip if compare data is already populated: definitions are already visible in
             # the comparison view, and re-loading when IntuneWin32Rows / NerdioShellAppRows
             # are non-empty would cause refreshComparison to call external APIs for matched rows.
@@ -6524,7 +6524,7 @@ function Start-EvergreenWorkbench {
                 return
             }
 
-            # Build filter string from FilterState — skip synthetic _DerivedType property.
+            # Build filter string from FilterState - skip synthetic _DerivedType property.
             $filterClauses = @()
             foreach ($propName in $syncHash.FilterState.Keys) {
                 if ($propName -eq '_DerivedType') { continue }

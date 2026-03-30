@@ -99,7 +99,7 @@ function Get-UIConfig {
             }
         }
 
-        # Merge nested settings sections — Merge-ConfigSection handles null (returns default)
+        # Merge nested settings sections - Merge-ConfigSection handles null (returns default)
         # and missing keys (adds from default), ensuring forward-compat with new settings.
         $json.NerdioSettings    = Merge-ConfigSection -Loaded $json.NerdioSettings    -Default $default.NerdioSettings
         $json.IntuneSettings    = Merge-ConfigSection -Loaded $json.IntuneSettings    -Default $default.IntuneSettings

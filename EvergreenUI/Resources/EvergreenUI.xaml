@@ -634,7 +634,7 @@
             </Setter>
         </Style>
 
-        <!-- ── GridViewColumnHeader — shared Fluent style (hover uses AccentLightBrush) ── -->
+        <!-- ── GridViewColumnHeader - shared Fluent style (hover uses AccentLightBrush) ── -->
         <Style TargetType="GridViewColumnHeader">
             <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
             <Setter Property="Foreground"                 Value="{DynamicResource TextSecondaryBrush}"/>
@@ -2333,7 +2333,7 @@
                                                 <ComboBoxItem Content="PerpetualVL2019"/>
                                             </ComboBox>
                                             <TextBlock x:Name="M365EvergreenVersionLabel"
-                                                       Text="—"
+                                                       Text="-"
                                                        FontSize="11"
                                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                                        VerticalAlignment="Center"

@@ -16,7 +16,8 @@
       "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Detailed\")",
       "Bash(git stash:*)",
       "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Normal\")",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(python3 -c \":*)"
     ]
   }
 }

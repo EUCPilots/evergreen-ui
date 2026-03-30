@@ -1,4 +1,4 @@
-# Evergreen Workbench — UI Guidelines
+# Evergreen Workbench - UI Guidelines
 
 > Reference for anyone adding or modifying UI elements. All standards here are derived from `EvergreenUI/Resources/EvergreenUI.xaml` and the theme files in `EvergreenUI/Private/themes/`.
 
@@ -10,8 +10,8 @@ The Workbench follows **Microsoft Fluent Design** principles adapted for a deskt
 
 - **Rounded corners** on all interactive controls (4 px standard)
 - **Layered depth** via border colours and subtle background fills rather than shadows
-- **Accent-first interaction** — hover and selection states use the brand accent colour
-- **Dynamic theming** — every colour is a named `DynamicResource` brush; no hardcoded hex values in XAML or PowerShell
+- **Accent-first interaction** - hover and selection states use the brand accent colour
+- **Dynamic theming** - every colour is a named `DynamicResource` brush; no hardcoded hex values in XAML or PowerShell
 - **Segoe UI** is the sole font family, matching Windows system UI
 
 ---
@@ -52,7 +52,7 @@ All colours are referenced by brush name only. Never use hardcoded colour values
 
 ## 3. Typography
 
-**Font family:** Segoe UI (set globally on the Window — do not override per-control)
+**Font family:** Segoe UI (set globally on the Window - do not override per-control)
 
 | Usage | Size | Weight |
 |---|---|---|
@@ -69,7 +69,7 @@ All colours are referenced by brush name only. Never use hardcoded colour values
 
 - Section headers use `FontSize=20` and `FontWeight=SemiBold` with `Foreground={DynamicResource TextPrimaryBrush}`.
 - Secondary descriptive text uses `Foreground={DynamicResource TextSecondaryBrush}`.
-- Never set `FontFamily` explicitly — inherit the window default.
+- Never set `FontFamily` explicitly - inherit the window default.
 
 ---
 
@@ -350,8 +350,8 @@ $label.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundPrope
 
 When building controls programmatically in PowerShell:
 
-1. **Always reference styles via `$SyncHash.Window.Resources['StyleName']`** — styles are only accessible after the Window is loaded.
-2. **Always use `SetResourceReference()` for colour/brush properties** — never assign a `SolidColorBrush` directly.
+1. **Always reference styles via `$SyncHash.Window.Resources['StyleName']`** - styles are only accessible after the Window is loaded.
+2. **Always use `SetResourceReference()` for colour/brush properties** - never assign a `SolidColorBrush` directly.
 3. **Match explicit sizes**: ComboBox height = 32, CheckBox height = 32, ListBox MinWidth = 220, TextBox MinWidth = 220.
 4. **Wire `GetNewClosure()`** on all event handlers that close over loop variables:
    ```powershell
@@ -360,13 +360,13 @@ When building controls programmatically in PowerShell:
        & $OnChangeCallback
    }.GetNewClosure())
    ```
-5. **Initialise state before rendering** — populate `FilterState` (or equivalent) before creating controls so the initial UI reflects the correct defaults.
+5. **Initialise state before rendering** - populate `FilterState` (or equivalent) before creating controls so the initial UI reflects the correct defaults.
 
 ---
 
 ## 9. Icons and Graphics
 
-All icons are inline SVG `Path` elements — no external image files are used for controls.
+All icons are inline SVG `Path` elements - no external image files are used for controls.
 
 | Element | Path Data | Stroke | Notes |
 |---|---|---|---|
@@ -379,7 +379,7 @@ For new icons:
 - Reference `TextPrimaryBrush` or `TextSecondaryBrush` for neutral icons; `AccentBrush` for active/branded icons
 - Keep paths within a 16 × 16 or 20 × 20 viewbox
 
-Status indicators use `Ellipse` (see `StatusDot` style) — not icons.
+Status indicators use `Ellipse` (see `StatusDot` style) - not icons.
 
 ---
 
@@ -388,15 +388,15 @@ Status indicators use `Ellipse` (see `StatusDot` style) — not icons.
 | State | Background | Foreground / Border |
 |---|---|---|
 | Default (input) | `ControlBackgroundBrush` | Border `ControlBorderBrush` |
-| Hover (input) | — | Border `AccentHoverBrush` |
-| Focus (input) | — | Border `AccentBrush`, thickness +0.5 |
-| Disabled | — | Opacity 0.4–0.5 |
-| List item hover | `AccentLightBrush` | — |
+| Hover (input) | - | Border `AccentHoverBrush` |
+| Focus (input) | - | Border `AccentBrush`, thickness +0.5 |
+| Disabled | - | Opacity 0.4–0.5 |
+| List item hover | `AccentLightBrush` | - |
 | List item selected | `AccentLightBrush` | Foreground `AccentBrush`, SemiBold |
-| Button hover | — | Opacity 0.82 |
-| Button pressed | — | Opacity 0.65 |
+| Button hover | - | Opacity 0.82 |
+| Button pressed | - | Opacity 0.65 |
 | Nav selected | `AccentLightBrush` | Foreground `AccentBrush` + left accent bar |
-| Tab selected | — | Foreground `AccentBrush`, underline `AccentBrush` |
+| Tab selected | - | Foreground `AccentBrush`, underline `AccentBrush` |
 
 ---
 

@@ -18,7 +18,7 @@ coverage.xml
 *.psprojs
 
 # ── Evergreen runtime artefacts ─────────────────────────────────────────────
-# Config written by EvergreenUI at runtime — not committed; each user has their own
+# Config written by EvergreenUI at runtime - not committed; each user has their own
 EvergreenUI/Private/settings.json
 **/settings.json
 

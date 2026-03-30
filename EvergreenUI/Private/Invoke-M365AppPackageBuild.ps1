@@ -199,7 +199,7 @@ function Invoke-M365AppPackageBuild {
             # Requirement rule architecture
             $appJson.RequirementRule.Architecture = $ConfigRow.Architecture
 
-            # Detection rules — normalise product IDs (strip spaces around commas)
+            # Detection rules - normalise product IDs (strip spaces around commas)
             $normalizedProducts = (([string]$ConfigRow.Products) -split '\s*,\s*' |
                 ForEach-Object { $_.Trim() } |
                 Where-Object { $_ -ne '' }) -join ','

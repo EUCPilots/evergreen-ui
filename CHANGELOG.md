@@ -17,13 +17,13 @@
 ### Changed
 - Import tab: Microsoft 365 Apps sub-tab inserted between Nerdio Manager Shell Apps and Authentication tabs
 - Import tab / Microsoft 365 Apps: Channel and Company Name XML placeholders (`#Channel`) are resolved at packaging time from the user's dropdown selection; Channel is no longer read from the XML for display purposes
-- Import tab / Intune and Nerdio Manager: connection status indicators updated to match the Microsoft 365 Apps tab — 9×9 ellipse with border stroke, service-name prefix label ("Intune:" / "Nerdio Manager:"), and status text right-aligned in the count bar
+- Import tab / Intune and Nerdio Manager: connection status indicators updated to match the Microsoft 365 Apps tab - 9×9 ellipse with border stroke, service-name prefix label ("Intune:" / "Nerdio Manager:"), and status text right-aligned in the count bar
 - Import tab / Intune and Nerdio Manager: count bar `DockPanel` changed to `LastChildFill="False"` so the right-docked status indicators correctly snap to the right edge
 - Import tab / Microsoft Intune Win32 Apps: Import Win32 app button height pinned to 32 px to match the Nerdio Manager Shell Apps tab
 - Nerdio Manager authentication: `Connect-Nme` called with `-ErrorAction Stop` so non-terminating errors are promoted to terminating and caught by the existing error handler; return value checked for null with an explicit failure message; `Set-NmeCredentials` also called with `-ErrorAction Stop`; module-load failure path now writes to the progress log
 
 ### Fixed
-- Nerdio Manager authentication: failures produced no log output when the NerdioShellApps module could not be loaded silently (empty path) or when `Connect-Nme` wrote non-terminating errors rather than throwing — both cases are now logged
+- Nerdio Manager authentication: failures produced no log output when the NerdioShellApps module could not be loaded silently (empty path) or when `Connect-Nme` wrote non-terminating errors rather than throwing - both cases are now logged
 
 ## [1.0.12] - 2026-03-28
 
@@ -38,17 +38,17 @@
 ## [1.0.11] - 2026-03-27
 
 ### Added
-- Import tab / Microsoft Intune: `DisplayName` property added to all comparison rows and used as the **App** column — matched rows show the Intune app name, unmatched rows show the definition name
+- Import tab / Microsoft Intune: `DisplayName` property added to all comparison rows and used as the **App** column - matched rows show the Intune app name, unmatched rows show the definition name
 - Import tab / Nerdio Shell Apps: **Versions** column shows the total count of versions present on the Shell App
 
 ### Changed
-- Import tab / Microsoft Intune: columns reduced from 9 to 6 — **App**, **Publisher**, **Intune Version**, **Latest**, **Status**, **Action**; removed Definition, Matched, Update Required, and Definition Version columns
-- Import tab / Microsoft Intune: Action column values rationalised — `Import new app` (definition not in Intune), `Import new version and supersede` (matched app with update available), `Fix in definition` (duplicate GUID across definitions), `-` (no action required)
-- Import tab / Microsoft Intune: row colours updated — green tint for matched apps that are current; amber tint for matched apps with an update available; transparent background for all other rows
-- Import tab / Nerdio Shell Apps: columns restructured — **App**, **Publisher**, **Shell App**, **Versions**, **Shell App Version**, **Latest**, **Status**, **Action**; removed Definition App column
-- Import tab / Nerdio Shell Apps: Action column values — `Update`, `Import`, or `-`; same row colour scheme as the Intune tab
+- Import tab / Microsoft Intune: columns reduced from 9 to 6 - **App**, **Publisher**, **Intune Version**, **Latest**, **Status**, **Action**; removed Definition, Matched, Update Required, and Definition Version columns
+- Import tab / Microsoft Intune: Action column values rationalised - `Import new app` (definition not in Intune), `Import new version and supersede` (matched app with update available), `Fix in definition` (duplicate GUID across definitions), `-` (no action required)
+- Import tab / Microsoft Intune: row colours updated - green tint for matched apps that are current; amber tint for matched apps with an update available; transparent background for all other rows
+- Import tab / Nerdio Shell Apps: columns restructured - **App**, **Publisher**, **Shell App**, **Versions**, **Shell App Version**, **Latest**, **Status**, **Action**; removed Definition App column
+- Import tab / Nerdio Shell Apps: Action column values - `Update`, `Import`, or `-`; same row colour scheme as the Intune tab
 - Import tab / Authentication: sign-in buttons are disabled while a session is already authenticated and re-enabled when the user signs out
-- Settings tab: Preferences section reorganised — Theme selector occupies the left half of the row; **Show Import tab** and **Show Install tab** toggle switches are grouped on the right half within the same row
+- Settings tab: Preferences section reorganised - Theme selector occupies the left half of the row; **Show Import tab** and **Show Install tab** toggle switches are grouped on the right half within the same row
 - Import tab / Microsoft Intune: `IsUpdate` flag passed to the import runspace is now derived from `IsMatched` and `UpdateRequired` row properties rather than the `ImportAction` string, making the distinction between a new app and a supersedence update independent of the display label
 
 ### Fixed
@@ -146,7 +146,7 @@
 ### Added
 - **Export CSV**: Apps view results can be exported to a CSV file via the toolbar
 - **Open folder** button in the Downloads view to open the output directory in Explorer
-- Library GridView is now fully dynamic — columns are generated from the properties returned by Evergreen rather than being hardcoded
+- Library GridView is now fully dynamic - columns are generated from the properties returned by Evergreen rather than being hardcoded
 
 ### Fixed
 - Prevented duplicate entries appearing in the download queue when the same app is added multiple times

@@ -190,7 +190,7 @@ function Get-InstallPackageLatestVersion {
         Write-Verbose "EvergreenUI: Cache updated: '$cacheFile'."
     }
     catch {
-        # best-effort — cache write failure must not fail version resolution
+        # best-effort - cache write failure must not fail version resolution
         Write-Verbose "EvergreenUI: Cache write failed for '$cacheFile' (ignored): $($_.Exception.Message)"
     }
 

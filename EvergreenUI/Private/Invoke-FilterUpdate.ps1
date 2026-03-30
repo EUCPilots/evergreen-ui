@@ -63,7 +63,7 @@ function Invoke-FilterUpdate {
     $shownCount = $filteredArray.Count
 
     if ($activeFilters.Count -gt 0) {
-        Write-UILog -Message "Filter applied: $($activeFilters -join '; ') — showing $shownCount of $totalCount result(s)." -Level Info -SyncHash $SyncHash
+        Write-UILog -Message "Filter applied: $($activeFilters -join '; ') - showing $shownCount of $totalCount result(s)." -Level Info -SyncHash $SyncHash
     }
 
     $SyncHash.Window.Dispatcher.Invoke([action] {

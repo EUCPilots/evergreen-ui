@@ -19,7 +19,7 @@
     The PSCustomObject containing canonical default values.
 
 .OUTPUTS
-    PSCustomObject — the merged section (Loaded with any missing keys added).
+    PSCustomObject - the merged section (Loaded with any missing keys added).
 
 .EXAMPLE
     $json.NerdioSettings = Merge-ConfigSection -Loaded $json.NerdioSettings -Default $default.NerdioSettings
