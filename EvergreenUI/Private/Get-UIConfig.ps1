@@ -46,7 +46,6 @@ function Get-UIConfig {
             CurrentProvider = 'Nerdio'
         }
         NerdioSettings    = [PSCustomObject]@{
-            ModulePath        = ''
             NmeHost           = ''
             NmeClientId       = ''
             NmeApiScope       = ''

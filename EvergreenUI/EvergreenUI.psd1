@@ -32,6 +32,7 @@
         'EvergreenUI.psm1'
         'en-US\EvergreenUI-help.xml'
         'Resources\EvergreenUI.xaml'
+        'Resources\NerdioShellApps.psm1'
         'Public\Start-EvergreenWorkbench.ps1'
         'Private\Get-EvergreenAppList.ps1'
         'Private\Get-InstallPackageDefinitions.ps1'
