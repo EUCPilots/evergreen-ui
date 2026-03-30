@@ -6,7 +6,16 @@
       "Bash(grep -n \"$navCheckedHandler\\\\s*=\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
       "Bash(grep -n \"$panelMap\\\\s*=\" C:/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
       "Bash(grep -n \"DefinitionsPath.*$syncHash.Config\" /c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
-      "Bash(grep -r \"\\\\.Add_Checked\\\\|\\\\.Add_Click\\\\|RadioButton\\\\|NavApps\" C:projects_EUCPilotsevergreen-ui --include=*.ps1)"
+      "Bash(grep -r \"\\\\.Add_Checked\\\\|\\\\.Add_Click\\\\|RadioButton\\\\|NavApps\" C:projects_EUCPilotsevergreen-ui --include=*.ps1)",
+      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse | Format-Table -AutoSize\")",
+      "Bash(pwsh -NoProfile -Command \"Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction SilentlyContinue; Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse | Format-Table -AutoSize\")",
+      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI/Private/Format-LogEntry.ps1, ./EvergreenUI/Private/Merge-ConfigSection.ps1, ./EvergreenUI/Private/Get-SafeFolderName.ps1, ./EvergreenUI/Private/Get-UIConfig.ps1, ./EvergreenUI/Private/Write-UILog.ps1, ./EvergreenUI/Private/Write-UpdateOutput.ps1 -Severity Error,Warning | Format-Table RuleName,Severity,ScriptName,Line,Message -AutoSize\")",
+      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse -Severity Error,Warning | Where-Object { $_.ScriptName -match ''Format-LogEntry|Merge-ConfigSection|Get-SafeFolderName|Get-UIConfig|Write-UILog|Write-UpdateOutput|Invoke-IntunePackageBuild|Invoke-FilterUpdate|Invoke-LocalPackageInstall|Test-LocalPackageDetection|Get-InstallPackage|Set-UIConfig|Invoke-AzureSignIn|Invoke-IntuneGraphWin32Import'' } | Format-Table RuleName,Severity,ScriptName,Line,Message -Wrap\")",
+      "Bash(pwsh -NoProfile -Command \":*)",
+      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse -Severity Error,Warning | Where-Object { $_.ScriptName -match ''Format-LogEntry|Merge-ConfigSection|Get-SafeFolderName|Get-UIConfig|Write-UILog|Write-UpdateOutput|Invoke-IntunePackageBuild|Invoke-FilterUpdate|Invoke-LocalPackageInstall|Test-LocalPackageDetection|Get-InstallPackage|Set-UIConfig|Invoke-AzureSignIn|Invoke-IntuneGraphWin32Import'' } | Format-Table RuleName,Severity,ScriptName,Line -AutoSize\")",
+      "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Detailed\")",
+      "Bash(git stash:*)",
+      "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Normal\")"
     ]
   }
 }

@@ -31,7 +31,7 @@ Start-EvergreenWorkbench
 ## Architecture
 
 ### Module Structure
-The module exposes a single public function (`Start-EvergreenWorkbench`) that orchestrates everything. All internal logic lives in 23 private helper functions dot-sourced by `EvergreenUI.psm1`.
+The module exposes a single public function (`Start-EvergreenWorkbench`) that orchestrates everything. All internal logic lives in private helper functions dot-sourced by `EvergreenUI.psm1`.
 
 ```
 EvergreenUI/
@@ -39,7 +39,7 @@ EvergreenUI/
 ├── EvergreenUI.psm1        # Loads Private/ then Public/
 ├── Public/
 │   └── Start-EvergreenWorkbench.ps1   # Only exported function
-├── Private/                           # 23 helper functions
+├── Private/                           # helper functions
 │   ├── themes/
 │   │   ├── Set-LightTheme.ps1
 │   │   └── Set-DarkTheme.ps1
@@ -58,6 +58,7 @@ WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures
 |----------|---------|
 | `Get-UIConfig` | Load/create user config from `%APPDATA%\EvergreenUI\settings.json` |
 | `Set-UIConfig` | Persist UI state changes |
+| `Merge-ConfigSection` | Merge default property values into a loaded config section (used by Get-UIConfig) |
 | `Get-EvergreenAppList` | Fetch and cache app list from Evergreen module |
 | `Get-FilterableProperties` | Determine which properties get filter controls |
 | `New-FilterPanel` | Dynamically build filter UI from app result properties |
@@ -65,6 +66,9 @@ WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures
 | `Invoke-AppDownload` | Queue and execute batch downloads |
 | `New-WpfRunspace` | Factory for background STA runspaces |
 | `Write-UILog` | Thread-safe log output to the UI log panel |
+| `Write-UpdateOutput` | Thread-safe log output to the Update tab panel |
+| `Format-LogEntry` | Format a `[HH:mm:ss] [LEVEL] message` log line (used by Write-UILog and Write-UpdateOutput) |
+| `Get-SafeFolderName` | Sanitise a definition file path's parent directory name for use as a working folder name |
 | `Invoke-IntuneGraphWin32Import` | Import Win32 apps to Intune via Graph API |
 | `Test-LocalPackageDetection` | Detect installed app versions for comparison |
 
@@ -84,6 +88,48 @@ User settings persist to `$env:APPDATA\EvergreenUI\settings.json`. `Get-UIConfig
 - PSScriptAnalyzer must pass with default ruleset
 - CRLF line endings for all PowerShell files (enforced via `.gitattributes`)
 - WPF controls are named with a consistent prefix scheme (see `EvergreenUI.xaml`)
+- Always use named parameters for PowerShell cmdlet calls (e.g. `Start-Sleep -Seconds 3`, not `Start-Sleep 3`)
+
+### Logging
+
+Use `Write-UILog` for functions that receive `$SyncHash` (all runspace-facing functions). Use `Write-Verbose` with the prefix `"EvergreenUI: "` for utility functions that do not have a `$SyncHash` parameter (e.g. `Get-UIConfig`, `Get-InstallPackageLatestVersion`).
+
+Log the following at a minimum:
+- Start and outcome of significant file/network/API operations
+- Which branch was taken when complex conditional logic selects a code path
+- Cache hit/miss with age information
+- Version resolution outcomes
+
+`Format-LogEntry` is the shared helper for timestamp+prefix formatting. It is called internally by both `Write-UILog` and `Write-UpdateOutput` — do not inline the formatting in new output functions.
+
+### Error Handling
+
+- Use `-ErrorAction Stop` on all cmdlets inside a `try/catch` block that is intended to catch that cmdlet's errors.
+- Every `catch {}` (empty catch) **must** include a comment that explains why silence is intentional, e.g.: `# best-effort — failure here must not abort the caller`. Also add `Write-Verbose` of the caught exception so failures surface when running with `-Verbose`.
+- Polling/retry loops must log each failed attempt with attempt number and exception message rather than silently swallowing errors.
+
+### Structured Return Pattern
+
+Functions with complex return types define a local `$fail` scriptblock:
+
+```powershell
+$fail = {
+    param([string]$Msg)
+    return [PSCustomObject]@{
+        Succeeded = $false
+        # ... function-specific fields ...
+        Error     = $Msg
+    }
+}
+```
+
+Follow this pattern for new functions that return structured results. The shape is intentionally function-specific — do not try to genericise it.
+
+### Shared Helper Patterns
+
+- **Nested config merging**: use `Merge-ConfigSection -Loaded $json.Section -Default $default.Section` rather than repeating the `foreach`/`Add-Member` pattern.
+- **Definition folder names**: use `Get-SafeFolderName -DefinitionPath $path` (returns the sanitised parent directory name). Only applicable when the folder name derives from a definition file path — for display-name-based names, apply the regex directly.
+- **Log entry formatting**: use `Format-LogEntry -Message $msg -Level Info` if writing a new log-output helper function.
 
 ## Release Process
 
