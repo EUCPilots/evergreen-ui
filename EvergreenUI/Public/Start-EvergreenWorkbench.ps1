@@ -104,6 +104,7 @@ function Start-EvergreenWorkbench {
             Window                                          = $null
             LogTextBox                                      = $null
             LogScrollViewer                                 = $null
+            LogFilePath                                     = ''
             IsRunning                                       = $false
             AppList                                         = $null
             CurrentAppResults                               = $null
@@ -1021,6 +1022,7 @@ function Start-EvergreenWorkbench {
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
@@ -1237,6 +1239,7 @@ function Start-EvergreenWorkbench {
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $installCacheRootPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
@@ -1485,6 +1488,7 @@ function Start-EvergreenWorkbench {
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Invoke-IntunePackageBuild.ps1'
@@ -1745,6 +1749,7 @@ function Start-EvergreenWorkbench {
 
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $formatLogEntryScript = Join-Path -Path $privateRootPath -ChildPath 'Format-LogEntry.ps1'
         $writeUILogScript = Join-Path -Path $privateRootPath -ChildPath 'Write-UILog.ps1'
 
         $rs = New-WpfRunspace -SyncHash $syncHash
@@ -1752,8 +1757,9 @@ function Start-EvergreenWorkbench {
         $ps.Runspace = $rs
 
         [void]$ps.AddScript({
-                param([string]$WriteUILogScript)
+                param([string]$FormatLogEntryScript, [string]$WriteUILogScript)
                 try {
+                    if (Test-Path -LiteralPath $FormatLogEntryScript -PathType Leaf) { . $FormatLogEntryScript }
                     if (Test-Path -LiteralPath $WriteUILogScript -PathType Leaf) { . $WriteUILogScript }
                     if (-not (Get-Command -Name 'Get-EvergreenApp' -ErrorAction SilentlyContinue)) {
                         Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
@@ -1765,7 +1771,7 @@ function Start-EvergreenWorkbench {
                     Write-UILog -SyncHash $syncHash -Message "M365: failed to fetch Evergreen versions: $($_.Exception.Message)" -Level Error
                     return @()
                 }
-            }).AddArgument($writeUILogScript)
+            }).AddArgument($formatLogEntryScript).AddArgument($writeUILogScript)
 
         $syncHash.PendingM365EvergreenPS = $ps
         $syncHash.PendingM365EvergreenRunspace = $rs
@@ -1960,6 +1966,7 @@ function Start-EvergreenWorkbench {
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Invoke-M365AppPackageBuild.ps1'
             'Invoke-IntuneGraphWin32Import.ps1'
@@ -2213,6 +2220,7 @@ function Start-EvergreenWorkbench {
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
         $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
         $helperScripts = @(
+            'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Invoke-M365AppPackageBuild.ps1'
         ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
@@ -5184,6 +5192,7 @@ function Start-EvergreenWorkbench {
         }
 
         $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+        $formatLogEntryPath = Join-Path -Path $privateRoot -ChildPath 'Format-LogEntry.ps1'
         $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
         $invokeDownloadPath = Join-Path -Path $privateRoot -ChildPath 'Invoke-AppDownload.ps1'
 
@@ -5193,10 +5202,12 @@ function Start-EvergreenWorkbench {
 
         [void]$ps.AddScript({
                 param(
+                    [string]$FormatLogEntryPath,
                     [string]$WriteUILogPath,
                     [string]$InvokeDownloadPath
                 )
 
+                . $FormatLogEntryPath
                 . $WriteUILogPath
                 . $InvokeDownloadPath
 
@@ -5243,7 +5254,7 @@ function Start-EvergreenWorkbench {
                             }
                         }, 'Normal')
                 }
-            }).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
+            }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
 
         $async = $ps.BeginInvoke()
         & $registerBackgroundOperation -Name 'QueueDownload' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
@@ -5400,6 +5411,7 @@ function Start-EvergreenWorkbench {
         }
 
         $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+        $formatLogEntryPath = Join-Path -Path $privateRoot -ChildPath 'Format-LogEntry.ps1'
         $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
         $invokeLibraryUpdatePath = Join-Path -Path $privateRoot -ChildPath 'Invoke-LibraryUpdate.ps1'
 
@@ -5409,10 +5421,12 @@ function Start-EvergreenWorkbench {
 
         [void]$ps.AddScript({
                 param(
+                    [string]$FormatLogEntryPath,
                     [string]$WriteUILogPath,
                     [string]$InvokeLibraryUpdatePath
                 )
 
+                . $FormatLogEntryPath
                 . $WriteUILogPath
                 . $InvokeLibraryUpdatePath
 
@@ -5435,7 +5449,7 @@ function Start-EvergreenWorkbench {
                             & $syncHash.RefreshLibraryView
                         }, 'Normal')
                 }
-            }).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
+            }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
 
         $async = $ps.BeginInvoke()
         & $registerBackgroundOperation -Name 'LibraryUpdate' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
@@ -5456,6 +5470,7 @@ function Start-EvergreenWorkbench {
         }
 
         $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
+        $formatLogEntryPath = Join-Path -Path $privateRoot -ChildPath 'Format-LogEntry.ps1'
         $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
         $writeUpdateOutputPath = Join-Path -Path $privateRoot -ChildPath 'Write-UpdateOutput.ps1'
 
@@ -5465,10 +5480,12 @@ function Start-EvergreenWorkbench {
 
         [void]$ps.AddScript({
                 param(
+                    [string]$FormatLogEntryPath,
                     [string]$WriteUILogPath,
                     [string]$WriteUpdateOutputPath
                 )
 
+                . $FormatLogEntryPath
                 . $WriteUILogPath
                 . $WriteUpdateOutputPath
 
@@ -5531,7 +5548,7 @@ function Start-EvergreenWorkbench {
                             }
                         }, 'Normal')
                 }
-            }).AddArgument($writeUILogPath).AddArgument($writeUpdateOutputPath)
+            }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($writeUpdateOutputPath)
 
         $async = $ps.BeginInvoke()
         & $registerBackgroundOperation -Name 'UpdateEvergreen' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
@@ -5550,6 +5567,13 @@ function Start-EvergreenWorkbench {
         $logToggleButton.IsChecked = $false
         $logToggleButton.Content = 'Show progress log'
     }
+
+    # Create per-session log file under %LocalAppData%\EvergreenUI\logs\
+    $logDir = Join-Path -Path $env:LocalAppData -ChildPath 'EvergreenUI\logs'
+    if (-not (Test-Path -LiteralPath $logDir)) {
+        New-Item -Path $logDir -ItemType Directory -Force | Out-Null
+    }
+    $syncHash.LogFilePath = Join-Path -Path $logDir -ChildPath ("EvergreenUI-{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'))
 
     # Event: Window.Loaded
     $window.add_Loaded({
