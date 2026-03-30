@@ -38,12 +38,14 @@ function Invoke-FilterUpdate {
 
     $filtered = $SyncHash.CurrentAppResults
 
+    $activeFilters = [System.Collections.Generic.List[string]]::new()
     foreach ($prop in $SyncHash.FilterState.Keys) {
         $allowedValues = $SyncHash.FilterState[$prop]
 
         # Empty set → treat as "all allowed" (no filter for this property)
         if ($allowedValues.Count -eq 0) { continue }
 
+        $activeFilters.Add("$prop=[$($allowedValues -join ', ')]")
         $filtered = $filtered | Where-Object {
             $value = if ($prop -eq '_DerivedType') {
                 [System.IO.Path]::GetExtension([string]$_.URI).TrimStart('.').ToLower()
@@ -59,6 +61,10 @@ function Invoke-FilterUpdate {
     $filteredArray = @($filtered)
     $totalCount = $SyncHash.CurrentAppResults.Count
     $shownCount = $filteredArray.Count
+
+    if ($activeFilters.Count -gt 0) {
+        Write-UILog -Message "Filter applied: $($activeFilters -join '; ') — showing $shownCount of $totalCount result(s)." -Level Info -SyncHash $SyncHash
+    }
 
     $SyncHash.Window.Dispatcher.Invoke([action] {
             $SyncHash.VersionsListView.ItemsSource = $filteredArray

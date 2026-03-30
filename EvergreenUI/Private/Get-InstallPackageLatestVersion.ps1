@@ -75,6 +75,7 @@ function Get-InstallPackageLatestVersion {
     try {
         if (-not (Test-Path -LiteralPath $CacheRootPath -PathType Container)) {
             $null = New-Item -Path $CacheRootPath -ItemType Directory -Force -ErrorAction Stop
+            Write-Verbose "EvergreenUI: Created cache directory '$CacheRootPath'."
         }
     }
     catch {
@@ -99,6 +100,7 @@ function Get-InstallPackageLatestVersion {
         }
         catch {
             $cacheEntries = @()
+            Write-Verbose "EvergreenUI: Failed to read/parse cache file '$cacheFile' (will query live): $($_.Exception.Message)"
         }
     }
 
@@ -143,7 +145,9 @@ function Get-InstallPackageLatestVersion {
         }
         if ($timestampOk) {
             $maxAge = [TimeSpan]::FromHours([Math]::Max(1, $CacheMaxAgeHours))
-            if (($nowUtc - $retrievedUtc.ToUniversalTime()) -le $maxAge) {
+            $cacheAge = $nowUtc - $retrievedUtc.ToUniversalTime()
+            if ($cacheAge -le $maxAge) {
+                Write-Verbose "EvergreenUI: Cache hit for '$DefinitionPath' (age: $([Math]::Round($cacheAge.TotalMinutes, 1)) min, max: $($maxAge.TotalHours) hr)."
                 return [PSCustomObject]@{
                     Succeeded        = [bool]$matchedEntry.Succeeded
                     Version          = [string]$matchedEntry.Version
@@ -183,9 +187,11 @@ function Get-InstallPackageLatestVersion {
     try {
         $json = @($newEntries) | ConvertTo-Json -Depth 8
         [System.IO.File]::WriteAllText($cacheFile, $json, [System.Text.Encoding]::UTF8)
+        Write-Verbose "EvergreenUI: Cache updated: '$cacheFile'."
     }
     catch {
-        # Cache write failure should not fail version resolution.
+        # best-effort — cache write failure must not fail version resolution
+        Write-Verbose "EvergreenUI: Cache write failed for '$cacheFile' (ignored): $($_.Exception.Message)"
     }
 
     return [PSCustomObject]@{
