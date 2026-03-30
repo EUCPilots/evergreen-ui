@@ -1241,6 +1241,7 @@ function Start-EvergreenWorkbench {
         $helperScripts = @(
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Get-SafeFolderName.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
             'Invoke-LocalPackageInstall.ps1'
@@ -1490,6 +1491,7 @@ function Start-EvergreenWorkbench {
         $helperScripts = @(
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Get-SafeFolderName.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Invoke-IntunePackageBuild.ps1'
             'Invoke-IntuneGraphWin32Import.ps1'
@@ -4681,6 +4683,8 @@ function Start-EvergreenWorkbench {
         $syncHash.PendingNerdioAddVersionAsync = $ps.BeginInvoke()
 
         $syncHash.PendingNerdioAddVersionAppName = $appName
+        $syncHash.PendingNerdioPostImportVerifyAppId = $shellAppId
+        $syncHash.PendingNerdioPostImportExpectedEvergreenVersion = [string]$selectedRow.EvergreenVersion
 
         $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
         $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
@@ -4729,9 +4733,7 @@ function Start-EvergreenWorkbench {
                     $syncHash.PendingNerdioAddVersionAppName = $null
                     Write-UILog -SyncHash $syncHash -Message "Nerdio: successfully added new version to Shell App '$completedAppName'." -Level Info
                     try {
-                        $syncHash.PendingNerdioPostImportVerifyAppId = [string]$shellAppId
                         $syncHash.PendingNerdioPostImportVerifyAppName = [string]$completedAppName
-                        $syncHash.PendingNerdioPostImportExpectedEvergreenVersion = [string]$selectedRow.EvergreenVersion
                         & $setNerdioShellAppsLoadingState -IsLoading $false
                         & $loadNerdioShellApps
                     }
