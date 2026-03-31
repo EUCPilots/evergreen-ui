@@ -10,6 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **PowerShell**: 5.1 (Desktop) and 7+ (Core), minimum PS 5.1
 - **Dependency**: Evergreen module ≥ 2603.2832.0
 
+## Additional instructions
+
+* Review .github\agents for custom agents
+* Review .github\instructions for additional instructions
+
 ## Commands
 
 ### Testing
