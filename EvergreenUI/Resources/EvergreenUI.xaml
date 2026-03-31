@@ -3195,8 +3195,9 @@
                                             Style="{StaticResource FluentSecondaryButton}"
                                             Width="{Binding ElementName=IntuneBrowsePackageOutputButton, Path=ActualWidth}"
                                             Margin="8,0,0,0"/>
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <DockPanel VerticalAlignment="Center">
                                         <Ellipse x:Name="IntuneSettingsModuleStatusDot"
+                                                 DockPanel.Dock="Left"
                                                  Style="{StaticResource StatusDot}"
                                                  Fill="{DynamicResource ControlBorderBrush}"/>
                                         <TextBlock x:Name="IntuneSettingsModuleStatusLabel"
@@ -3205,7 +3206,7 @@
                                                    FontSize="12"
                                                    VerticalAlignment="Center"
                                                    TextWrapping="Wrap"/>
-                                    </StackPanel>
+                                    </DockPanel>
                                 </DockPanel>
 
                                 <TextBlock Grid.Row="2" Grid.Column="0"
