@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.0.14'
+    ModuleVersion     = '1.0.15'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -64,7 +64,7 @@
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Pre-release. Adds collapsible sidebar with menu item icons. Integrates NerdioShellApps.psm1. Updates loggin and improved code base.'
+            ReleaseNotes = 'Pre-release. XAML and WPF UI improvements.'
             Prerelease   = 'beta'
         }
     }

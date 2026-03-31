@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.15] - 2026-04-01
+
+### Changed
+
+- Import tab / Microsoft Intune Win32 Apps: Intune connection status controls container changed from `StackPanel` to `DockPanel`; status dot `Ellipse` docked to the left, improving alignment within the count bar layout
+- Theme scripts: `StatusWarningBrush`, `StatusPositiveLightBrush`, `StatusWarningLightBrush`, and `StatusErrorLightBrush` added to `Window.Resources` and both light and dark theme scripts
+- XAML: eight hardcoded ARGB hex row background tints across four `ListView`s replaced with `DynamicResource` bindings so row tints adapt correctly between light and dark themes
+- XAML: `NavToggleButton` and `LogToggleButton` inline `ControlTemplate`s extracted into named `FluentNavButton` and `FluentToggleButton` styles in `Window.Resources`, eliminating duplicated template definitions
+
+### Fixed
+
+- `FluentToggleSwitch` thumb colour was hardcoded white; now uses `ToggleThumbBrush` so dark mode correctly renders a dark thumb
+- Five status dot `Ellipse` fills using hardcoded `OrangeRed` and `Gold` replaced with named brush resources; `StatusDot` named style applied consistently across all status indicators
+- `NerdioStatusCellStyle` Gold foreground and `EvergreenStatusDot` `#88FFFFFF` semi-transparent fill replaced with named brush resources so colours adapt to the active theme
+
 ## [1.0.14] - 2026-03-30
 
 ### Added
