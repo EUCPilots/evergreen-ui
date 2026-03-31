@@ -23,8 +23,12 @@
         <SolidColorBrush x:Key="ToggleThumbBrush"       Color="Transparent"/>
         <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="Transparent"/>
         <SolidColorBrush x:Key="SecondaryButtonBorderBrush"     Color="Transparent"/>
-        <SolidColorBrush x:Key="StatusPositiveBrush"     Color="Transparent"/>
-        <SolidColorBrush x:Key="StatusErrorBrush"        Color="Transparent"/>
+        <SolidColorBrush x:Key="StatusPositiveBrush"      Color="Transparent"/>
+        <SolidColorBrush x:Key="StatusErrorBrush"         Color="Transparent"/>
+        <SolidColorBrush x:Key="StatusWarningBrush"       Color="Transparent"/>
+        <SolidColorBrush x:Key="StatusPositiveLightBrush" Color="Transparent"/>
+        <SolidColorBrush x:Key="StatusWarningLightBrush"  Color="Transparent"/>
+        <SolidColorBrush x:Key="StatusErrorLightBrush"    Color="Transparent"/>
 
         <!-- ── FluentButton ── -->
         <Style x:Key="FluentButton" TargetType="Button">
@@ -222,7 +226,7 @@
                                     Background="{DynamicResource ControlBorderBrush}"/>
                             <Ellipse x:Name="thumb"
                                      Width="14" Height="14"
-                                     Fill="White"
+                                     Fill="{DynamicResource ToggleThumbBrush}"
                                      HorizontalAlignment="Left"
                                      Margin="3,0,0,0"
                                      VerticalAlignment="Center"/>
@@ -634,6 +638,74 @@
             </Setter>
         </Style>
 
+        <!-- ── FluentNavButton - ghost nav button (hamburger / icon-only nav rail button) ── -->
+        <Style x:Key="FluentNavButton" TargetType="Button">
+            <Setter Property="Background"          Value="Transparent"/>
+            <Setter Property="BorderThickness"     Value="0"/>
+            <Setter Property="Cursor"              Value="Hand"/>
+            <Setter Property="FocusVisualStyle"    Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Margin="0,1">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ── FluentToggleButton - bordered toggle button with checked/unchecked states ── -->
+        <Style x:Key="FluentToggleButton" TargetType="ToggleButton">
+            <Setter Property="Background"      Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource ControlBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}"
+                                TextElement.Foreground="{TemplateBinding Foreground}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ── GridViewColumnHeader - shared Fluent style (hover uses AccentLightBrush) ── -->
         <Style TargetType="GridViewColumnHeader">
             <Setter Property="Background"                 Value="{DynamicResource ControlBackgroundBrush}"/>
@@ -713,7 +785,7 @@
                             DockPanel.Dock="Right">
                     <Ellipse x:Name="EvergreenStatusDot"
                              Style="{StaticResource StatusDot}"
-                             Fill="#88FFFFFF"/>
+                             Fill="{DynamicResource ControlBorderBrush}"/>
                     <TextBlock x:Name="EvergreenVersionText"
                                Text="Evergreen: checking..."
                                Foreground="{DynamicResource ButtonForegroundBrush}"
@@ -731,27 +803,11 @@
             <StackPanel Margin="4,12,4,0">
                 <!-- Hamburger toggle to collapse/expand the nav rail -->
                 <Button x:Name="NavToggleButton"
+                        Style="{StaticResource FluentNavButton}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
-                        Cursor="Hand"
-                        FocusVisualStyle="{x:Null}"
                         Padding="17,10,14,10"
                         Margin="4,0,4,4">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="bd" CornerRadius="4" Background="Transparent" Margin="0,1">
-                                <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
                     <TextBlock FontFamily="Segoe MDL2 Assets"
                                Text="&#xE700;"
                                FontSize="16"
@@ -1537,12 +1593,8 @@
                                                             VerticalAlignment="Center"
                                                             DockPanel.Dock="Right">
                                                     <Ellipse x:Name="IntuneConnectionStatusDot"
-                                                             Width="9"
-                                                             Height="9"
-                                                             Fill="OrangeRed"
-                                                             Stroke="{DynamicResource ControlBorderBrush}"
-                                                             StrokeThickness="1"
-                                                             VerticalAlignment="Center"/>
+                                                             Style="{StaticResource StatusDot}"
+                                                             Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Intune:"
                                                                FontSize="11"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
@@ -1629,10 +1681,10 @@
                                                                         </Border>
                                                                         <ControlTemplate.Triggers>
                                                                             <DataTrigger Binding="{Binding UpdateRequired}" Value="No">
-                                                                                <Setter TargetName="bd" Property="Background" Value="#1A4CAF50"/>
+                                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusPositiveLightBrush}"/>
                                                                             </DataTrigger>
                                                                             <DataTrigger Binding="{Binding UpdateRequired}" Value="Yes">
-                                                                                <Setter TargetName="bd" Property="Background" Value="#1AFFB300"/>
+                                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusWarningLightBrush}"/>
                                                                             </DataTrigger>
                                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                                 <Setter TargetName="bd" Property="Background"
@@ -1819,12 +1871,8 @@
                                                             VerticalAlignment="Center"
                                                             DockPanel.Dock="Right">
                                                     <Ellipse x:Name="NerdioImportAuthStatusDot"
-                                                             Width="9"
-                                                             Height="9"
-                                                             Fill="OrangeRed"
-                                                             Stroke="{DynamicResource ControlBorderBrush}"
-                                                             StrokeThickness="1"
-                                                             VerticalAlignment="Center"/>
+                                                             Style="{StaticResource StatusDot}"
+                                                             Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Nerdio Manager:"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
@@ -1877,7 +1925,7 @@
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Matched (compare unavailable)">
-                                                                <Setter Property="Foreground" Value="Gold"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource StatusWarningBrush}"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Duplicate matches">
                                                                 <Setter Property="Foreground" Value="{DynamicResource StatusErrorBrush}"/>
@@ -1933,10 +1981,10 @@
                                                                     </Border>
                                                                     <ControlTemplate.Triggers>
                                                                         <DataTrigger Binding="{Binding Action}" Value="Update">
-                                                                            <Setter TargetName="bd" Property="Background" Value="#1AFFB300"/>
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusWarningLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Action}" Value="Import">
-                                                                            <Setter TargetName="bd" Property="Background" Value="#1A4CAF50"/>
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusPositiveLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <Trigger Property="IsMouseOver" Value="True">
                                                                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
@@ -2112,12 +2160,8 @@
                                                             VerticalAlignment="Center"
                                                             DockPanel.Dock="Right">
                                                     <Ellipse x:Name="M365IntuneAuthStatusDot"
-                                                             Width="9"
-                                                             Height="9"
-                                                             Fill="OrangeRed"
-                                                             Stroke="{DynamicResource ControlBorderBrush}"
-                                                             StrokeThickness="1"
-                                                             VerticalAlignment="Center"/>
+                                                             Style="{StaticResource StatusDot}"
+                                                             Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Intune:"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
@@ -2130,12 +2174,8 @@
                                                                FontSize="11"
                                                                Margin="0,0,16,0"/>
                                                     <Ellipse x:Name="M365NerdioAuthStatusDot"
-                                                             Width="9"
-                                                             Height="9"
-                                                             Fill="OrangeRed"
-                                                             Stroke="{DynamicResource ControlBorderBrush}"
-                                                             StrokeThickness="1"
-                                                             VerticalAlignment="Center"/>
+                                                             Style="{StaticResource StatusDot}"
+                                                             Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Nerdio Manager:"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
@@ -2223,13 +2263,13 @@
                                                                     </Border>
                                                                     <ControlTemplate.Triggers>
                                                                         <DataTrigger Binding="{Binding Status}" Value="Valid">
-                                                                            <Setter TargetName="bd" Property="Background" Value="#0A4CAF50"/>
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusPositiveLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Status}" Value="No ID">
-                                                                            <Setter TargetName="bd" Property="Background" Value="#0AFF3333"/>
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusErrorLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Status}" Value="Invalid XML">
-                                                                            <Setter TargetName="bd" Property="Background" Value="#0AFF3333"/>
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusErrorLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <Trigger Property="IsMouseOver" Value="True">
                                                                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
@@ -2826,11 +2866,8 @@
                                                 VerticalAlignment="Center"
                                                 DockPanel.Dock="Right">
                                         <Ellipse x:Name="InstallElevationStatusDot"
-                                                 Width="8"
-                                                 Height="8"
-                                                 Fill="Gold"
-                                                 VerticalAlignment="Center"
-                                                 Margin="0,0,6,0"/>
+                                                 Style="{StaticResource StatusDot}"
+                                                 Fill="{DynamicResource StatusWarningBrush}"/>
                                         <TextBlock x:Name="InstallElevationStatusLabel"
                                                    Text="Elevation not checked"
                                                    FontSize="11"
@@ -2886,10 +2923,10 @@
                                                         </Border>
                                                         <ControlTemplate.Triggers>
                                                             <DataTrigger Binding="{Binding InstallStatus}" Value="Installed (up to date)">
-                                                                <Setter TargetName="bd" Property="Background" Value="#1A4CAF50"/>
+                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusPositiveLightBrush}"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding InstallStatus}" Value="Installed (update needed)">
-                                                                <Setter TargetName="bd" Property="Background" Value="#1AFFB300"/>
+                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusWarningLightBrush}"/>
                                                             </DataTrigger>
                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
@@ -3453,37 +3490,11 @@
                                 FontSize="12"
                                 Margin="0,0,6,0"/>
                         <ToggleButton x:Name="LogToggleButton"
+                                      Style="{StaticResource FluentToggleButton}"
                                       Content="Show progress log"
                                       IsChecked="False"
                                       Padding="10,3"
-                                      FontSize="12"
-                                      Cursor="Hand">
-                            <ToggleButton.Template>
-                                <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="bd"
-                                            Background="{DynamicResource ControlBackgroundBrush}"
-                                            BorderBrush="{DynamicResource ControlBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="4"
-                                            Padding="{TemplateBinding Padding}"
-                                            TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
-                                        <ContentPresenter HorizontalAlignment="Center"
-                                                          VerticalAlignment="Center"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter TargetName="bd" Property="Background"
-                                                    Value="{DynamicResource AccentLightBrush}"/>
-                                            <Setter TargetName="bd" Property="BorderBrush"
-                                                    Value="{DynamicResource AccentBrush}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </ToggleButton.Template>
-                        </ToggleButton>
+                                      FontSize="12"/>
                     </StackPanel>
 
                 </DockPanel>

@@ -28,10 +28,17 @@ function Set-LightTheme {
         [System.Windows.Controls.TextBlock]$ThemeLabelTextBlock
     )
 
-    # Helper: create a SolidColorBrush from R,G,B components
+    # Helper: create an opaque SolidColorBrush from R,G,B components
     function NewBrush([byte]$r, [byte]$g, [byte]$b) {
         [System.Windows.Media.SolidColorBrush]::new(
             [System.Windows.Media.Color]::FromRgb($r, $g, $b)
+        )
+    }
+
+    # Helper: create a semi-transparent SolidColorBrush from A,R,G,B components
+    function NewAlphaBrush([byte]$a, [byte]$r, [byte]$g, [byte]$b) {
+        [System.Windows.Media.SolidColorBrush]::new(
+            [System.Windows.Media.Color]::FromArgb($a, $r, $g, $b)
         )
     }
 
@@ -50,8 +57,12 @@ function Set-LightTheme {
     $res['ToggleThumbBrush'] = NewBrush 255 255 255   # #FFFFFF
     $res['SecondaryButtonBackgroundBrush'] = NewBrush 228 232 231   # #E4E8E7 - clearly above window bg
     $res['SecondaryButtonBorderBrush']     = NewBrush 154 173 170   # #9AADAA - visible mid-tone border
-    $res['StatusPositiveBrush'] = NewBrush  37 110  73   # Softer green for light mode table highlights
-    $res['StatusErrorBrush']    = NewBrush 166  64  64   # Softer red for light mode table highlights
+    $res['StatusPositiveBrush']      = NewBrush  37 110  73        # #25674A - text/icon: success state
+    $res['StatusErrorBrush']         = NewBrush 166  64  64        # #A64040 - text/icon: error state
+    $res['StatusWarningBrush']       = NewBrush 149  90   0        # #955A00 - text/icon: warning state
+    $res['StatusPositiveLightBrush'] = NewAlphaBrush 26  76 175  80  # #1A4CAF50 - row background: positive
+    $res['StatusWarningLightBrush']  = NewAlphaBrush 26 255 179   0  # #1AFFB300 - row background: warning
+    $res['StatusErrorLightBrush']    = NewAlphaBrush 26 255  51  51  # #1AFF3333 - row background: error
 
     $Window.Background = $res['WindowBackgroundBrush']
     if ($null -ne $ThemeLabelTextBlock) {

@@ -34,6 +34,13 @@ function Set-DarkTheme {
         )
     }
 
+    # Helper: create a semi-transparent SolidColorBrush from A,R,G,B components
+    function NewAlphaBrush([byte]$a, [byte]$r, [byte]$g, [byte]$b) {
+        [System.Windows.Media.SolidColorBrush]::new(
+            [System.Windows.Media.Color]::FromArgb($a, $r, $g, $b)
+        )
+    }
+
     $res = $Window.Resources
 
     # Evergreen brand dark palette - deep forest teal base
@@ -49,8 +56,12 @@ function Set-DarkTheme {
     $res['ToggleThumbBrush'] = NewBrush   0   0   0   # #000000
     $res['SecondaryButtonBackgroundBrush'] = NewBrush  45  68  64   # #2D4440 - visible above window bg
     $res['SecondaryButtonBorderBrush']     = NewBrush  90 123 119   # #5A7B77 - visible mid-tone border
-    $res['StatusPositiveBrush'] = NewBrush 137 194 160   # Softer green for dark mode table highlights
-    $res['StatusErrorBrush']    = NewBrush 210 132 132   # Softer red for dark mode table highlights
+    $res['StatusPositiveBrush']      = NewBrush 137 194 160        # #89C2A0 - text/icon: success state
+    $res['StatusErrorBrush']         = NewBrush 210 132 132        # #D28484 - text/icon: error state
+    $res['StatusWarningBrush']       = NewBrush 214 158  46        # #D69E2E - text/icon: warning state
+    $res['StatusPositiveLightBrush'] = NewAlphaBrush 26  76 175  80  # #1A4CAF50 - row background: positive
+    $res['StatusWarningLightBrush']  = NewAlphaBrush 26 255 179   0  # #1AFFB300 - row background: warning
+    $res['StatusErrorLightBrush']    = NewAlphaBrush 26 255  51  51  # #1AFF3333 - row background: error
 
     $Window.Background = $res['WindowBackgroundBrush']
     if ($null -ne $ThemeLabelTextBlock) {
