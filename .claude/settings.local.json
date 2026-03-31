@@ -2,7 +2,6 @@
   "env": {
     "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1"
   },
-  "defaultShell": "powershell",
   "permissions": {
     "allow": [
       "PowerShell(Select-String -Pattern 'function Get-UIConfig|Get-UIConfig' -Path ./EvergreenUI/Private/*.ps1)",
@@ -18,7 +17,11 @@
       "PowerShell(Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse -Severity Error,Warning | Where-Object { $_.ScriptName -match 'Format-LogEntry|Merge-ConfigSection|Get-SafeFolderName|Get-UIConfig|Write-UILog|Write-UpdateOutput|Invoke-IntunePackageBuild|Invoke-FilterUpdate|Invoke-LocalPackageInstall|Test-LocalPackageDetection|Get-InstallPackage|Set-UIConfig|Invoke-AzureSignIn|Invoke-IntuneGraphWin32Import' } | Format-Table RuleName,Severity,ScriptName,Line -AutoSize)",
       "PowerShell(Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Detailed)",
       "PowerShell(Invoke-Pester -Path ./tests/EvergreenUI.tests.ps1 -Output Normal)",
-      "PowerShell(git stash:*)"
+      "PowerShell(git stash:*)",
+      "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse\")",
+      "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI -Recurse\")",
+      "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path ''C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui\\\\EvergreenUI'' -Recurse\")"
     ]
-  }
+  },
+  "defaultShell": "powershell"
 }

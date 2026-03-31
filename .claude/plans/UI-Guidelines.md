@@ -35,8 +35,12 @@ All colours are referenced by brush name only. Never use hardcoded colour values
 | `ButtonForegroundBrush` | `#FFFFFF` | `#000000` | Text on primary (accent) buttons |
 | `SecondaryButtonBackgroundBrush` | `#E4E8E7` | `#2D4440` | Secondary button backgrounds |
 | `SecondaryButtonBorderBrush` | `#9AADAA` | `#5A7B77` | Secondary button borders |
-| `StatusPositiveBrush` | `#256E49` | `#89C2A0` | Success indicators, status dots |
-| `StatusErrorBrush` | `#A64040` | `#D28484` | Error indicators, validation failures |
+| `StatusPositiveBrush` | `#25674A` | `#89C2A0` | Success text/icon indicators, status dots |
+| `StatusErrorBrush` | `#A64040` | `#D28484` | Error text/icon indicators, validation failures |
+| `StatusWarningBrush` | `#955A00` | `#D69E2E` | Warning text/icon indicators (e.g. elevation status, "compare unavailable") |
+| `StatusPositiveLightBrush` | `#1A4CAF50` | `#1A4CAF50` | Row background tint: positive/up-to-date state |
+| `StatusWarningLightBrush` | `#1AFFB300` | `#1AFFB300` | Row background tint: update-needed/warning state |
+| `StatusErrorLightBrush` | `#1AFF3333` | `#1AFF3333` | Row background tint: error/invalid state |
 | `ToggleThumbBrush` | `#FFFFFF` | `#000000` | Toggle/switch thumb fill |
 
 ### 2.2 Rules
@@ -269,7 +273,45 @@ $comboBox.Style    = $SyncHash.Window.Resources['FluentComboBox']
 | Selection indicator | 2 px underline, CornerRadius 1, fill `AccentBrush` |
 | Hover background | `AccentLightBrush` |
 
-### 5.9 NavRailRadioButton
+### 5.9 FluentNavButton (hamburger / ghost nav button)
+
+Used for the navigation rail hamburger toggle. Transparent background with `AccentLightBrush` hover/press - no border.
+
+```xml
+<Button Style="{StaticResource FluentNavButton}" Padding="17,10,14,10" Margin="4,0,4,4">
+    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE700;" FontSize="16"
+               Foreground="{DynamicResource TextPrimaryBrush}"/>
+</Button>
+```
+
+| Property | Value |
+|---|---|
+| Background | Transparent |
+| BorderThickness | 0 |
+| CornerRadius | 4 |
+| Cursor | Hand |
+| Hover/Pressed background | `AccentLightBrush` |
+
+### 5.10 FluentToggleButton (bordered toggle button)
+
+Used for toggle buttons that show a checked/unchecked state with a visible border (e.g., "Show progress log").
+
+```xml
+<ToggleButton Style="{StaticResource FluentToggleButton}" Content="Show progress log"
+              Padding="10,3" FontSize="12"/>
+```
+
+| Property | Value |
+|---|---|
+| Background | `ControlBackgroundBrush` |
+| BorderBrush | `ControlBorderBrush` (normal) → `AccentBrush` (checked) |
+| BorderThickness | 1 |
+| CornerRadius | 4 |
+| Cursor | Hand |
+| Checked background | `AccentLightBrush` |
+| Hover opacity | 0.8 |
+
+### 5.11 NavRailRadioButton
 
 Used exclusively for the left navigation rail. Do not use for other purposes.
 
@@ -289,7 +331,7 @@ Used exclusively for the left navigation rail. Do not use for other purposes.
 | Selected foreground | `AccentBrush` |
 | Selection indicator | 3 px left bar, fill `AccentBrush`, CornerRadius 2 |
 
-### 5.10 StatusDot
+### 5.12 StatusDot
 
 ```xml
 <Ellipse Style="{StaticResource StatusDot}" Fill="{DynamicResource StatusPositiveBrush}"/>
@@ -321,6 +363,14 @@ Used exclusively for the left navigation rail. Do not use for other purposes.
 ---
 
 ## 7. Border and Card Containers
+
+Two CornerRadius conventions are used, based on visual hierarchy:
+
+| Context | CornerRadius | Examples |
+|---|---|---|
+| Inner content borders (list containers, detail cards, action bars) | 4 | `AppDetailContent`, `DownloadQueueListView` wrapper, `UpdatePanel` output border |
+| Top-level section cards (Settings, About, Authentication sub-sections) | 8 | Settings "General" card, About card, Auth "Entra ID" card |
+| Nested sub-section borders within a card | 6 | Nerdio tenant/Azure sign-in rows |
 
 When grouping related controls (e.g., filter cards, settings sections):
 
