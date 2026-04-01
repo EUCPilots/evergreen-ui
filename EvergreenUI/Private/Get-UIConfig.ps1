@@ -130,7 +130,7 @@ function Get-UIConfig {
         return $json
     }
     catch {
-        Write-Verbose "EvergreenUI: Could not read config ($configPath): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Could not read config ($configPath): $($_.Exception.Message)"
         return $default
     }
 }

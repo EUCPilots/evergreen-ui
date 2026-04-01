@@ -398,7 +398,7 @@ function Invoke-IntuneGraphWin32Import {
             }
             catch {
                 # best-effort - secondary read/parse errors when building diagnostics must not mask the primary error
-                Write-Verbose "EvergreenUI: Could not read Graph error response body (ignored): $($_.Exception.Message)"
+                Write-Verbose -Message "EvergreenUI: Could not read Graph error response body (ignored): $($_.Exception.Message)"
             }
         }
 

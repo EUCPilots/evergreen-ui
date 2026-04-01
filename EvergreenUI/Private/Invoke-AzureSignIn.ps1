@@ -25,7 +25,7 @@ function Invoke-AzureSignIn {
         # sign-in button opens the browser flow instead of prompting for a client ID.
         Write-Verbose 'EvergreenUI: Importing Microsoft.Graph.Authentication...'
         Import-Module Microsoft.Graph.Authentication -ErrorAction SilentlyContinue | Out-Null
-        Write-Verbose "EvergreenUI: Connect-MgGraph available: $(($null -ne (Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue)))"
+        Write-Verbose -Message "EvergreenUI: Connect-MgGraph available: $(($null -ne (Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue)))"
 
         if (-not (Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue)) {
             throw 'Connect-MgGraph is not available. Install Microsoft.Graph.Authentication.'
@@ -91,7 +91,7 @@ function Invoke-AzureSignOut {
     }
     catch {
         # best-effort - sign-out must never block UI flow
-        Write-Verbose "EvergreenUI: Disconnect-MgGraph failed (ignored): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Disconnect-MgGraph failed (ignored): $($_.Exception.Message)"
     }
 
     try {
@@ -102,7 +102,7 @@ function Invoke-AzureSignOut {
     }
     catch {
         # best-effort - sign-out must never block UI flow
-        Write-Verbose "EvergreenUI: Az sign-out step failed (ignored): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Az sign-out step failed (ignored): $($_.Exception.Message)"
     }
 }
 
@@ -121,7 +121,7 @@ function Invoke-NerdioAzureSignIn {
         Import-Module Az.Accounts   -ErrorAction SilentlyContinue | Out-Null
         Import-Module Az.Resources  -ErrorAction SilentlyContinue | Out-Null
         Import-Module Az.Storage    -ErrorAction SilentlyContinue | Out-Null
-        Write-Verbose "EvergreenUI: Connect-AzAccount available: $(($null -ne (Get-Command -Name Connect-AzAccount -ErrorAction SilentlyContinue)))"
+        Write-Verbose -Message "EvergreenUI: Connect-AzAccount available: $(($null -ne (Get-Command -Name Connect-AzAccount -ErrorAction SilentlyContinue)))"
 
         if (-not (Get-Command -Name Connect-AzAccount -ErrorAction SilentlyContinue)) {
             throw 'Connect-AzAccount is not available. Install the Az.Accounts module.'
@@ -138,7 +138,7 @@ function Invoke-NerdioAzureSignIn {
             }
             catch {
                 # best-effort - older Az.Accounts builds may not support all process-scoped settings
-                Write-Verbose "EvergreenUI: Update-AzConfig step failed (ignored): $($_.Exception.Message)"
+                Write-Verbose -Message "EvergreenUI: Update-AzConfig step failed (ignored): $($_.Exception.Message)"
             }
         }
 
@@ -151,7 +151,7 @@ function Invoke-NerdioAzureSignIn {
             }
             catch {
                 # best-effort - default is already enabled; failure here is non-blocking
-                Write-Verbose "EvergreenUI: Enable-AzContextAutosave failed (ignored): $($_.Exception.Message)"
+                Write-Verbose -Message "EvergreenUI: Enable-AzContextAutosave failed (ignored): $($_.Exception.Message)"
             }
         }
 
@@ -203,7 +203,7 @@ function Invoke-NerdioAzureSignOut {
     }
     catch {
         # best-effort - sign-out must never block UI flow
-        Write-Verbose "EvergreenUI: Nerdio Az sign-out step failed (ignored): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Nerdio Az sign-out step failed (ignored): $($_.Exception.Message)"
     }
 }
 
@@ -216,7 +216,7 @@ function Get-NerdioAzureResourceGroups {
         return @($groups | Sort-Object ResourceGroupName | Select-Object -ExpandProperty ResourceGroupName)
     }
     catch {
-        Write-Verbose "EvergreenUI: Get-NerdioAzureResourceGroups failed (returning empty list): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureResourceGroups failed (returning empty list): $($_.Exception.Message)"
         return @()
     }
 }
@@ -233,7 +233,7 @@ function Get-NerdioAzureStorageAccounts {
         return @($accounts | Sort-Object StorageAccountName | Select-Object -ExpandProperty StorageAccountName)
     }
     catch {
-        Write-Verbose "EvergreenUI: Get-NerdioAzureStorageAccounts failed (returning empty list): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureStorageAccounts failed (returning empty list): $($_.Exception.Message)"
         return @()
     }
 }
@@ -254,7 +254,7 @@ function Get-NerdioAzureStorageContainers {
         return @($containers | Sort-Object Name | Select-Object -ExpandProperty Name)
     }
     catch {
-        Write-Verbose "EvergreenUI: Get-NerdioAzureStorageContainers failed (returning empty list): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureStorageContainers failed (returning empty list): $($_.Exception.Message)"
         return @()
     }
 }

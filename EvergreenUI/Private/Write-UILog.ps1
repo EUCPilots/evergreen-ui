@@ -54,7 +54,7 @@ function Write-UILog {
         }
         catch {
             # best-effort - file logging failure must not abort the caller
-            Write-Verbose "EvergreenUI: log file write failed: $($_.Exception.Message)"
+            Write-Verbose -Message "EvergreenUI: log file write failed: $($_.Exception.Message)"
         }
     }
 

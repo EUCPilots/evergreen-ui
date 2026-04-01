@@ -157,7 +157,7 @@ function Update-ResourceStatus {
 
     process {
         # Process each resource individually
-        Write-Verbose "Processing resource: $Name"
+        Write-Verbose -Message "Processing resource: $Name"
 
         $resource = [PSCustomObject]@{
             Name        = $Name
@@ -245,7 +245,7 @@ function Remove-UserAccount {
             # Confirmation
             $shouldProcessMessage = "Remove user account '$Username'"
             if ($Force -or $PSCmdlet.ShouldProcess($Username, $shouldProcessMessage)) {
-                Write-Verbose "Removing user account: $Username"
+                Write-Verbose -Message "Removing user account: $Username"
 
                 # Main operation
                 Remove-ADUser -Identity $Username -ErrorAction Stop
