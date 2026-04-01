@@ -99,6 +99,7 @@ function Start-EvergreenWorkbench {
     }
     catch {
         # About panel metadata is best-effort only.
+        Write-Verbose -Message "EvergreenUI: $_"
     }
 
     # Shared state
@@ -236,6 +237,7 @@ function Start-EvergreenWorkbench {
         }
         catch {
             # Ignore icon load failures and continue startup.
+            Write-Verbose -Message "EvergreenUI: $_"
         }
     }
 
@@ -270,7 +272,7 @@ function Start-EvergreenWorkbench {
 
     $refreshAppsButton = $window.FindName('RefreshAppsButton')
     $appSearchBox = $window.FindName('AppSearchBox')
-    $appsComboBox = $window.FindName('AppsComboBox')
+    $appsListBox = $window.FindName('AppsListBox')
     $loadAppVersionsButton = $window.FindName('LoadAppVersionsButton')
     $filterWrapPanel = $window.FindName('FilterWrapPanel')
     $clearFiltersButton = $window.FindName('ClearFiltersButton')
@@ -284,7 +286,7 @@ function Start-EvergreenWorkbench {
     $openDownloadFolderButton = $window.FindName('OpenDownloadFolderButton')
 
     $libraryPathViewBox = $window.FindName('LibraryPathViewBox')
-    $libraryBrowseButton = $window.FindName('LibraryBrowseButton')
+    $browseLibraryButton = $window.FindName('BrowseLibraryButton')
     $libraryNewButton = $window.FindName('LibraryNewButton')
     $libraryRefreshButton = $window.FindName('LibraryRefreshButton')
     $libraryOpenFolderButton = $window.FindName('LibraryOpenFolderButton')
@@ -320,8 +322,8 @@ function Start-EvergreenWorkbench {
 
     $outputPathBox = $window.FindName('OutputPathBox')
     $evergreenAppsPathBox = $window.FindName('EvergreenAppsPathBox')
-    $showImportTabCheckBox = $window.FindName('ShowImportTabCheckBox')
-    $showInstallTabCheckBox = $window.FindName('ShowInstallTabCheckBox')
+    $showImportTabToggle = $window.FindName('ShowImportTabToggle')
+    $showInstallTabToggle = $window.FindName('ShowInstallTabToggle')
     $startupViewComboBox = $window.FindName('StartupViewComboBox')
     $browseOutputButton = $window.FindName('BrowseOutputButton')
     $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
@@ -348,7 +350,7 @@ function Start-EvergreenWorkbench {
     $intunePackageOutputPathBox = $window.FindName('IntunePackageOutputPathBox')
     $intuneBrowsePackageOutputButton = $window.FindName('IntuneBrowsePackageOutputButton')
     $intuneDefinitionsPathBox = $window.FindName('IntuneDefinitionsPathBox')
-    $intuneBrowseDefinitionsButton = $window.FindName('IntuneBrowseDefinitionsButton')
+    $browseIntuneDefinitionsButton = $window.FindName('BrowseIntuneDefinitionsButton')
     $intuneLoadDefinitionsButton = $window.FindName('IntuneLoadDefinitionsButton')
     $intuneDefinitionsCountLabel = $window.FindName('IntuneDefinitionsCountLabel')
     $intuneWin32AppsCountLabel = $window.FindName('IntuneWin32AppsCountLabel')
@@ -394,7 +396,7 @@ function Start-EvergreenWorkbench {
     $nerdioApiSignInButton = $window.FindName('NerdioApiSignInButton')
     $nerdioApiSignOutButton = $window.FindName('NerdioApiSignOutButton')
     $nerdioDefinitionsPathBox = $window.FindName('NerdioDefinitionsPathBox')
-    $nerdioBrowseDefinitionsButton = $window.FindName('NerdioBrowseDefinitionsButton')
+    $browseNerdioDefinitionsButton = $window.FindName('BrowseNerdioDefinitionsButton')
     $nerdioLoadDefinitionsButton = $window.FindName('NerdioLoadDefinitionsButton')
     $nerdioListShellAppsButton = $window.FindName('NerdioListShellAppsButton')
     $nerdioDefinitionsListView = $window.FindName('NerdioDefinitionsListView')
@@ -415,7 +417,7 @@ function Start-EvergreenWorkbench {
     $intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
     # Microsoft 365 Apps controls
     $m365ConfigPathBox         = $window.FindName('M365ConfigPathBox')
-    $m365BrowseConfigButton    = $window.FindName('M365BrowseConfigButton')
+    $browseM365ConfigButton    = $window.FindName('BrowseM365ConfigButton')
     $m365LoadConfigsButton     = $window.FindName('M365LoadConfigsButton')
     $m365ChannelCombo          = $window.FindName('M365ChannelCombo')
     $m365CompanyNameBox        = $window.FindName('M365CompanyNameBox')
@@ -2420,13 +2422,13 @@ function Start-EvergreenWorkbench {
 
         $allApps = @($syncHash.AppList)
         if ($allApps.Count -eq 0) {
-            $appsComboBox.ItemsSource = @()
+            $appsListBox.ItemsSource = @()
             $appCountLabel.Text = ''
             return
         }
 
         if ([string]::IsNullOrWhiteSpace($SearchText)) {
-            $appsComboBox.ItemsSource = $allApps
+            $appsListBox.ItemsSource = $allApps
             $appCountLabel.Text = " $($allApps.Count) of $($allApps.Count)"
             return
         }
@@ -2436,7 +2438,7 @@ function Start-EvergreenWorkbench {
             $_.Name -like "*$needle*" -or $_.FriendlyName -like "*$needle*"
         }
 
-        $appsComboBox.ItemsSource = @($filtered)
+        $appsListBox.ItemsSource = @($filtered)
         $appCountLabel.Text = " $(@($filtered).Count) of $($allApps.Count)"
     }
 
@@ -2534,7 +2536,7 @@ function Start-EvergreenWorkbench {
 
     # Enables AddToLibraryButton only when an app is loaded AND a valid EvergreenLibrary.json exists.
     $updateAddToLibraryButtonState = {
-        $appSelected = $null -ne $appsComboBox.SelectedItem -and $syncHash.CurrentAppResults.Count -gt 0
+        $appSelected = $null -ne $appsListBox.SelectedItem -and $syncHash.CurrentAppResults.Count -gt 0
         $libraryPath = $syncHash.Config.LibraryPath
         $jsonExists  = (-not [string]::IsNullOrWhiteSpace($libraryPath)) -and
                        (Test-Path -LiteralPath (Join-Path $libraryPath 'EvergreenLibrary.json'))
@@ -2542,7 +2544,7 @@ function Start-EvergreenWorkbench {
     }
 
     $loadAppVersions = {
-        $selectedApp = $appsComboBox.SelectedItem
+        $selectedApp = $appsListBox.SelectedItem
         if ($null -eq $selectedApp) {
             Write-UILog -SyncHash $syncHash -Message 'Select an application first.' -Level Warning
             return
@@ -2815,10 +2817,10 @@ function Start-EvergreenWorkbench {
         $syncHash.Config.Theme = if ($themeComboBox.SelectedIndex -eq 1) { 'Dark' } else { 'Light' }
         $syncHash.Config.WindowWidth = [int]$window.Width
         $syncHash.Config.WindowHeight = [int]$window.Height
-        $syncHash.Config.LastAppName = if ($null -ne $appsComboBox.SelectedItem) { [string]$appsComboBox.SelectedItem.Name } else { '' }
+        $syncHash.Config.LastAppName = if ($null -ne $appsListBox.SelectedItem) { [string]$appsListBox.SelectedItem.Name } else { '' }
         $syncHash.Config.StartupView = & $getCurrentStartupView
-        $syncHash.Config.ShowImportTab = if ($null -eq $showImportTabCheckBox) { [bool]$syncHash.Config.ShowImportTab } else { [bool]$showImportTabCheckBox.IsChecked }
-        $syncHash.Config.ShowInstallTab = if ($null -eq $showInstallTabCheckBox) { [bool]$syncHash.Config.ShowInstallTab } else { [bool]$showInstallTabCheckBox.IsChecked }
+        $syncHash.Config.ShowImportTab = if ($null -eq $showImportTabToggle) { [bool]$syncHash.Config.ShowImportTab } else { [bool]$showImportTabToggle.IsChecked }
+        $syncHash.Config.ShowInstallTab = if ($null -eq $showInstallTabToggle) { [bool]$syncHash.Config.ShowInstallTab } else { [bool]$showInstallTabToggle.IsChecked }
         $syncHash.Config.LogVisible = [bool]$logToggleButton.IsChecked
 
         if ($syncHash.Config.LogVisible) {
@@ -5581,8 +5583,8 @@ function Start-EvergreenWorkbench {
             if (-not [string]::IsNullOrWhiteSpace($syncHash.Config.LastAppName)) {
                 $savedApp = @($syncHash.AppList | Where-Object { $_.Name -eq $syncHash.Config.LastAppName } | Select-Object -First 1)
                 if ($savedApp.Count -gt 0) {
-                    $appsComboBox.SelectedItem = $savedApp[0]
-                    $appsComboBox.ScrollIntoView($savedApp[0])
+                    $appsListBox.SelectedItem = $savedApp[0]
+                    $appsListBox.ScrollIntoView($savedApp[0])
                 }
             }
 
@@ -5636,11 +5638,11 @@ function Start-EvergreenWorkbench {
             if ($null -eq $syncHash.Config.ShowInstallTab) {
                 $syncHash.Config.ShowInstallTab = [bool]$syncHash.Config.ShowImportTab
             }
-            if ($null -ne $showImportTabCheckBox) {
-                $showImportTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowImportTab
+            if ($null -ne $showImportTabToggle) {
+                $showImportTabToggle.IsChecked = [bool]$syncHash.Config.ShowImportTab
             }
-            if ($null -ne $showInstallTabCheckBox) {
-                $showInstallTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowInstallTab
+            if ($null -ne $showInstallTabToggle) {
+                $showInstallTabToggle.IsChecked = [bool]$syncHash.Config.ShowInstallTab
             }
             & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall ([bool]$syncHash.Config.ShowInstallTab)
 
@@ -6085,7 +6087,7 @@ function Start-EvergreenWorkbench {
             & $applyNerdioDefinitionsPathToConfig
         })
 
-    $nerdioBrowseDefinitionsButton.add_Click({
+    $browseNerdioDefinitionsButton.add_Click({
             $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
             $dlg.Description = 'Select Shell App definitions folder'
             if (-not [string]::IsNullOrWhiteSpace($nerdioDefinitionsPathBox.Text)) {
@@ -6122,7 +6124,7 @@ function Start-EvergreenWorkbench {
 
     # ── Microsoft 365 Apps tab event handlers ────────────────────────────────
 
-    $m365BrowseConfigButton.add_Click({
+    $browseM365ConfigButton.add_Click({
             $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
             $dlg.Description = 'Select Microsoft 365 Apps configuration files folder'
             if (-not [string]::IsNullOrWhiteSpace($m365ConfigPathBox.Text)) {
@@ -6185,7 +6187,7 @@ function Start-EvergreenWorkbench {
             & $loadIntuneWin32Apps
         })
 
-    $intuneBrowseDefinitionsButton.add_Click({
+    $browseIntuneDefinitionsButton.add_Click({
             $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
             $dlg.Description = 'Select Intune package definitions folder'
             if (-not [string]::IsNullOrWhiteSpace($intuneDefinitionsPathBox.Text)) {
@@ -6363,7 +6365,7 @@ function Start-EvergreenWorkbench {
             & $loadAppVersions
         })
 
-    $appsComboBox.add_SelectionChanged({
+    $appsListBox.add_SelectionChanged({
             # Cancel any in-progress version load before starting a new one
             if ($null -ne $syncHash.PendingLoadTimer -and $syncHash.PendingLoadTimer.IsEnabled) {
                 $syncHash.PendingLoadTimer.Stop()
@@ -6389,7 +6391,7 @@ function Start-EvergreenWorkbench {
             $addToLibraryButton.IsEnabled = $false
             if ($null -ne $appsActionStatusLabel) { $appsActionStatusLabel.Text = '' }
 
-            $selectedApp = $appsComboBox.SelectedItem
+            $selectedApp = $appsListBox.SelectedItem
             if ($null -ne $selectedApp) {
                 $appDetailTitle.Text = "$($selectedApp.Name)"
 
@@ -6451,7 +6453,7 @@ function Start-EvergreenWorkbench {
         })
 
     $exportCsvButton.add_Click({
-            $selectedApp = $appsComboBox.SelectedItem
+            $selectedApp = $appsListBox.SelectedItem
             $items = @($syncHash.VersionsListView.Items)
 
             if ($null -eq $selectedApp -or $items.Count -eq 0) {
@@ -6477,7 +6479,7 @@ function Start-EvergreenWorkbench {
         })
 
     $addToLibraryButton.add_Click({
-            $selectedApp  = $appsComboBox.SelectedItem
+            $selectedApp  = $appsListBox.SelectedItem
             $libraryPath  = $syncHash.Config.LibraryPath
             $libraryJsonPath = Join-Path -Path $libraryPath -ChildPath 'EvergreenLibrary.json'
 
@@ -6569,7 +6571,7 @@ function Start-EvergreenWorkbench {
         })
 
     $addToQueueButton.add_Click({
-            $selectedApp = $appsComboBox.SelectedItem
+            $selectedApp = $appsListBox.SelectedItem
             $selectedVersions = @($syncHash.VersionsListView.SelectedItems)
 
             if ($null -eq $selectedApp -or $selectedVersions.Count -eq 0) {
@@ -6654,7 +6656,7 @@ function Start-EvergreenWorkbench {
             & $refreshLibraryView
         })
 
-    $libraryBrowseButton.add_Click({
+    $browseLibraryButton.add_Click({
             $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
             $dlg.Description = 'Select Evergreen library folder'
             $dlg.SelectedPath = $libraryPathViewBox.Text
@@ -6789,11 +6791,11 @@ function Start-EvergreenWorkbench {
             }
 
             $themeComboBox.SelectedIndex = if ([string]$syncHash.Config.Theme -eq 'Dark') { 1 } else { 0 }
-            if ($null -ne $showImportTabCheckBox) {
-                $showImportTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowImportTab
+            if ($null -ne $showImportTabToggle) {
+                $showImportTabToggle.IsChecked = [bool]$syncHash.Config.ShowImportTab
             }
-            if ($null -ne $showInstallTabCheckBox) {
-                $showInstallTabCheckBox.IsChecked = [bool]$syncHash.Config.ShowInstallTab
+            if ($null -ne $showInstallTabToggle) {
+                $showInstallTabToggle.IsChecked = [bool]$syncHash.Config.ShowInstallTab
             }
             & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall ([bool]$syncHash.Config.ShowInstallTab)
 
@@ -6809,18 +6811,18 @@ function Start-EvergreenWorkbench {
             }
         })
 
-    if ($null -ne $showImportTabCheckBox) {
-        $showImportTabCheckBox.add_Click({
-                $showImport = [bool]$showImportTabCheckBox.IsChecked
+    if ($null -ne $showImportTabToggle) {
+        $showImportTabToggle.add_Click({
+                $showImport = [bool]$showImportTabToggle.IsChecked
                 $syncHash.Config.ShowImportTab = $showImport
                 & $setImportTabVisibility -ShowImport $showImport -ShowInstall ([bool]$syncHash.Config.ShowInstallTab)
                 Set-UIConfig -Config $syncHash.Config
             })
     }
 
-    if ($null -ne $showInstallTabCheckBox) {
-        $showInstallTabCheckBox.add_Click({
-                $showInstall = [bool]$showInstallTabCheckBox.IsChecked
+    if ($null -ne $showInstallTabToggle) {
+        $showInstallTabToggle.add_Click({
+                $showInstall = [bool]$showInstallTabToggle.IsChecked
                 $syncHash.Config.ShowInstallTab = $showInstall
                 & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall $showInstall
                 Set-UIConfig -Config $syncHash.Config

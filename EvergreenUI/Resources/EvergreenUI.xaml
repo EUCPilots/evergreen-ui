@@ -763,7 +763,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>                        <!-- 0  Title bar    -->
             <RowDefinition Height="*" MinHeight="200"/>         <!-- 1  Main area     -->
-            <RowDefinition Height="5"/>                         <!-- 2  GridSplitter  -->
+            <RowDefinition Height="8"/>                         <!-- 2  GridSplitter  -->
             <RowDefinition Height="175" MinHeight="40"/>        <!-- 3  Status + Log  -->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -784,6 +784,7 @@
                             VerticalAlignment="Center"
                             DockPanel.Dock="Right">
                     <Ellipse x:Name="EvergreenStatusDot"
+                             AutomationProperties.Name="Evergreen connection status"
                              Style="{StaticResource StatusDot}"
                              Fill="{DynamicResource ControlBorderBrush}"/>
                     <TextBlock x:Name="EvergreenVersionText"
@@ -803,6 +804,8 @@
             <StackPanel Margin="4,12,4,0">
                 <!-- Hamburger toggle to collapse/expand the nav rail -->
                 <Button x:Name="NavToggleButton"
+                        AutomationProperties.Name="Toggle navigation"
+                        ToolTip="Collapse/expand navigation"
                         Style="{StaticResource FluentNavButton}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -814,6 +817,7 @@
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
                 </Button>
                 <RadioButton x:Name="NavApps"
+                             AutomationProperties.Name="Apps"
                              IsChecked="True"
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
@@ -824,6 +828,7 @@
                     </RadioButton.Content>
                 </RadioButton>
                 <RadioButton x:Name="NavDownload"
+                             AutomationProperties.Name="Download"
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
@@ -833,6 +838,7 @@
                     </RadioButton.Content>
                 </RadioButton>
                 <RadioButton x:Name="NavLibrary"
+                             AutomationProperties.Name="Library"
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
@@ -842,6 +848,7 @@
                     </RadioButton.Content>
                 </RadioButton>
                 <RadioButton x:Name="NavImport"
+                             AutomationProperties.Name="Import"
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
@@ -851,6 +858,7 @@
                     </RadioButton.Content>
                 </RadioButton>
                 <RadioButton x:Name="NavInstall"
+                             AutomationProperties.Name="Install"
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
@@ -863,6 +871,7 @@
                            Fill="{DynamicResource ControlBorderBrush}"
                            Margin="14,8"/>
                 <RadioButton x:Name="NavSettings"
+                             AutomationProperties.Name="Settings"
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
@@ -872,6 +881,7 @@
                     </RadioButton.Content>
                 </RadioButton>
                 <RadioButton x:Name="NavUpdate"
+                             AutomationProperties.Name="Update"
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
@@ -881,6 +891,7 @@
                     </RadioButton.Content>
                 </RadioButton>
                 <RadioButton x:Name="NavAbout"
+                             AutomationProperties.Name="About"
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
@@ -992,7 +1003,7 @@
                                         Padding="10,6"/>
                             </Border>
                             <Grid>
-                            <ListBox x:Name="AppsComboBox"
+                            <ListBox x:Name="AppsListBox"
                                      BorderThickness="0"
                                      Background="{DynamicResource WindowBackgroundBrush}"
                                      Foreground="{DynamicResource TextPrimaryBrush}"
@@ -1042,7 +1053,7 @@
                                     </Style>
                                 </ListBox.ItemContainerStyle>
                             </ListBox>
-                            <!-- Empty-list hint - visible only when AppsComboBox has no items -->
+                            <!-- Empty-list hint - visible only when AppsListBox has no items -->
                             <StackPanel HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
                                         Margin="16">
@@ -1050,7 +1061,7 @@
                                     <Style TargetType="StackPanel">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasItems, ElementName=AppsComboBox}" Value="False">
+                                            <DataTrigger Binding="{Binding HasItems, ElementName=AppsListBox}" Value="False">
                                                 <Setter Property="Visibility" Value="Visible"/>
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -1224,7 +1235,13 @@
                                             <GridViewColumn Header="Architecture"  DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
                                             <GridViewColumn Header="Type"          DisplayMemberBinding="{Binding Type}"          Width="70"/>
                                             <GridViewColumn Header="Date"          DisplayMemberBinding="{Binding Date}"          Width="100"/>
-                                            <GridViewColumn Header="Uri"           DisplayMemberBinding="{Binding URI}"           Width="460"/>
+                                            <GridViewColumn Header="Uri"           Width="460">
+                                                <GridViewColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding URI}" TextTrimming="CharacterEllipsis" ToolTip="{Binding URI}"/>
+                                                    </DataTemplate>
+                                                </GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
                                         </GridView>
                                     </ListView.View>
                                 </ListView>
@@ -1297,7 +1314,13 @@
                                     <GridViewColumn Header="App"          DisplayMemberBinding="{Binding AppName}"       Width="180"/>
                                     <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="130"/>
                                     <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
-                                    <GridViewColumn Header="URI"          DisplayMemberBinding="{Binding Uri}"           Width="530"/>
+                                    <GridViewColumn Header="URI"          Width="530">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Uri}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Uri}"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
                                 </GridView>
                             </ListView.View>
                         </ListView>
@@ -1362,7 +1385,7 @@
                         </StackPanel>
 
                         <Button Grid.Column="1"
-                                x:Name="LibraryBrowseButton"
+                                x:Name="BrowseLibraryButton"
                                 Content="Browse"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 MinWidth="50"
@@ -1432,7 +1455,13 @@
                                     <GridView>
                                         <GridViewColumn Header="App"      DisplayMemberBinding="{Binding Name}"          Width="220"/>
                                         <GridViewColumn Header="Versions" DisplayMemberBinding="{Binding VersionCount}"  Width="80"/>
-                                        <GridViewColumn Header="Path"     DisplayMemberBinding="{Binding Path}"          Width="750"/>
+                                        <GridViewColumn Header="Path"     Width="750">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}"/>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
@@ -1463,7 +1492,18 @@
                                       Style="{StaticResource FluentListView}"
                                       SelectionMode="Single">
                                 <ListView.View>
-                                    <GridView/>
+                                    <GridView>
+                                        <GridViewColumn Header="App (Version)"  DisplayMemberBinding="{Binding Version}"      Width="180"/>
+                                        <GridViewColumn Header="Architecture"    DisplayMemberBinding="{Binding Architecture}" Width="110"/>
+                                        <GridViewColumn Header="Type"            DisplayMemberBinding="{Binding Type}"         Width="80"/>
+                                        <GridViewColumn Header="URI"             Width="460">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding URI}" TextTrimming="CharacterEllipsis" ToolTip="{Binding URI}"/>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
                                 </ListView.View>
                             </ListView>
                         </DockPanel>
@@ -1547,7 +1587,7 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
-                                                <Button x:Name="IntuneBrowseDefinitionsButton"
+                                                <Button x:Name="BrowseIntuneDefinitionsButton"
                                                         Grid.Column="1"
                                                         Content="Browse"
                                                         Style="{StaticResource FluentSecondaryButton}"
@@ -1593,6 +1633,7 @@
                                                             VerticalAlignment="Center"
                                                             DockPanel.Dock="Right">
                                                     <Ellipse x:Name="IntuneConnectionStatusDot"
+                                                             AutomationProperties.Name="Intune connection status"
                                                              Style="{StaticResource StatusDot}"
                                                              Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Intune:"
@@ -1825,7 +1866,7 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
-                                                <Button x:Name="NerdioBrowseDefinitionsButton"
+                                                <Button x:Name="BrowseNerdioDefinitionsButton"
                                                         Grid.Column="1"
                                                         Content="Browse"
                                                         Style="{StaticResource FluentSecondaryButton}"
@@ -1871,6 +1912,7 @@
                                                             VerticalAlignment="Center"
                                                             DockPanel.Dock="Right">
                                                     <Ellipse x:Name="NerdioImportAuthStatusDot"
+                                                             AutomationProperties.Name="Nerdio import authentication status"
                                                              Style="{StaticResource StatusDot}"
                                                              Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Nerdio Manager:"
@@ -1940,7 +1982,7 @@
                                                     </Style>
 
                                                     <DataTemplate x:Key="NerdioStatusCellTemplate">
-                                                        <TextBlock Text="{Binding MatchStatus}" Style="{StaticResource NerdioStatusCellStyle}"/>
+                                                        <TextBlock Text="{Binding MatchStatus}" Style="{StaticResource NerdioStatusCellStyle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding MatchStatus}"/>
                                                     </DataTemplate>
 
                                                     <Style x:Key="NerdioActionCellStyle"
@@ -2001,9 +2043,21 @@
                                                 </ListView.ItemContainerStyle>
                                                 <ListView.View>
                                                     <GridView>
-                                                        <GridViewColumn Header="App"               DisplayMemberBinding="{Binding DisplayName}"      Width="155"/>
+                                                        <GridViewColumn Header="App"               Width="155">
+                                                            <GridViewColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}"/>
+                                                                </DataTemplate>
+                                                            </GridViewColumn.CellTemplate>
+                                                        </GridViewColumn>
                                                         <GridViewColumn Header="Publisher"          DisplayMemberBinding="{Binding Publisher}"        Width="130"/>
-                                                        <GridViewColumn Header="Shell App"          DisplayMemberBinding="{Binding NerdioAppName}"    Width="165"/>
+                                                        <GridViewColumn Header="Shell App"          Width="165">
+                                                            <GridViewColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding NerdioAppName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding NerdioAppName}"/>
+                                                                </DataTemplate>
+                                                            </GridViewColumn.CellTemplate>
+                                                        </GridViewColumn>
                                                         <GridViewColumn Header="Versions"           DisplayMemberBinding="{Binding VersionCount}"     Width="75"/>
                                                         <GridViewColumn Header="Shell App Version"  DisplayMemberBinding="{Binding NerdioVersion}"    Width="115"/>
                                                         <GridViewColumn Header="Latest"             DisplayMemberBinding="{Binding EvergreenVersion}" Width="115"/>
@@ -2064,7 +2118,8 @@
                                                     Content="Import Shell App"
                                                     Style="{StaticResource FluentButton}"
                                                     Padding="12,6"
-                                                    IsEnabled="False"/>
+                                                    IsEnabled="False"
+                                                    ToolTip="This feature is planned for a future release."/>
                                         </StackPanel>
                                         <TextBlock x:Name="NerdioActionStatusLabel"
                                                    Text=""
@@ -2129,7 +2184,7 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
-                                                <Button x:Name="M365BrowseConfigButton"
+                                                <Button x:Name="BrowseM365ConfigButton"
                                                         Grid.Column="1"
                                                         Content="Browse"
                                                         Style="{StaticResource FluentSecondaryButton}"
@@ -2160,6 +2215,7 @@
                                                             VerticalAlignment="Center"
                                                             DockPanel.Dock="Right">
                                                     <Ellipse x:Name="M365IntuneAuthStatusDot"
+                                                             AutomationProperties.Name="Microsoft 365 Intune authentication status"
                                                              Style="{StaticResource StatusDot}"
                                                              Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Intune:"
@@ -2174,6 +2230,7 @@
                                                                FontSize="11"
                                                                Margin="0,0,16,0"/>
                                                     <Ellipse x:Name="M365NerdioAuthStatusDot"
+                                                             AutomationProperties.Name="Microsoft 365 Nerdio authentication status"
                                                              Style="{StaticResource StatusDot}"
                                                              Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Nerdio Manager:"
@@ -2463,6 +2520,7 @@
                                                         Orientation="Horizontal"
                                                         VerticalAlignment="Center">
                                                 <Ellipse x:Name="ImportAuthStatusDot"
+                                                         AutomationProperties.Name="Import authentication status"
                                                          Style="{StaticResource StatusDot}"
                                                          Fill="{DynamicResource ControlBorderBrush}"/>
                                                 <TextBlock x:Name="ImportAuthStatusLabel"
@@ -2548,6 +2606,7 @@
                                                                FontSize="12"
                                                                Margin="0,0,0,4"/>
                                                     <PasswordBox x:Name="NmeClientSecretBox"
+                                                                 AutomationProperties.Name="Nerdio Manager client secret"
                                                                  Style="{StaticResource FluentPasswordBox}"/>
                                                 </StackPanel>
                                             </Grid>
@@ -2602,6 +2661,7 @@
                                                                 Orientation="Horizontal"
                                                                 VerticalAlignment="Center">
                                                         <Ellipse x:Name="NerdioApiAuthStatusDot"
+                                                                 AutomationProperties.Name="Nerdio API authentication status"
                                                                  Style="{StaticResource StatusDot}"
                                                                  Fill="{DynamicResource ControlBorderBrush}"/>
                                                         <TextBlock x:Name="NerdioApiAuthStatusLabel"
@@ -2719,6 +2779,7 @@
                                                                 Orientation="Horizontal"
                                                                 VerticalAlignment="Center">
                                                         <Ellipse x:Name="NerdioAzureAuthStatusDot"
+                                                                 AutomationProperties.Name="Nerdio Azure authentication status"
                                                                  Style="{StaticResource StatusDot}"
                                                                  Fill="{DynamicResource ControlBorderBrush}"/>
                                                         <TextBlock x:Name="NerdioAzureAuthStatusLabel"
@@ -2866,6 +2927,7 @@
                                                 VerticalAlignment="Center"
                                                 DockPanel.Dock="Right">
                                         <Ellipse x:Name="InstallElevationStatusDot"
+                                                 AutomationProperties.Name="Install elevation status"
                                                  Style="{StaticResource StatusDot}"
                                                  Fill="{DynamicResource StatusWarningBrush}"/>
                                         <TextBlock x:Name="InstallElevationStatusLabel"
@@ -3126,7 +3188,8 @@
                                                        VerticalAlignment="Center"
                                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                                        ToolTip="Enable to display the Import tab in the navigation rail."/>
-                                            <ToggleButton x:Name="ShowImportTabCheckBox"
+                                            <ToggleButton x:Name="ShowImportTabToggle"
+                                                          AutomationProperties.Name="Show Import tab"
                                                           Grid.Column="1"
                                                           Style="{StaticResource FluentToggleSwitch}"
                                                           VerticalAlignment="Center"
@@ -3143,7 +3206,8 @@
                                                        VerticalAlignment="Center"
                                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                                        ToolTip="Enable to display the Install tab in the navigation rail."/>
-                                            <ToggleButton x:Name="ShowInstallTabCheckBox"
+                                            <ToggleButton x:Name="ShowInstallTabToggle"
+                                                          AutomationProperties.Name="Show Install tab"
                                                           Grid.Column="1"
                                                           Style="{StaticResource FluentToggleSwitch}"
                                                           VerticalAlignment="Center"
@@ -3161,6 +3225,7 @@
                                 <ComboBox x:Name="StartupViewComboBox"
                                           Grid.Row="4" Grid.Column="1"
                                           Style="{StaticResource FluentComboBox}"
+                                          SelectedIndex="0"
                                           Margin="0,0,0,16"
                                           Height="32">
                                     <ComboBoxItem Content="Apps"/>
@@ -3478,18 +3543,23 @@
                                 VerticalAlignment="Center"
                                 DockPanel.Dock="Right">
                         <Button x:Name="CopyLogButton"
+                                AutomationProperties.Name="Copy log to clipboard"
+                                ToolTip="Copy log to clipboard"
                                 Content="Copy log"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 Padding="10,6"
                                 FontSize="12"
                                 Margin="0,0,6,0"/>
                         <Button x:Name="SaveLogButton"
+                                AutomationProperties.Name="Save log to file"
+                                ToolTip="Save log to file"
                                 Content="Save log"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 Padding="10,6"
                                 FontSize="12"
                                 Margin="0,0,6,0"/>
                         <ToggleButton x:Name="LogToggleButton"
+                                      AutomationProperties.Name="Show progress log"
                                       Style="{StaticResource FluentToggleButton}"
                                       Content="Show progress log"
                                       IsChecked="False"
