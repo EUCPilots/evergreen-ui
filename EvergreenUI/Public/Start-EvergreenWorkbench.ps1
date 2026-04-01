@@ -6563,22 +6563,18 @@ function Start-EvergreenWorkbench {
 
             foreach ($selectedVersion in $selectedVersions) {
                 $queueItem = [PSCustomObject]@{
-                    AppName      = [string]$selectedApp.Name
-                    Version      = [string]$selectedVersion.Version
-                    Platform     = if ($selectedVersion.PSObject.Properties.Name -contains 'Platform') { [string]$selectedVersion.Platform } else { '' }
-                    Architecture = if ($selectedVersion.PSObject.Properties.Name -contains 'Architecture') { [string]$selectedVersion.Architecture } else { '' }
-                    Channel      = if ($selectedVersion.PSObject.Properties.Name -contains 'Channel') { [string]$selectedVersion.Channel } else { '' }
-                    Uri          = if ($selectedVersion.PSObject.Properties.Name -contains 'URI') { [string]$selectedVersion.URI } else { '' }
-                    Status       = 'Pending'
+                    AppName          = [string]$selectedApp.Name
+                    Version          = if ($selectedVersion.PSObject.Properties.Name -contains 'Version') { [string]$selectedVersion.Version } else { '' }
+                    Platform         = if ($selectedVersion.PSObject.Properties.Name -contains 'Platform') { [string]$selectedVersion.Platform } else { '' }
+                    Architecture     = if ($selectedVersion.PSObject.Properties.Name -contains 'Architecture') { [string]$selectedVersion.Architecture } else { '' }
+                    Channel          = if ($selectedVersion.PSObject.Properties.Name -contains 'Channel') { [string]$selectedVersion.Channel } else { '' }
+                    Uri              = if ($selectedVersion.PSObject.Properties.Name -contains 'URI') { [string]$selectedVersion.URI } else { '' }
+                    Status           = 'Pending'
+                    Path             = ''
+                    SourceProperties = $selectedVersion
                 }
 
-                $isDuplicate = $syncHash.DownloadQueue | Where-Object {
-                    $_.AppName -eq $queueItem.AppName -and
-                    $_.Version -eq $queueItem.Version -and
-                    $_.Architecture -eq $queueItem.Architecture -and
-                    $_.Channel -eq $queueItem.Channel -and
-                    $_.Platform -eq $queueItem.Platform
-                }
+                $isDuplicate = $syncHash.DownloadQueue | Where-Object { $_.Uri -eq $queueItem.Uri }
                 if ($isDuplicate) {
                     Write-UILog -SyncHash $syncHash -Message "Already queued: $($queueItem.AppName) $($queueItem.Version)" -Level Warning
                     continue

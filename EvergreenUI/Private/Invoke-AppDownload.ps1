@@ -22,7 +22,7 @@
 
 .PARAMETER QueueItem
     A single PSCustomObject from DownloadQueue matching the Download Queue Item
-    Schema (AppName, Version, Architecture, Channel, Platform, Uri, Status).
+    Schema (AppName, Version, Architecture, Channel, Platform, Uri, Status, Path).
 
 .NOTES
     Queue item Status values:
@@ -85,12 +85,16 @@ function Invoke-AppDownload {
         $outputPath = Join-Path -Path $baseOutput -ChildPath $QueueItem.AppName
         Write-UILog -SyncHash $SyncHash -Message "Get-EvergreenApp -Name '$($QueueItem.AppName)' | Save-EvergreenApp -Path '$outputPath'" -Level Cmd
 
-        $downloadObj = [PSCustomObject]@{
-            URI          = $QueueItem.Uri
-            Version      = $QueueItem.Version
-            Architecture = $QueueItem.Architecture
-            Channel      = $QueueItem.Channel
-            Platform     = $QueueItem.Platform
+        $downloadObj = if ($null -ne $QueueItem.PSObject.Properties['SourceProperties'] -and $null -ne $QueueItem.SourceProperties) {
+            $QueueItem.SourceProperties
+        } else {
+            [PSCustomObject]@{
+                URI          = $QueueItem.Uri
+                Version      = $QueueItem.Version
+                Architecture = $QueueItem.Architecture
+                Channel      = $QueueItem.Channel
+                Platform     = $QueueItem.Platform
+            }
         }
 
         $saved = $downloadObj | Save-EvergreenApp -Path $outputPath -ErrorAction Stop
@@ -98,6 +102,7 @@ function Invoke-AppDownload {
         $savedPath = if ($saved -and $saved.FullName) { $saved.FullName } else { $outputPath }
         Write-UILog -SyncHash $SyncHash -Message "Saved: $savedPath" -Level Info
 
+        $QueueItem.Path = $savedPath
         & $setStatus 'Done'
     }
     catch {

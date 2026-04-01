@@ -950,7 +950,7 @@
                                 <Grid>
                                         <TextBox x:Name="AppSearchBox"
                                                  Style="{StaticResource FluentTextBox}"/>
-                                        <TextBlock Text="Search applications..."
+                                        <TextBlock Text="Search..."
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    IsHitTestVisible="False"
                                                    Margin="10,0,0,0"
@@ -1314,10 +1314,17 @@
                                     <GridViewColumn Header="App"          DisplayMemberBinding="{Binding AppName}"       Width="180"/>
                                     <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="130"/>
                                     <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
-                                    <GridViewColumn Header="URI"          Width="530">
+                                    <GridViewColumn Header="URI"          Width="390">
                                         <GridViewColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Uri}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Uri}"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Path"         Width="280">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}"/>
                                             </DataTemplate>
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>
