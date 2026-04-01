@@ -20,7 +20,8 @@
       "PowerShell(git stash:*)",
       "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse\")",
       "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI -Recurse\")",
-      "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path ''C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui\\\\EvergreenUI'' -Recurse\")"
+      "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path ''C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui\\\\EvergreenUI'' -Recurse\")",
+      "Bash(pwsh -Command \"Invoke-Pester -Path ''''.\\\\tests\\\\EvergreenUI.tests.ps1'''' -Output Detailed\")"
     ]
   },
   "defaultShell": "powershell"
