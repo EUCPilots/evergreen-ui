@@ -150,6 +150,7 @@ function Invoke-IntunePackageBuild {
 
     # Download the latest installer
     $artifact = $latestResult.ResolvedArtifact
+    $downloadResults = @()
     if (-not [string]::IsNullOrWhiteSpace($latestResult.URI)) {
         Write-UILog -Message "Downloading installer to '$sourcePath'..." -Level Info -SyncHash $SyncHash
         Write-UILog -Message "Save-EvergreenApp -LiteralPath '$sourcePath'" -Level Cmd -SyncHash $SyncHash
@@ -168,10 +169,40 @@ function Invoke-IntunePackageBuild {
         Write-UILog -Message 'Artifact has no URI; skipping download (expected pre-staged source).' -Level Warning -SyncHash $SyncHash
     }
 
-    # Determine setup file and whether PSADT is involved
-    $setupFile = [string]$definitionObject.PackageInformation.SetupFile
+    # Copy App.json to the staging source path and update version + SetupFile so the
+    # packaged .intunewin contains current metadata.
+    if (-not [string]::IsNullOrWhiteSpace($definitionPath) -and (Test-Path -LiteralPath $definitionPath -PathType Leaf)) {
+        $appJsonTarget = Join-Path -Path $sourcePath -ChildPath 'App.json'
+        try {
+            $appJson = Get-Content -LiteralPath $definitionPath -Raw -ErrorAction Stop |
+                ConvertFrom-Json -ErrorAction Stop
+            $appJson.PackageInformation.Version = [string]$latestResult.Version
+            if ($downloadResults.Count -gt 0) {
+                $installerName = [System.IO.Path]::GetFileName($downloadResults[0].FullName)
+                if (-not [string]::IsNullOrWhiteSpace($installerName)) {
+                    $appJson.PackageInformation.SetupFile = $installerName
+                }
+            }
+            $appJson | ConvertTo-Json -Depth 10 |
+                Set-Content -LiteralPath $appJsonTarget -Encoding UTF8 -ErrorAction Stop
+            Write-UILog -Message "Copied App.json to staging path and updated version to '$([string]$latestResult.Version)'." -Level Info -SyncHash $SyncHash
+        }
+        catch {
+            # best-effort - failure here must not abort packaging
+            Write-UILog -Message "Failed to copy/update App.json to staging path: $($_.Exception.Message)" -Level Warn -SyncHash $SyncHash
+        }
+    }
+
+    # Determine setup file and whether PSADT is involved.
+    # Prefer the actual downloaded filename; fall back to App.json then SetupType default.
+    $setupFile = ''
+    if ($downloadResults.Count -gt 0) {
+        $setupFile = [System.IO.Path]::GetFileName($downloadResults[0].FullName)
+    }
     if ([string]::IsNullOrWhiteSpace($setupFile)) {
-        # Fall back to SetupType default file names
+        $setupFile = [string]$definitionObject.PackageInformation.SetupFile
+    }
+    if ([string]::IsNullOrWhiteSpace($setupFile)) {
         $setupType = [string]$definitionObject.PackageInformation.SetupType
         $setupFile = switch ($setupType.ToUpper()) {
             'MSI'  { 'Setup.msi' }
