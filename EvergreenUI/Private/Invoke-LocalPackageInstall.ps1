@@ -114,6 +114,7 @@ function Invoke-LocalPackageInstall {
     # Save-EvergreenApp -Path creates a subdirectory tree; capture the result
     # to resolve where the installer actually landed.
     $downloadDir = $appWorkingDir
+    $downloadResults = @()
     if (-not [string]::IsNullOrWhiteSpace([string]$LatestVersionResult.URI)) {
         try {
             Write-UILog -SyncHash $SyncHash -Message "Install: downloading latest installer to '$appWorkingDir'." -Level Info
@@ -158,6 +159,28 @@ function Invoke-LocalPackageInstall {
         }
         catch {
             return (& $fail "Failed to copy source content: $($_.Exception.Message)")
+        }
+    }
+
+    # Update version fields in the copied Install.json so Install.ps1 finds the
+    # correct installer filename and records the correct version.
+    $installJsonTarget = Join-Path -Path $downloadDir -ChildPath 'Install.json'
+    if (Test-Path -LiteralPath $installJsonTarget -PathType Leaf) {
+        try {
+            $installJson = Get-Content -LiteralPath $installJsonTarget -Raw -ErrorAction Stop |
+                ConvertFrom-Json -ErrorAction Stop
+            $installJson.PackageInformation.Version = [string]$LatestVersionResult.Version
+            if ($downloadResults.Count -gt 0) {
+                $installerName = [System.IO.Path]::GetFileName($downloadResults[0].FullName)
+                $installJson.PackageInformation.SetupFile = $installerName
+            }
+            $installJson | ConvertTo-Json -Depth 10 |
+                Set-Content -LiteralPath $installJsonTarget -Encoding UTF8 -ErrorAction Stop
+            Write-UILog -SyncHash $SyncHash -Message "Install: updated Install.json version to '$([string]$LatestVersionResult.Version)'." -Level Info
+        }
+        catch {
+            # best-effort - failure here must not abort the install
+            Write-UILog -SyncHash $SyncHash -Message "Install: failed to update Install.json: $($_.Exception.Message)" -Level Warn
         }
     }
 
