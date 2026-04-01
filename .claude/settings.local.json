@@ -21,7 +21,11 @@
       "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path ./EvergreenUI -Recurse\")",
       "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI -Recurse\")",
       "Bash(pwsh -Command \"Invoke-ScriptAnalyzer -Path ''C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui\\\\EvergreenUI'' -Recurse\")",
-      "Bash(pwsh -Command \"Invoke-Pester -Path ''''.\\\\tests\\\\EvergreenUI.tests.ps1'''' -Output Detailed\")"
+      "Bash(pwsh -Command \"Invoke-Pester -Path ''''.\\\\tests\\\\EvergreenUI.tests.ps1'''' -Output Detailed\")",
+      "Bash(powershell -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI -Recurse | Format-Table -AutoSize\")",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui''; Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI -Recurse | Format-Table -AutoSize\")",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui''; $results = Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI -Recurse; $results | Where-Object { $_.ScriptName -eq ''Start-EvergreenWorkbench.ps1'' } | Select-Object RuleName, Severity, Line, Message | Format-Table -AutoSize\")",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui''; Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Detailed\")"
     ]
   },
   "defaultShell": "powershell"
