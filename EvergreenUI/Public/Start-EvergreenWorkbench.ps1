@@ -165,6 +165,18 @@ function Start-EvergreenWorkbench {
             InstallRows                                     = @()
             InstallSortProperty                             = ''
             InstallSortDirection                            = 'Ascending'
+            VersionsSortProperty                            = ''
+            VersionsSortDirection                           = 'Ascending'
+            DownloadQueueSortProperty                       = ''
+            DownloadQueueSortDirection                      = 'Ascending'
+            LibraryContentsSortProperty                     = ''
+            LibraryContentsSortDirection                    = 'Ascending'
+            LibraryDetailsSortProperty                      = ''
+            LibraryDetailsSortDirection                     = 'Ascending'
+            NerdioSortProperty                              = ''
+            NerdioSortDirection                             = 'Ascending'
+            M365SortProperty                                = ''
+            M365SortDirection                               = 'Ascending'
             PendingNerdioShellAppsTimer                     = $null
             PendingNerdioShellAppsPS                        = $null
             PendingNerdioShellAppsRunspace                  = $null
@@ -623,6 +635,174 @@ function Start-EvergreenWorkbench {
         }
 
         $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($installPackagesListView.ItemsSource)
+        if ($null -eq $view) {
+            return
+        }
+
+        $view.SortDescriptions.Clear()
+        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
+        $view.Refresh()
+    }
+
+    $applyVersionsListSort = {
+        if ($null -eq $syncHash.VersionsListView -or $null -eq $syncHash.VersionsListView.ItemsSource) {
+            return
+        }
+
+        $sortProperty = [string]$syncHash.VersionsSortProperty
+        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+            return
+        }
+
+        $sortDirectionText = [string]$syncHash.VersionsSortDirection
+        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
+            [System.ComponentModel.ListSortDirection]::Descending
+        }
+        else {
+            [System.ComponentModel.ListSortDirection]::Ascending
+        }
+
+        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($syncHash.VersionsListView.ItemsSource)
+        if ($null -eq $view) {
+            return
+        }
+
+        $view.SortDescriptions.Clear()
+        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
+        $view.Refresh()
+    }
+
+    $applyDownloadQueueSort = {
+        if ($null -eq $syncHash.DownloadQueueListView -or $null -eq $syncHash.DownloadQueueListView.ItemsSource) {
+            return
+        }
+
+        $sortProperty = [string]$syncHash.DownloadQueueSortProperty
+        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+            return
+        }
+
+        $sortDirectionText = [string]$syncHash.DownloadQueueSortDirection
+        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
+            [System.ComponentModel.ListSortDirection]::Descending
+        }
+        else {
+            [System.ComponentModel.ListSortDirection]::Ascending
+        }
+
+        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($syncHash.DownloadQueueListView.ItemsSource)
+        if ($null -eq $view) {
+            return
+        }
+
+        $view.SortDescriptions.Clear()
+        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
+        $view.Refresh()
+    }
+
+    $applyLibraryContentsSort = {
+        if ($null -eq $syncHash.LibraryContentsListView -or $null -eq $syncHash.LibraryContentsListView.ItemsSource) {
+            return
+        }
+
+        $sortProperty = [string]$syncHash.LibraryContentsSortProperty
+        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+            return
+        }
+
+        $sortDirectionText = [string]$syncHash.LibraryContentsSortDirection
+        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
+            [System.ComponentModel.ListSortDirection]::Descending
+        }
+        else {
+            [System.ComponentModel.ListSortDirection]::Ascending
+        }
+
+        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($syncHash.LibraryContentsListView.ItemsSource)
+        if ($null -eq $view) {
+            return
+        }
+
+        $view.SortDescriptions.Clear()
+        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
+        $view.Refresh()
+    }
+
+    $applyLibraryDetailsSort = {
+        if ($null -eq $syncHash.LibraryDetailsListView -or $null -eq $syncHash.LibraryDetailsListView.ItemsSource) {
+            return
+        }
+
+        $sortProperty = [string]$syncHash.LibraryDetailsSortProperty
+        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+            return
+        }
+
+        $sortDirectionText = [string]$syncHash.LibraryDetailsSortDirection
+        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
+            [System.ComponentModel.ListSortDirection]::Descending
+        }
+        else {
+            [System.ComponentModel.ListSortDirection]::Ascending
+        }
+
+        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($syncHash.LibraryDetailsListView.ItemsSource)
+        if ($null -eq $view) {
+            return
+        }
+
+        $view.SortDescriptions.Clear()
+        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
+        $view.Refresh()
+    }
+
+    $applyNerdioSort = {
+        if ($null -eq $nerdioDefinitionsListView -or $null -eq $nerdioDefinitionsListView.ItemsSource) {
+            return
+        }
+
+        $sortProperty = [string]$syncHash.NerdioSortProperty
+        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+            return
+        }
+
+        $sortDirectionText = [string]$syncHash.NerdioSortDirection
+        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
+            [System.ComponentModel.ListSortDirection]::Descending
+        }
+        else {
+            [System.ComponentModel.ListSortDirection]::Ascending
+        }
+
+        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($nerdioDefinitionsListView.ItemsSource)
+        if ($null -eq $view) {
+            return
+        }
+
+        $view.SortDescriptions.Clear()
+        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
+        $view.Refresh()
+    }
+
+    $applyM365Sort = {
+        if ($null -eq $m365ConfigsListView -or $null -eq $m365ConfigsListView.ItemsSource) {
+            return
+        }
+
+        $sortProperty = [string]$syncHash.M365SortProperty
+        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+            return
+        }
+
+        $sortDirectionText = [string]$syncHash.M365SortDirection
+        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
+            [System.ComponentModel.ListSortDirection]::Descending
+        }
+        else {
+            [System.ComponentModel.ListSortDirection]::Ascending
+        }
+
+        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($m365ConfigsListView.ItemsSource)
         if ($null -eq $view) {
             return
         }
@@ -6094,6 +6274,42 @@ function Start-EvergreenWorkbench {
             & $updateNerdioRowActionButtons
         })
 
+    $nerdioDefinitionsListView.AddHandler(
+        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+        [System.Windows.RoutedEventHandler] {
+            param($eventSender, $routedEventArgs)
+
+            $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
+            if ($null -eq $header -or $null -eq $header.Column) {
+                return
+            }
+
+            if ($header.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) {
+                return
+            }
+
+            $sortProperty = ''
+            $binding = $header.Column.DisplayMemberBinding -as [System.Windows.Data.Binding]
+            if ($null -ne $binding -and $null -ne $binding.Path) {
+                $sortProperty = [string]$binding.Path.Path
+            }
+
+            if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+                return
+            }
+
+            $newDirection = 'Ascending'
+            if ([string]$syncHash.NerdioSortProperty -eq $sortProperty -and [string]$syncHash.NerdioSortDirection -eq 'Ascending') {
+                $newDirection = 'Descending'
+            }
+
+            $syncHash.NerdioSortProperty = $sortProperty
+            $syncHash.NerdioSortDirection = $newDirection
+
+            & $applyNerdioSort
+        }
+    )
+
     $nerdioAddVersionButton.add_Click({
             if (-not (& $requireImportAuth -ActionName 'Add Shell App version' -Provider 'Nerdio')) { return }
             & $startNerdioAddVersion
@@ -6153,6 +6369,42 @@ function Start-EvergreenWorkbench {
     $m365ConfigsListView.add_SelectionChanged({
             & $updateM365ActionButtons
         })
+
+    $m365ConfigsListView.AddHandler(
+        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+        [System.Windows.RoutedEventHandler] {
+            param($eventSender, $routedEventArgs)
+
+            $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
+            if ($null -eq $header -or $null -eq $header.Column) {
+                return
+            }
+
+            if ($header.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) {
+                return
+            }
+
+            $sortProperty = ''
+            $binding = $header.Column.DisplayMemberBinding -as [System.Windows.Data.Binding]
+            if ($null -ne $binding -and $null -ne $binding.Path) {
+                $sortProperty = [string]$binding.Path.Path
+            }
+
+            if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+                return
+            }
+
+            $newDirection = 'Ascending'
+            if ([string]$syncHash.M365SortProperty -eq $sortProperty -and [string]$syncHash.M365SortDirection -eq 'Ascending') {
+                $newDirection = 'Descending'
+            }
+
+            $syncHash.M365SortProperty = $sortProperty
+            $syncHash.M365SortDirection = $newDirection
+
+            & $applyM365Sort
+        }
+    )
 
     $m365ImportIntuneButton.add_Click({
             if (-not (& $requireImportAuth -ActionName 'M365 Intune import')) { return }
@@ -6422,6 +6674,42 @@ function Start-EvergreenWorkbench {
             }
         })
 
+    $syncHash.VersionsListView.AddHandler(
+        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+        [System.Windows.RoutedEventHandler] {
+            param($eventSender, $routedEventArgs)
+
+            $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
+            if ($null -eq $header -or $null -eq $header.Column) {
+                return
+            }
+
+            if ($header.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) {
+                return
+            }
+
+            $sortProperty = ''
+            $binding = $header.Column.DisplayMemberBinding -as [System.Windows.Data.Binding]
+            if ($null -ne $binding -and $null -ne $binding.Path) {
+                $sortProperty = [string]$binding.Path.Path
+            }
+
+            if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+                return
+            }
+
+            $newDirection = 'Ascending'
+            if ([string]$syncHash.VersionsSortProperty -eq $sortProperty -and [string]$syncHash.VersionsSortDirection -eq 'Ascending') {
+                $newDirection = 'Descending'
+            }
+
+            $syncHash.VersionsSortProperty = $sortProperty
+            $syncHash.VersionsSortDirection = $newDirection
+
+            & $applyVersionsListSort
+        }
+    )
+
     $clearFiltersButton.add_Click({
             if ($null -eq $syncHash.CurrentAppResults -or $syncHash.CurrentAppResults.Count -eq 0) {
                 return
@@ -6630,6 +6918,42 @@ function Start-EvergreenWorkbench {
             & $startQueueDownload
         })
 
+    $syncHash.DownloadQueueListView.AddHandler(
+        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+        [System.Windows.RoutedEventHandler] {
+            param($eventSender, $routedEventArgs)
+
+            $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
+            if ($null -eq $header -or $null -eq $header.Column) {
+                return
+            }
+
+            if ($header.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) {
+                return
+            }
+
+            $sortProperty = ''
+            $binding = $header.Column.DisplayMemberBinding -as [System.Windows.Data.Binding]
+            if ($null -ne $binding -and $null -ne $binding.Path) {
+                $sortProperty = [string]$binding.Path.Path
+            }
+
+            if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+                return
+            }
+
+            $newDirection = 'Ascending'
+            if ([string]$syncHash.DownloadQueueSortProperty -eq $sortProperty -and [string]$syncHash.DownloadQueueSortDirection -eq 'Ascending') {
+                $newDirection = 'Descending'
+            }
+
+            $syncHash.DownloadQueueSortProperty = $sortProperty
+            $syncHash.DownloadQueueSortDirection = $newDirection
+
+            & $applyDownloadQueueSort
+        }
+    )
+
     $libraryRefreshButton.add_Click({
             & $refreshLibraryView
         })
@@ -6713,6 +7037,78 @@ function Start-EvergreenWorkbench {
             }
             & $loadLibraryAppDetails -SelectedLibraryItem $selected
         })
+
+    $syncHash.LibraryContentsListView.AddHandler(
+        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+        [System.Windows.RoutedEventHandler] {
+            param($eventSender, $routedEventArgs)
+
+            $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
+            if ($null -eq $header -or $null -eq $header.Column) {
+                return
+            }
+
+            if ($header.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) {
+                return
+            }
+
+            $sortProperty = ''
+            $binding = $header.Column.DisplayMemberBinding -as [System.Windows.Data.Binding]
+            if ($null -ne $binding -and $null -ne $binding.Path) {
+                $sortProperty = [string]$binding.Path.Path
+            }
+
+            if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+                return
+            }
+
+            $newDirection = 'Ascending'
+            if ([string]$syncHash.LibraryContentsSortProperty -eq $sortProperty -and [string]$syncHash.LibraryContentsSortDirection -eq 'Ascending') {
+                $newDirection = 'Descending'
+            }
+
+            $syncHash.LibraryContentsSortProperty = $sortProperty
+            $syncHash.LibraryContentsSortDirection = $newDirection
+
+            & $applyLibraryContentsSort
+        }
+    )
+
+    $syncHash.LibraryDetailsListView.AddHandler(
+        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+        [System.Windows.RoutedEventHandler] {
+            param($eventSender, $routedEventArgs)
+
+            $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
+            if ($null -eq $header -or $null -eq $header.Column) {
+                return
+            }
+
+            if ($header.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) {
+                return
+            }
+
+            $sortProperty = ''
+            $binding = $header.Column.DisplayMemberBinding -as [System.Windows.Data.Binding]
+            if ($null -ne $binding -and $null -ne $binding.Path) {
+                $sortProperty = [string]$binding.Path.Path
+            }
+
+            if ([string]::IsNullOrWhiteSpace($sortProperty)) {
+                return
+            }
+
+            $newDirection = 'Ascending'
+            if ([string]$syncHash.LibraryDetailsSortProperty -eq $sortProperty -and [string]$syncHash.LibraryDetailsSortDirection -eq 'Ascending') {
+                $newDirection = 'Descending'
+            }
+
+            $syncHash.LibraryDetailsSortProperty = $sortProperty
+            $syncHash.LibraryDetailsSortDirection = $newDirection
+
+            & $applyLibraryDetailsSort
+        }
+    )
 
     $libraryPathViewBox.add_LostFocus({
             $normalised = & $normalizeDirectoryPath -PathValue $libraryPathViewBox.Text
