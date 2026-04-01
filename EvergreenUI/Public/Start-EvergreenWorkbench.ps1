@@ -324,7 +324,6 @@ function Start-EvergreenWorkbench {
     $evergreenAppsPathBox = $window.FindName('EvergreenAppsPathBox')
     $showImportTabToggle = $window.FindName('ShowImportTabToggle')
     $showInstallTabToggle = $window.FindName('ShowInstallTabToggle')
-    $startupViewComboBox = $window.FindName('StartupViewComboBox')
     $browseOutputButton = $window.FindName('BrowseOutputButton')
     $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
     $clearCacheButton = $window.FindName('ClearCacheButton')
@@ -2760,26 +2759,9 @@ function Start-EvergreenWorkbench {
             }
         }
 
-        if ($null -ne $startupViewComboBox) {
-            $startupItems = @{}
-            foreach ($candidate in @($startupViewComboBox.Items)) {
-                if ($candidate -is [System.Windows.Controls.ComboBoxItem]) {
-                    $startupItems[[string]$candidate.Content] = $candidate
-                }
-            }
-
-            if ($startupItems.ContainsKey('Import')) {
-                $startupItems['Import'].IsEnabled = $ShowImport
-            }
-            if ($startupItems.ContainsKey('Install')) {
-                $startupItems['Install'].IsEnabled = $ShowInstall
-            }
-
-            $startupView = [string]$syncHash.Config.StartupView
-            if (($startupView -eq 'Import' -and -not $ShowImport) -or ($startupView -eq 'Install' -and -not $ShowInstall)) {
-                $syncHash.Config.StartupView = 'Apps'
-                $startupViewComboBox.SelectedIndex = 0
-            }
+        $startupView = [string]$syncHash.Config.StartupView
+        if (($startupView -eq 'Import' -and -not $ShowImport) -or ($startupView -eq 'Install' -and -not $ShowInstall)) {
+            $syncHash.Config.StartupView = 'Apps'
         }
     }
 
@@ -6759,24 +6741,6 @@ function Start-EvergreenWorkbench {
             Set-UIConfig -Config $syncHash.Config
         })
 
-    $startupViewComboBox.add_SelectionChanged({
-            $item = $startupViewComboBox.SelectedItem
-            if ($null -eq $item) { return }
-
-            $selected = [string]$item.Content
-            if ([string]::IsNullOrWhiteSpace($selected)) {
-                $selected = 'Apps'
-            }
-
-            if (($selected -eq 'Import' -and -not [bool]$syncHash.Config.ShowImportTab) -or ($selected -eq 'Install' -and -not [bool]$syncHash.Config.ShowInstallTab)) {
-                $selected = 'Apps'
-                $startupViewComboBox.SelectedIndex = 0
-            }
-
-            $syncHash.Config.StartupView = $selected
-            Set-UIConfig -Config $syncHash.Config
-        })
-
     # Navigation: Settings panel - populate form on activation
     $navSettings.add_Checked({
             $outputPathBox.Text = $syncHash.Config.OutputPath
@@ -6798,17 +6762,6 @@ function Start-EvergreenWorkbench {
                 $showInstallTabToggle.IsChecked = [bool]$syncHash.Config.ShowInstallTab
             }
             & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall ([bool]$syncHash.Config.ShowInstallTab)
-
-            switch ([string]$syncHash.Config.StartupView) {
-                'Download' { $startupViewComboBox.SelectedIndex = 1 }
-                'Library' { $startupViewComboBox.SelectedIndex = 2 }
-                'Import' { $startupViewComboBox.SelectedIndex = 3 }
-                'Install' { $startupViewComboBox.SelectedIndex = 4 }
-                'Settings' { $startupViewComboBox.SelectedIndex = 5 }
-                'Update' { $startupViewComboBox.SelectedIndex = 6 }
-                'About' { $startupViewComboBox.SelectedIndex = 7 }
-                default { $startupViewComboBox.SelectedIndex = 0 }
-            }
         })
 
     if ($null -ne $showImportTabToggle) {

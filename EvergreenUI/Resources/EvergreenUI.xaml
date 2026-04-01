@@ -3101,7 +3101,6 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
@@ -3218,32 +3217,11 @@
                                 </Grid>
 
                                 <TextBlock Grid.Row="4" Grid.Column="0"
-                                           Text="Startup view"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="12"
-                                           Margin="0,7,10,16"/>
-                                <ComboBox x:Name="StartupViewComboBox"
-                                          Grid.Row="4" Grid.Column="1"
-                                          Style="{StaticResource FluentComboBox}"
-                                          SelectedIndex="0"
-                                          Margin="0,0,0,16"
-                                          Height="32">
-                                    <ComboBoxItem Content="Apps"/>
-                                    <ComboBoxItem Content="Download"/>
-                                    <ComboBoxItem Content="Library"/>
-                                    <ComboBoxItem Content="Import"/>
-                                    <ComboBoxItem Content="Install"/>
-                                    <ComboBoxItem Content="Settings"/>
-                                    <ComboBoxItem Content="Update"/>
-                                    <ComboBoxItem Content="About"/>
-                                </ComboBox>
-
-                                <TextBlock Grid.Row="5" Grid.Column="0"
                                            Text="App version cache"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,2,10,0"/>
-                                <StackPanel Grid.Row="5" Grid.Column="1">
+                                <StackPanel Grid.Row="4" Grid.Column="1">
                                     <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fetch via Evergreen on next selection."
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="12"
