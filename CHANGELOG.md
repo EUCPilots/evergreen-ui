@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.16] - 2026-04-02
+
+### Added
+
+- Apps tab / Download Queue: **Path** column added to the download queue table; the column is empty while an item is queued and is populated with the saved file path once the download completes
+- Column sorting added to the Versions, Download Queue, Library Contents, Library Details, Nerdio Manager, and Microsoft 365 Apps list views; clicking a column header sorts ascending; clicking again toggles to descending
+
+### Changed
+
+- Install tab: `Invoke-LocalPackageInstall` now updates the `Install.json` copied to the staging directory before running `Install.ps1`; `PackageInformation.Version` is set to the resolved latest version and `PackageInformation.SetupFile` is updated to the actual downloaded installer filename; the update is best-effort and logs a warning on failure without aborting the install
+- Import tab / Microsoft Intune Win32 Apps: `Invoke-IntunePackageBuild` now copies `App.json` to the staging source path and updates `PackageInformation.Version` and `PackageInformation.SetupFile` with the resolved version and actual downloaded filename before packaging; `$setupFile` resolution prefers the actual downloaded filename over the value stored in `App.json`, then falls back to the SetupType default
+- Apps tab / Download Queue: queue items now store the original Evergreen result object in a `SourceProperties` field so all app-specific properties (Sku, Type, Ring, etc.) are passed to `Save-EvergreenApp` intact; duplicate detection changed from a five-property comparison to URI-only matching
+- Settings: `StartupView` ComboBox removed from the Settings page; the active tab is now automatically saved on navigation and restored on launch; defensive validation still coerces a stored disabled-tab value to `Apps`
+- XAML and script: several control names renamed for consistency (`AppsComboBox` → `AppsListBox`, `ShowImportTabCheckBox` → `ShowImportTabToggle`, `ShowInstallTabCheckBox` → `ShowInstallTabToggle`, and various Browse button names); `AutomationProperties.Name` and `ToolTip` attributes added to key controls for accessibility; `TextTrimming` and `ToolTip` display templates added to URI and path columns to handle long values
+
+### Fixed
+
+- Apps tab / Download Queue: apps with the same version and architecture but differing properties (e.g. Adobe Acrobat DC Sku variants) were incorrectly deduplicated and silently dropped from the queue; URI-only duplicate detection corrects this
+- Apps tab / Download Queue: apps with non-standard Evergreen result properties (Sku, Type, Ring, etc.) were downloaded without those properties being forwarded to `Save-EvergreenApp`, causing incorrect download path organisation; `SourceProperties` pass-through corrects this
+- Install tab: `Install.ps1` could fail to locate the installer for EXE packages whose filename embeds the version (e.g. `audacity-win-3.7.7-64bit.exe`) when a newer version had been downloaded; updating `PackageInformation.SetupFile` in the staged `Install.json` resolves the mismatch
+- Import tab / Microsoft Intune Win32 Apps: `New-IntuneWin32AppPackage` could reference a non-existent setup file for EXE packages with version-embedded filenames when `$setupFile` was read from a stale `App.json`; preferring the actual downloaded filename corrects this
+
 ## [1.0.15] - 2026-04-01
 
 ### Changed
