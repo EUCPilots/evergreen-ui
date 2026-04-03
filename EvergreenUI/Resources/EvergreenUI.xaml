@@ -3489,6 +3489,10 @@
                                 Style="{StaticResource FluentButton}"
                                 Padding="12,6"
                                 Margin="0,0,8,0"/>
+                        <Button x:Name="ClearUpdateOutputButton"
+                                Content="Clear output"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Padding="12,6"/>
                     </StackPanel>
 
                     <Border Grid.Row="2"
