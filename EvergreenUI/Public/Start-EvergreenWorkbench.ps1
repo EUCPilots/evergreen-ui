@@ -312,7 +312,6 @@ function Start-EvergreenWorkbench {
     $syncHash.UpdateOutputTextBox = $window.FindName('UpdateOutputTextBox')
     $syncHash.UpdateOutputScrollViewer = $window.FindName('UpdateOutputScrollViewer')
     $syncHash.UpdateStatusLabel = $window.FindName('UpdateStatusLabel')
-    $clearUpdateOutputButton = $window.FindName('ClearUpdateOutputButton')
 
     $syncHash.DownloadQueueListView = $window.FindName('DownloadQueueListView')
     $syncHash.QueueCountLabel = $window.FindName('QueueCountLabel')
@@ -7015,14 +7014,6 @@ function Start-EvergreenWorkbench {
     if ($null -ne $syncHash.RunUpdateEvergreenButton) {
         $syncHash.RunUpdateEvergreenButton.add_Click({
                 & $startUpdateEvergreen
-            })
-    }
-
-    if ($null -ne $clearUpdateOutputButton) {
-        $clearUpdateOutputButton.add_Click({
-                if ($null -ne $syncHash.UpdateOutputTextBox) {
-                    $syncHash.UpdateOutputTextBox.Clear()
-                }
             })
     }
 
