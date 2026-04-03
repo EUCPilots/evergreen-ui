@@ -167,6 +167,7 @@ function Start-EvergreenWorkbench {
             InstallSortDirection                            = 'Ascending'
             VersionsSortProperty                            = ''
             VersionsSortDirection                           = 'Ascending'
+            VersionsColSavedWidths                          = @{}
             DownloadQueueSortProperty                       = ''
             DownloadQueueSortDirection                      = 'Ascending'
             LibraryContentsSortProperty                     = ''
@@ -2687,6 +2688,8 @@ function Start-EvergreenWorkbench {
             [void]$gv.Columns.Add($col)
         }
         $syncHash.VersionsListView.View = $gv
+        # Clear saved column widths so stale hide/show state from a previous app does not carry over.
+        $syncHash.VersionsColSavedWidths = @{}
     }
 
     # Returns the cache file path for a given app name, creating the cache directory if needed.
@@ -6710,6 +6713,81 @@ function Start-EvergreenWorkbench {
             & $applyVersionsListSort
         }
     )
+
+    # Right-click on a column header shows a context menu to show or hide that column.
+    # Version and URI are structural columns and cannot be hidden.
+    $syncHash.VersionsListView.add_PreviewMouseRightButtonDown({
+            param($eventSender, $routedEventArgs)
+
+            # Walk the visual tree from the click source to find a GridViewColumnHeader.
+            $element = $routedEventArgs.OriginalSource -as [System.Windows.DependencyObject]
+            $colHeader = $null
+            while ($null -ne $element) {
+                if ($element -is [System.Windows.Controls.GridViewColumnHeader]) {
+                    $colHeader = $element
+                    break
+                }
+                $element = [System.Windows.Media.VisualTreeHelper]::GetParent($element)
+            }
+
+            # Ignore clicks on the padding filler header at the far right.
+            if ($null -eq $colHeader -or $null -eq $colHeader.Column) { return }
+            if ($colHeader.Role -eq [System.Windows.Controls.GridViewColumnHeaderRole]::Padding) { return }
+
+            $gv = $syncHash.VersionsListView.View -as [System.Windows.Controls.GridView]
+            if ($null -eq $gv -or $gv.Columns.Count -eq 0) { return }
+
+            $nonToggleable = [System.Collections.Generic.HashSet[string]]::new(
+                [string[]]@('Version', 'URI'),
+                [System.StringComparer]::OrdinalIgnoreCase
+            )
+
+            $menu = [System.Windows.Controls.ContextMenu]::new()
+            $hasToggleableColumns = $false
+            foreach ($col in $gv.Columns) {
+                $propName = $col.Header -as [string]
+                if ([string]::IsNullOrEmpty($propName)) { continue }
+                if ($nonToggleable.Contains($propName)) { continue }
+
+                $item = [System.Windows.Controls.MenuItem]::new()
+                $item.Header = $propName
+                $item.IsCheckable = $true
+                $item.IsChecked = ($col.Width -gt 0)
+                # Store the column reference in Tag so the click handler can retrieve it
+                # without relying on loop-variable closure behaviour.
+                $item.Tag = $col
+                $item.add_Click({
+                        param($clickSender, $clickArgs)
+                        $theCol = $clickSender.Tag -as [System.Windows.Controls.GridViewColumn]
+                        if ($null -eq $theCol) { return }
+                        $colName = [string]$theCol.Header
+                        if ($theCol.Width -gt 0) {
+                            # Visible: save current width then collapse to zero.
+                            $syncHash.VersionsColSavedWidths[$colName] = $theCol.Width
+                            $theCol.Width = 0
+                        }
+                        else {
+                            # Hidden: restore the saved width.
+                            $restoreWidth = if ($syncHash.VersionsColSavedWidths.ContainsKey($colName)) {
+                                $syncHash.VersionsColSavedWidths[$colName]
+                            }
+                            else {
+                                100
+                            }
+                            $theCol.Width = $restoreWidth
+                        }
+                    })
+
+                [void]$menu.Items.Add($item)
+                $hasToggleableColumns = $true
+            }
+
+            if (-not $hasToggleableColumns) { return }
+
+            $menu.PlacementTarget = $colHeader
+            $menu.IsOpen = $true
+            $routedEventArgs.Handled = $true
+        })
 
     $clearFiltersButton.add_Click({
             if ($null -eq $syncHash.CurrentAppResults -or $syncHash.CurrentAppResults.Count -eq 0) {
