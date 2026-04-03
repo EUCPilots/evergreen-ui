@@ -7370,37 +7370,6 @@ function Start-EvergreenWorkbench {
             }
         })
 
-        # Settings: Open logs folder
-        $openLogsFolderButton = $window.FindName('OpenLogsFolderButton')
-        $clearLogsButton = $window.FindName('ClearLogsButton')
-    
-        $openLogsFolderButton.add_Click({
-                $logsDir = Join-Path $env:LocalAppData 'EvergreenUI\Logs'
-                if (-not (Test-Path -LiteralPath $logsDir)) {
-                    $null = New-Item -ItemType Directory -Path $logsDir -Force
-                }
-                Start-Process -FilePath 'explorer.exe' -ArgumentList $logsDir | Out-Null
-            })
-
-        # Settings: Clear logs
-        $clearLogsButton.add_Click({
-                $logsDir = Join-Path $env:LocalAppData 'EvergreenUI\Logs'
-                if (Test-Path -LiteralPath $logsDir) {
-                    try {
-                        $files = Get-ChildItem -LiteralPath $logsDir -Filter '*.log' -File -ErrorAction Stop
-                        $count = $files.Count
-                        $files | Remove-Item -Force -ErrorAction Stop
-                        Write-UILog -SyncHash $syncHash -Message "Logs cleared. $count file(s) removed." -Level Info
-                    }
-                    catch {
-                        Write-UILog -SyncHash $syncHash -Message "Failed to clear logs: $_" -Level Error
-                    }
-                }
-                else {
-                    Write-UILog -SyncHash $syncHash -Message 'Logs directory does not exist. Nothing to clear.' -Level Info
-                }
-            })
-
     # Settings: persist path edits on focus-leave
     $outputPathBox.add_LostFocus({
             $normalised = & $normalizeDirectoryPath -PathValue $outputPathBox.Text

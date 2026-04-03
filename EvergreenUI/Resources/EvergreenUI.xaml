@@ -3228,8 +3228,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
+                                </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                                            Text="General"
@@ -3365,29 +3364,6 @@
                                                 Style="{StaticResource FluentSecondaryButton}"/>
                                     </StackPanel>
                                 </StackPanel>
-
-                                    <TextBlock Grid.Row="5" Grid.Column="0"
-                                               Text="Logs"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="12"
-                                               Margin="0,12,10,0"/>
-                                    <StackPanel Grid.Row="5" Grid.Column="1"
-                                                Margin="0,10,0,0">
-                                        <TextBlock Text="Operation logs are stored locally for troubleshooting and diagnostics. Clear the logs folder to remove archived log files."
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   FontSize="12"
-                                                   TextWrapping="Wrap"
-                                                   Margin="0,0,0,8"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button x:Name="OpenLogsFolderButton"
-                                                    Content="Open logs folder"
-                                                    Style="{StaticResource FluentSecondaryButton}"
-                                                    Margin="0,0,8,0"/>
-                                            <Button x:Name="ClearLogsButton"
-                                                    Content="Clear logs"
-                                                    Style="{StaticResource FluentSecondaryButton}"/>
-                                        </StackPanel>
-                                    </StackPanel>
                             </Grid>
                         </Border>
 
