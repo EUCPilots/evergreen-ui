@@ -6743,6 +6743,10 @@ function Start-EvergreenWorkbench {
             )
 
             $menu = [System.Windows.Controls.ContextMenu]::new()
+            $menuStyle = $syncHash.Window.TryFindResource('FluentContextMenu')
+            if ($null -ne $menuStyle) {
+                $menu.Style = $menuStyle
+            }
             $hasToggleableColumns = $false
             foreach ($col in $gv.Columns) {
                 $propName = $col.Header -as [string]
@@ -6753,6 +6757,10 @@ function Start-EvergreenWorkbench {
                 $item.Header = $propName
                 $item.IsCheckable = $true
                 $item.IsChecked = ($col.Width -gt 0)
+                $menuItemStyle = $syncHash.Window.TryFindResource('FluentMenuItem')
+                if ($null -ne $menuItemStyle) {
+                    $item.Style = $menuItemStyle
+                }
                 # Store the column reference in Tag so the click handler can retrieve it
                 # without relying on loop-variable closure behaviour.
                 $item.Tag = $col
