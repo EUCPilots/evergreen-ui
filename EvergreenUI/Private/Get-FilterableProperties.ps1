@@ -64,7 +64,7 @@ function Get-FilterableProperties {
     # Properties that are never filterable - display in the grid only
     [string[]]$displayOnly = @(
         'Version', 'URI', 'Date', 'Expiry',
-        'Sha', 'Sha1', 'Sha256', 'Hash',
+        'Sha', 'Sha1', 'Sha256', 'Hash', 'Md5',
         'Checksum', 'Size', 'JavaVersion'
     )
 
