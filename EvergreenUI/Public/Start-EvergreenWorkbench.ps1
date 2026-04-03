@@ -340,6 +340,8 @@ function Start-EvergreenWorkbench {
     $openEvergreenAppsFolderButton = $window.FindName('OpenEvergreenAppsFolderButton')
     $clearCacheButton = $window.FindName('ClearCacheButton')
     $openCacheFolderButton = $window.FindName('OpenCacheFolderButton')
+    $openLogsFolderButton = $window.FindName('OpenLogsFolderButton')
+    $clearLogsButton = $window.FindName('ClearLogsButton')
     $aboutNameValue = $window.FindName('AboutNameValue')
     $aboutVersionValue = $window.FindName('AboutVersionValue')
     $aboutPrereleaseValue = $window.FindName('AboutPrereleaseValue')
@@ -7270,6 +7272,45 @@ function Start-EvergreenWorkbench {
             }
             else {
                 Write-UILog -SyncHash $syncHash -Message 'Cache directory does not exist. Nothing to clear.' -Level Info
+            }
+        })
+
+    # Settings: Open logs folder
+    $openLogsFolderButton.add_Click({
+            $logsDir = Join-Path $env:LOCALAPPDATA 'EvergreenUI\Logs'
+            try {
+                if (-not (Test-Path -LiteralPath $logsDir)) {
+                    $null = New-Item -ItemType Directory -Path $logsDir -Force -ErrorAction Stop
+                }
+                Start-Process -FilePath 'explorer.exe' -ArgumentList $logsDir -ErrorAction Stop | Out-Null
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Failed to open logs folder '$logsDir': $_" -Level Error
+            }
+        })
+
+    # Settings: Clear log files
+    $clearLogsButton.add_Click({
+            $logsDir = Join-Path $env:LOCALAPPDATA 'EvergreenUI\Logs'
+            if (-not (Test-Path -LiteralPath $logsDir)) {
+                Write-UILog -SyncHash $syncHash -Message 'Logs directory does not exist. 0 file(s) removed.' -Level Info
+                return
+            }
+
+            try {
+                $logFiles = Get-ChildItem -LiteralPath $logsDir -Filter '*.log' -File -ErrorAction Stop
+                $logFileCount = $logFiles.Count
+
+                if ($logFileCount -eq 0) {
+                    Write-UILog -SyncHash $syncHash -Message 'No log files found. 0 file(s) removed.' -Level Info
+                    return
+                }
+
+                $logFiles | Remove-Item -Force -ErrorAction Stop
+                Write-UILog -SyncHash $syncHash -Message "Logs cleared. $logFileCount file(s) removed." -Level Info
+            }
+            catch {
+                Write-UILog -SyncHash $syncHash -Message "Failed to clear log files in '$logsDir': $_" -Level Error
             }
         })
 

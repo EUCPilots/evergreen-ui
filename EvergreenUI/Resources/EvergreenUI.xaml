@@ -3108,6 +3108,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
@@ -3241,6 +3242,28 @@
                                                 Margin="0,0,8,0"/>
                                         <Button x:Name="ClearCacheButton"
                                                 Content="Clear cache"
+                                                Style="{StaticResource FluentSecondaryButton}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0"
+                                           Text="Logs"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,14,10,0"/>
+                                <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,12,0,0">
+                                    <TextBlock Text="Open the EvergreenUI logs folder or clear all local log files (*.log)."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,8"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button x:Name="OpenLogsFolderButton"
+                                                Content="Open logs folder"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Margin="0,0,8,0"/>
+                                        <Button x:Name="ClearLogsButton"
+                                                Content="Clear logs"
                                                 Style="{StaticResource FluentSecondaryButton}"/>
                                     </StackPanel>
                                 </StackPanel>
