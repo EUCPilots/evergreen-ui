@@ -1,13 +1,14 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Applies an accent colour and dark/light mode flag to the native OS title bar
-    via the Desktop Window Manager (DWM) API.
+    Applies accent colour, border colour, and dark/light mode flags to native
+    OS window chrome via the Desktop Window Manager (DWM) API.
 
 .DESCRIPTION
-    Uses DwmSetWindowAttribute with DWMWA_CAPTION_COLOR (attr 35) and
-    DWMWA_USE_IMMERSIVE_DARK_MODE (attr 20) to match the native title bar
-    colour and text/button rendering to the active EvergreenUI theme.
+    Uses DwmSetWindowAttribute with DWMWA_CAPTION_COLOR (attr 35),
+    DWMWA_BORDER_COLOR (attr 34), and DWMWA_USE_IMMERSIVE_DARK_MODE (attr 20)
+    to match the native title bar/border colour and text/button rendering to
+    the active EvergreenUI theme.
 
     DWMWA_CAPTION_COLOR requires Windows 11 (build 22000+). On Windows 10 the
     DWM call fails with E_INVALIDARG; errors are silently swallowed so behaviour
@@ -22,6 +23,10 @@
 .PARAMETER CaptionColorRef
     A Windows COLORREF integer (0x00BBGGRR byte order) representing the desired
     caption background colour.
+
+.PARAMETER BorderColorRef
+    Optional Windows COLORREF integer (0x00BBGGRR byte order) representing the
+    desired native window border colour. If omitted, caption colour is used.
 
 .PARAMETER UseDarkMode
     When $true the OS renders white caption text / buttons (for dark backgrounds).
@@ -43,6 +48,9 @@ function Set-DwmTitleBarColor {
         [Parameter(Mandatory)]
         [int]$CaptionColorRef,
 
+        [Parameter()]
+        [int]$BorderColorRef = $CaptionColorRef,
+
         [Parameter(Mandatory)]
         [bool]$UseDarkMode
     )
@@ -59,6 +67,7 @@ namespace EvergreenUI {
             IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
         public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        public const int DWMWA_BORDER_COLOR            = 34;
         public const int DWMWA_CAPTION_COLOR           = 35;
     }
 }
@@ -83,8 +92,15 @@ namespace EvergreenUI {
             [ref]$CaptionColorRef,
             4
         ) | Out-Null
+
+        [EvergreenUI.DwmHelper]::DwmSetWindowAttribute(
+            $hwnd,
+            [EvergreenUI.DwmHelper]::DWMWA_BORDER_COLOR,
+            [ref]$BorderColorRef,
+            4
+        ) | Out-Null
     }
     catch {
-        # DWM caption colouring is cosmetic; silently ignore on unsupported builds
+        # DWM window chrome colouring is cosmetic; silently ignore on unsupported builds
     }
 }

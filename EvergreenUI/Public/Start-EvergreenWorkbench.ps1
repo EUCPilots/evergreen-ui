@@ -259,6 +259,12 @@ function Start-EvergreenWorkbench {
     $syncHash.LogScrollViewer = $window.FindName('LogScrollViewer')
 
     $rootGrid = $window.FindName('RootGrid')
+    $outerWindowBorder = $window.FindName('OuterWindowBorder')
+    $titleBarBorder = $window.FindName('TitleBarBorder')
+    $minimizeWindowButton = $window.FindName('MinimizeWindowButton')
+    $maxRestoreWindowButton = $window.FindName('MaxRestoreWindowButton')
+    $maxRestoreWindowIcon = $window.FindName('MaxRestoreWindowIcon')
+    $closeWindowButton = $window.FindName('CloseWindowButton')
     $evergreenVersionText = $window.FindName('EvergreenVersionText')
     $evergreenStatusDot = $window.FindName('EvergreenStatusDot')
     $themeComboBox = $window.FindName('ThemeComboBox')
@@ -5708,6 +5714,31 @@ function Start-EvergreenWorkbench {
     }
     $syncHash.LogFilePath = Join-Path -Path $logDir -ChildPath ("EvergreenUI-{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'))
 
+    $updateWindowChromeState = {
+        if ($null -eq $maxRestoreWindowIcon) {
+            return
+        }
+
+        if ($window.WindowState -eq [System.Windows.WindowState]::Maximized) {
+            $maxRestoreWindowIcon.Text = [string][char]0xE923
+            if ($null -ne $maxRestoreWindowButton) {
+                $maxRestoreWindowButton.ToolTip = 'Restore down'
+            }
+            if ($null -ne $outerWindowBorder) {
+                $outerWindowBorder.BorderThickness = [System.Windows.Thickness]::new(0)
+            }
+        }
+        else {
+            $maxRestoreWindowIcon.Text = [string][char]0xE922
+            if ($null -ne $maxRestoreWindowButton) {
+                $maxRestoreWindowButton.ToolTip = 'Maximize'
+            }
+            if ($null -ne $outerWindowBorder) {
+                $outerWindowBorder.BorderThickness = [System.Windows.Thickness]::new(2)
+            }
+        }
+    }
+
     # Event: Window.Loaded
     $window.add_Loaded({
             # Apply saved theme (before any logging so colours are correct)
@@ -5719,6 +5750,8 @@ function Start-EvergreenWorkbench {
                 $themeComboBox.SelectedIndex = 0
                 Set-LightTheme -Window $syncHash.Window
             }
+
+            & $updateWindowChromeState
 
             # Populate Evergreen version info in title bar
             try {
@@ -5864,6 +5897,10 @@ function Start-EvergreenWorkbench {
             }
         })
 
+    $window.add_StateChanged({
+            & $updateWindowChromeState
+        })
+
     # Event: Window.Closing - persist config
     $window.add_Closing({
             try {
@@ -5973,6 +6010,66 @@ function Start-EvergreenWorkbench {
                 }
             }
         })
+
+    if ($null -ne $titleBarBorder) {
+        $titleBarBorder.add_MouseLeftButtonDown({
+                param($sender, $e)
+
+                $hit = $e.OriginalSource -as [System.Windows.DependencyObject]
+                while ($null -ne $hit) {
+                    if ($hit -is [System.Windows.Controls.Button]) {
+                        return
+                    }
+                    $hit = [System.Windows.Media.VisualTreeHelper]::GetParent($hit)
+                }
+
+                if ($e.ClickCount -eq 2) {
+                    if ($window.ResizeMode -eq [System.Windows.ResizeMode]::CanResize -or
+                        $window.ResizeMode -eq [System.Windows.ResizeMode]::CanResizeWithGrip) {
+                        $window.WindowState = if ($window.WindowState -eq [System.Windows.WindowState]::Maximized) {
+                            [System.Windows.WindowState]::Normal
+                        }
+                        else {
+                            [System.Windows.WindowState]::Maximized
+                        }
+                    }
+                    return
+                }
+
+                if ($e.LeftButton -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                    try {
+                        $window.DragMove()
+                    }
+                    catch {
+                        # DragMove can throw during rapid mouse transitions; ignore.
+                        Write-Verbose -Message "EvergreenUI: $_"
+                    }
+                }
+            })
+    }
+
+    if ($null -ne $minimizeWindowButton) {
+        $minimizeWindowButton.add_Click({
+                $window.WindowState = [System.Windows.WindowState]::Minimized
+            })
+    }
+
+    if ($null -ne $maxRestoreWindowButton) {
+        $maxRestoreWindowButton.add_Click({
+                $window.WindowState = if ($window.WindowState -eq [System.Windows.WindowState]::Maximized) {
+                    [System.Windows.WindowState]::Normal
+                }
+                else {
+                    [System.Windows.WindowState]::Maximized
+                }
+            })
+    }
+
+    if ($null -ne $closeWindowButton) {
+        $closeWindowButton.add_Click({
+                $window.Close()
+            })
+    }
 
     # Navigation: Checked handler swaps content panels
     $panelMap = @{
