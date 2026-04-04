@@ -10,25 +10,58 @@
 
     <Window.Resources>
 
-        <!-- ── Brushes - placeholder transparent; theme functions fill them on Loaded ── -->
-        <SolidColorBrush x:Key="WindowBackgroundBrush"  Color="Transparent"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush"       Color="Transparent"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush"     Color="Transparent"/>
-        <SolidColorBrush x:Key="AccentBrush"            Color="Transparent"/>
-        <SolidColorBrush x:Key="AccentHoverBrush"       Color="Transparent"/>
-        <SolidColorBrush x:Key="AccentLightBrush"       Color="Transparent"/>
-        <SolidColorBrush x:Key="ControlBackgroundBrush" Color="Transparent"/>
-        <SolidColorBrush x:Key="ControlBorderBrush"     Color="Transparent"/>
-        <SolidColorBrush x:Key="ButtonForegroundBrush"  Color="Transparent"/>
-        <SolidColorBrush x:Key="ToggleThumbBrush"       Color="Transparent"/>
-        <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="Transparent"/>
-        <SolidColorBrush x:Key="SecondaryButtonBorderBrush"     Color="Transparent"/>
-        <SolidColorBrush x:Key="StatusPositiveBrush"      Color="Transparent"/>
-        <SolidColorBrush x:Key="StatusErrorBrush"         Color="Transparent"/>
-        <SolidColorBrush x:Key="StatusWarningBrush"       Color="Transparent"/>
-        <SolidColorBrush x:Key="StatusPositiveLightBrush" Color="Transparent"/>
-        <SolidColorBrush x:Key="StatusWarningLightBrush"  Color="Transparent"/>
-        <SolidColorBrush x:Key="StatusErrorLightBrush"    Color="Transparent"/>
+        <!-- Safe startup palette; theme functions can override these on Loaded -->
+        <SolidColorBrush x:Key="WindowBackgroundBrush"  Color="#FFF3F3F3"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush"       Color="#FF1F1F1F"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush"     Color="#FF5E5E5E"/>
+        <SolidColorBrush x:Key="AccentBrush"            Color="#FF0F6CBD"/>
+        <SolidColorBrush x:Key="AccentHoverBrush"       Color="#FF115EA3"/>
+        <SolidColorBrush x:Key="AccentLightBrush"       Color="#FFDCEBFA"/>
+        <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="ControlBorderBrush"     Color="#FFD1D1D1"/>
+        <SolidColorBrush x:Key="ButtonForegroundBrush"  Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="ToggleThumbBrush"       Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="SecondaryButtonBorderBrush"     Color="#FFC7C7C7"/>
+        <SolidColorBrush x:Key="StatusPositiveBrush"      Color="#FF107C10"/>
+        <SolidColorBrush x:Key="StatusErrorBrush"         Color="#FFC50F1F"/>
+        <SolidColorBrush x:Key="StatusWarningBrush"       Color="#FF9D5D00"/>
+        <SolidColorBrush x:Key="StatusPositiveLightBrush" Color="#FFE7F6E7"/>
+        <SolidColorBrush x:Key="StatusWarningLightBrush"  Color="#FFFFF4CE"/>
+        <SolidColorBrush x:Key="StatusErrorLightBrush"    Color="#FFFDE7E9"/>
+
+        <FontFamily x:Key="FluentIconFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+        <Style x:Key="FluentFocusVisualStyle" TargetType="Control">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Control">
+                        <Border BorderThickness="2"
+                                CornerRadius="4"
+                                Margin="1"
+                                BorderBrush="{DynamicResource AccentBrush}"
+                                Background="Transparent"
+                                SnapsToDevicePixels="True"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Control">
+                                <Border BorderThickness="2"
+                                        CornerRadius="2"
+                                        Margin="1"
+                                        BorderBrush="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"
+                                        Background="Transparent"
+                                        SnapsToDevicePixels="True"/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
         <!-- ── FluentButton ── -->
         <Style x:Key="FluentButton" TargetType="Button">
@@ -37,7 +70,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding"         Value="16,6"/>
             <Setter Property="Cursor"          Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -60,6 +93,13 @@
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="bd" Property="Opacity" Value="0.4"/>
                             </Trigger>
+                            <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1"/>
+                                <Setter TargetName="bd" Property="Opacity" Value="1"/>
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -72,6 +112,13 @@
             <Setter Property="Foreground"      Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush"     Value="{DynamicResource SecondaryButtonBorderBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <!-- ── FluentTextBox ── -->
@@ -85,7 +132,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="CaretBrush"               Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="SelectionBrush"           Value="{DynamicResource AccentLightBrush}"/>
-            <Setter Property="FocusVisualStyle"         Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle"         Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -113,6 +160,13 @@
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
                             </Trigger>
+                            <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1"/>
+                                <Setter TargetName="bd" Property="Opacity" Value="1"/>
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -131,7 +185,7 @@
                         <Setter Property="MinHeight"                  Value="32"/>
                         <Setter Property="Padding"                    Value="0"/>
                         <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
-                        <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
+                        <Setter Property="FocusVisualStyle"           Value="{StaticResource FluentFocusVisualStyle}"/>
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListViewItem">
@@ -235,7 +289,7 @@
             <Setter Property="Height"                   Value="32"/>
             <Setter Property="MinHeight"                Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="FocusVisualStyle"         Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle"         Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
@@ -323,11 +377,19 @@
             <Setter Property="Cursor"   Value="Hand"/>
             <Setter Property="Width"    Value="36"/>
             <Setter Property="Height"   Value="20"/>
-            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Focusable" Value="True"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
                         <Grid Width="36" Height="20">
+                            <Border x:Name="focusRing"
+                                    Width="36"
+                                    Height="20"
+                                    CornerRadius="10"
+                                    BorderThickness="2"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    Visibility="Collapsed"/>
                             <Border x:Name="track"
                                     CornerRadius="10"
                                     Background="{DynamicResource ControlBorderBrush}"/>
@@ -350,6 +412,15 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="track" Property="Opacity" Value="0.8"/>
                             </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="focusRing" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                                <Setter TargetName="track" Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                                <Setter TargetName="thumb" Property="Fill" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                                <Setter TargetName="focusRing" Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="track" Property="Opacity" Value="1"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -365,6 +436,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Padding"                  Value="8,0"/>
             <Setter Property="Cursor"                   Value="Hand"/>
+            <Setter Property="FocusVisualStyle"         Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
                     <Style TargetType="ComboBoxItem">
@@ -452,6 +524,12 @@
                                 <Setter TargetName="bd" Property="BorderBrush"
                                         Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
+                            <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1"/>
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -469,6 +547,7 @@
             <Setter Property="BorderThickness"           Value="0"/>
             <Setter Property="Cursor"                    Value="Hand"/>
             <Setter Property="FontSize"                  Value="13"/>
+            <Setter Property="FocusVisualStyle"          Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -504,6 +583,17 @@
                                 <Setter TargetName="bd" Property="Background"
                                         Value="{DynamicResource AccentLightBrush}"/>
                             </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="accent" Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -712,7 +802,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="CaretBrush"               Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="SelectionBrush"           Value="{DynamicResource AccentLightBrush}"/>
-            <Setter Property="FocusVisualStyle"         Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle"         Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="PasswordBox">
@@ -739,6 +829,12 @@
                                         Value="{DynamicResource AccentBrush}"/>
                                 <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
                             </Trigger>
+                            <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1"/>
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -750,7 +846,7 @@
             <Setter Property="Background"          Value="Transparent"/>
             <Setter Property="BorderThickness"     Value="0"/>
             <Setter Property="Cursor"              Value="Hand"/>
-            <Setter Property="FocusVisualStyle"    Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle"    Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -783,7 +879,7 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground"      Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="Cursor"          Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -807,6 +903,13 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
                             </Trigger>
+                            <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1"/>
+                                <Setter TargetName="bd" Property="Opacity" Value="1"/>
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -918,7 +1021,7 @@
                         HorizontalContentAlignment="Left"
                         Padding="17,10,14,10"
                         Margin="4,0,4,4">
-                    <TextBlock FontFamily="Segoe MDL2 Assets"
+                    <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}"
                                Text="&#xE700;"
                                FontSize="16"
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -929,7 +1032,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE71D;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE71D;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavAppsLabel" Text="Apps" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -939,7 +1042,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE896;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE896;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavDownloadLabel" Text="Download" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -949,7 +1052,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8F1;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE8F1;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavLibraryLabel" Text="Library" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -959,7 +1062,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8B5;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE8B5;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavImportLabel" Text="Import" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -969,7 +1072,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE7B8;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE7B8;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavInstallLabel" Text="Install" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -982,7 +1085,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE713;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE713;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavSettingsLabel" Text="Settings" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -992,7 +1095,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE895;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE895;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavUpdateLabel" Text="Update" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -1002,7 +1105,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE946;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE946;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavAboutLabel" Text="About" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -1863,7 +1966,7 @@
                                                             <Setter Property="MinHeight"                  Value="32"/>
                                                             <Setter Property="Padding"                    Value="0"/>
                                                             <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
-                                                            <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
+                                                            <Setter Property="FocusVisualStyle"           Value="{StaticResource FluentFocusVisualStyle}"/>
                                                             <Setter Property="Template">
                                                                 <Setter.Value>
                                                                     <ControlTemplate TargetType="ListViewItem">
@@ -2164,7 +2267,7 @@
                                                         <Setter Property="MinHeight"                  Value="32"/>
                                                         <Setter Property="Padding"                    Value="0"/>
                                                         <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
-                                                        <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
+                                                        <Setter Property="FocusVisualStyle"           Value="{StaticResource FluentFocusVisualStyle}"/>
                                                         <Setter Property="Template">
                                                             <Setter.Value>
                                                                 <ControlTemplate TargetType="ListViewItem">
@@ -2461,7 +2564,7 @@
                                                         <Setter Property="MinHeight"                  Value="32"/>
                                                         <Setter Property="Padding"                    Value="0"/>
                                                         <Setter Property="Foreground"                 Value="{DynamicResource TextPrimaryBrush}"/>
-                                                        <Setter Property="FocusVisualStyle"           Value="{x:Null}"/>
+                                                        <Setter Property="FocusVisualStyle"           Value="{StaticResource FluentFocusVisualStyle}"/>
                                                         <Setter Property="Template">
                                                             <Setter.Value>
                                                                 <ControlTemplate TargetType="ListViewItem">
@@ -3126,7 +3229,7 @@
                                             <Setter Property="MinHeight" Value="32"/>
                                             <Setter Property="Padding" Value="0"/>
                                             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-                                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                            <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="ListViewItem">
