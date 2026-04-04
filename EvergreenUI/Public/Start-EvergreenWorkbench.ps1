@@ -6028,13 +6028,14 @@ function Start-EvergreenWorkbench {
     }
 
     # Collapse/expand nav rail when hamburger button is clicked
+    # 72px leaves enough room for Segoe Fluent Icons glyph overhang when labels are hidden.
     $navRailLabels = @('NavAppsLabel', 'NavDownloadLabel', 'NavLibraryLabel', 'NavImportLabel',
         'NavInstallLabel', 'NavSettingsLabel', 'NavUpdateLabel', 'NavAboutLabel') |
         ForEach-Object { $window.FindName($_) }
     $navToggleButton.add_Click({
             $navColumn = $rootGrid.ColumnDefinitions[0]
-            if ($navColumn.Width.Value -gt 64) {
-                $navColumn.Width = [System.Windows.GridLength]::new(64)
+            if ($navColumn.Width.Value -gt 70) {
+                $navColumn.Width = [System.Windows.GridLength]::new(70)
                 foreach ($lbl in $navRailLabels) { $lbl.Visibility = [System.Windows.Visibility]::Collapsed }
             }
             else {
