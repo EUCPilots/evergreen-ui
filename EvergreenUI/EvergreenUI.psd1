@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.0.16'
+    ModuleVersion     = '1.0.17'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -64,7 +64,7 @@
             Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Pre-release. Download queue fixes, and Intune and local Install packaging improvements.'
+            ReleaseNotes = 'Pre-release. App favourites. Show/hide columns in App version details. Fluent UI fixes.'
             Prerelease   = 'beta'
         }
     }

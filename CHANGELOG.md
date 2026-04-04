@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.17] - 2026-04-04
+
+### Added
+
+- Apps tab: favourite apps -- users can star or unstar any application from the app list sidebar; favourited apps are pinned to the top of the list and sorted alphabetically among themselves; a filled star in the accent colour marks a favourite and a hover outline star appears on non-starred items to add them; favourites persist across sessions via `FavouriteApps` in `settings.json`
+- Apps tab / Versions list: column visibility toggle -- right-click a column header to show or hide optional columns via a context menu; column widths are saved and restored across toggles via `VersionsColSavedWidths`; structural columns (Version, URI) are excluded from toggling
+- Settings: Logs section added with two actions: **Open Logs Folder** opens (and creates if absent) `%LocalAppData%\EvergreenUI\Logs` in File Explorer; **Clear Log Files** deletes all `*.log` files in that folder and reports the count removed
+
+### Changed
+
+- XAML: Fluent styles hardened for focus, contrast, and startup reliability -- transparent bootstrap brushes replaced with safe default colours to prevent an unstable first paint; a shared keyboard focus visual style is applied across interactive controls and list items; the toggle switch gains a visible keyboard focus ring in its control template; high-contrast-safe style triggers added using system brushes for key control states; nav icons migrated from inline geometry to Segoe Fluent Icons glyphs with a Segoe MDL2 Assets fallback for Windows 10 compatibility
+- XAML / filter panel: `CheckBox` control template revamped with an explicit focus ring, refined check and indeterminate visuals, correct disabled-state handling, and improved content alignment; `AutomationProperties.Name` is now set on generated filter checkboxes so screen readers announce "DisplayName: Value"; `RenderOptions.ProcessRenderMode` is set to `SoftwareOnly` at startup (best-effort, non-fatal) to avoid render-target quota failures on GPUs that reject hardware acceleration
+- XAML: `FluentContextMenu` and `FluentMenuItem` named styles added to `Window.Resources`; runtime-generated context menus (column toggle, other right-click menus) use these styles via `TryFindResource` with a null guard so the change is backwards-compatible if a style is absent
+- Apps tab / Versions list: `Md5` added to the display-only property set in `Get-FilterableProperties`; MD5 checksums are now treated as display-only columns consistent with `Sha`, `Sha1`, and `Sha256`
+- Update tab: `ClearUpdateOutputButton` and its `Click` event handler removed; the control was unreferenced and served no function
+
 ## [1.0.16] - 2026-04-02
 
 ### Added
