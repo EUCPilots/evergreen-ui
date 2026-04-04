@@ -112,6 +112,10 @@ function New-FilterPanel {
                     $checkbox.IsChecked = $true
                     $checkbox.Margin = [System.Windows.Thickness]::new(0, 0, 10, 6)
                     $checkbox.Style = $SyncHash.Window.Resources['FluentCheckBox']
+                    [System.Windows.Automation.AutomationProperties]::SetName(
+                        $checkbox,
+                        "$($displayName): $valueText"
+                    )
 
                     $checkbox.add_Checked({
                             [void]$SyncHash.FilterState[$propName].Add($valueText)

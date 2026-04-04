@@ -36,6 +36,15 @@ function Start-EvergreenWorkbench {
     Add-Type -AssemblyName WindowsBase
     Add-Type -AssemblyName System.Windows.Forms
 
+    try {
+        [System.Windows.Media.RenderOptions]::ProcessRenderMode = [System.Windows.Interop.RenderMode]::SoftwareOnly
+        Write-Verbose -Message 'EvergreenUI: WPF render mode forced to SoftwareOnly to avoid render-target quota failures.'
+    }
+    catch {
+        # best-effort - if this fails, continue with WPF defaults
+        Write-Verbose -Message "EvergreenUI: Unable to set WPF render mode. $_"
+    }
+
     $nerdioBundledModulePath = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Resources\NerdioShellApps.psm1'
 
     # Load saved config

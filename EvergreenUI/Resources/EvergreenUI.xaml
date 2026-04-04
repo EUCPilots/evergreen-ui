@@ -233,43 +233,84 @@
             <Setter Property="Foreground"               Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="Cursor"                   Value="Hand"/>
             <Setter Property="Height"                   Value="32"/>
+            <Setter Property="MinHeight"                Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle"         Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
-                        <StackPanel Orientation="Horizontal">
-                            <Border x:Name="box"
-                                    Width="14" Height="14"
-                                    CornerRadius="2"
-                                    BorderThickness="1.5"
-                                    BorderBrush="{DynamicResource ControlBorderBrush}"
-                                    Background="{DynamicResource ControlBackgroundBrush}"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,6,0">
-                                <Path x:Name="check"
-                                      Data="M 1.5 7 L 5 10.5 L 12 3"
-                                      Stroke="{DynamicResource AccentBrush}"
-                                      StrokeThickness="1.5"
-                                      StrokeLineJoin="Round"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"
-                                      Visibility="Collapsed"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"/>
-                            </Border>
-                            <ContentPresenter VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <Grid SnapsToDevicePixels="True">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Grid Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <Border x:Name="focusRing"
+                                            Width="18"
+                                            Height="18"
+                                            CornerRadius="4"
+                                            BorderThickness="1"
+                                            BorderBrush="{DynamicResource AccentBrush}"
+                                            Opacity="0.65"
+                                            Visibility="Collapsed"/>
+                                    <Border x:Name="box"
+                                            Width="16"
+                                            Height="16"
+                                            CornerRadius="3"
+                                            BorderThickness="1.5"
+                                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                                            Background="{DynamicResource ControlBackgroundBrush}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                                    <Path x:Name="check"
+                                          Data="M 2 8 L 6.5 12 L 13.5 4.5"
+                                          Stroke="{DynamicResource AccentBrush}"
+                                          StrokeThickness="1.6"
+                                          StrokeLineJoin="Round"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Visibility="Collapsed"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                                    <Rectangle x:Name="indeterminate"
+                                               Width="8"
+                                               Height="2"
+                                               RadiusX="1"
+                                               RadiusY="1"
+                                               Fill="{DynamicResource AccentBrush}"
+                                               Visibility="Collapsed"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                                <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                            </StackPanel>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="check" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="indeterminate" Property="Visibility" Value="Collapsed"/>
                                 <Setter TargetName="box"   Property="BorderBrush"
                                         Value="{DynamicResource AccentBrush}"/>
                                 <Setter TargetName="box"   Property="Background"
                                         Value="{DynamicResource AccentLightBrush}"/>
                             </Trigger>
+                            <Trigger Property="IsChecked" Value="{x:Null}">
+                                <Setter TargetName="check" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="indeterminate" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="box" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="box" Property="Background"
+                                        Value="{DynamicResource AccentLightBrush}"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="box" Property="BorderBrush"
                                         Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="focusRing" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="box" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
