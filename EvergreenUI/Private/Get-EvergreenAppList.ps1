@@ -62,6 +62,7 @@ function Get-EvergreenAppList {
                 else {
                     $_.Name
                 }
+                IsFavourite  = $false
             }
         }
 

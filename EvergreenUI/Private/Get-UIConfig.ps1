@@ -40,6 +40,7 @@ function Get-UIConfig {
         ShowInstallTab    = $true
         StartupView       = 'Apps'
         LastAppName       = ''
+        FavouriteApps     = @()
         WindowWidth       = 1200
         WindowHeight      = 750
         ImportSettings    = [PSCustomObject]@{

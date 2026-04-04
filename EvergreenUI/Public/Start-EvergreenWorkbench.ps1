@@ -2608,19 +2608,31 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        if ([string]::IsNullOrWhiteSpace($SearchText)) {
-            $appsListBox.ItemsSource = $allApps
-            $appCountLabel.Text = " $($allApps.Count) of $($allApps.Count)"
-            return
+        # Stamp IsFavourite on each item based on current config
+        $favouriteSet = [System.Collections.Generic.HashSet[string]]::new(
+            [string[]]@($syncHash.Config.FavouriteApps),
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+        foreach ($app in $allApps) {
+            $app.IsFavourite = $favouriteSet.Contains($app.Name)
         }
 
-        $needle = $SearchText.Trim()
-        $filtered = $allApps | Where-Object {
-            $_.Name -like "*$needle*" -or $_.FriendlyName -like "*$needle*"
+        $source = if ([string]::IsNullOrWhiteSpace($SearchText)) {
+            $allApps
+        }
+        else {
+            $needle = $SearchText.Trim()
+            @($allApps | Where-Object { $_.Name -like "*$needle*" -or $_.FriendlyName -like "*$needle*" })
         }
 
-        $appsListBox.ItemsSource = @($filtered)
-        $appCountLabel.Text = " $(@($filtered).Count) of $($allApps.Count)"
+        # Favourites first (descending), then alphabetical by FriendlyName
+        $sorted = @($source | Sort-Object -Property @(
+            @{ Expression = 'IsFavourite'; Descending = $true },
+            @{ Expression = 'FriendlyName' }
+        ))
+
+        $appsListBox.ItemsSource = $sorted
+        $appCountLabel.Text = " $($sorted.Count) of $($allApps.Count)"
     }
 
     $loadAppCatalog = {
@@ -6598,6 +6610,50 @@ function Start-EvergreenWorkbench {
     $appSearchBox.add_TextChanged({
             & $updateAppsComboSource -SearchText $appSearchBox.Text
         })
+
+    # Capture favourite star button clicks that bubble up from inside the DataTemplate
+    $appsListBox.AddHandler(
+        [System.Windows.Controls.Button]::ClickEvent,
+        [System.Windows.RoutedEventHandler] {
+            param($clickSender, $clickArgs)
+
+            # Walk visual tree to confirm this click originated from FavouriteStarButton
+            $element = $clickArgs.OriginalSource -as [System.Windows.DependencyObject]
+            $starButton = $null
+            while ($null -ne $element) {
+                $btn = $element -as [System.Windows.Controls.Button]
+                if ($null -ne $btn -and [string]$btn.Name -eq 'FavouriteStarButton') {
+                    $starButton = $btn
+                    break
+                }
+                $element = [System.Windows.Media.VisualTreeHelper]::GetParent($element)
+            }
+            if ($null -eq $starButton) { return }
+
+            $appName = [string]$starButton.Tag
+            if ([string]::IsNullOrEmpty($appName)) { return }
+
+            # Toggle favourite status in config
+            $favList = [System.Collections.Generic.List[string]]::new(
+                [string[]]@($syncHash.Config.FavouriteApps)
+            )
+            if ($favList.Contains($appName)) {
+                [void]$favList.Remove($appName)
+                Write-UILog -SyncHash $syncHash -Message "Removed '$appName' from favourites." -Level Info
+            }
+            else {
+                $favList.Add($appName)
+                Write-UILog -SyncHash $syncHash -Message "Added '$appName' to favourites." -Level Info
+            }
+            $syncHash.Config.FavouriteApps = $favList.ToArray()
+
+            # Persist immediately so the change survives if the window is closed
+            Set-UIConfig -Config $syncHash.Config
+
+            # Refresh list: re-stamps IsFavourite on all items and re-sorts
+            & $updateAppsComboSource -SearchText $appSearchBox.Text
+        }
+    )
 
     $loadAppVersionsButton.add_Click({
             & $loadAppVersions
