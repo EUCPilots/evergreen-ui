@@ -186,6 +186,14 @@ function Start-EvergreenWorkbench {
             PendingNerdioAzureAuthPS                        = $null
             PendingNerdioAzureAuthRunspace                  = $null
             PendingNerdioAzureAuthAsync                     = $null
+            PendingImportSignInTimer                        = $null
+            PendingImportSignInPS                           = $null
+            PendingImportSignInRunspace                     = $null
+            PendingImportSignInAsync                        = $null
+            PendingNerdioApiSignInTimer                     = $null
+            PendingNerdioApiSignInPS                        = $null
+            PendingNerdioApiSignInRunspace                  = $null
+            PendingNerdioApiSignInAsync                     = $null
             PendingIntuneImportTimer                        = $null
             PendingIntuneImportPS                           = $null
             PendingIntuneImportRunspace                     = $null
@@ -5065,7 +5073,7 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        # Set in-progress immediately on the UI thread so the Gold dot renders
+        # Set in-progress on the UI thread immediately so the gold dot renders
         # before the browser auth dialog opens.
         $syncHash.AzureAuthState.IsAuthInProgress = $true
         $syncHash.AzureAuthState.ErrorMessage = ''
@@ -5074,63 +5082,150 @@ function Start-EvergreenWorkbench {
         $tenant = [string]$importTenantIdBox.Text
         Write-UILog -SyncHash $syncHash -Message 'Starting Entra sign-in for Intune workflows...' -Level Info
 
-        $r = Invoke-AzureSignIn -TenantId $tenant
+        # Run Connect-MgGraph in a background STA runspace so the browser OAuth
+        # flow never blocks the WPF dispatcher thread.
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $signInHelperScripts = @(
+            'Format-LogEntry.ps1'
+            'Write-UILog.ps1'
+            'Invoke-AzureSignIn.ps1'
+        ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
 
-        if ($null -ne $r -and $r.Succeeded) {
-            $syncHash.AzureAuthState.IsAuthenticated = $true
-            $syncHash.AzureAuthState.AccountId = [string]$r.AccountId
-            $syncHash.AzureAuthState.TenantId = [string]$r.TenantId
-            $syncHash.AzureAuthState.SubscriptionName = [string]$r.SubscriptionName
-            $syncHash.AzureAuthState.ErrorMessage = ''
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
 
-            if ($r.PSObject.Properties.Name -contains 'IntuneConnected') {
-                $syncHash.AzureAuthState.IntuneConnected = [bool]$r.IntuneConnected
-            }
-            else {
-                $syncHash.AzureAuthState.IntuneConnected = $false
-            }
+        [void]$ps.AddScript({
+                param(
+                    [string[]]$HelperScripts,
+                    [string]$TenantId
+                )
 
-            if ($r.PSObject.Properties.Name -contains 'IntuneConnectError') {
-                $syncHash.AzureAuthState.IntuneConnectError = [string]$r.IntuneConnectError
-            }
-            else {
-                $syncHash.AzureAuthState.IntuneConnectError = ''
-            }
+                $result = [PSCustomObject]@{
+                    Succeeded          = $false
+                    AccountId          = ''
+                    TenantId           = ''
+                    SubscriptionName   = ''
+                    AuthMethod         = ''
+                    ErrorMessage       = ''
+                    IntuneConnected    = $false
+                    IntuneConnectError = ''
+                }
 
-            if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
-                $syncHash.ImportTenantIdBox.Text = [string]$r.TenantId
-            }
+                try {
+                    foreach ($scriptPath in $HelperScripts) {
+                        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                            throw "Required helper script not found: $scriptPath"
+                        }
+                        . $scriptPath
+                    }
 
-            $syncHash.Config.AzureAuthSettings.TenantId = [string]$syncHash.ImportTenantIdBox.Text
-            $syncHash.Config.AzureAuthSettings.LastAccountId = [string]$r.AccountId
-            $syncHash.Config.AzureAuthSettings.LastTenantId = [string]$r.TenantId
-            $syncHash.Config.AzureAuthSettings.LastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
-            Set-UIConfig -Config $syncHash.Config
+                    $r = Invoke-AzureSignIn -TenantId $TenantId
+                    if ($null -ne $r) {
+                        $result.Succeeded          = [bool]$r.Succeeded
+                        $result.AccountId          = [string]$r.AccountId
+                        $result.TenantId           = [string]$r.TenantId
+                        $result.SubscriptionName   = [string]$r.SubscriptionName
+                        $result.AuthMethod         = if ($r.PSObject.Properties.Name -contains 'AuthMethod') { [string]$r.AuthMethod } else { '' }
+                        $result.ErrorMessage       = [string]$r.ErrorMessage
+                        $result.IntuneConnected    = if ($r.PSObject.Properties.Name -contains 'IntuneConnected') { [bool]$r.IntuneConnected } else { $false }
+                        $result.IntuneConnectError = if ($r.PSObject.Properties.Name -contains 'IntuneConnectError') { [string]$r.IntuneConnectError } else { '' }
+                    }
+                }
+                catch {
+                    $result.ErrorMessage = $_.Exception.Message
+                }
 
-            Write-UILog -SyncHash $syncHash -Message "Signed in as $($r.AccountId) to tenant $($r.TenantId)." -Level Info
-            if ($r.PSObject.Properties.Name -contains 'AuthMethod' -and -not [string]::IsNullOrWhiteSpace([string]$r.AuthMethod)) {
-                Write-UILog -SyncHash $syncHash -Message "Sign-in method: $([string]$r.AuthMethod)." -Level Info
-            }
-            if ($syncHash.AzureAuthState.IntuneConnected) {
-                Write-UILog -SyncHash $syncHash -Message 'Intune Graph token acquisition succeeded.' -Level Info
-            }
-            elseif (-not [string]::IsNullOrWhiteSpace($syncHash.AzureAuthState.IntuneConnectError)) {
-                Write-UILog -SyncHash $syncHash -Message "Intune Graph token acquisition failed: $($syncHash.AzureAuthState.IntuneConnectError)" -Level Warning
-            }
-        }
-        else {
-            $syncHash.AzureAuthState.IsAuthenticated = $false
-            $syncHash.AzureAuthState.AccountId = ''
-            $syncHash.AzureAuthState.TenantId = ''
-            $syncHash.AzureAuthState.SubscriptionName = ''
-            $syncHash.AzureAuthState.IntuneConnected = $false
-            $syncHash.AzureAuthState.IntuneConnectError = ''
-            $syncHash.AzureAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
-            Write-UILog -SyncHash $syncHash -Message "Sign-in failed: $($syncHash.AzureAuthState.ErrorMessage)" -Level Error
-        }
+                return $result
+            }).AddArgument($signInHelperScripts).AddArgument($tenant)
 
-        $syncHash.AzureAuthState.IsAuthInProgress = $false
-        & $syncHash.RefreshImportAuthUi
+        $syncHash.PendingImportSignInPS       = $ps
+        $syncHash.PendingImportSignInRunspace = $rs
+        $syncHash.PendingImportSignInAsync    = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+        $syncHash.PendingImportSignInTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingImportSignInAsync -or -not $syncHash.PendingImportSignInAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingImportSignInTimer) {
+                    $syncHash.PendingImportSignInTimer.Stop()
+                    $syncHash.PendingImportSignInTimer = $null
+                }
+
+                $r = $null
+                try {
+                    $output = $syncHash.PendingImportSignInPS.EndInvoke($syncHash.PendingImportSignInAsync)
+                    if ($null -ne $output -and $output.Count -gt 0) {
+                        $r = $output[$output.Count - 1]
+                    }
+                }
+                catch {
+                    $r = [PSCustomObject]@{
+                        Succeeded = $false; AccountId = ''; TenantId = ''; SubscriptionName = ''
+                        AuthMethod = ''; ErrorMessage = $_.Exception.Message
+                        IntuneConnected = $false; IntuneConnectError = ''
+                    }
+                }
+                finally {
+                    try { $syncHash.PendingImportSignInPS.Dispose() } catch {}
+                    try { $syncHash.PendingImportSignInRunspace.Dispose() } catch {}
+                    $syncHash.PendingImportSignInPS       = $null
+                    $syncHash.PendingImportSignInRunspace = $null
+                    $syncHash.PendingImportSignInAsync    = $null
+                }
+
+                if ($null -ne $r -and $r.Succeeded) {
+                    $syncHash.AzureAuthState.IsAuthenticated    = $true
+                    $syncHash.AzureAuthState.AccountId          = [string]$r.AccountId
+                    $syncHash.AzureAuthState.TenantId           = [string]$r.TenantId
+                    $syncHash.AzureAuthState.SubscriptionName   = [string]$r.SubscriptionName
+                    $syncHash.AzureAuthState.ErrorMessage       = ''
+                    $syncHash.AzureAuthState.IntuneConnected    = [bool]$r.IntuneConnected
+                    $syncHash.AzureAuthState.IntuneConnectError = [string]$r.IntuneConnectError
+
+                    if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
+                        $syncHash.ImportTenantIdBox.Text = [string]$r.TenantId
+                    }
+
+                    $syncHash.Config.AzureAuthSettings.TenantId        = [string]$syncHash.ImportTenantIdBox.Text
+                    $syncHash.Config.AzureAuthSettings.LastAccountId   = [string]$r.AccountId
+                    $syncHash.Config.AzureAuthSettings.LastTenantId    = [string]$r.TenantId
+                    $syncHash.Config.AzureAuthSettings.LastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
+                    Set-UIConfig -Config $syncHash.Config
+
+                    Write-UILog -SyncHash $syncHash -Message "Signed in as $($r.AccountId) to tenant $($r.TenantId)." -Level Info
+                    if (-not [string]::IsNullOrWhiteSpace([string]$r.AuthMethod)) {
+                        Write-UILog -SyncHash $syncHash -Message "Sign-in method: $([string]$r.AuthMethod)." -Level Info
+                    }
+                    if ($syncHash.AzureAuthState.IntuneConnected) {
+                        Write-UILog -SyncHash $syncHash -Message 'Intune Graph token acquisition succeeded.' -Level Info
+                    }
+                    elseif (-not [string]::IsNullOrWhiteSpace($syncHash.AzureAuthState.IntuneConnectError)) {
+                        Write-UILog -SyncHash $syncHash -Message "Intune Graph token acquisition failed: $($syncHash.AzureAuthState.IntuneConnectError)" -Level Warning
+                    }
+                }
+                else {
+                    $syncHash.AzureAuthState.IsAuthenticated    = $false
+                    $syncHash.AzureAuthState.AccountId          = ''
+                    $syncHash.AzureAuthState.TenantId           = ''
+                    $syncHash.AzureAuthState.SubscriptionName   = ''
+                    $syncHash.AzureAuthState.IntuneConnected    = $false
+                    $syncHash.AzureAuthState.IntuneConnectError = ''
+                    $syncHash.AzureAuthState.ErrorMessage       = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                    Write-UILog -SyncHash $syncHash -Message "Sign-in failed: $($syncHash.AzureAuthState.ErrorMessage)" -Level Error
+                }
+
+                $syncHash.AzureAuthState.IsAuthInProgress = $false
+                & $syncHash.RefreshImportAuthUi
+            })
+
+        $pollTimer.Start()
     }
 
     $startImportSignOut = {
@@ -5154,33 +5249,26 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        if (-not (& $loadNerdioShellAppsModule)) {
-            $syncHash.NerdioApiAuthState.ErrorMessage = 'NerdioShellApps module is not loaded.'
+        # Verify the bundled module file is present before spawning a runspace.
+        $nmeModulePath = & $normalizeDirectoryPath -PathValue $nerdioBundledModulePath
+        if ([string]::IsNullOrWhiteSpace($nmeModulePath) -or -not (Test-Path -LiteralPath $nmeModulePath -PathType Leaf)) {
+            $syncHash.NerdioApiAuthState.ErrorMessage = 'NerdioShellApps module file was not found.'
             & $refreshNerdioApiAuthUi
-            Write-UILog -SyncHash $syncHash -Message 'Nerdio API sign-in failed: NerdioShellApps module could not be loaded from Resources.' -Level Error
+            Write-UILog -SyncHash $syncHash -Message 'Nerdio API sign-in failed: NerdioShellApps bundled module file was not found.' -Level Error
             return
         }
 
-        $setNmeCredentialsCommand = & $getNerdioShellAppsCommand -Name 'Set-NmeCredentials'
-        $connectNmeCommand = & $getNerdioShellAppsCommand -Name 'Connect-Nme'
-
-        if ($null -eq $setNmeCredentialsCommand -or $null -eq $connectNmeCommand) {
-            $syncHash.NerdioApiAuthState.ErrorMessage = 'Required NerdioShellApps commands were not found.'
-            & $refreshNerdioApiAuthUi
-            Write-UILog -SyncHash $syncHash -Message 'Nerdio API sign-in failed: required NerdioShellApps commands were not found.' -Level Error
-            return
-        }
-
-        $tenant = [string]$nerdioTenantIdBox.Text
-        $nmeHost = [string]$nmeHostBox.Text
-        $clientId = [string]$nmeClientIdBox.Text
-        $apiScope = [string]$nmeApiScopeBox.Text
+        # Read all credential fields on the UI thread before going async.
+        $tenant        = [string]$nerdioTenantIdBox.Text
+        $nmeHost       = [string]$nmeHostBox.Text
+        $clientId      = [string]$nmeClientIdBox.Text
+        $apiScope      = [string]$nmeApiScopeBox.Text
         $oAuthTokenUrl = [string]$nmeOAuthTokenUrlBox.Text
-        $clientSecret = [string]$nmeClientSecretBox.Password
+        $clientSecret  = [string]$nmeClientSecretBox.Password
         $subscriptionId = [string]$nmeSubscriptionIdBox.Text
-        $resourceGroup = [string]$nmeResourceGroupCombo.SelectedItem
+        $resourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
         $storageAccount = [string]$nmeStorageAccountCombo.SelectedItem
-        $container = [string]$nmeContainerCombo.SelectedItem
+        $container      = [string]$nmeContainerCombo.SelectedItem
 
         foreach ($required in @(
                 @{ Name = 'Tenant ID'; Value = $tenant },
@@ -5200,38 +5288,151 @@ function Start-EvergreenWorkbench {
         $syncHash.NerdioApiAuthState.IsAuthInProgress = $true
         $syncHash.NerdioApiAuthState.ErrorMessage = ''
         & $refreshNerdioApiAuthUi
+        Write-UILog -SyncHash $syncHash -Message "Starting Nerdio Manager API sign-in for host $nmeHost..." -Level Info
 
-        try {
-            & $setNmeCredentialsCommand -ClientId $clientId -ClientSecret $clientSecret -TenantId $tenant -ApiScope $apiScope -OAuthToken $oAuthTokenUrl -SubscriptionId $subscriptionId -ResourceGroupName $resourceGroup -StorageAccountName $storageAccount -ContainerName $container -NmeHost $nmeHost -ErrorAction Stop
+        # Run Connect-Nme in a background STA runspace so the HTTP call never
+        # blocks the WPF dispatcher thread.
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $nerdioApiHelperScripts = @(
+            'Format-LogEntry.ps1'
+            'Write-UILog.ps1'
+        ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
 
-            $nmeContext = & $connectNmeCommand -PassThru -ErrorAction Stop
-            if ($null -eq $nmeContext) {
-                throw 'Connect-Nme returned no connection context. Verify the NME host URL and credentials.'
-            }
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
 
-            $syncHash.NerdioApiAuthState.IsAuthenticated = $true
-            $syncHash.NerdioApiAuthState.AccountId = $clientId
-            $syncHash.NerdioApiAuthState.TenantId = $tenant.Trim()
-            $syncHash.NerdioApiAuthState.ContextName = $nmeHost.Trim()
-            $syncHash.NerdioApiAuthState.ErrorMessage = ''
+        [void]$ps.AddScript({
+                param(
+                    [string[]]$HelperScripts,
+                    [string]$ModulePath,
+                    [string]$TenantId,
+                    [string]$NmeHost,
+                    [string]$ClientId,
+                    [string]$ClientSecret,
+                    [string]$ApiScope,
+                    [string]$OAuthTokenUrl,
+                    [string]$SubscriptionId,
+                    [string]$ResourceGroup,
+                    [string]$StorageAccount,
+                    [string]$Container
+                )
 
-            $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$tenant.Trim()
-            Set-UIConfig -Config $syncHash.Config
+                $result = [PSCustomObject]@{
+                    Succeeded    = $false
+                    AccountId    = ''
+                    TenantId     = ''
+                    ContextName  = ''
+                    ErrorMessage = ''
+                }
 
-            Write-UILog -SyncHash $syncHash -Message "Nerdio Manager API sign-in succeeded for host $nmeHost." -Level Info
-        }
-        catch {
-            $syncHash.NerdioApiAuthState.IsAuthenticated = $false
-            $syncHash.NerdioApiAuthState.AccountId = ''
-            $syncHash.NerdioApiAuthState.TenantId = ''
-            $syncHash.NerdioApiAuthState.ContextName = ''
-            $syncHash.NerdioApiAuthState.ErrorMessage = $_.Exception.Message
-            Write-UILog -SyncHash $syncHash -Message "Nerdio API sign-in failed: $($syncHash.NerdioApiAuthState.ErrorMessage)" -Level Error
-        }
-        finally {
-            $syncHash.NerdioApiAuthState.IsAuthInProgress = $false
-            & $refreshNerdioApiAuthUi
-        }
+                try {
+                    foreach ($scriptPath in $HelperScripts) {
+                        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                            throw "Required helper script not found: $scriptPath"
+                        }
+                        . $scriptPath
+                    }
+
+                    Import-Module -Name $ModulePath -Force -ErrorAction Stop | Out-Null
+
+                    $module = Get-Module -Name NerdioShellApps -ErrorAction SilentlyContinue
+                    if ($null -ne $module -and $null -ne $module.SessionState -and $null -ne $module.SessionState.PSVariable) {
+                        $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
+                    }
+
+                    $setNmeCredCmd = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials' -ErrorAction SilentlyContinue
+                    $connectNmeCmd = Get-Command -Name 'NerdioShellApps\Connect-Nme' -ErrorAction SilentlyContinue
+
+                    if ($null -eq $setNmeCredCmd -or $null -eq $connectNmeCmd) {
+                        throw 'Required NerdioShellApps commands (Set-NmeCredentials, Connect-Nme) were not found.'
+                    }
+
+                    & $setNmeCredCmd -ClientId $ClientId -ClientSecret $ClientSecret -TenantId $TenantId -ApiScope $ApiScope -OAuthToken $OAuthTokenUrl -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroup -StorageAccountName $StorageAccount -ContainerName $Container -NmeHost $NmeHost -ErrorAction Stop
+
+                    $nmeContext = & $connectNmeCmd -PassThru -ErrorAction Stop
+                    if ($null -eq $nmeContext) {
+                        throw 'Connect-Nme returned no connection context. Verify the NME host URL and credentials.'
+                    }
+
+                    $result.Succeeded   = $true
+                    $result.AccountId   = $ClientId
+                    $result.TenantId    = $TenantId.Trim()
+                    $result.ContextName = $NmeHost.Trim()
+                }
+                catch {
+                    $result.ErrorMessage = $_.Exception.Message
+                }
+
+                return $result
+            }).AddArgument($nerdioApiHelperScripts).AddArgument($nmeModulePath).AddArgument($tenant).AddArgument($nmeHost).AddArgument($clientId).AddArgument($clientSecret).AddArgument($apiScope).AddArgument($oAuthTokenUrl).AddArgument($subscriptionId).AddArgument($resourceGroup).AddArgument($storageAccount).AddArgument($container)
+
+        $syncHash.PendingNerdioApiSignInPS       = $ps
+        $syncHash.PendingNerdioApiSignInRunspace = $rs
+        $syncHash.PendingNerdioApiSignInAsync    = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+        $syncHash.PendingNerdioApiSignInTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingNerdioApiSignInAsync -or -not $syncHash.PendingNerdioApiSignInAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingNerdioApiSignInTimer) {
+                    $syncHash.PendingNerdioApiSignInTimer.Stop()
+                    $syncHash.PendingNerdioApiSignInTimer = $null
+                }
+
+                $r = $null
+                try {
+                    $output = $syncHash.PendingNerdioApiSignInPS.EndInvoke($syncHash.PendingNerdioApiSignInAsync)
+                    if ($null -ne $output -and $output.Count -gt 0) {
+                        $r = $output[$output.Count - 1]
+                    }
+                }
+                catch {
+                    $r = [PSCustomObject]@{
+                        Succeeded = $false; AccountId = ''; TenantId = ''
+                        ContextName = ''; ErrorMessage = $_.Exception.Message
+                    }
+                }
+                finally {
+                    try { $syncHash.PendingNerdioApiSignInPS.Dispose() } catch {}
+                    try { $syncHash.PendingNerdioApiSignInRunspace.Dispose() } catch {}
+                    $syncHash.PendingNerdioApiSignInPS       = $null
+                    $syncHash.PendingNerdioApiSignInRunspace = $null
+                    $syncHash.PendingNerdioApiSignInAsync    = $null
+                }
+
+                if ($null -ne $r -and $r.Succeeded) {
+                    $syncHash.NerdioApiAuthState.IsAuthenticated = $true
+                    $syncHash.NerdioApiAuthState.AccountId       = [string]$r.AccountId
+                    $syncHash.NerdioApiAuthState.TenantId        = [string]$r.TenantId
+                    $syncHash.NerdioApiAuthState.ContextName     = [string]$r.ContextName
+                    $syncHash.NerdioApiAuthState.ErrorMessage    = ''
+
+                    $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$r.TenantId
+                    Set-UIConfig -Config $syncHash.Config
+
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio Manager API sign-in succeeded for host $([string]$r.ContextName)." -Level Info
+                }
+                else {
+                    $syncHash.NerdioApiAuthState.IsAuthenticated = $false
+                    $syncHash.NerdioApiAuthState.AccountId       = ''
+                    $syncHash.NerdioApiAuthState.TenantId        = ''
+                    $syncHash.NerdioApiAuthState.ContextName     = ''
+                    $syncHash.NerdioApiAuthState.ErrorMessage    = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio API sign-in failed: $($syncHash.NerdioApiAuthState.ErrorMessage)" -Level Error
+                }
+
+                $syncHash.NerdioApiAuthState.IsAuthInProgress = $false
+                & $refreshNerdioApiAuthUi
+            })
+
+        $pollTimer.Start()
     }
 
     $startNerdioApiSignOut = {
@@ -5272,76 +5473,169 @@ function Start-EvergreenWorkbench {
         $tenant = [string]$nerdioTenantIdBox.Text
         Write-UILog -SyncHash $syncHash -Message "Starting Azure sign-in for Nerdio workflows (subscription: $subscriptionId)..." -Level Info
 
-        $r = Invoke-NerdioAzureSignIn -SubscriptionId $subscriptionId -TenantId $tenant
-        if ($null -ne $r -and $r.Succeeded) {
-            $syncHash.NerdioAzureAuthState.IsAuthenticated = $true
-            $syncHash.NerdioAzureAuthState.AccountId = [string]$r.AccountId
-            $syncHash.NerdioAzureAuthState.TenantId = [string]$r.TenantId
-            $syncHash.NerdioAzureAuthState.SubscriptionName = [string]$r.SubscriptionName
-            $syncHash.NerdioAzureAuthState.ErrorMessage = ''
+        # Run Connect-AzAccount and the resource group fetch in a background STA
+        # runspace so neither blocks the WPF dispatcher thread.
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $azureHelperScripts = @(
+            'Format-LogEntry.ps1'
+            'Write-UILog.ps1'
+            'Invoke-AzureSignIn.ps1'
+        ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
 
-            if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
-                $nerdioTenantIdBox.Text = [string]$r.TenantId
-            }
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
 
-            $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$nerdioTenantIdBox.Text
-            $syncHash.Config.AzureAuthSettings.NerdioLastAccountId = [string]$r.AccountId
-            $syncHash.Config.AzureAuthSettings.NerdioLastTenantId = [string]$r.TenantId
-            $syncHash.Config.AzureAuthSettings.NerdioLastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
-            Set-UIConfig -Config $syncHash.Config
+        [void]$ps.AddScript({
+                param(
+                    [string[]]$HelperScripts,
+                    [string]$SubscriptionId,
+                    [string]$TenantId
+                )
 
-            Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in succeeded as $($r.AccountId) (subscription: $($r.SubscriptionName), tenant: $($r.TenantId))." -Level Info
-
-            # Populate the Resource Group dropdown from the target subscription
-            Write-UILog -SyncHash $syncHash -Message 'Loading resource groups...' -Level Info
-            $nmeResourceGroupCombo.Items.Clear()
-            $nmeStorageAccountCombo.Items.Clear()
-            $nmeContainerCombo.Items.Clear()
-            $nmeStorageAccountCombo.IsEnabled = $false
-            $nmeContainerCombo.IsEnabled = $false
-
-            $rgs = Get-NerdioAzureResourceGroups
-            foreach ($rg in $rgs) { [void]$nmeResourceGroupCombo.Items.Add($rg) }
-            $nmeResourceGroupCombo.IsEnabled = ($nmeResourceGroupCombo.Items.Count -gt 0)
-            Write-UILog -SyncHash $syncHash -Message "$($nmeResourceGroupCombo.Items.Count) resource group(s) loaded." -Level Info
-
-            # Restore saved storage selections (if they still exist in the subscription).
-            $savedResourceGroup = [string]$syncHash.Config.NerdioSettings.NmeResourceGroup
-            $savedStorageAccount = [string]$syncHash.Config.NerdioSettings.NmeStorageAccount
-            $savedContainer = [string]$syncHash.Config.NerdioSettings.NmeContainer
-
-            if (-not [string]::IsNullOrWhiteSpace($savedResourceGroup)) {
-                $matchedResourceGroup = @($nmeResourceGroupCombo.Items | Where-Object { [string]$_ -eq $savedResourceGroup } | Select-Object -First 1)
-                if ($matchedResourceGroup.Count -gt 0) {
-                    $nmeResourceGroupCombo.SelectedItem = $matchedResourceGroup[0]
+                $result = [PSCustomObject]@{
+                    Succeeded        = $false
+                    AccountId        = ''
+                    TenantId         = ''
+                    SubscriptionName = ''
+                    ErrorMessage     = ''
+                    ResourceGroups   = @()
                 }
-            }
 
-            if (-not [string]::IsNullOrWhiteSpace($savedStorageAccount)) {
-                $matchedStorageAccount = @($nmeStorageAccountCombo.Items | Where-Object { [string]$_ -eq $savedStorageAccount } | Select-Object -First 1)
-                if ($matchedStorageAccount.Count -gt 0) {
-                    $nmeStorageAccountCombo.SelectedItem = $matchedStorageAccount[0]
+                try {
+                    foreach ($scriptPath in $HelperScripts) {
+                        if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                            throw "Required helper script not found: $scriptPath"
+                        }
+                        . $scriptPath
+                    }
+
+                    $r = Invoke-NerdioAzureSignIn -SubscriptionId $SubscriptionId -TenantId $TenantId
+                    if ($null -eq $r -or -not $r.Succeeded) {
+                        $result.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                        return $result
+                    }
+
+                    $result.Succeeded        = $true
+                    $result.AccountId        = [string]$r.AccountId
+                    $result.TenantId         = [string]$r.TenantId
+                    $result.SubscriptionName = [string]$r.SubscriptionName
+
+                    Write-UILog -SyncHash $syncHash -Message 'Azure sign-in succeeded. Loading resource groups...' -Level Info
+                    $result.ResourceGroups = @(Get-NerdioAzureResourceGroups)
                 }
-            }
-
-            if (-not [string]::IsNullOrWhiteSpace($savedContainer)) {
-                $matchedContainer = @($nmeContainerCombo.Items | Where-Object { [string]$_ -eq $savedContainer } | Select-Object -First 1)
-                if ($matchedContainer.Count -gt 0) {
-                    $nmeContainerCombo.SelectedItem = $matchedContainer[0]
+                catch {
+                    $result.ErrorMessage = $_.Exception.Message
                 }
-            }
-        }
-        else {
-            $syncHash.NerdioAzureAuthState.IsAuthenticated = $false
-            $syncHash.NerdioAzureAuthState.AccountId = ''
-            $syncHash.NerdioAzureAuthState.TenantId = ''
-            $syncHash.NerdioAzureAuthState.SubscriptionName = ''
-            $syncHash.NerdioAzureAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
-            Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in failed: $($syncHash.NerdioAzureAuthState.ErrorMessage)" -Level Error
-        }
 
-        $syncHash.NerdioAzureAuthState.IsAuthInProgress = $false
-        & $refreshNerdioAzureAuthUi
+                return $result
+            }).AddArgument($azureHelperScripts).AddArgument($subscriptionId).AddArgument($tenant)
+
+        $syncHash.PendingNerdioAzureAuthPS       = $ps
+        $syncHash.PendingNerdioAzureAuthRunspace = $rs
+        $syncHash.PendingNerdioAzureAuthAsync    = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+        $syncHash.PendingNerdioAzureAuthTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingNerdioAzureAuthAsync -or -not $syncHash.PendingNerdioAzureAuthAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingNerdioAzureAuthTimer) {
+                    $syncHash.PendingNerdioAzureAuthTimer.Stop()
+                    $syncHash.PendingNerdioAzureAuthTimer = $null
+                }
+
+                $r = $null
+                try {
+                    $output = $syncHash.PendingNerdioAzureAuthPS.EndInvoke($syncHash.PendingNerdioAzureAuthAsync)
+                    if ($null -ne $output -and $output.Count -gt 0) {
+                        $r = $output[$output.Count - 1]
+                    }
+                }
+                catch {
+                    $r = [PSCustomObject]@{
+                        Succeeded = $false; AccountId = ''; TenantId = ''; SubscriptionName = ''
+                        ErrorMessage = $_.Exception.Message; ResourceGroups = @()
+                    }
+                }
+                finally {
+                    try { $syncHash.PendingNerdioAzureAuthPS.Dispose() } catch {}
+                    try { $syncHash.PendingNerdioAzureAuthRunspace.Dispose() } catch {}
+                    $syncHash.PendingNerdioAzureAuthPS       = $null
+                    $syncHash.PendingNerdioAzureAuthRunspace = $null
+                    $syncHash.PendingNerdioAzureAuthAsync    = $null
+                }
+
+                if ($null -ne $r -and $r.Succeeded) {
+                    $syncHash.NerdioAzureAuthState.IsAuthenticated  = $true
+                    $syncHash.NerdioAzureAuthState.AccountId        = [string]$r.AccountId
+                    $syncHash.NerdioAzureAuthState.TenantId         = [string]$r.TenantId
+                    $syncHash.NerdioAzureAuthState.SubscriptionName = [string]$r.SubscriptionName
+                    $syncHash.NerdioAzureAuthState.ErrorMessage     = ''
+
+                    if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
+                        $nerdioTenantIdBox.Text = [string]$r.TenantId
+                    }
+
+                    $syncHash.Config.AzureAuthSettings.NerdioTenantId        = [string]$nerdioTenantIdBox.Text
+                    $syncHash.Config.AzureAuthSettings.NerdioLastAccountId   = [string]$r.AccountId
+                    $syncHash.Config.AzureAuthSettings.NerdioLastTenantId    = [string]$r.TenantId
+                    $syncHash.Config.AzureAuthSettings.NerdioLastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
+                    Set-UIConfig -Config $syncHash.Config
+
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in succeeded as $($r.AccountId) (subscription: $($r.SubscriptionName), tenant: $($r.TenantId))." -Level Info
+
+                    # Populate the Resource Group dropdown on the UI thread with data
+                    # fetched in the background runspace.
+                    $nmeResourceGroupCombo.Items.Clear()
+                    $nmeStorageAccountCombo.Items.Clear()
+                    $nmeContainerCombo.Items.Clear()
+                    $nmeStorageAccountCombo.IsEnabled = $false
+                    $nmeContainerCombo.IsEnabled = $false
+
+                    foreach ($rg in @($r.ResourceGroups)) { [void]$nmeResourceGroupCombo.Items.Add($rg) }
+                    $nmeResourceGroupCombo.IsEnabled = ($nmeResourceGroupCombo.Items.Count -gt 0)
+                    Write-UILog -SyncHash $syncHash -Message "$($nmeResourceGroupCombo.Items.Count) resource group(s) loaded." -Level Info
+
+                    # Restore saved storage selections if they still exist.
+                    $savedResourceGroup  = [string]$syncHash.Config.NerdioSettings.NmeResourceGroup
+                    $savedStorageAccount = [string]$syncHash.Config.NerdioSettings.NmeStorageAccount
+                    $savedContainer      = [string]$syncHash.Config.NerdioSettings.NmeContainer
+
+                    if (-not [string]::IsNullOrWhiteSpace($savedResourceGroup)) {
+                        $matchedRg = @($nmeResourceGroupCombo.Items | Where-Object { [string]$_ -eq $savedResourceGroup } | Select-Object -First 1)
+                        if ($matchedRg.Count -gt 0) { $nmeResourceGroupCombo.SelectedItem = $matchedRg[0] }
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($savedStorageAccount)) {
+                        $matchedSa = @($nmeStorageAccountCombo.Items | Where-Object { [string]$_ -eq $savedStorageAccount } | Select-Object -First 1)
+                        if ($matchedSa.Count -gt 0) { $nmeStorageAccountCombo.SelectedItem = $matchedSa[0] }
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($savedContainer)) {
+                        $matchedCt = @($nmeContainerCombo.Items | Where-Object { [string]$_ -eq $savedContainer } | Select-Object -First 1)
+                        if ($matchedCt.Count -gt 0) { $nmeContainerCombo.SelectedItem = $matchedCt[0] }
+                    }
+                }
+                else {
+                    $syncHash.NerdioAzureAuthState.IsAuthenticated  = $false
+                    $syncHash.NerdioAzureAuthState.AccountId        = ''
+                    $syncHash.NerdioAzureAuthState.TenantId         = ''
+                    $syncHash.NerdioAzureAuthState.SubscriptionName = ''
+                    $syncHash.NerdioAzureAuthState.ErrorMessage     = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in failed: $($syncHash.NerdioAzureAuthState.ErrorMessage)" -Level Error
+                }
+
+                $syncHash.NerdioAzureAuthState.IsAuthInProgress = $false
+                & $refreshNerdioAzureAuthUi
+            })
+
+        $pollTimer.Start()
     }
 
     $startNerdioAzureSignOut = {
@@ -6017,6 +6311,51 @@ function Start-EvergreenWorkbench {
                     try { $op.Runspace.Dispose() } catch {}
                 }
                 $syncHash.ActiveBackgroundOperations.Clear()
+
+                if ($null -ne $syncHash.PendingImportSignInTimer -and $syncHash.PendingImportSignInTimer.IsEnabled) {
+                    $syncHash.PendingImportSignInTimer.Stop()
+                }
+                if ($null -ne $syncHash.PendingImportSignInPS) {
+                    try { $syncHash.PendingImportSignInPS.Stop() } catch {}
+                    try { $syncHash.PendingImportSignInPS.Dispose() } catch {}
+                }
+                if ($null -ne $syncHash.PendingImportSignInRunspace) {
+                    try { $syncHash.PendingImportSignInRunspace.Dispose() } catch {}
+                }
+                $syncHash.PendingImportSignInTimer    = $null
+                $syncHash.PendingImportSignInPS       = $null
+                $syncHash.PendingImportSignInRunspace = $null
+                $syncHash.PendingImportSignInAsync    = $null
+
+                if ($null -ne $syncHash.PendingNerdioApiSignInTimer -and $syncHash.PendingNerdioApiSignInTimer.IsEnabled) {
+                    $syncHash.PendingNerdioApiSignInTimer.Stop()
+                }
+                if ($null -ne $syncHash.PendingNerdioApiSignInPS) {
+                    try { $syncHash.PendingNerdioApiSignInPS.Stop() } catch {}
+                    try { $syncHash.PendingNerdioApiSignInPS.Dispose() } catch {}
+                }
+                if ($null -ne $syncHash.PendingNerdioApiSignInRunspace) {
+                    try { $syncHash.PendingNerdioApiSignInRunspace.Dispose() } catch {}
+                }
+                $syncHash.PendingNerdioApiSignInTimer    = $null
+                $syncHash.PendingNerdioApiSignInPS       = $null
+                $syncHash.PendingNerdioApiSignInRunspace = $null
+                $syncHash.PendingNerdioApiSignInAsync    = $null
+
+                if ($null -ne $syncHash.PendingNerdioAzureAuthTimer -and $syncHash.PendingNerdioAzureAuthTimer.IsEnabled) {
+                    $syncHash.PendingNerdioAzureAuthTimer.Stop()
+                }
+                if ($null -ne $syncHash.PendingNerdioAzureAuthPS) {
+                    try { $syncHash.PendingNerdioAzureAuthPS.Stop() } catch {}
+                    try { $syncHash.PendingNerdioAzureAuthPS.Dispose() } catch {}
+                }
+                if ($null -ne $syncHash.PendingNerdioAzureAuthRunspace) {
+                    try { $syncHash.PendingNerdioAzureAuthRunspace.Dispose() } catch {}
+                }
+                $syncHash.PendingNerdioAzureAuthTimer    = $null
+                $syncHash.PendingNerdioAzureAuthPS       = $null
+                $syncHash.PendingNerdioAzureAuthRunspace = $null
+                $syncHash.PendingNerdioAzureAuthAsync    = $null
 
                 if ($null -ne $syncHash.PendingIntuneImportTimer -and $syncHash.PendingIntuneImportTimer.IsEnabled) {
                     $syncHash.PendingIntuneImportTimer.Stop()
