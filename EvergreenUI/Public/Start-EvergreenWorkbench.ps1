@@ -65,6 +65,7 @@ function Start-EvergreenWorkbench {
         RootModule        = ''
         Guid              = ''
         ManifestPath      = $moduleManifestPath
+        RequiredModules   = $null
     }
 
     try {
@@ -105,6 +106,38 @@ function Start-EvergreenWorkbench {
         if ([string]::IsNullOrWhiteSpace([string]$moduleMetadata.License)) {
             $moduleMetadata.License = [string]$moduleMetadata.Copyright
         }
+
+        $modulesToCheck = [System.Collections.Generic.List[string]]::new()
+        foreach ($reqMod in $moduleManifest.RequiredModules) {
+            $modulesToCheck.Add([string]$reqMod.Name)
+        }
+        foreach ($extraMod in @('Az.Accounts', 'Az.Resources', 'Az.Storage', 'IntuneWin32App', 'Microsoft.Graph.Authentication')) {
+            if (-not $modulesToCheck.Contains($extraMod)) {
+                $modulesToCheck.Add($extraMod)
+            }
+        }
+
+        $requiredModulesList = [System.Collections.Generic.List[PSCustomObject]]::new()
+        foreach ($modName in $modulesToCheck) {
+            $installedVersion = 'Not installed'
+            try {
+                $installed = Get-Module -Name $modName -ListAvailable -ErrorAction Stop |
+                    Sort-Object -Property Version -Descending |
+                    Select-Object -First 1
+                if ($null -ne $installed) {
+                    $installedVersion = [string]$installed.Version
+                }
+            }
+            catch {
+                # best-effort - failure here must not abort the caller
+                Write-Verbose -Message "EvergreenUI: Could not resolve installed version for '$modName': $_"
+            }
+            $requiredModulesList.Add([PSCustomObject]@{
+                Name             = $modName
+                InstalledVersion = $installedVersion
+            })
+        }
+        $moduleMetadata.RequiredModules = $requiredModulesList
     }
     catch {
         # About panel metadata is best-effort only.
@@ -242,6 +275,12 @@ function Start-EvergreenWorkbench {
                 SubscriptionName = ''
                 ErrorMessage     = ''
             }
+            EvergreenModuleLoaded                           = $false
+            MgGraphModuleLoaded                             = $false
+            IntuneWin32AppLoaded                            = $false
+            AzModulesLoaded                                 = $false
+            NerdioShellAppsLoaded                           = $false
+            ImportModulesInitialized                        = $false
         })
 
     # Load XAML layout
@@ -360,6 +399,7 @@ function Start-EvergreenWorkbench {
     $aboutLicenseValue = $window.FindName('AboutLicenseValue')
     $aboutProjectUriValue = $window.FindName('AboutProjectUriValue')
     $aboutDescriptionValue = $window.FindName('AboutDescriptionValue')
+    $aboutRequiredModulesList = $window.FindName('AboutRequiredModulesList')
 
     $importProviderTabControl = $window.FindName('ImportProviderTabControl')
     $importTenantIdBox = $window.FindName('ImportTenantIdBox')
@@ -485,6 +525,9 @@ function Start-EvergreenWorkbench {
     $aboutLicenseValue.Text = [string]$moduleMetadata.License
     $aboutProjectUriValue.Text = [string]$moduleMetadata.ProjectUri
     $aboutDescriptionValue.Text = [string]$moduleMetadata.Description
+    if ($null -ne $moduleMetadata.RequiredModules -and $moduleMetadata.RequiredModules.Count -gt 0) {
+        $aboutRequiredModulesList.ItemsSource = $moduleMetadata.RequiredModules
+    }
 
     $setNerdioShellAppsLoadingState = {
         param(
@@ -535,8 +578,12 @@ function Start-EvergreenWorkbench {
             $isNewApp = ([string]$selectedRow.IsNewApp -eq 'Yes')
             $updateNeeded = ([string]$selectedRow.UpdateNeeded -eq 'Yes')
 
-            $canImportNew = $hasDefinition -and $isNewApp
-            $canAddVersion = $isMatched -and $updateNeeded
+            $canImportNew = $hasDefinition -and $isNewApp `
+                -and ([bool]$syncHash.IntuneWin32AppLoaded) `
+                -and ([bool]$syncHash.AzModulesLoaded)
+            $canAddVersion = $isMatched -and $updateNeeded `
+                -and ([bool]$syncHash.IntuneWin32AppLoaded) `
+                -and ([bool]$syncHash.AzModulesLoaded)
         }
 
         if ($null -ne $nerdioImportNewButton) {
@@ -555,7 +602,10 @@ function Start-EvergreenWorkbench {
             [string]$_.ImportAction -eq 'Import new app' -or [string]$_.ImportAction -eq 'Import new version and supersede'
         }
 
-        $canImport = ($null -ne $hasActionable) -and (-not $syncHash.IsIntuneImportLoading)
+        $canImport = ($null -ne $hasActionable) `
+            -and (-not $syncHash.IsIntuneImportLoading) `
+            -and ([bool]$syncHash.IntuneWin32AppLoaded) `
+            -and ([bool]$syncHash.MgGraphModuleLoaded)
 
         if ($null -ne $intuneApplyImportButton) {
             $intuneApplyImportButton.IsEnabled = $canImport
@@ -3069,7 +3119,7 @@ function Start-EvergreenWorkbench {
 
     $refreshImportAuthUi = {
         $state = $syncHash.AzureAuthState
-        $canCompareIntune = (-not $syncHash.IsIntuneImportLoading) -and $state.IsAuthenticated -and $state.IntuneConnected
+        $canCompareIntune = (-not $syncHash.IsIntuneImportLoading) -and $state.IsAuthenticated -and $state.IntuneConnected -and ([bool]$syncHash.MgGraphModuleLoaded)
 
         if ($null -ne $intuneRefreshCatalogButton) {
             $intuneRefreshCatalogButton.IsEnabled = $canCompareIntune
@@ -3134,7 +3184,7 @@ function Start-EvergreenWorkbench {
         else {
             $importAuthStatusLabel.Text = 'Sign-in failed'
         }
-        $importSignInButton.IsEnabled = $true
+        $importSignInButton.IsEnabled = [bool]$syncHash.MgGraphModuleLoaded
         $importSignOutButton.IsEnabled = $false
         & $updateM365ActionButtons
     }
@@ -3237,7 +3287,7 @@ function Start-EvergreenWorkbench {
         else {
             $nerdioAzureAuthStatusLabel.Text = 'Sign-in failed'
         }
-        $nerdioAzureSignInButton.IsEnabled = $true
+        $nerdioAzureSignInButton.IsEnabled = [bool]$syncHash.AzModulesLoaded
         $nerdioAzureSignOutButton.IsEnabled = $false
     }
 
@@ -4957,6 +5007,59 @@ function Start-EvergreenWorkbench {
         }
     }
 
+    $loadImportTabModules = {
+        # IntuneWin32App - reuse existing loader which handles status dot + log output
+        Write-UILog -SyncHash $syncHash -Message 'Import tab: loading IntuneWin32App...' -Level Info
+        $intuneOk = & $loadIntuneWin32AppModule
+        $syncHash.IntuneWin32AppLoaded = $intuneOk
+        if (-not $intuneOk) {
+            Write-UILog -SyncHash $syncHash -Message 'IntuneWin32App could not be loaded. Intune and Nerdio import actions will be unavailable.' -Level Error
+        }
+
+        # NerdioShellApps (bundled) - reuse existing loader
+        Write-UILog -SyncHash $syncHash -Message 'Import tab: loading NerdioShellApps...' -Level Info
+        $nerdioOk = & $loadNerdioShellAppsModule
+        $syncHash.NerdioShellAppsLoaded = $nerdioOk
+        if (-not $nerdioOk) {
+            Write-UILog -SyncHash $syncHash -Message 'NerdioShellApps module could not be loaded. Nerdio import actions will be unavailable.' -Level Error
+        }
+
+        # Microsoft.Graph.Authentication
+        try {
+            Write-UILog -SyncHash $syncHash -Message 'Import tab: loading Microsoft.Graph.Authentication...' -Level Info
+            Import-Module -Name Microsoft.Graph.Authentication -ErrorAction Stop | Out-Null
+            $syncHash.MgGraphModuleLoaded = $true
+            Write-UILog -SyncHash $syncHash -Message 'Microsoft.Graph.Authentication loaded.' -Level Info
+        }
+        catch {
+            $syncHash.MgGraphModuleLoaded = $false
+            Write-UILog -SyncHash $syncHash -Message "Failed to load Microsoft.Graph.Authentication: $($_.Exception.Message). Intune sign-in will be unavailable." -Level Error
+        }
+
+        # Az.Accounts, Az.Resources, Az.Storage
+        try {
+            Write-UILog -SyncHash $syncHash -Message 'Import tab: loading Az.Accounts, Az.Resources, Az.Storage...' -Level Info
+            Import-Module -Name Az.Accounts  -ErrorAction Stop | Out-Null
+            Import-Module -Name Az.Resources -ErrorAction Stop | Out-Null
+            Import-Module -Name Az.Storage   -ErrorAction Stop | Out-Null
+            $syncHash.AzModulesLoaded = $true
+            Write-UILog -SyncHash $syncHash -Message 'Az modules loaded.' -Level Info
+        }
+        catch {
+            $syncHash.AzModulesLoaded = $false
+            Write-UILog -SyncHash $syncHash -Message "Failed to load one or more Az modules: $($_.Exception.Message). Nerdio Azure sign-in will be unavailable." -Level Error
+        }
+
+        # Refresh all Import-tab button states now that module availability is known
+        & $refreshImportAuthUi
+        & $refreshNerdioApiAuthUi
+        & $refreshNerdioAzureAuthUi
+        & $updateIntuneRowActionButtons
+        & $updateNerdioRowActionButtons
+
+        $syncHash.ImportModulesInitialized = $true
+    }
+
     $startImportSignIn = {
         if ($syncHash.AzureAuthState.IsAuthInProgress) {
             return
@@ -5745,22 +5848,30 @@ function Start-EvergreenWorkbench {
                 Set-LightTheme -Window $syncHash.Window
             }
 
-            # Populate Evergreen version info in title bar
+            # Load Evergreen module and populate version info in title bar
             try {
+                $evergreenVersionText.Text = 'Evergreen: loading...'
+                $evergreenStatusDot.Fill = [System.Windows.Media.Brushes]::Gold
+                Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
                 $egModule = Get-Module -Name Evergreen | Select-Object -First 1
                 if ($null -ne $egModule) {
                     $syncHash.EvergreenVersion = "v$($egModule.Version)"
+                    $syncHash.EvergreenModuleLoaded = $true
                     $evergreenVersionText.Text = "Evergreen $($syncHash.EvergreenVersion)"
                     $evergreenStatusDot.Fill = [System.Windows.Media.Brushes]::LightGreen
+                    Write-UILog -SyncHash $syncHash -Message "Evergreen module $($syncHash.EvergreenVersion) loaded." -Level Info
                 }
                 else {
                     $evergreenVersionText.Text = 'Evergreen: not loaded'
                     $evergreenStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+                    Write-UILog -SyncHash $syncHash -Message 'Evergreen module loaded but Get-Module returned null.' -Level Warning
                 }
             }
             catch {
-                $evergreenVersionText.Text = 'Evergreen: error'
+                $syncHash.EvergreenModuleLoaded = $false
+                $evergreenVersionText.Text = 'Evergreen: failed to load'
                 $evergreenStatusDot.Fill = [System.Windows.Media.Brushes]::OrangeRed
+                Write-UILog -SyncHash $syncHash -Message "Failed to load Evergreen module: $($_.Exception.Message)" -Level Error
             }
 
             Write-UILog -SyncHash $syncHash -Message "EvergreenUI started. $($syncHash.EvergreenVersion)" -Level Info
@@ -5812,8 +5923,6 @@ function Start-EvergreenWorkbench {
                 }
             }
             & $setInstallElevationState
-            [void](& $loadNerdioShellAppsModule)
-            [void](& $loadIntuneWin32AppModule)
             & $refreshImportAuthUi
             & $refreshNerdioApiAuthUi
             & $refreshNerdioAzureAuthUi
@@ -6064,6 +6173,12 @@ function Start-EvergreenWorkbench {
         })
 
     $navImport.add_Checked({
+            # Load Import-tab dependent modules on first visit only
+            if (-not $syncHash.ImportModulesInitialized) {
+                Write-UILog -SyncHash $syncHash -Message 'Import tab: initializing required modules...' -Level Info
+                & $loadImportTabModules
+            }
+
             & $refreshImportAuthUi
             & $refreshNerdioApiAuthUi
             & $refreshNerdioAzureAuthUi
@@ -6181,7 +6296,7 @@ function Start-EvergreenWorkbench {
     # but only when not already signed in (sign-in is disabled while authenticated).
     $nmeSubscriptionIdBox.add_TextChanged({
             $notAuthenticated = -not [bool]$syncHash.NerdioAzureAuthState.IsAuthenticated
-            $nerdioAzureSignInButton.IsEnabled = $notAuthenticated -and (-not [string]::IsNullOrWhiteSpace($nmeSubscriptionIdBox.Text))
+            $nerdioAzureSignInButton.IsEnabled = $notAuthenticated -and (-not [string]::IsNullOrWhiteSpace($nmeSubscriptionIdBox.Text)) -and ([bool]$syncHash.AzModulesLoaded)
             $syncHash.Config.NerdioSettings.NmeSubscriptionId = [string]$nmeSubscriptionIdBox.Text
             Set-UIConfig -Config $syncHash.Config
         })

@@ -23,8 +23,12 @@ function Invoke-AzureSignIn {
 
         # Intune workflows should use Microsoft Graph interactive auth so the
         # sign-in button opens the browser flow instead of prompting for a client ID.
-        Write-Verbose 'EvergreenUI: Importing Microsoft.Graph.Authentication...'
-        Import-Module Microsoft.Graph.Authentication -ErrorAction SilentlyContinue | Out-Null
+        # Module is pre-loaded by $loadImportTabModules; guard ensures resilience if
+        # called before tab initialization.
+        if (-not (Get-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue)) {
+            Write-Verbose 'EvergreenUI: Importing Microsoft.Graph.Authentication (fallback)...'
+            Import-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue | Out-Null
+        }
         Write-Verbose -Message "EvergreenUI: Connect-MgGraph available: $(($null -ne (Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue)))"
 
         if (-not (Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue)) {
@@ -96,7 +100,10 @@ function Invoke-AzureSignOut {
 
     try {
         # Also clear Az context if present so the previous behavior stays clean.
-        Import-Module Az.Accounts -ErrorAction SilentlyContinue | Out-Null
+        # Module is pre-loaded by $loadImportTabModules; guard ensures resilience.
+        if (-not (Get-Module -Name Az.Accounts -ErrorAction SilentlyContinue)) {
+            Import-Module -Name Az.Accounts -ErrorAction SilentlyContinue | Out-Null
+        }
         Disconnect-AzAccount -Scope Process -ErrorAction SilentlyContinue | Out-Null
         Clear-AzContext -Scope Process -Force -ErrorAction SilentlyContinue | Out-Null
     }
@@ -117,10 +124,14 @@ function Invoke-NerdioAzureSignIn {
     )
 
     try {
-        Write-Verbose 'EvergreenUI: Importing Az.Accounts, Az.Resources, Az.Storage...'
-        Import-Module Az.Accounts   -ErrorAction SilentlyContinue | Out-Null
-        Import-Module Az.Resources  -ErrorAction SilentlyContinue | Out-Null
-        Import-Module Az.Storage    -ErrorAction SilentlyContinue | Out-Null
+        # Az modules are pre-loaded by $loadImportTabModules; guards ensure resilience
+        # if called before tab initialization.
+        Write-Verbose 'EvergreenUI: Ensuring Az.Accounts, Az.Resources, Az.Storage are loaded...'
+        foreach ($mod in @('Az.Accounts', 'Az.Resources', 'Az.Storage')) {
+            if (-not (Get-Module -Name $mod -ErrorAction SilentlyContinue)) {
+                Import-Module -Name $mod -ErrorAction SilentlyContinue | Out-Null
+            }
+        }
         Write-Verbose -Message "EvergreenUI: Connect-AzAccount available: $(($null -ne (Get-Command -Name Connect-AzAccount -ErrorAction SilentlyContinue)))"
 
         if (-not (Get-Command -Name Connect-AzAccount -ErrorAction SilentlyContinue)) {
@@ -197,7 +208,10 @@ function Invoke-NerdioAzureSignOut {
     param()
 
     try {
-        Import-Module Az.Accounts -ErrorAction SilentlyContinue | Out-Null
+        # Module is pre-loaded by $loadImportTabModules; guard ensures resilience.
+        if (-not (Get-Module -Name Az.Accounts -ErrorAction SilentlyContinue)) {
+            Import-Module -Name Az.Accounts -ErrorAction SilentlyContinue | Out-Null
+        }
         Disconnect-AzAccount -Scope Process -ErrorAction SilentlyContinue | Out-Null
         Clear-AzContext     -Scope Process -Force -ErrorAction SilentlyContinue | Out-Null
     }
@@ -211,7 +225,10 @@ function Get-NerdioAzureResourceGroups {
     [CmdletBinding()]
     param()
     try {
-        Import-Module Az.Resources -ErrorAction SilentlyContinue | Out-Null
+        # Module is pre-loaded by $loadImportTabModules; guard ensures resilience.
+        if (-not (Get-Module -Name Az.Resources -ErrorAction SilentlyContinue)) {
+            Import-Module -Name Az.Resources -ErrorAction SilentlyContinue | Out-Null
+        }
         $groups = Get-AzResourceGroup -ErrorAction Stop
         return @($groups | Sort-Object ResourceGroupName | Select-Object -ExpandProperty ResourceGroupName)
     }
@@ -228,7 +245,10 @@ function Get-NerdioAzureStorageAccounts {
         [string]$ResourceGroupName
     )
     try {
-        Import-Module Az.Storage -ErrorAction SilentlyContinue | Out-Null
+        # Module is pre-loaded by $loadImportTabModules; guard ensures resilience.
+        if (-not (Get-Module -Name Az.Storage -ErrorAction SilentlyContinue)) {
+            Import-Module -Name Az.Storage -ErrorAction SilentlyContinue | Out-Null
+        }
         $accounts = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -ErrorAction Stop
         return @($accounts | Sort-Object StorageAccountName | Select-Object -ExpandProperty StorageAccountName)
     }
@@ -248,7 +268,10 @@ function Get-NerdioAzureStorageContainers {
         [string]$StorageAccountName
     )
     try {
-        Import-Module Az.Storage -ErrorAction SilentlyContinue | Out-Null
+        # Module is pre-loaded by $loadImportTabModules; guard ensures resilience.
+        if (-not (Get-Module -Name Az.Storage -ErrorAction SilentlyContinue)) {
+            Import-Module -Name Az.Storage -ErrorAction SilentlyContinue | Out-Null
+        }
         $sa = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -ErrorAction Stop
         $containers = Get-AzStorageContainer -Context $sa.Context -ErrorAction Stop
         return @($containers | Sort-Object Name | Select-Object -ExpandProperty Name)
