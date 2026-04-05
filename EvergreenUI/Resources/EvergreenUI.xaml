@@ -10,25 +10,25 @@
 
     <Window.Resources>
 
-        <!-- Safe startup palette; theme functions can override these on Loaded -->
-        <SolidColorBrush x:Key="WindowBackgroundBrush"  Color="#FFF3F3F3"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush"       Color="#FF1F1F1F"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush"     Color="#FF5E5E5E"/>
-        <SolidColorBrush x:Key="AccentBrush"            Color="#FF0F6CBD"/>
-        <SolidColorBrush x:Key="AccentHoverBrush"       Color="#FF115EA3"/>
-        <SolidColorBrush x:Key="AccentLightBrush"       Color="#FFDCEBFA"/>
+        <!-- Safe startup palette: matches Set-LightTheme.ps1 values; theme functions override on Loaded -->
+        <SolidColorBrush x:Key="WindowBackgroundBrush"  Color="#FFF3F4F4"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush"       Color="#FF1A1A1A"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush"     Color="#FF4D5A58"/>
+        <SolidColorBrush x:Key="AccentBrush"            Color="#FF009485"/>
+        <SolidColorBrush x:Key="AccentHoverBrush"       Color="#FF01786C"/>
+        <SolidColorBrush x:Key="AccentLightBrush"       Color="#FFD9F2EF"/>
         <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#FFFFFFFF"/>
-        <SolidColorBrush x:Key="ControlBorderBrush"     Color="#FFD1D1D1"/>
+        <SolidColorBrush x:Key="ControlBorderBrush"     Color="#FFDDE2E1"/>
         <SolidColorBrush x:Key="ButtonForegroundBrush"  Color="#FFFFFFFF"/>
         <SolidColorBrush x:Key="ToggleThumbBrush"       Color="#FFFFFFFF"/>
-        <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#FFFFFFFF"/>
-        <SolidColorBrush x:Key="SecondaryButtonBorderBrush"     Color="#FFC7C7C7"/>
-        <SolidColorBrush x:Key="StatusPositiveBrush"      Color="#FF107C10"/>
-        <SolidColorBrush x:Key="StatusErrorBrush"         Color="#FFC50F1F"/>
-        <SolidColorBrush x:Key="StatusWarningBrush"       Color="#FF9D5D00"/>
-        <SolidColorBrush x:Key="StatusPositiveLightBrush" Color="#FFE7F6E7"/>
-        <SolidColorBrush x:Key="StatusWarningLightBrush"  Color="#FFFFF4CE"/>
-        <SolidColorBrush x:Key="StatusErrorLightBrush"    Color="#FFFDE7E9"/>
+        <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#FFE4E8E7"/>
+        <SolidColorBrush x:Key="SecondaryButtonBorderBrush"     Color="#FF9AADAA"/>
+        <SolidColorBrush x:Key="StatusPositiveBrush"      Color="#FF25674A"/>
+        <SolidColorBrush x:Key="StatusErrorBrush"         Color="#FFA64040"/>
+        <SolidColorBrush x:Key="StatusWarningBrush"       Color="#FF955A00"/>
+        <SolidColorBrush x:Key="StatusPositiveLightBrush" Color="#1A4CAF50"/>
+        <SolidColorBrush x:Key="StatusWarningLightBrush"  Color="#1AFFB300"/>
+        <SolidColorBrush x:Key="StatusErrorLightBrush"    Color="#1AFF3333"/>
 
         <FontFamily x:Key="FluentIconFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
