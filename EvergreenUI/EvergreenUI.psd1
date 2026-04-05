@@ -61,7 +61,7 @@
     # Module metadata
     PrivateData = @{
         PSData = @{
-            Tags         = @('Evergreen', 'GUI', 'WPF', 'EUC', 'EvergreenUI', 'Windows')
+            Tags         = @('Evergreen', 'GUI', 'MSI', 'EvergreenUI', 'Windows')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
             ReleaseNotes = 'Pre-release. App favourites. Show/hide columns in App version details. Fluent UI fixes.'

@@ -2118,7 +2118,7 @@ function Start-EvergreenWorkbench {
         foreach ($row in $rows) { $observableRows.Add($row) }
         $m365ConfigsListView.ItemsSource = $observableRows
 
-        $validCount = ($rows | Where-Object { $_.Status -eq 'Valid' }).Count
+        $validCount = @($rows | Where-Object { $_.Status -eq 'Valid' }).Count
         $m365ConfigsCountLabel.Text = "$($rows.Count) configuration$(if ($rows.Count -ne 1) {'s'}) ($validCount valid)"
 
         Write-UILog -SyncHash $syncHash -Message "M365: loaded $($rows.Count) configuration(s)." -Level Info
@@ -6535,7 +6535,7 @@ function Start-EvergreenWorkbench {
             }
             if (-not [string]::IsNullOrWhiteSpace($savedIntunePath) -and
                 (Test-Path -LiteralPath $savedIntunePath -PathType Container) -and
-                $syncHash.IntuneWin32Rows.Count -eq 0) {
+                @($syncHash.IntuneWin32Rows).Count -eq 0) {
                 & $loadIntuneDefinitions
             }
 
@@ -6547,7 +6547,7 @@ function Start-EvergreenWorkbench {
             }
             if (-not [string]::IsNullOrWhiteSpace($savedNerdioPath) -and
                 (Test-Path -LiteralPath $savedNerdioPath -PathType Container) -and
-                $syncHash.NerdioShellAppRows.Count -eq 0) {
+                @($syncHash.NerdioShellAppRows).Count -eq 0) {
                 & $loadNerdioDefinitions
             }
 
@@ -6559,7 +6559,7 @@ function Start-EvergreenWorkbench {
             }
             if (-not [string]::IsNullOrWhiteSpace($savedM365Path) -and
                 (Test-Path -LiteralPath $savedM365Path -PathType Container) -and
-                $syncHash.M365ConfigRows.Count -eq 0) {
+                @($syncHash.M365ConfigRows).Count -eq 0) {
                 & $loadM365Configs
             }
         })
