@@ -29,7 +29,11 @@
       "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI -Recurse | Format-Table RuleName, Severity, ScriptName, Line, Message -AutoSize\")",
       "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI -Recurse | Where-Object { $_ScriptName -in @\\(''Start-EvergreenWorkbench.ps1'',''Invoke-AzureSignIn.ps1''\\) } | Format-Table RuleName, Severity, ScriptName, Line, Message -AutoSize\")",
       "Bash(Invoke-Pester -Path .testsEvergreenUI.tests.ps1 -Output Detailed)",
-      "PowerShell(Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Detailed)"
+      "PowerShell(Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Detailed)",
+      "Bash(grep -n \"IntuneWin32Rows\\\\s*=\\\\s*$null\\\\|NerdioShellAppRows\\\\s*=\\\\s*$null\\\\|M365ConfigRows\\\\s*=\\\\s*$null\" EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
+      "Bash(grep -n '\\\\$refreshImportAuthUi\\\\s*=\\\\s*{' \"/c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1\")",
+      "Bash(grep -n '\\\\$updateIntuneRowActionButtons\\\\s*=\\\\s*{' \"/c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1\")",
+      "Bash(grep -n '\\\\$updateNerdioRowActionButtons\\\\s*=\\\\s*{' \"/c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1\")"
     ]
   },
   "defaultShell": "powershell"
