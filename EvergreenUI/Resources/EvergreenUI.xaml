@@ -127,7 +127,7 @@
             <Setter Property="Foreground"               Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush"              Value="{DynamicResource ControlBorderBrush}"/>
             <Setter Property="BorderThickness"          Value="1"/>
-            <Setter Property="Padding"                  Value="8,0"/>
+            <Setter Property="Padding"                  Value="8,0,0,0"/>
             <Setter Property="MinHeight"                Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="CaretBrush"               Value="{DynamicResource TextPrimaryBrush}"/>
@@ -1163,7 +1163,7 @@
                                         <TextBlock Text="Search..."
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    IsHitTestVisible="False"
-                                                   Margin="10,0,0,0"
+                                                   Margin="8,0,0,0"
                                                    VerticalAlignment="Center"
                                                    FontSize="13">
                                             <TextBlock.Style>
@@ -1829,7 +1829,7 @@
                                                 <TextBlock Text="Path to package definitions..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                                            IsHitTestVisible="False"
-                                                           Margin="10,0,6,0"
+                                                           Margin="8,0,6,0"
                                                            VerticalAlignment="Center"
                                                            FontSize="13"
                                                            Grid.Column="0">
@@ -2108,7 +2108,7 @@
                                                 <TextBlock Text="Path to Shell App definitions..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                                            IsHitTestVisible="False"
-                                                           Margin="10,0,6,0"
+                                                           Margin="8,0,6,0"
                                                            VerticalAlignment="Center"
                                                            FontSize="13"
                                                            Grid.Column="0">
@@ -2426,7 +2426,7 @@
                                                 <TextBlock Text="Path to M365 App configuration files..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                                            IsHitTestVisible="False"
-                                                           Margin="10,0,6,0"
+                                                           Margin="8,0,6,0"
                                                            VerticalAlignment="Center"
                                                            FontSize="13"
                                                            Grid.Column="0">
@@ -2758,7 +2758,7 @@
                                                        Text="Tenant ID (optional)"
                                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                                        IsHitTestVisible="False"
-                                                       Margin="10,0,0,0"
+                                                       Margin="8,0,0,0"
                                                        VerticalAlignment="Center"
                                                        FontSize="12">
                                                 <TextBlock.Style>
@@ -2898,7 +2898,7 @@
                                                         <TextBlock Text="Tenant ID (optional)"
                                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                                    IsHitTestVisible="False"
-                                                                   Margin="10,0,0,0"
+                                                                   
                                                                    VerticalAlignment="Center"
                                                                    FontSize="12">
                                                             <TextBlock.Style>
@@ -3121,7 +3121,7 @@
                                     <TextBlock Text="Path to package definitions..."
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                IsHitTestVisible="False"
-                                               Margin="10,0,6,0"
+                                               Margin="8,0,6,0"
                                                VerticalAlignment="Center"
                                                FontSize="13"
                                                Grid.Column="0">
@@ -3377,7 +3377,7 @@
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource FluentSecondaryButton}"
                                             Width="{Binding ElementName=OpenEvergreenAppsFolderButton, Path=ActualWidth}"
-                                            Margin="8,0,0,0"/>
+                                            />
                                     <TextBox x:Name="OutputPathBox"
                                              Style="{StaticResource FluentTextBox}"/>
                                 </DockPanel>
@@ -3392,7 +3392,7 @@
                                             Content="Open folder"
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource FluentSecondaryButton}"
-                                            Margin="8,0,0,0"/>
+                                            />
                                     <TextBox x:Name="EvergreenAppsPathBox"
                                              Style="{StaticResource FluentTextBox}"
                                              IsReadOnly="True"
@@ -3553,7 +3553,7 @@
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource FluentSecondaryButton}"
                                             Width="{Binding ElementName=IntuneBrowsePackageOutputButton, Path=ActualWidth}"
-                                            Margin="8,0,0,0"/>
+                                            />
                                     <DockPanel VerticalAlignment="Center">
                                         <Ellipse x:Name="IntuneSettingsModuleStatusDot"
                                                  DockPanel.Dock="Left"
@@ -3578,7 +3578,7 @@
                                             Content="Browse"
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource FluentSecondaryButton}"
-                                            Margin="8,0,0,0"/>
+                                            />
                                     <TextBox x:Name="IntunePackageOutputPathBox"
                                              Style="{StaticResource FluentTextBox}"
                                              ToolTip="Folder where .intunewin packages are written during the Package step"/>
