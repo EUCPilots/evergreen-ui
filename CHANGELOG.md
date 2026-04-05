@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.18] - 2026-04-05
+
+### Added
+
+- About panel: **Required Modules** section added showing module name and installed version for all modules the Import tab depends on (IntuneWin32App, NerdioShellApps, Microsoft.Graph.Authentication, Az.*)
+- Import tab: module-state tracking flags added to `$syncHash` (`EvergreenModuleLoaded`, `MgGraphModuleLoaded`, `IntuneWin32AppLoaded`, `AzModulesLoaded`, `NerdioShellAppsLoaded`, `ImportModulesInitialized`); Import tab action and sign-in buttons are disabled until the required modules are confirmed loaded
+
+### Changed
+
+- Import tab: IntuneWin32App, NerdioShellApps, Microsoft.Graph.Authentication, and Az.* module loading deferred from startup to a one-shot `loadImportTabModules` scriptblock that fires on the first visit to the Import tab, keeping startup fast for users who never open import workflows; the Evergreen module continues to load eagerly at startup with a gold-to-green status dot transition
+- Import tab: all three sign-in operations (Intune/MgGraph, Nerdio API, Nerdio Azure) moved from the WPF dispatcher thread into background STA runspaces using the existing `New-WpfRunspace` + `DispatcherTimer` poll pattern; `Invoke-AzureSignIn.ps1` bare `Import-Module` calls wrapped with `Get-Module` guards to skip modules already loaded by `loadImportTabModules`
+- XAML / Library list views: several `GridView` column widths resized for better layout -- Filename 180 px -> 300 px, Display Name 320 px -> 380 px, Products 220 px -> 300 px
+- XAML / Import tab: Intune import button renamed from "Import Intune Win32App" to "Import Intune Win32 App"; button style changed from `FluentButton` to `FluentSecondaryButton`; multiple "Intune" labels updated to "Microsoft Intune" for consistency; Azure sign-in label shortened; Azure Storage label expanded to clarify scope; BetaChannel combo option removed
+- XAML / Library tab: New and Open Folder button `x:Name` and `Content` values swapped to match their actual actions
+- XAML / grid splitter: row height reduced from 8 to 3 for tighter layout
+- XAML / spacing: horizontal spacing unified -- `TextBox` Padding set to `8,0,0,0`; placeholder `TextBlock` left margins reduced from 10 to 8 across search, path, and tenant ID fields; explicit `Margin` attributes removed from several buttons so they inherit layout spacing
+- Nav rail: collapsed width increased from 64 px to 70 px to prevent Segoe Fluent Icons glyph overhang clipping when labels are hidden
+
+### Fixed
+
+- Import tab sign-in operations blocked the WPF dispatcher thread when OAuth redirects failed (e.g. "localhost refused to connect"), causing the UI to hang; sign-in now runs in a background STA runspace so the UI remains responsive regardless of redirect outcome
+
 ## [1.0.17] - 2026-04-04
 
 ### Added
