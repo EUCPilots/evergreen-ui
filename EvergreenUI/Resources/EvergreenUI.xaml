@@ -2375,8 +2375,7 @@
                                                     Content="Import Shell App"
                                                     Style="{StaticResource FluentButton}"
                                                     Padding="12,6"
-                                                    IsEnabled="False"
-                                                    ToolTip="This feature is planned for a future release."/>
+                                                    IsEnabled="False"/>
                                         </StackPanel>
                                         <TextBlock x:Name="NerdioActionStatusLabel"
                                                    Text=""

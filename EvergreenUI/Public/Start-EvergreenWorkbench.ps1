@@ -237,6 +237,11 @@ function Start-EvergreenWorkbench {
             PendingNerdioAddVersionPS                       = $null
             PendingNerdioAddVersionRunspace                 = $null
             PendingNerdioAddVersionAsync                    = $null
+            PendingNerdioImportNewTimer                     = $null
+            PendingNerdioImportNewPS                        = $null
+            PendingNerdioImportNewRunspace                  = $null
+            PendingNerdioImportNewAsync                     = $null
+            PendingNerdioImportNewAppName                   = ''
             PendingNerdioPostImportVerifyAppId              = ''
             PendingNerdioPostImportVerifyAppName            = ''
             PendingNerdioPostImportExpectedEvergreenVersion = ''
@@ -4968,6 +4973,204 @@ function Start-EvergreenWorkbench {
         $pollTimer.Start()
     }
 
+    $startNerdioImportNew = {
+        $selectedRow = $syncHash.NerdioSelectedComparisonRow
+        if ($null -eq $selectedRow) {
+            Write-UILog -SyncHash $syncHash -Message 'Nerdio: no row selected for importing a new Shell App.' -Level Warning
+            return
+        }
+
+        if ([string]$selectedRow.IsNewApp -ne 'Yes') {
+            Write-UILog -SyncHash $syncHash -Message 'Nerdio: selected row is not eligible for import (new app with no existing Shell App required).' -Level Warning
+            return
+        }
+
+        if ($syncHash.IsNerdioShellAppsLoading) {
+            return
+        }
+
+        $modulePath = & $normalizeDirectoryPath -PathValue $nerdioBundledModulePath
+        if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
+            Write-UILog -SyncHash $syncHash -Message "Nerdio: bundled module is missing: $modulePath" -Level Error
+            return
+        }
+
+        $definitionPath = [string]$selectedRow.DefinitionPath
+        $appName = [string]$selectedRow.AppName
+
+        if ([string]::IsNullOrWhiteSpace($definitionPath) -or -not (Test-Path -LiteralPath $definitionPath -PathType Container)) {
+            Write-UILog -SyncHash $syncHash -Message "Nerdio: definition path is missing or does not exist: $definitionPath" -Level Error
+            return
+        }
+
+        $nerdioAuthContext = [PSCustomObject]@{
+            TenantId       = [string]$nerdioTenantIdBox.Text
+            NmeHost        = [string]$nmeHostBox.Text
+            ClientId       = [string]$nmeClientIdBox.Text
+            ApiScope       = [string]$nmeApiScopeBox.Text
+            OAuthTokenUrl  = [string]$nmeOAuthTokenUrlBox.Text
+            ClientSecret   = [string]$nmeClientSecretBox.Password
+            SubscriptionId = [string]$nmeSubscriptionIdBox.Text
+            ResourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
+            StorageAccount = [string]$nmeStorageAccountCombo.SelectedItem
+            Container      = [string]$nmeContainerCombo.SelectedItem
+        }
+
+        & $setNerdioShellAppsLoadingState -IsLoading $true -Message "Importing new Shell App '$appName'..."
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: importing new Shell App '$appName'..." -Level Info
+
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+
+        [void]$ps.AddScript({
+                param(
+                    [string]$ModulePath,
+                    [PSCustomObject]$NerdioAuthContext,
+                    [string]$DefinitionPath
+                )
+
+                $result = [PSCustomObject]@{
+                    Success = $false
+                    Error   = ''
+                }
+
+                try {
+                    Import-Module -Name $ModulePath -Force -ErrorAction Stop | Out-Null
+
+                    $module = Get-Module -Name NerdioShellApps -ErrorAction SilentlyContinue
+                    if ($null -ne $module -and $null -ne $module.SessionState -and $null -ne $module.SessionState.PSVariable) {
+                        $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
+                    }
+
+                    $setNmeCredentialsCommand = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials'     -ErrorAction SilentlyContinue
+                    $connectNmeCommand        = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
+                    $getShellAppDefCommand    = Get-Command -Name 'NerdioShellApps\Get-ShellAppDefinition' -ErrorAction SilentlyContinue
+                    $getAppMetadataCommand    = Get-Command -Name 'NerdioShellApps\Get-AppMetadata'        -ErrorAction SilentlyContinue
+                    $newShellAppCommand       = Get-Command -Name 'NerdioShellApps\New-ShellApp'           -ErrorAction SilentlyContinue
+
+                    if ($null -eq $setNmeCredentialsCommand) { throw 'Required command Set-NmeCredentials was not found in NerdioShellApps module.' }
+                    if ($null -eq $connectNmeCommand) { throw 'Required command Connect-Nme was not found in NerdioShellApps module.' }
+                    if ($null -eq $getShellAppDefCommand) { throw 'Required command Get-ShellAppDefinition was not found in NerdioShellApps module.' }
+                    if ($null -eq $getAppMetadataCommand) { throw 'Required command Get-AppMetadata was not found in NerdioShellApps module.' }
+                    if ($null -eq $newShellAppCommand) { throw 'Required command New-ShellApp was not found in NerdioShellApps module.' }
+
+                    foreach ($required in @(
+                            @{ Name = 'Tenant ID'; Value = [string]$NerdioAuthContext.TenantId },
+                            @{ Name = 'NME Host'; Value = [string]$NerdioAuthContext.NmeHost },
+                            @{ Name = 'Client ID'; Value = [string]$NerdioAuthContext.ClientId },
+                            @{ Name = 'API Scope'; Value = [string]$NerdioAuthContext.ApiScope },
+                            @{ Name = 'Client Secret'; Value = [string]$NerdioAuthContext.ClientSecret }
+                        )) {
+                        if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
+                            throw "Nerdio API $($required.Name) is required to import a new Shell App."
+                        }
+                    }
+
+                    & $setNmeCredentialsCommand `
+                        -ClientId           ([string]$NerdioAuthContext.ClientId) `
+                        -ClientSecret       ([string]$NerdioAuthContext.ClientSecret) `
+                        -TenantId           ([string]$NerdioAuthContext.TenantId) `
+                        -ApiScope           ([string]$NerdioAuthContext.ApiScope) `
+                        -OAuthToken         ([string]$NerdioAuthContext.OAuthTokenUrl) `
+                        -SubscriptionId     ([string]$NerdioAuthContext.SubscriptionId) `
+                        -ResourceGroupName  ([string]$NerdioAuthContext.ResourceGroup) `
+                        -StorageAccountName ([string]$NerdioAuthContext.StorageAccount) `
+                        -ContainerName      ([string]$NerdioAuthContext.Container) `
+                        -NmeHost            ([string]$NerdioAuthContext.NmeHost)
+
+                    $null = & $connectNmeCommand -PassThru
+
+                    $definition = & $getShellAppDefCommand -Path $DefinitionPath
+                    if ($null -eq $definition) {
+                        throw "Failed to load Shell App definition from: $DefinitionPath"
+                    }
+
+                    $appMetadata = $definition | & $getAppMetadataCommand
+                    if ($null -eq $appMetadata) {
+                        throw 'Failed to retrieve app metadata from the definition source.'
+                    }
+
+                    $null = & $newShellAppCommand -Definition $definition -AppMetadata $appMetadata
+
+                    $result.Success = $true
+                }
+                catch {
+                    $result.Error = $_.Exception.Message
+                }
+
+                return $result
+            }).AddArgument($modulePath).AddArgument($nerdioAuthContext).AddArgument($definitionPath)
+
+        $syncHash.PendingNerdioImportNewPS        = $ps
+        $syncHash.PendingNerdioImportNewRunspace  = $rs
+        $syncHash.PendingNerdioImportNewAsync     = $ps.BeginInvoke()
+        $syncHash.PendingNerdioImportNewAppName   = $appName
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+        $syncHash.PendingNerdioImportNewTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingNerdioImportNewAsync -or -not $syncHash.PendingNerdioImportNewAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingNerdioImportNewTimer) {
+                    $syncHash.PendingNerdioImportNewTimer.Stop()
+                    $syncHash.PendingNerdioImportNewTimer = $null
+                }
+
+                $importResult = $null
+                try {
+                    $output = $syncHash.PendingNerdioImportNewPS.EndInvoke($syncHash.PendingNerdioImportNewAsync)
+                    if ($null -ne $output -and $output.Count -gt 0) {
+                        $importResult = $output[$output.Count - 1]
+                    }
+                }
+                catch {
+                    $importResult = [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
+                }
+                finally {
+                    try { $syncHash.PendingNerdioImportNewPS.Dispose() } catch {}
+                    try { $syncHash.PendingNerdioImportNewRunspace.Dispose() } catch {}
+                    $syncHash.PendingNerdioImportNewPS       = $null
+                    $syncHash.PendingNerdioImportNewRunspace = $null
+                    $syncHash.PendingNerdioImportNewAsync    = $null
+                }
+
+                if ($null -eq $importResult -or -not $importResult.Success) {
+                    $errMsg = if ($null -eq $importResult -or [string]::IsNullOrWhiteSpace([string]$importResult.Error)) {
+                        'Unknown error occurred while importing Shell App.'
+                    }
+                    else {
+                        [string]$importResult.Error
+                    }
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to import Shell App: $errMsg" -Level Error
+                    & $setNerdioShellAppsLoadingState -IsLoading $false
+                }
+                else {
+                    $completedAppName = [string]$syncHash.PendingNerdioImportNewAppName
+                    $syncHash.PendingNerdioImportNewAppName = ''
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: successfully imported new Shell App '$completedAppName'." -Level Info
+                    try {
+                        & $setNerdioShellAppsLoadingState -IsLoading $false
+                        & $loadNerdioShellApps
+                    }
+                    catch {
+                        Write-UILog -SyncHash $syncHash -Message "Nerdio: refresh after importing Shell App failed: $($_.Exception.Message)" -Level Error
+                    }
+                    finally {
+                        if ($syncHash.IsNerdioShellAppsLoading) {
+                            & $setNerdioShellAppsLoadingState -IsLoading $false
+                        }
+                    }
+                }
+            })
+
+        $pollTimer.Start()
+    }
+
     $refreshIntuneModuleStatus = {
         param(
             [bool]$IsLoaded,
@@ -6797,7 +7000,7 @@ function Start-EvergreenWorkbench {
 
     $nerdioImportNewButton.add_Click({
             if (-not (& $requireImportAuth -ActionName 'Import new Shell App' -Provider 'Nerdio')) { return }
-            Write-UILog -SyncHash $syncHash -Message 'Nerdio: import as new Shell App is not implemented yet.' -Level Info
+            & $startNerdioImportNew
         })
 
     # ── Microsoft 365 Apps tab event handlers ────────────────────────────────
