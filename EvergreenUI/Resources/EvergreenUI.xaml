@@ -2600,9 +2600,9 @@
                                                 </ListView.ItemContainerStyle>
                                                 <ListView.View>
                                                     <GridView>
-                                                        <GridViewColumn Header="Filename"     DisplayMemberBinding="{Binding FileName}"         Width="180"/>
-                                                        <GridViewColumn Header="Display Name" DisplayMemberBinding="{Binding DisplayName}"      Width="320"/>
-                                                        <GridViewColumn Header="Products"     DisplayMemberBinding="{Binding Products}"         Width="220"/>
+                                                        <GridViewColumn Header="Filename"     DisplayMemberBinding="{Binding FileName}"         Width="300"/>
+                                                        <GridViewColumn Header="Display Name" DisplayMemberBinding="{Binding DisplayName}"      Width="380"/>
+                                                        <GridViewColumn Header="Products"     DisplayMemberBinding="{Binding Products}"         Width="300"/>
                                                         <GridViewColumn Header="Status"       CellTemplate="{StaticResource M365StatusCellTemplate}" Width="90"/>
                                                     </GridView>
                                                 </ListView.View>
@@ -2658,8 +2658,8 @@
                                                     IsEnabled="False"
                                                     Margin="0,0,8,0"/>
                                             <Button x:Name="M365ImportIntuneButton"
-                                                    Content="Import Intune Win32App"
-                                                    Style="{StaticResource FluentButton}"
+                                                    Content="Import Intune Win32 App"
+                                                    Style="{StaticResource FluentSecondaryButton}"
                                                     Height="32"
                                                     Padding="12,0"
                                                     IsEnabled="False"/>
@@ -2677,7 +2677,6 @@
                                                       Width="180"
                                                       Height="32"
                                                       Margin="0,0,8,0">
-                                                <ComboBoxItem Content="BetaChannel"/>
                                                 <ComboBoxItem Content="CurrentPreview"/>
                                                 <ComboBoxItem Content="Current"/>
                                                 <ComboBoxItem Content="MonthlyEnterprise"/>
@@ -2947,7 +2946,7 @@
                                     </Border>
 
                                     <!-- Azure Storage section -->
-                                    <TextBlock Text="Azure Storage"
+                                    <TextBlock Text="Azure Storage for Nerdio Manager Shell Apps"
                                                FontWeight="SemiBold"
                                                FontSize="13"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
@@ -3026,7 +3025,7 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Grid.Column="0"
-                                                               Text="Azure sign-in (optional)"
+                                                               Text="Azure sign-in"
                                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                                FontSize="12"
                                                                FontWeight="SemiBold"
@@ -3760,6 +3759,50 @@
                                 <TextBlock x:Name="AboutDescriptionValue"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14"
+                                Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Required Modules"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,8"/>
+                                <ItemsControl x:Name="AboutRequiredModulesList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="170"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Module"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="12" Margin="0,0,10,4"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="1"
+                                                           Text="{Binding Name}"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Installed"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="12" Margin="0,0,10,8"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                                           Text="{Binding InstalledVersion}"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </Border>
 
