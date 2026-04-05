@@ -973,7 +973,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>                        <!-- 0  Title bar    -->
             <RowDefinition Height="*" MinHeight="200"/>         <!-- 1  Main area     -->
-            <RowDefinition Height="8"/>                         <!-- 2  GridSplitter  -->
+            <RowDefinition Height="3"/>                         <!-- 2  GridSplitter  -->
             <RowDefinition Height="175" MinHeight="40"/>        <!-- 3  Status + Log  -->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -1650,16 +1650,16 @@
                                 Padding="10,6"/>
 
                         <Button Grid.Column="2"
-                                x:Name="LibraryNewButton"
-                                Content="New Library"
+                                x:Name="LibraryOpenFolderButton"
+                                Content="Open folder"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 MinWidth="50"
                                 Margin="0,18,6,0"
                                 Padding="10,6"/>
 
                         <Button Grid.Column="3"
-                                x:Name="LibraryOpenFolderButton"
-                                Content="Open folder"
+                                x:Name="LibraryNewButton"
+                                Content="New Library"
                                 Style="{StaticResource FluentSecondaryButton}"
                                 MinWidth="50"
                                 Margin="0,18,6,0"
@@ -1858,7 +1858,7 @@
                                                         Padding="10,6"/>
                                                 <Button x:Name="IntuneRefreshCatalogButton"
                                                         Grid.Column="3"
-                                                        Content="Compare with Intune Win32 apps"
+                                                        Content="Compare with Microsoft Intune"
                                                         Style="{StaticResource FluentButton}"
                                                     Padding="10,6"
                                                     IsEnabled="False"/>
@@ -1893,7 +1893,7 @@
                                                              AutomationProperties.Name="Intune connection status"
                                                              Style="{StaticResource StatusDot}"
                                                              Fill="{DynamicResource StatusErrorBrush}"/>
-                                                    <TextBlock Text="Intune:"
+                                                    <TextBlock Text="Microsoft Intune:"
                                                                FontSize="11"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
@@ -2137,7 +2137,7 @@
                                                     Margin="0,0,6,0"/>
                                                 <Button x:Name="NerdioListShellAppsButton"
                                                     Grid.Column="3"
-                                                    Content="Compare with Shell Apps"
+                                                    Content="Compare with Nerdio Manager"
                                                     Style="{StaticResource FluentButton}"
                                                     Padding="10,6"
                                                     IsEnabled="False"/>
@@ -2475,7 +2475,7 @@
                                                              AutomationProperties.Name="Microsoft 365 Intune authentication status"
                                                              Style="{StaticResource StatusDot}"
                                                              Fill="{DynamicResource StatusErrorBrush}"/>
-                                                    <TextBlock Text="Intune:"
+                                                    <TextBlock Text="Microsoft Intune:"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
                                                                FontSize="11"
@@ -2658,7 +2658,7 @@
                                                     IsEnabled="False"
                                                     Margin="0,0,8,0"/>
                                             <Button x:Name="M365ImportIntuneButton"
-                                                    Content="Import Intune Win32 App"
+                                                    Content="Import Microsoft Intune Win32 App"
                                                     Style="{StaticResource FluentSecondaryButton}"
                                                     Height="32"
                                                     Padding="12,0"
@@ -3477,8 +3477,8 @@
                                            Text="App version cache"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
-                                           Margin="0,2,10,0"/>
-                                <StackPanel Grid.Row="4" Grid.Column="1">
+                                           Margin="0,7,10,16"/>
+                                <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,16">
                                     <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fetch via Evergreen on next selection."
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="12"
@@ -3499,9 +3499,9 @@
                                            Text="Logs"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
-                                           Margin="0,14,10,0"/>
-                                <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,12,0,0">
-                                    <TextBlock Text="Open the EvergreenUI logs folder or clear all local log files (*.log)."
+                                           Margin="0,7,10,0"/>
+                                <StackPanel Grid.Row="5" Grid.Column="1">
+                                    <TextBlock Text="The Evergreen Workbench keeps logs for review and troubleshooting. Open the EvergreenUI logs folder or clear all local log files (*.log)."
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="12"
                                                TextWrapping="Wrap"
