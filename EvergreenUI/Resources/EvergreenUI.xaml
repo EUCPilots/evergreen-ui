@@ -1978,6 +1978,9 @@
                                                                                                   VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                                                                         </Border>
                                                                         <ControlTemplate.Triggers>
+                                                                            <DataTrigger Binding="{Binding ImportAction}" Value="Import new app">
+                                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusWarningLightBrush}"/>
+                                                                            </DataTrigger>
                                                                             <DataTrigger Binding="{Binding UpdateRequired}" Value="No">
                                                                                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusPositiveLightBrush}"/>
                                                                             </DataTrigger>
@@ -2219,12 +2222,12 @@
                                                            TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Matched (update available)">
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Matched (No update required)">
                                                                 <Setter Property="Foreground" Value="{DynamicResource StatusPositiveBrush}"/>
                                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Matched (compare unavailable)">
-                                                                <Setter Property="Foreground" Value="{DynamicResource StatusWarningBrush}"/>
+                                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Matched (update available)">
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="Duplicate matches">
                                                                 <Setter Property="Foreground" Value="{DynamicResource StatusErrorBrush}"/>
@@ -2279,11 +2282,14 @@
                                                                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                                                                     </Border>
                                                                     <ControlTemplate.Triggers>
+                                                                        <DataTrigger Binding="{Binding MatchStatus}" Value="Matched (No update required)">
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusPositiveLightBrush}"/>
+                                                                        </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Action}" Value="Update">
                                                                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusWarningLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Action}" Value="Import">
-                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusPositiveLightBrush}"/>
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusWarningLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <Trigger Property="IsMouseOver" Value="True">
                                                                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>

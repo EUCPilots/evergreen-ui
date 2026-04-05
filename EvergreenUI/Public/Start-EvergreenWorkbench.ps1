@@ -202,6 +202,7 @@ function Start-EvergreenWorkbench {
             IntuneActionButtonStates                        = @{}
             IntuneDefinitionRows                            = @()
             IntuneWin32Rows                                 = @()
+            IntuneCompareHasRun                             = $false
             IntuneComparisonRows                            = @()
             IntuneSortProperty                              = ''
             IntuneSortDirection                             = 'Ascending'
@@ -247,6 +248,7 @@ function Start-EvergreenWorkbench {
             PendingNerdioPostImportExpectedEvergreenVersion = ''
             NerdioDefinitionRows                            = @()
             NerdioShellAppRows                              = @()
+            NerdioCompareHasRun                             = $false
             NerdioComparisonRows                            = @()
             NerdioSelectedComparisonRow                     = $null
             IsM365ImportLoading                             = $false
@@ -3697,8 +3699,8 @@ function Start-EvergreenWorkbench {
             }
 
             $defDisplayName = [string]$definitionRow.Name
-            $matchStatus = 'Definition not in Intune'
-            $importAction = 'Import new app'
+            $matchStatus = if ($syncHash.IntuneCompareHasRun) { 'No matching Win32 app' } else { 'Compare with Intune' }
+            $importAction = if ($syncHash.IntuneCompareHasRun) { 'Import new app' } else { '-' }
             $updateRequired = 'Unknown'
 
             if (-not $isValid) {
@@ -4014,6 +4016,7 @@ function Start-EvergreenWorkbench {
                     else {
                         $rows = @($result.Rows)
                         $syncHash.IntuneWin32Rows = $rows
+                        $syncHash.IntuneCompareHasRun = $true
                         Write-UILog -SyncHash $syncHash -Message "Intune: loaded $($rows.Count) Win32 app(s) tagged by PSPackageFactory." -Level Info
                     }
 
@@ -4137,11 +4140,17 @@ function Start-EvergreenWorkbench {
             }
 
             if ($matchedRows.Count -eq 0) {
-                $baseRow.MatchStatus = 'No matching Shell App'
-                $baseRow.CompareMessage = 'Definition has no match in Nerdio Manager.'
-                $baseRow.IsNewApp = 'Yes'
-                $baseRow.Action = 'Import'
-                $definitionOnlyCount++
+                if ($syncHash.NerdioCompareHasRun) {
+                    $baseRow.MatchStatus = 'No matching Shell App'
+                    $baseRow.CompareMessage = 'Definition has no match in Nerdio Manager.'
+                    $baseRow.IsNewApp = 'Yes'
+                    $baseRow.Action = 'Import'
+                    $definitionOnlyCount++
+                }
+                else {
+                    $baseRow.MatchStatus = 'Compare with Nerdio Manager'
+                    $baseRow.CompareMessage = 'Run Compare with Nerdio Manager to check for matches.'
+                }
                 $comparisonRows.Add($baseRow)
                 continue
             }
@@ -4218,7 +4227,7 @@ function Start-EvergreenWorkbench {
                 $updateCount++
             }
             else {
-                $baseRow.MatchStatus = 'Matches (No update required)'
+                $baseRow.MatchStatus = 'Matched (No update required)'
                 $baseRow.UpdateNeeded = 'No'
                 $baseRow.CompareMessage = 'Nerdio latest version is current.'
             }
@@ -4688,6 +4697,7 @@ function Start-EvergreenWorkbench {
                     else {
                         $rows = @($result.Rows)
                         $syncHash.NerdioShellAppRows = $rows
+                        $syncHash.NerdioCompareHasRun = $true
                         $nerdioShellAppsCountLabel.Text = "$($rows.Count) apps"
                         Write-UILog -SyncHash $syncHash -Message "Nerdio: loaded $($rows.Count) Shell App(s) from Nerdio Manager." -Level Info
                     }
