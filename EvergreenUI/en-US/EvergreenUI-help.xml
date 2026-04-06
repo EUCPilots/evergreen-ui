@@ -80,7 +80,7 @@ Start-EvergreenWorkbench</dev:code>
     <maml:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Evergreen documentation</maml:linkText>
-        <maml:uri>https://eucpilots.com/evergreen-docs/</maml:uri>
+        <maml:uri>https://eucpilots.com/evergreen/</maml:uri>
       </maml:navigationLink>
       <maml:navigationLink>
         <maml:linkText>EvergreenUI project repository</maml:linkText>
