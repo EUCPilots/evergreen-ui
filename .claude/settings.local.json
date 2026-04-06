@@ -33,7 +33,12 @@
       "Bash(grep -n \"IntuneWin32Rows\\\\s*=\\\\s*$null\\\\|NerdioShellAppRows\\\\s*=\\\\s*$null\\\\|M365ConfigRows\\\\s*=\\\\s*$null\" EvergreenUI/Public/Start-EvergreenWorkbench.ps1)",
       "Bash(grep -n '\\\\$refreshImportAuthUi\\\\s*=\\\\s*{' \"/c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1\")",
       "Bash(grep -n '\\\\$updateIntuneRowActionButtons\\\\s*=\\\\s*{' \"/c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1\")",
-      "Bash(grep -n '\\\\$updateNerdioRowActionButtons\\\\s*=\\\\s*{' \"/c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1\")"
+      "Bash(grep -n '\\\\$updateNerdioRowActionButtons\\\\s*=\\\\s*{' \"/c/projects/_EUCPilots/evergreen-ui/EvergreenUI/Public/Start-EvergreenWorkbench.ps1\")",
+      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI\\\\Private\\\\Invoke-AppUrlTest.ps1 -Severity Warning,Error\")",
+      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI\\\\Public\\\\Start-EvergreenWorkbench.ps1 -Severity Warning,Error | Where-Object { $_.Line -ge 7670 -and $_.Line -le 7720 }\")",
+      "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Detailed\")",
+      "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI\\\\Private\\\\Invoke-AppUrlTest.ps1 -Severity Warning,Error; Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Normal\")",
+      "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Normal\")"
     ]
   },
   "defaultShell": "powershell"
