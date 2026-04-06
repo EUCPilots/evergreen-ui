@@ -190,7 +190,7 @@
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListViewItem">
                                     <Border x:Name="bd"
-                                            Background="Transparent"
+                                            Background="{TemplateBinding Background}"
                                             Padding="{TemplateBinding Padding}">
                                         <GridViewRowPresenter Content="{TemplateBinding Content}"
                                                               HorizontalAlignment="Stretch"
