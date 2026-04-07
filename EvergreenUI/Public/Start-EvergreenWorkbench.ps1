@@ -390,6 +390,7 @@ function Start-EvergreenWorkbench {
     $appDetailLoadingLabel = $window.FindName('AppDetailLoadingLabel')
     $appDetailContent = $window.FindName('AppDetailContent')
     $appDetailTitle = $window.FindName('AppDetailTitle')
+    $syncHash.AppLastRefreshedLabel = $window.FindName('AppLastRefreshedLabel')
 
     $copyLogButton = $window.FindName('CopyLogButton')
     $saveLogButton = $window.FindName('SaveLogButton')
@@ -2875,6 +2876,9 @@ function Start-EvergreenWorkbench {
                     $cachePath = & $getAppCacheFile -AppName $currentAppName
                     try {
                         $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $cachePath -Encoding UTF8 -Force
+                        $lastWrite = (Get-Item -LiteralPath $cachePath).LastWriteTime.ToString('g')
+                        $syncHash.AppLastRefreshedLabel.Text = "Last refresh: $lastWrite"
+                        $syncHash.AppLastRefreshedLabel.Visibility = [System.Windows.Visibility]::Visible
                     }
                     catch {
                         Write-UILog -SyncHash $syncHash -Message "Failed to write cache for ${currentAppName}: $_" -Level Warning
@@ -7369,6 +7373,9 @@ function Start-EvergreenWorkbench {
                 # Load from cache if available; otherwise show the panel empty (user clicks Refresh)
                 $cachePath = & $getAppCacheFile -AppName $selectedApp.Name
                 if (Test-Path -LiteralPath $cachePath) {
+                    $lastWrite = (Get-Item -LiteralPath $cachePath).LastWriteTime.ToString('g')
+                    $syncHash.AppLastRefreshedLabel.Text = "Last refresh: $lastWrite"
+                    $syncHash.AppLastRefreshedLabel.Visibility = [System.Windows.Visibility]::Visible
                     try {
                         $rawJson = Get-Content -LiteralPath $cachePath -Raw
                         $parsed = ConvertFrom-Json -InputObject $rawJson
@@ -7399,12 +7406,14 @@ function Start-EvergreenWorkbench {
                     }
                 }
                 else {
+                    $syncHash.AppLastRefreshedLabel.Visibility = [System.Windows.Visibility]::Collapsed
                     $appDetailEmpty.Visibility = [System.Windows.Visibility]::Collapsed
                     $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
                     $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
                 }
             }
             else {
+                $syncHash.AppLastRefreshedLabel.Visibility = [System.Windows.Visibility]::Collapsed
                 $appDetailEmpty.Visibility = [System.Windows.Visibility]::Visible
                 $appDetailContent.Visibility = [System.Windows.Visibility]::Collapsed
                 $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
