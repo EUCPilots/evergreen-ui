@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.19] - 2026-04-07
+
+### Added
+
+- Nerdio Manager / Shell Apps tab: **Import New App** (`NerdioImportNewButton`) fully implemented; creates a new Shell App in Nerdio Manager via `New-ShellApp` (POST `/api/v1/shell-app`) using the same async runspace pattern as the Add Version workflow; reads the Shell App definition and scripts via `Get-ShellAppDefinition`, resolves the latest Evergreen app metadata via `Get-AppMetadata`, and automatically refreshes the Shell App list on success; the "planned for a future release" tooltip removed from the button in XAML
+- Apps tab / App Detail: **Last refresh** timestamp added to the app detail header (`AppLastRefreshedLabel`); displays the cache file `LastWriteTime` formatted with `'g'` after a fresh app detail fetch or when loading from cache; the label is hidden when no app is selected or no cache exists
+
+### Changed
+
+- Import tab / Compare: `IntuneCompareHasRun` and `NerdioCompareHasRun` flags added to `$syncHash` to track whether a comparison has been run; import actions and status prompts show "Compare..." and suppress import buttons until a compare has completed; definitions are only marked new or importable after a compare is run; Intune matched-state status text changed to "Matched (No update required)"; row background brushes for Import and Match states updated and a visual cue added for the pending-compare Intune state
+- XAML / startup palette: safe-startup brush values in `EvergreenUI.xaml` aligned with `Set-LightTheme.ps1` -- window/background, primary/secondary text, accent (and hover/light variant), control border, secondary button background/border, and all status color resources updated; theme functions continue to override these values on `Loaded`
+- XAML / `ListViewItem` control template: hardcoded `Transparent` background on the `ListViewItem` `ControlTemplate` `Border` replaced with `{TemplateBinding Background}` so style- or runtime-assigned background values are respected and can override the template default
+- XAML / spacing: left margin added to several buttons across the Import and Library tabs for consistent spacing
+- `EvergreenUI.psd1`: PSData `Tags` updated -- `WPF` and `EUC` removed; `MSI` added
+- Documentation: module help XML and README docs URL updated
+
+### Fixed
+
+- Import tab / collection counts: pipelines and collections not wrapped in `@(...)` before accessing `.Count` returned incorrect counts or missed conditional loads for Intune, Nerdio, and Microsoft 365 data when a query returned a single item or null; all affected `.Count` accesses now use `@(...)` array coercion to ensure correct behavior
+
 ## [1.0.18] - 2026-04-05
 
 ### Added
