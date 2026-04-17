@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.20] - 2026-04-17
+
+### Added
+
+- `Invoke-M365AppShellAppBuild` private function: downloads `setup.exe` for Microsoft 365 Apps via Evergreen, updates the install XML with the caller-supplied Channel, TenantId, and CompanyName, and produces a zip archive containing `setup.exe`, `Install-Microsoft365Apps.xml`, and `Uninstall-Microsoft365Apps.xml` for Nerdio Shell App upload; no IntuneWin32App dependency
+
+### Changed
+
+- Import tab / Microsoft 365 Apps: **Import Nerdio Manager Shell App** workflow replaced to follow the same pattern as the Nerdio Manager Shell Apps tab import; the workflow now reads Shell App definition files (`Definition.json`, `Detect.ps1`, `Install.ps1`, `Uninstall.ps1`) from a `shell-app` subdirectory alongside the M365 XML configuration files, validates all four files are present before starting, builds a zip archive of `setup.exe` and the configuration XMLs via `Invoke-M365AppShellAppBuild`, loads the definition via `Get-ShellAppDefinition`, sets the Shell App name from the selected configuration display name, and creates the Shell App via `New-ShellApp -Definition -AppMetadata`; the IntuneWin32App module is no longer required for this workflow
+
 ## [1.0.19] - 2026-04-07
 
 ### Added
