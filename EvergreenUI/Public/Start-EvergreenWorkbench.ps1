@@ -2423,9 +2423,18 @@ function Start-EvergreenWorkbench {
             }
         }
 
-        if (-not (& $loadIntuneWin32AppModule)) {
-            Write-UILog -SyncHash $syncHash -Message 'M365: IntuneWin32App module is required for packaging but could not be loaded.' -Level Warning
+        $shellAppDirPath = Join-Path -Path $configDirPath -ChildPath 'shell-app'
+        if (-not (Test-Path -LiteralPath $shellAppDirPath -PathType Container)) {
+            Write-UILog -SyncHash $syncHash -Message "M365: 'shell-app' directory not found at '$shellAppDirPath'. Create it with Definition.json, Detect.ps1, Install.ps1, and Uninstall.ps1." -Level Warning
             return
+        }
+
+        foreach ($requiredFile in @('Definition.json', 'Detect.ps1', 'Install.ps1', 'Uninstall.ps1')) {
+            $requiredFilePath = Join-Path -Path $shellAppDirPath -ChildPath $requiredFile
+            if (-not (Test-Path -LiteralPath $requiredFilePath -PathType Leaf)) {
+                Write-UILog -SyncHash $syncHash -Message "M365: required shell-app file '$requiredFile' not found in '$shellAppDirPath'." -Level Warning
+                return
+            }
         }
 
         $modulePath = & $normalizeDirectoryPath -PathValue $nerdioBundledModulePath
@@ -2465,6 +2474,7 @@ function Start-EvergreenWorkbench {
 
         $capturedRow               = $selectedRow
         $capturedConfigDirPath     = $configDirPath
+        $capturedShellAppDirPath   = $shellAppDirPath
         $capturedChannel           = $channel
         $capturedCompanyName       = $companyName
         $capturedTenantId          = $tenantId
@@ -2480,7 +2490,7 @@ function Start-EvergreenWorkbench {
         $helperScripts = @(
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
-            'Invoke-M365AppPackageBuild.ps1'
+            'Invoke-M365AppShellAppBuild.ps1'
         ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
 
         $rs = New-WpfRunspace -SyncHash $syncHash
@@ -2496,6 +2506,7 @@ function Start-EvergreenWorkbench {
                     [string]        $CompanyName,
                     [string]        $TenantId,
                     [string]        $WorkingPath,
+                    [string]        $ShellAppDirPath,
                     [string]        $NerdioModulePath,
                     [PSCustomObject]$NerdioAuthContext
                 )
@@ -2519,11 +2530,7 @@ function Start-EvergreenWorkbench {
                         Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
                     }
 
-                    if (-not (Get-Command -Name 'New-IntuneWin32AppPackage' -ErrorAction SilentlyContinue)) {
-                        Import-Module -Name IntuneWin32App -ErrorAction Stop | Out-Null
-                    }
-
-                    $buildResult = Invoke-M365AppPackageBuild `
+                    $buildResult = Invoke-M365AppShellAppBuild `
                         -ConfigRow           $ConfigRow `
                         -ConfigDirectoryPath $ConfigDirectoryPath `
                         -Channel             $Channel `
@@ -2533,7 +2540,7 @@ function Start-EvergreenWorkbench {
                         -SyncHash            $syncHash
 
                     if (-not $buildResult.Succeeded) {
-                        throw "Package build failed: $($buildResult.Error)"
+                        throw "Shell App zip build failed: $($buildResult.Error)"
                     }
 
                     $result.Version = $buildResult.Version
@@ -2554,21 +2561,21 @@ function Start-EvergreenWorkbench {
                         $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
                     }
 
-                    $setNmeCredCmd  = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials' -ErrorAction SilentlyContinue
-                    $connectNmeCmd  = Get-Command -Name 'NerdioShellApps\Connect-Nme'         -ErrorAction SilentlyContinue
-                    $newShellFileCmd = Get-Command -Name 'NerdioShellApps\New-ShellAppFile'   -ErrorAction SilentlyContinue
-                    $newShellAppCmd  = Get-Command -Name 'NerdioShellApps\New-ShellApp'       -ErrorAction SilentlyContinue
+                    $setNmeCredCmd     = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials'    -ErrorAction SilentlyContinue
+                    $connectNmeCmd     = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
+                    $getShellAppDefCmd = Get-Command -Name 'NerdioShellApps\Get-ShellAppDefinition' -ErrorAction SilentlyContinue
+                    $newShellAppCmd    = Get-Command -Name 'NerdioShellApps\New-ShellApp'           -ErrorAction SilentlyContinue
 
-                    if ($null -eq $setNmeCredCmd)  { throw 'Set-NmeCredentials not found in NerdioShellApps module.' }
-                    if ($null -eq $connectNmeCmd)   { throw 'Connect-Nme not found in NerdioShellApps module.' }
-                    if ($null -eq $newShellFileCmd) { throw 'New-ShellAppFile not found in NerdioShellApps module.' }
-                    if ($null -eq $newShellAppCmd)  { throw 'New-ShellApp not found in NerdioShellApps module.' }
+                    if ($null -eq $setNmeCredCmd)    { throw 'Set-NmeCredentials not found in NerdioShellApps module.' }
+                    if ($null -eq $connectNmeCmd)     { throw 'Connect-Nme not found in NerdioShellApps module.' }
+                    if ($null -eq $getShellAppDefCmd) { throw 'Get-ShellAppDefinition not found in NerdioShellApps module.' }
+                    if ($null -eq $newShellAppCmd)    { throw 'New-ShellApp not found in NerdioShellApps module.' }
 
                     foreach ($required in @(
-                            @{ Name = 'Tenant ID'; Value = [string]$NerdioAuthContext.TenantId },
-                            @{ Name = 'NME Host'; Value = [string]$NerdioAuthContext.NmeHost },
-                            @{ Name = 'Client ID'; Value = [string]$NerdioAuthContext.ClientId },
-                            @{ Name = 'API Scope'; Value = [string]$NerdioAuthContext.ApiScope },
+                            @{ Name = 'Tenant ID';     Value = [string]$NerdioAuthContext.TenantId },
+                            @{ Name = 'NME Host';      Value = [string]$NerdioAuthContext.NmeHost },
+                            @{ Name = 'Client ID';     Value = [string]$NerdioAuthContext.ClientId },
+                            @{ Name = 'API Scope';     Value = [string]$NerdioAuthContext.ApiScope },
                             @{ Name = 'Client Secret'; Value = [string]$NerdioAuthContext.ClientSecret }
                         )) {
                         if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
@@ -2590,14 +2597,20 @@ function Start-EvergreenWorkbench {
 
                     $null = & $connectNmeCmd -PassThru
 
-                    # Upload .intunewin to Azure Blob Storage and create a new Shell App
-                    $blobUri = & $newShellFileCmd -FilePath $buildResult.IntuneWinPath
-                    $null = & $newShellAppCmd `
-                        -Name        ([string]$ConfigRow.DisplayName) `
-                        -Version     $buildResult.Version `
-                        -InstallCmd  'setup.exe /configure Install-Microsoft365Apps.xml' `
-                        -UninstallCmd 'setup.exe /configure Uninstall-Microsoft365Apps.xml' `
-                        -FileUri     $blobUri
+                    $definition = & $getShellAppDefCmd -Path $ShellAppDirPath
+                    if ($null -eq $definition) {
+                        throw "Failed to load Shell App definition from: $ShellAppDirPath"
+                    }
+
+                    $definition.name = [string]$ConfigRow.DisplayName
+
+                    $appMetadata = [PSCustomObject]@{
+                        Version = $buildResult.Version
+                        File    = $buildResult.ZipPath
+                        URI     = ''
+                    }
+
+                    $null = & $newShellAppCmd -Definition $definition -AppMetadata $appMetadata
 
                     $result.Success = $true
                 }
@@ -2614,6 +2627,7 @@ function Start-EvergreenWorkbench {
         [void]$ps.AddArgument($capturedCompanyName)
         [void]$ps.AddArgument($capturedTenantId)
         [void]$ps.AddArgument($capturedPackageOutputPath)
+        [void]$ps.AddArgument($capturedShellAppDirPath)
         [void]$ps.AddArgument($capturedModulePath)
         [void]$ps.AddArgument($capturedNerdioAuth)
 
