@@ -39,7 +39,9 @@
       "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Detailed\")",
       "Bash(pwsh -NoProfile -Command \"Invoke-ScriptAnalyzer -Path .\\\\EvergreenUI\\\\Private\\\\Invoke-AppUrlTest.ps1 -Severity Warning,Error; Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Normal\")",
       "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Normal\")",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(pwsh -NonInteractive -Command \"Invoke-ScriptAnalyzer -Path '.\\\\EvergreenUI\\\\Private\\\\Invoke-M365AppShellAppBuild.ps1' -Severity Error,Warning\")",
+      "Bash(pwsh -NonInteractive -Command \"Invoke-Pester -Path '.\\\\tests\\\\EvergreenUI.tests.ps1' -Output Detailed\")"
     ]
   },
   "defaultShell": "powershell"
