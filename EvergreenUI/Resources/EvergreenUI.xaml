@@ -2031,7 +2031,7 @@
                                                     </ListView.ItemContainerStyle>
                                                     <ListView.View>
                                                         <GridView>
-                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="200"/>
+                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="300"/>
                                                             <GridViewColumn Header="Publisher"       DisplayMemberBinding="{Binding DisplayPublisher}" Width="130"/>
                                                             <GridViewColumn Header="Intune Version"  DisplayMemberBinding="{Binding IntuneVersion}"   Width="110"/>
                                                             <GridViewColumn Header="Latest"          DisplayMemberBinding="{Binding DefinitionVersion}" Width="110"/>
@@ -2332,14 +2332,14 @@
                                                 </ListView.ItemContainerStyle>
                                                 <ListView.View>
                                                     <GridView>
-                                                        <GridViewColumn Header="App"               Width="155">
+                                                        <GridViewColumn Header="App"               Width="300">
                                                             <GridViewColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}"/>
                                                                 </DataTemplate>
                                                             </GridViewColumn.CellTemplate>
                                                         </GridViewColumn>
-                                                        <GridViewColumn Header="Publisher"          DisplayMemberBinding="{Binding Publisher}"        Width="130"/>
+                                                        <GridViewColumn Header="Publisher"          DisplayMemberBinding="{Binding Publisher}"        Width="140"/>
                                                         <GridViewColumn Header="Shell App"          Width="165">
                                                             <GridViewColumn.CellTemplate>
                                                                 <DataTemplate>
@@ -3292,11 +3292,11 @@
                                     </ListView.ItemContainerStyle>
                                     <ListView.View>
                                         <GridView>
-                                            <GridViewColumn Header="App" DisplayMemberBinding="{Binding Name}" Width="190"/>
+                                            <GridViewColumn Header="App" DisplayMemberBinding="{Binding Name}" Width="300"/>
                                             <GridViewColumn Header="Publisher" DisplayMemberBinding="{Binding Publisher}" Width="140"/>
-                                            <GridViewColumn Header="Installed" DisplayMemberBinding="{Binding InstalledVersion}" Width="100"/>
-                                            <GridViewColumn Header="Latest" DisplayMemberBinding="{Binding LatestVersion}" Width="100"/>
-                                            <GridViewColumn Header="Status" DisplayMemberBinding="{Binding InstallStatus}" Width="170"/>
+                                            <GridViewColumn Header="Installed" DisplayMemberBinding="{Binding InstalledVersion}" Width="140"/>
+                                            <GridViewColumn Header="Latest" DisplayMemberBinding="{Binding LatestVersion}" Width="140"/>
+                                            <GridViewColumn Header="Status" DisplayMemberBinding="{Binding InstallStatus}" Width="190"/>
                                             <GridViewColumn Header="Action" DisplayMemberBinding="{Binding InstallAction}" Width="120"/>
                                         </GridView>
                                     </ListView.View>
