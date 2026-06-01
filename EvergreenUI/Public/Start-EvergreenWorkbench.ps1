@@ -430,6 +430,7 @@ function Start-EvergreenWorkbench {
     $intuneDefinitionsPathBox = $window.FindName('IntuneDefinitionsPathBox')
     $browseIntuneDefinitionsButton = $window.FindName('BrowseIntuneDefinitionsButton')
     $intuneLoadDefinitionsButton = $window.FindName('IntuneLoadDefinitionsButton')
+    $intuneUpdateDefinitionsButton = $window.FindName('IntuneUpdateDefinitionsButton')
     $intuneDefinitionsCountLabel = $window.FindName('IntuneDefinitionsCountLabel')
     $intuneWin32AppsCountLabel = $window.FindName('IntuneWin32AppsCountLabel')
     $intuneConnectionStatusDot = $window.FindName('IntuneConnectionStatusDot')
@@ -897,7 +898,7 @@ function Start-EvergreenWorkbench {
 
         $syncHash.IsIntuneImportLoading = $IsLoading
 
-        foreach ($button in @($intuneRefreshCatalogButton, $intuneApplyImportButton)) {
+        foreach ($button in @($intuneRefreshCatalogButton, $intuneApplyImportButton, $intuneUpdateDefinitionsButton)) {
             if ($null -eq $button) {
                 continue
             }
@@ -3799,6 +3800,9 @@ function Start-EvergreenWorkbench {
             if ($null -ne $intuneDefinitionsCountLabel) {
                 $intuneDefinitionsCountLabel.Text = '0 loaded'
             }
+            if ($null -ne $intuneUpdateDefinitionsButton) {
+                $intuneUpdateDefinitionsButton.IsEnabled = $false
+            }
             & $refreshIntuneComparison
             Write-UILog -SyncHash $syncHash -Message 'Intune: provide a package definitions folder path first.' -Level Warning
             return
@@ -3808,6 +3812,9 @@ function Start-EvergreenWorkbench {
             $syncHash.IntuneDefinitionRows = @()
             if ($null -ne $intuneDefinitionsCountLabel) {
                 $intuneDefinitionsCountLabel.Text = '0 loaded'
+            }
+            if ($null -ne $intuneUpdateDefinitionsButton) {
+                $intuneUpdateDefinitionsButton.IsEnabled = $false
             }
             & $refreshIntuneComparison
             Write-UILog -SyncHash $syncHash -Message "Intune: definitions path does not exist: $definitionsRoot" -Level Warning
@@ -3822,6 +3829,9 @@ function Start-EvergreenWorkbench {
             $syncHash.IntuneDefinitionRows = @()
             if ($null -ne $intuneDefinitionsCountLabel) {
                 $intuneDefinitionsCountLabel.Text = '0 loaded'
+            }
+            if ($null -ne $intuneUpdateDefinitionsButton) {
+                $intuneUpdateDefinitionsButton.IsEnabled = $false
             }
             & $refreshIntuneComparison
             Write-UILog -SyncHash $syncHash -Message "Intune: failed to enumerate App.json files: $($_.Exception.Message)" -Level Error
@@ -3892,6 +3902,10 @@ function Start-EvergreenWorkbench {
             $intuneDefinitionsCountLabel.Text = "$($sortedRows.Count) loaded ($validCount valid)"
         }
 
+        if ($null -ne $intuneUpdateDefinitionsButton) {
+            $intuneUpdateDefinitionsButton.IsEnabled = $sortedRows.Count -gt 0
+        }
+
         & $refreshIntuneComparison
 
         if ($sortedRows.Count -eq 0) {
@@ -3901,6 +3915,112 @@ function Start-EvergreenWorkbench {
             $validCount = @($sortedRows | Where-Object { [string]$_.DefinitionValid -eq 'Yes' }).Count
             Write-UILog -SyncHash $syncHash -Message "Intune: loaded $($sortedRows.Count) definitions from App.json files ($validCount valid)." -Level Info
         }
+    }
+
+    $updateIntuneDefinitions = {
+        if ($syncHash.IsIntuneImportLoading) {
+            return
+        }
+
+        $definitionRows = @($syncHash.IntuneDefinitionRows)
+        if ($definitionRows.Count -eq 0) {
+            Write-UILog -SyncHash $syncHash -Message 'Intune: load definitions before updating.' -Level Warning
+            return
+        }
+
+        foreach ($pendingOp in @('PendingIntuneUpdatePS', 'PendingIntuneUpdateRunspace', 'PendingIntuneUpdateAsync')) {
+            $syncHash[$pendingOp] = $null
+        }
+
+        & $setIntuneImportLoadingState -IsLoading $true -Message 'Updating definitions...'
+        Write-UILog -SyncHash $syncHash -Message "Intune: updating $($definitionRows.Count) definitions via Evergreen..." -Level Info
+
+        $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
+        $privateRootPath = if ($null -ne $privateRoot) { $privateRoot.Path } else { Join-Path -Path $PSScriptRoot -ChildPath '..\Private' }
+        $helperScripts = @(
+            'Format-LogEntry.ps1'
+            'Write-UILog.ps1'
+            'Get-IntunePackageLatestVersion.ps1'
+            'Invoke-IntuneDefinitionUpdate.ps1'
+        ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
+
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+
+        [void]$ps.AddScript({
+                param(
+                    [string[]]$HelperScripts,
+                    [object[]]$DefinitionRows
+                )
+
+                foreach ($scriptPath in $HelperScripts) {
+                    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+                        throw "Required helper script not found: $scriptPath"
+                    }
+                    . $scriptPath
+                }
+
+                if (-not (Get-Command -Name 'Get-EvergreenApp' -ErrorAction SilentlyContinue)) {
+                    Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
+                }
+
+                return Invoke-IntuneDefinitionUpdate -DefinitionRows $DefinitionRows -SyncHash $syncHash
+            })
+        [void]$ps.AddArgument($helperScripts)
+        [void]$ps.AddArgument($definitionRows)
+
+        $syncHash.PendingIntuneUpdatePS       = $ps
+        $syncHash.PendingIntuneUpdateRunspace = $rs
+        $syncHash.PendingIntuneUpdateAsync    = $ps.BeginInvoke()
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+        $syncHash.PendingIntuneUpdateTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingIntuneUpdateAsync -or -not $syncHash.PendingIntuneUpdateAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingIntuneUpdateTimer) {
+                    $syncHash.PendingIntuneUpdateTimer.Stop()
+                    $syncHash.PendingIntuneUpdateTimer = $null
+                }
+
+                $updateResults = @()
+                try {
+                    $output = $syncHash.PendingIntuneUpdatePS.EndInvoke($syncHash.PendingIntuneUpdateAsync)
+                    if ($null -ne $output -and $output.Count -gt 0) {
+                        $updateResults = @($output)
+                    }
+                }
+                catch {
+                    Write-UILog -SyncHash $syncHash -Message "Intune update: failed to retrieve results - $($_.Exception.Message)" -Level Error
+                }
+                finally {
+                    if ($null -ne $syncHash.PendingIntuneUpdatePS) {
+                        $syncHash.PendingIntuneUpdatePS.Dispose()
+                        $syncHash.PendingIntuneUpdatePS = $null
+                    }
+                    if ($null -ne $syncHash.PendingIntuneUpdateRunspace) {
+                        $syncHash.PendingIntuneUpdateRunspace.Dispose()
+                        $syncHash.PendingIntuneUpdateRunspace = $null
+                    }
+                    $syncHash.PendingIntuneUpdateAsync = $null
+                }
+
+                $updatedCount = @($updateResults | Where-Object { $_.Succeeded -and -not $_.NoUpdateNeeded }).Count
+                $currentCount = @($updateResults | Where-Object { $_.NoUpdateNeeded }).Count
+                $failedCount  = @($updateResults | Where-Object { -not $_.Succeeded }).Count
+
+                Write-UILog -SyncHash $syncHash -Message "Intune update complete: $updatedCount updated, $currentCount already current, $failedCount failed." -Level Info
+
+                & $setIntuneImportLoadingState -IsLoading $false
+                & $loadIntuneDefinitions
+            })
+
+        $pollTimer.Start()
     }
 
     $loadIntuneWin32Apps = {
@@ -7148,6 +7268,10 @@ function Start-EvergreenWorkbench {
 
     $intuneLoadDefinitionsButton.add_Click({
             & $loadIntuneDefinitions
+        })
+
+    $intuneUpdateDefinitionsButton.add_Click({
+            & $updateIntuneDefinitions
         })
 
     $intuneBrowsePackageOutputButton.add_Click({

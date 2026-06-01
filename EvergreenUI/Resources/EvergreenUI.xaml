@@ -1846,6 +1846,7 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <TextBox x:Name="IntuneDefinitionsPathBox"
                                                          Grid.Column="0"
@@ -1878,12 +1879,19 @@
                                                         Padding="10,6"/>
                                                 <Button x:Name="IntuneLoadDefinitionsButton"
                                                         Grid.Column="2"
-                                                        Content="Load definitions"
+                                                        Content="Reload definitions"
                                                         Style="{StaticResource FluentSecondaryButton}"
                                                         Margin="0,0,6,0"
                                                         Padding="10,6"/>
-                                                <Button x:Name="IntuneRefreshCatalogButton"
+                                                <Button x:Name="IntuneUpdateDefinitionsButton"
                                                         Grid.Column="3"
+                                                        Content="Update definitions"
+                                                        Style="{StaticResource FluentSecondaryButton}"
+                                                        Margin="0,0,6,0"
+                                                        Padding="10,6"
+                                                        IsEnabled="False"/>
+                                                <Button x:Name="IntuneRefreshCatalogButton"
+                                                        Grid.Column="4"
                                                         Content="Compare with Microsoft Intune"
                                                         Style="{StaticResource FluentButton}"
                                                     Padding="10,6"
@@ -2031,7 +2039,7 @@
                                                     </ListView.ItemContainerStyle>
                                                     <ListView.View>
                                                         <GridView>
-                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="300"/>
+                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="340"/>
                                                             <GridViewColumn Header="Publisher"       DisplayMemberBinding="{Binding DisplayPublisher}" Width="130"/>
                                                             <GridViewColumn Header="Intune Version"  DisplayMemberBinding="{Binding IntuneVersion}"   Width="110"/>
                                                             <GridViewColumn Header="Latest"          DisplayMemberBinding="{Binding DefinitionVersion}" Width="110"/>
@@ -2160,7 +2168,7 @@
                                                         Padding="10,6"/>
                                                 <Button x:Name="NerdioLoadDefinitionsButton"
                                                         Grid.Column="2"
-                                                        Content="Load definitions"
+                                                        Content="Reload definitions"
                                                         Style="{StaticResource FluentSecondaryButton}"
                                                     Padding="10,6"
                                                     Margin="0,0,6,0"/>
@@ -3175,7 +3183,7 @@
                                             Padding="10,6"/>
                                     <Button x:Name="InstallLoadDefinitionsButton"
                                             Grid.Column="2"
-                                            Content="Load definitions"
+                                            Content="Reload definitions"
                                             Style="{StaticResource FluentSecondaryButton}"
                                             Margin="0,0,6,0"
                                             Padding="10,6"/>
