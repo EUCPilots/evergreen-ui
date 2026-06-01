@@ -46,16 +46,20 @@ The module exposes a single public function (`Start-EvergreenWorkbench`) that or
 EvergreenUI/
 ├── EvergreenUI.psd1        # Module manifest (version, deps, exports)
 ├── EvergreenUI.psm1        # Loads Private/ then Public/
+├── en-US/
+│   └── EvergreenUI-help.xml           # Comment-based help
 ├── Public/
 │   └── Start-EvergreenWorkbench.ps1   # Only exported function
-├── Private/                           # helper functions
+├── Private/                           # 31 helper functions
 │   ├── themes/
 │   │   ├── Set-LightTheme.ps1
 │   │   └── Set-DarkTheme.ps1
 │   └── [utility functions]
 └── Resources/
-    ├── EvergreenUI.xaml    # WPF UI definition (~3,000 lines)
-    └── evergreenbulk.png
+    ├── EvergreenUI.xaml    # WPF UI definition (~3,900 lines)
+    ├── NerdioShellApps.psm1           # Bundled Nerdio Shell Apps helper module
+    ├── m365-app.json                  # Microsoft 365 Apps App.json template
+    └── evergreenbulb.png
 ```
 
 ### Threading Model
@@ -74,32 +78,73 @@ WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures
 | `New-FilterPanel` | Dynamically build filter UI from app result properties |
 | `Invoke-FilterUpdate` | Refresh filter panel when app selection changes |
 | `Invoke-AppDownload` | Queue and execute batch downloads |
+| `Invoke-LibraryUpdate` | Run Start-EvergreenLibraryUpdate on a background runspace; forwards events to Write-UILog |
+| `Get-InstallPackageDefinitions` | Recursively load and validate App.json definitions for the Install workflow |
+| `Get-InstallPackageLatestVersion` | Resolve latest artifact with per-definition JSON cache; wraps Get-IntunePackageLatestVersion |
+| `Get-IntunePackageLatestVersion` | Resolve latest installer via Application.Filter expression (Get-EvergreenApp or Get-VcList) |
+| `Invoke-LocalPackageInstall` | Stage installer content and execute install command locally from App.json definition |
+| `Invoke-IntunePackageBuild` | Download latest installer and create .intunewin package via IntuneWin32App module |
+| `Invoke-IntuneGraphWin32Import` | Import Win32 apps to Intune via Graph API |
+| `Set-IntuneGraphWin32Supersedence` | POST mobileAppSupersedence relationship between two Intune Win32 apps via Graph API |
+| `Get-M365AppConfigurations` | Parse ODT XML configuration files; returns channel, products, architecture, and GUID |
+| `Invoke-M365AppPackageBuild` | Download M365 setup.exe, update ODT XML, and build .intunewin for Intune import |
+| `Invoke-M365AppShellAppBuild` | Download M365 setup.exe, update ODT XML, and build .zip for Nerdio Shell App import |
+| `Invoke-AzureSignIn` | Interactive Entra sign-in for Intune workflows via Connect-MgGraph |
+| `Invoke-AzureSignOut` | Disconnect Microsoft Graph and Az contexts |
+| `Invoke-NerdioAzureSignIn` | Interactive Azure sign-in for Nerdio Manager via Connect-AzAccount |
+| `Invoke-NerdioAzureSignOut` | Disconnect Az contexts for Nerdio |
+| `Get-NerdioAzureResourceGroups` | Query Azure resource groups for Nerdio configuration |
+| `Get-NerdioAzureStorageAccounts` | Query storage accounts in a resource group |
+| `Get-NerdioAzureStorageContainers` | Query blob containers in a storage account |
 | `New-WpfRunspace` | Factory for background STA runspaces |
 | `Write-UILog` | Thread-safe log output to the UI log panel |
 | `Write-UpdateOutput` | Thread-safe log output to the Update tab panel |
 | `Format-LogEntry` | Format a `[HH:mm:ss] [LEVEL] message` log line (used by Write-UILog and Write-UpdateOutput) |
 | `Get-SafeFolderName` | Sanitise a definition file path's parent directory name for use as a working folder name |
-| `Invoke-IntuneGraphWin32Import` | Import Win32 apps to Intune via Graph API |
-| `Test-LocalPackageDetection` | Detect installed app versions for comparison |
+| `Set-DwmTitleBarColor` | Apply accent colour and dark/light mode to native OS title bar via DWM P/Invoke (Windows 11) |
+| `Test-EvergreenModule` | Verify Evergreen module is installed and importable; throws on missing; called once at startup |
+| `Test-LocalPackageDetection` | Evaluate App.json DetectionRule entries on local machine; supports File, Registry, and MSI rule types |
 
-### Providers / Tabs
+Note: `Invoke-AzureSignIn.ps1` is a multi-function file containing all seven Azure/Nerdio authentication helpers listed above.
 
-The UI has four tabs with distinct workflows:
-1. **Apps** - Browse Evergreen app catalog, apply filters, queue downloads
-2. **Library** - Manage local Evergreen app library
-3. **Import** - Nerdio Manager and Intune Win32 packaging workflows
-4. **Install** - Local package installation from definition files
+### Navigation Views
+
+The UI uses a RadioButton-based navigation system (not a TabControl) with 8 views. The top-level navigation buttons are named `Nav{View}` and each view's content lives in a `{View}Panel`:
+
+1. **Apps** - Browse Evergreen catalog, apply dynamic filters, queue downloads
+2. **Download** - Manage and monitor the active download queue
+3. **Library** - Manage local Evergreen app library via `Invoke-LibraryUpdate`
+4. **Import** - A nested `TabControl` (`ImportProviderTabControl`) with four sub-tabs:
+   - **Intune Win32 Apps** - Build .intunewin packages and import to Intune via Graph API
+   - **Nerdio Manager Shell Apps** - Build .zip packages and upload to Azure Blob Storage
+   - **Microsoft 365 Apps** - Configure ODT XML, build .intunewin or .zip for M365 Apps
+   - **Authentication** - Entra ID sign-in for Intune (Connect-MgGraph) and Azure sign-in for Nerdio (Connect-AzAccount)
+5. **Install** - Local package installation from App.json definition files
+6. **Settings** - UI preferences (theme, output/library paths, log verbosity, feature toggles for Import and Install tabs)
+7. **Update** - Evergreen module and library update output panel (uses `Write-UpdateOutput`)
+8. **About** - Module version, author, and dependency information
 
 ### Configuration
 
-User settings persist to `$env:APPDATA\EvergreenUI\settings.json`. `Get-UIConfig` creates defaults on first run. Settings include output/library paths, theme, log verbosity, and per-provider config (Nerdio, Intune, Install).
+User settings persist to `$env:APPDATA\EvergreenUI\settings.json`. `Get-UIConfig` creates defaults on first run and forward-merges any missing keys via `Merge-ConfigSection`.
+
+Top-level settings keys: `OutputPath`, `LibraryPath`, `Theme`, `LogVisible`, `LogHeight`, `ShowImportTab`, `ShowInstallTab`, `StartupView`, `LastAppName`, `FavouriteApps`, `WindowWidth`, `WindowHeight`, `ImportSettings`, `NerdioSettings`, `IntuneSettings`, `M365Settings`, `InstallSettings`, `AzureAuthSettings`.
 
 ## Code Conventions
 
 - `Set-StrictMode -Version Latest` and `$ErrorActionPreference = 'Stop'` in all scripts
 - PSScriptAnalyzer must pass with default ruleset
 - CRLF line endings for all PowerShell files (enforced via `.gitattributes`)
-- WPF controls are named with a consistent prefix scheme (see `EvergreenUI.xaml`)
+- WPF controls follow a consistent naming scheme (140+ named controls in `EvergreenUI.xaml`):
+  - `Nav{View}` - navigation RadioButtons (NavApps, NavDownload, NavLibrary, NavImport, NavInstall, NavSettings, NavUpdate, NavAbout)
+  - `{View}Panel` - top-level content panels (AppsPanel, DownloadPanel, LibraryPanel, etc.)
+  - `{Action}{Feature}Button` - buttons (RefreshAppsButton, ClearQueueButton, BrowseLibraryButton)
+  - `{Feature}StatusLabel`, `{Feature}CountLabel` - status and count labels
+  - `{Feature}PathBox`, `{Feature}Box` - text inputs (OutputPathBox, AppSearchBox)
+  - `{Feature}ListView` - list views (VersionsListView, DownloadQueueListView)
+  - `{Feature}StatusDot` - connection/state indicators (IntuneConnectionStatusDot)
+  - `Show{Feature}Toggle` - feature-enable toggles (ShowImportTabToggle)
+  - `{Feature}Combo` - combo boxes (ThemeComboBox, NmeResourceGroupCombo)
 - Always use named parameters for PowerShell cmdlet calls (e.g. `Start-Sleep -Seconds 3`, not `Start-Sleep 3`)
 - Never use em dashes in any code or markdown files
 - Ensure PowerShell commands use compatibility with PowerShell 5.1, for example Join-Path does not support -AdditionalChildPaths on PowerShell 5.1, so use an approach that is compatible on both PowerShell 5.1 or PowerShell 7 and above
