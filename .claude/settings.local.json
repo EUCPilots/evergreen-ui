@@ -41,7 +41,12 @@
       "Bash(pwsh -NoProfile -Command \"Invoke-Pester -Path .\\\\tests\\\\EvergreenUI.tests.ps1 -Output Normal\")",
       "Bash(git checkout:*)",
       "Bash(pwsh -NonInteractive -Command \"Invoke-ScriptAnalyzer -Path '.\\\\EvergreenUI\\\\Private\\\\Invoke-M365AppShellAppBuild.ps1' -Severity Error,Warning\")",
-      "Bash(pwsh -NonInteractive -Command \"Invoke-Pester -Path '.\\\\tests\\\\EvergreenUI.tests.ps1' -Output Detailed\")"
+      "Bash(pwsh -NonInteractive -Command \"Invoke-Pester -Path '.\\\\tests\\\\EvergreenUI.tests.ps1' -Output Detailed\")",
+      "WebSearch",
+      "Bash(Get-Content -Path 'C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui\\\\EvergreenUI\\\\Resources\\\\EvergreenUI.xaml')",
+      "Bash(Select-String -Pattern '\\(#[0-9A-Fa-f]{8}|#[0-9A-Fa-f]{6}|Green|green|Teal|teal|Accent\\)')",
+      "Bash(Select-Object -First 30)",
+      "mcp__db65ed01-77fe-409a-bf52-ff15008cf4d2__microsoft_docs_fetch"
     ]
   },
   "defaultShell": "powershell"
