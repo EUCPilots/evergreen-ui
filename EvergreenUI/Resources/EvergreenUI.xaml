@@ -5,8 +5,8 @@
         Width="1200" Height="750"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}"
-        FontFamily="Segoe UI"
-        FontSize="13">
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        FontSize="14">
 
     <Window.Resources>
 
@@ -69,6 +69,7 @@
             <Setter Property="Foreground"      Value="{DynamicResource ButtonForegroundBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding"         Value="16,6"/>
+            <Setter Property="MinHeight"       Value="32"/>
             <Setter Property="Cursor"          Value="Hand"/>
             <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
@@ -295,27 +296,27 @@
                     <ControlTemplate TargetType="CheckBox">
                         <Grid SnapsToDevicePixels="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Grid Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <!-- Outer grid is 20×20; box is 18×18, leaving 1 px clearance for the focus ring -->
+                                <Grid Width="20" Height="20" VerticalAlignment="Center" Margin="0,0,8,0">
                                     <Border x:Name="focusRing"
-                                            Width="18"
-                                            Height="18"
                                             CornerRadius="4"
-                                            BorderThickness="1"
+                                            BorderThickness="2"
                                             BorderBrush="{DynamicResource AccentBrush}"
                                             Opacity="0.65"
                                             Visibility="Collapsed"/>
                                     <Border x:Name="box"
-                                            Width="16"
-                                            Height="16"
+                                            Width="18"
+                                            Height="18"
                                             CornerRadius="3"
                                             BorderThickness="1.5"
                                             BorderBrush="{DynamicResource ControlBorderBrush}"
                                             Background="{DynamicResource ControlBackgroundBrush}"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"/>
+                                    <!-- Stroke uses ButtonForegroundBrush so the glyph contrasts with the solid accent fill -->
                                     <Path x:Name="check"
                                           Data="M 2 8 L 6.5 12 L 13.5 4.5"
-                                          Stroke="{DynamicResource AccentBrush}"
+                                          Stroke="{DynamicResource ButtonForegroundBrush}"
                                           StrokeThickness="1.6"
                                           StrokeLineJoin="Round"
                                           StrokeStartLineCap="Round"
@@ -324,11 +325,11 @@
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"/>
                                     <Rectangle x:Name="indeterminate"
-                                               Width="8"
+                                               Width="10"
                                                Height="2"
                                                RadiusX="1"
                                                RadiusY="1"
-                                               Fill="{DynamicResource AccentBrush}"
+                                               Fill="{DynamicResource ButtonForegroundBrush}"
                                                Visibility="Collapsed"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"/>
@@ -337,35 +338,52 @@
                             </StackPanel>
                         </Grid>
                         <ControlTemplate.Triggers>
+                            <!-- Checked: solid accent fill; glyph inherits ButtonForegroundBrush set on Path element -->
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="check" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="check"         Property="Visibility" Value="Visible"/>
                                 <Setter TargetName="indeterminate" Property="Visibility" Value="Collapsed"/>
-                                <Setter TargetName="box"   Property="BorderBrush"
-                                        Value="{DynamicResource AccentBrush}"/>
-                                <Setter TargetName="box"   Property="Background"
-                                        Value="{DynamicResource AccentLightBrush}"/>
+                                <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="box" Property="Background"  Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
+                            <!-- Indeterminate: same solid fill, dash inherits ButtonForegroundBrush -->
                             <Trigger Property="IsChecked" Value="{x:Null}">
-                                <Setter TargetName="check" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="check"         Property="Visibility" Value="Collapsed"/>
                                 <Setter TargetName="indeterminate" Property="Visibility" Value="Visible"/>
-                                <Setter TargetName="box" Property="BorderBrush"
-                                        Value="{DynamicResource AccentBrush}"/>
-                                <Setter TargetName="box" Property="Background"
-                                        Value="{DynamicResource AccentLightBrush}"/>
+                                <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="box" Property="Background"  Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="box" Property="BorderBrush"
-                                        Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
+                            <!-- Unchecked hover: accent border + light fill -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked"   Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="box" Property="Background"  Value="{DynamicResource AccentLightBrush}"/>
+                            </MultiTrigger>
+                            <!-- Checked hover: darken the accent fill -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked"   Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="box" Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+                            </MultiTrigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="focusRing" Property="Visibility" Value="Visible"/>
-                                <Setter TargetName="box" Property="BorderBrush"
-                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="box"        Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.55"/>
-                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Setter Property="Cursor"  Value="Arrow"/>
                             </Trigger>
+                            <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+                                <Setter TargetName="box"          Property="Background"  Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
+                                <Setter TargetName="box"          Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                                <Setter TargetName="check"        Property="Stroke"      Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                                <Setter TargetName="indeterminate" Property="Fill"       Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -435,6 +453,7 @@
             <Setter Property="BorderThickness"          Value="1"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Padding"                  Value="8,0"/>
+            <Setter Property="MinHeight"                Value="32"/>
             <Setter Property="Cursor"                   Value="Hand"/>
             <Setter Property="FocusVisualStyle"         Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="ItemContainerStyle">
@@ -777,15 +796,15 @@
         <Style TargetType="ScrollBar">
             <Setter Property="OverridesDefaultStyle"    Value="True"/>
             <Setter Property="Stylus.IsFlicksEnabled"  Value="False"/>
-            <Setter Property="Width"                   Value="10"/>
-            <Setter Property="MinWidth"                Value="10"/>
+            <Setter Property="Width"                   Value="8"/>
+            <Setter Property="MinWidth"                Value="8"/>
             <Setter Property="Template"                Value="{StaticResource VerticalScrollBarTemplate}"/>
             <Style.Triggers>
                 <Trigger Property="Orientation" Value="Horizontal">
                     <Setter Property="Width"    Value="Auto"/>
                     <Setter Property="MinWidth" Value="0"/>
-                    <Setter Property="Height"   Value="10"/>
-                    <Setter Property="MinHeight" Value="10"/>
+                    <Setter Property="Height"   Value="8"/>
+                    <Setter Property="MinHeight" Value="8"/>
                     <Setter Property="Template" Value="{StaticResource HorizontalScrollBarTemplate}"/>
                 </Trigger>
             </Style.Triggers>
@@ -878,6 +897,7 @@
             <Setter Property="BorderBrush"     Value="{DynamicResource ControlBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground"      Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="MinHeight"       Value="32"/>
             <Setter Property="Cursor"          Value="Hand"/>
             <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
@@ -1123,7 +1143,7 @@
                 <DockPanel>
 
                     <!-- Header -->
-                    <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="22,18,22,12">
+                    <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="22,16,22,12">
                         <TextBlock Text="Apps"
                                    FontSize="20"
                                    FontWeight="SemiBold"
@@ -1187,14 +1207,14 @@
                                     Background="{DynamicResource ControlBackgroundBrush}">
                                 <DockPanel LastChildFill="False">
                                     <TextBlock Text="APPLICATIONS"
-                                               FontSize="11"
+                                               FontSize="12"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                VerticalAlignment="Center"
                                                DockPanel.Dock="Left"/>
                                     <TextBlock x:Name="AppCountLabel"
                                                Text=""
-                                               FontSize="11"
+                                               FontSize="12"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                VerticalAlignment="Center"
                                                DockPanel.Dock="Right"/>
@@ -1328,7 +1348,7 @@
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           FontSize="12"
                                            TextWrapping="Wrap"
                                            Margin="0,6,0,0"/>
                             </StackPanel>
@@ -1383,7 +1403,7 @@
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           FontSize="12"
                                            Margin="0,10,0,0"/>
                             </StackPanel>
                         </Border>
@@ -1514,7 +1534,7 @@
             <Grid x:Name="DownloadPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <Grid Margin="22,18,22,12">
+                <Grid Margin="22,16,22,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
@@ -1608,7 +1628,7 @@
             <Grid x:Name="LibraryPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <Grid Margin="22,18,22,12">
+                <Grid Margin="22,16,22,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -1778,7 +1798,7 @@
             <Grid x:Name="ImportPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <Grid Margin="22,18,22,12">
+                <Grid Margin="22,16,22,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
@@ -1882,13 +1902,13 @@
                                                             DockPanel.Dock="Left">
                                                     <TextBlock x:Name="IntuneDefinitionsCountLabel"
                                                                Text="0 loaded"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
                                                                Margin="0,0,10,0"/>
                                                     <TextBlock x:Name="IntuneWin32AppsCountLabel"
                                                                Text="0 apps"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"/>
                                                 </StackPanel>
@@ -1900,13 +1920,13 @@
                                                              Style="{StaticResource StatusDot}"
                                                              Fill="{DynamicResource StatusErrorBrush}"/>
                                                     <TextBlock Text="Microsoft Intune:"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
                                                                Margin="5,0,4,0"/>
                                                     <TextBlock x:Name="IntuneConnectionStatusLabel"
                                                                Text="Not signed in"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"/>
                                                 </StackPanel>
@@ -1924,7 +1944,7 @@
                                                 <TextBlock x:Name="IntuneImportLoadingLabel"
                                                            Text="Working..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           FontSize="11"
+                                                           FontSize="12"
                                                            Margin="0,0,0,6"/>
                                                 <ProgressBar x:Name="IntuneImportProgressBar"
                                                              IsIndeterminate="True"
@@ -2044,7 +2064,7 @@
                                                                HorizontalAlignment="Center"
                                                                TextAlignment="Center"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                TextWrapping="Wrap"
                                                                Margin="0,6,0,0"/>
                                                 </StackPanel>
@@ -2164,13 +2184,13 @@
                                                             DockPanel.Dock="Left">
                                                     <TextBlock x:Name="NerdioDefinitionsCountLabel"
                                                                Text="0 definitions"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
                                                                Margin="0,0,10,0"/>
                                                     <TextBlock x:Name="NerdioShellAppsCountLabel"
                                                                Text="0 apps"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"/>
                                                 </StackPanel>
@@ -2184,13 +2204,13 @@
                                                     <TextBlock Text="Nerdio Manager:"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Margin="5,0,4,0"/>
                                                     <TextBlock x:Name="NerdioImportAuthStatusLabel"
                                                                Text="Not signed in"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
-                                                               FontSize="11"/>
+                                                               FontSize="12"/>
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
@@ -2206,7 +2226,7 @@
                                                 <TextBlock x:Name="NerdioShellAppsLoadingLabel"
                                                            Text="Loading Shell Apps from Nerdio Manager..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           FontSize="11"
+                                                           FontSize="12"
                                                            Margin="0,0,0,6"/>
                                                 <ProgressBar x:Name="NerdioShellAppsProgressBar"
                                                              IsIndeterminate="True"
@@ -2359,7 +2379,7 @@
                                                            HorizontalAlignment="Center"
                                                            TextAlignment="Center"
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           FontSize="11"
+                                                           FontSize="12"
                                                            TextWrapping="Wrap"
                                                            Margin="0,6,0,0"/>
                                             </StackPanel>
@@ -2475,7 +2495,7 @@
                                             <DockPanel LastChildFill="False">
                                                 <TextBlock x:Name="M365ConfigsCountLabel"
                                                            Text="0 configurations"
-                                                           FontSize="11"
+                                                           FontSize="12"
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                                            VerticalAlignment="Center"
                                                            DockPanel.Dock="Left"/>
@@ -2489,13 +2509,13 @@
                                                     <TextBlock Text="Microsoft Intune:"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Margin="5,0,4,0"/>
                                                     <TextBlock x:Name="M365IntuneAuthStatusLabel"
                                                                Text="Not signed in"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Margin="0,0,16,0"/>
                                                     <Ellipse x:Name="M365NerdioAuthStatusDot"
                                                              AutomationProperties.Name="Microsoft 365 Nerdio authentication status"
@@ -2504,13 +2524,13 @@
                                                     <TextBlock Text="Nerdio Manager:"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
-                                                               FontSize="11"
+                                                               FontSize="12"
                                                                Margin="5,0,4,0"/>
                                                     <TextBlock x:Name="M365NerdioAuthStatusLabel"
                                                                Text="Not connected"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                VerticalAlignment="Center"
-                                                               FontSize="11"/>
+                                                               FontSize="12"/>
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
@@ -2527,7 +2547,7 @@
                                                 <TextBlock x:Name="M365ConfigsLoadingLabel"
                                                            Text="Loading..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           FontSize="11"
+                                                           FontSize="12"
                                                            Margin="0,0,0,6"/>
                                                 <ProgressBar x:Name="M365ConfigsProgressBar"
                                                              IsIndeterminate="True"
@@ -2642,7 +2662,7 @@
                                                            HorizontalAlignment="Center"
                                                            TextAlignment="Center"
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           FontSize="11"
+                                                           FontSize="12"
                                                            TextWrapping="Wrap"
                                                            Margin="0,6,0,0"/>
                                             </StackPanel>
@@ -2679,7 +2699,7 @@
                                                     DockPanel.Dock="Left"
                                                     VerticalAlignment="Center">
                                             <TextBlock Text="Channel"
-                                                       FontSize="11"
+                                                       FontSize="12"
                                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                                        VerticalAlignment="Center"
                                                        Margin="0,0,6,0"/>
@@ -2698,12 +2718,12 @@
                                             </ComboBox>
                                             <TextBlock x:Name="M365EvergreenVersionLabel"
                                                        Text="-"
-                                                       FontSize="11"
+                                                       FontSize="12"
                                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                                        VerticalAlignment="Center"
                                                        Margin="0,0,16,0"/>
                                             <TextBlock Text="Company name"
-                                                       FontSize="11"
+                                                       FontSize="12"
                                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                                        VerticalAlignment="Center"
                                                        Margin="0,0,6,0"/>
@@ -3087,7 +3107,7 @@
             <Grid x:Name="InstallPanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <Grid Margin="22,18,22,12">
+                <Grid Margin="22,16,22,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
@@ -3180,13 +3200,13 @@
                                                 DockPanel.Dock="Left">
                                         <TextBlock x:Name="InstallDefinitionsCountLabel"
                                                    Text="0 loaded"
-                                                   FontSize="11"
+                                                   FontSize="12"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,10,0"/>
                                         <TextBlock x:Name="InstallActionableCountLabel"
                                                    Text="0 actionable"
-                                                   FontSize="11"
+                                                   FontSize="12"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
@@ -3199,7 +3219,7 @@
                                                  Fill="{DynamicResource StatusWarningBrush}"/>
                                         <TextBlock x:Name="InstallElevationStatusLabel"
                                                    Text="Elevation not checked"
-                                                   FontSize="11"
+                                                   FontSize="12"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
@@ -3217,7 +3237,7 @@
                                     <TextBlock x:Name="InstallLoadingLabel"
                                                Text="Working..."
                                                Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                Margin="0,0,0,6"/>
                                     <ProgressBar x:Name="InstallProgressBar"
                                                  IsIndeterminate="True"
@@ -3305,7 +3325,7 @@
                                                HorizontalAlignment="Center"
                                                TextAlignment="Center"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               FontSize="12"
                                                TextWrapping="Wrap"
                                                Margin="0,6,0,0"/>
                                 </StackPanel>
@@ -3345,7 +3365,7 @@
                   Background="{DynamicResource WindowBackgroundBrush}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="22,18,22,12" MaxWidth="760" HorizontalAlignment="Left">
+                    <StackPanel Margin="22,16,22,12" MaxWidth="760" HorizontalAlignment="Left">
 
                         <TextBlock Text="Settings"
                                    FontSize="20" FontWeight="SemiBold"
@@ -3609,7 +3629,7 @@
             <Grid x:Name="UpdatePanel"
                   Visibility="Collapsed"
                   Background="{DynamicResource WindowBackgroundBrush}">
-                <Grid Margin="22,18,22,12">
+                <Grid Margin="22,16,22,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -3673,7 +3693,7 @@
                   Background="{DynamicResource WindowBackgroundBrush}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="22,18,22,12" MaxWidth="760" HorizontalAlignment="Left">
+                    <StackPanel Margin="22,16,22,12" MaxWidth="760" HorizontalAlignment="Left">
 
                         <TextBlock Text="About"
                                    FontSize="20"
@@ -3846,7 +3866,7 @@
             <Border DockPanel.Dock="Top"
                     BorderBrush="{DynamicResource ControlBorderBrush}"
                     BorderThickness="0,1,0,1"
-                    Height="40"
+                    Height="48"
                     Background="{DynamicResource WindowBackgroundBrush}">
                 <DockPanel LastChildFill="False" Margin="12,4">
 

@@ -3094,7 +3094,7 @@ function Start-EvergreenWorkbench {
         $syncHash.Config.LogVisible = [bool]$logToggleButton.IsChecked
 
         if ($syncHash.Config.LogVisible) {
-            $currentLogHeight = [int]$logRowDef.Height.Value - 40
+            $currentLogHeight = [int]$logRowDef.Height.Value - 48
             if ($currentLogHeight -gt 0) {
                 $syncHash.Config.LogHeight = $currentLogHeight
             }
@@ -6344,12 +6344,12 @@ function Start-EvergreenWorkbench {
     $isLogVisible = [bool]$syncHash.Config.LogVisible
     if ($isLogVisible) {
         $initialLogHeight = [Math]::Max(80, [int]$syncHash.Config.LogHeight)
-        $logRowDef.Height = [System.Windows.GridLength]::new(40 + $initialLogHeight)
+        $logRowDef.Height = [System.Windows.GridLength]::new(48 + $initialLogHeight)
         $logToggleButton.IsChecked = $true
         $logToggleButton.Content = 'Hide progress log'
     }
     else {
-        $logRowDef.Height = [System.Windows.GridLength]::new(40)
+        $logRowDef.Height = [System.Windows.GridLength]::new(48)
         $logToggleButton.IsChecked = $false
         $logToggleButton.Content = 'Show progress log'
     }
@@ -8010,20 +8010,20 @@ function Start-EvergreenWorkbench {
     }
 
     # Log panel collapse / expand
-    # When expanded, the log area height (above the 32px status bar) is restored
+    # When expanded, the log area height (above the 48px status bar) is restored
     # from config; when collapsed, row 3 drops to exactly the status bar height.
     $logToggleButton.add_Click({
             if ($logToggleButton.IsChecked) {
                 $restoreHeight = [Math]::Max(80, $syncHash.Config.LogHeight)
-                $logRowDef.Height = [System.Windows.GridLength]::new(40 + $restoreHeight)
+                $logRowDef.Height = [System.Windows.GridLength]::new(48 + $restoreHeight)
                 $logToggleButton.Content = 'Hide progress log'
                 $syncHash.Config.LogVisible = $true
             }
             else {
                 # Save current displayed log height before collapsing
-                $currentHeight = [int]$logRowDef.Height.Value - 40
+                $currentHeight = [int]$logRowDef.Height.Value - 48
                 if ($currentHeight -gt 0) { $syncHash.Config.LogHeight = $currentHeight }
-                $logRowDef.Height = [System.Windows.GridLength]::new(40)
+                $logRowDef.Height = [System.Windows.GridLength]::new(48)
                 $logToggleButton.Content = 'Show progress log'
                 $syncHash.Config.LogVisible = $false
             }
