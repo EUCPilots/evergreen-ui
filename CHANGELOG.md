@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.21] - 2026-06-02
+
+### Added
+
+- Import tab / Microsoft Intune Win32 Apps: **Update definitions** button (`IntuneUpdateDefinitionsButton`) added to the action bar; invokes `Invoke-IntuneDefinitionUpdate` in a background STA runspace via the standard `New-WpfRunspace` + `DispatcherTimer` poll pattern; the definitions list is reloaded automatically on completion; the button is disabled while the operation is running
+- `Invoke-IntuneDefinitionUpdate` private function: resolves the latest package version for each definition via `Get-IntunePackageLatestVersion` and updates `App.json` (`PackageInformation.Version` and `PackageInformation.SetupFile`) and detection rule version values in place; also updates `Source\Install.json` when present; updates are best-effort per-definition and results are returned as `PSCustomObject`s
+
+### Changed
+
+- `Invoke-IntuneGraphWin32Import`: `RequirementRule.Architecture` is now parsed as a single value or a comma-separated list and mapped to the Graph API string enum (`x64`, `x86`, `arm64`, or `AllWithARM64`); multiple or unspecified architectures resolve to `AllWithARM64`; the payload key was renamed from `applicableArchitectures` to `allowedArchitectures` to match the current Graph API schema; a `Write-UILog` entry is written for the resolved value
+- XAML / Import tab / Microsoft Intune Win32 Apps: **Load definitions** button labels renamed to **Reload definitions**; App column in the definitions list widened; an extra grid column added to accommodate the new Update definitions button
+- XAML / column widths: App columns widened (200 px to 300 px, 155 px to 300 px, 190 px to 300 px), Publisher (130 px to 140 px), Installed and Latest (100 px to 140 px), and Status (170 px to 190 px) across the Install and Import list views to reduce text truncation
+- XAML / layout and typography: window font updated to `"Segoe UI Variable Text, Segoe UI"` and base `FontSize` increased to 14; several secondary labels increased from 11 to 12; status bar base height increased from 40 to 48 px; control top margins tightened from 18 to 16 px; `MinHeight` set to 32 on several controls; scrollbar thickness reduced from 10 to 8
+- XAML / `CheckBox` control template: outer grid and box sizes increased; border stroke thickness and colours revised; indeterminate dash widened; hover and checked state triggers added; high-contrast `DataTrigger` added for accessibility
+- `Start-EvergreenWorkbench`: log panel row height save and restore logic updated to account for the new 48 px status bar base height
+
 ## [1.0.20] - 2026-04-17
 
 ### Added
