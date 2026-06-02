@@ -265,8 +265,8 @@ function Invoke-IntuneGraphWin32Import {
     #   x64 only                -> 'x64'         (x64 machines only)
     #   arm64 only              -> 'arm64'        (arm64 machines only)
     #   x86 only                -> 'x86'          (x86 machines only)
-    #   x86,x64 or x86,x64,arm64 -> 'AllWithARM64' (union spans all machine types)
-    #   null / unspecified      -> 'AllWithARM64' (safe default)
+    #   x86,x64 or x86,x64,arm64 -> 'x86,x64,arm64' (union spans all machine types)
+    #   null / unspecified      -> 'x86,x64,arm64' (safe default)
     $archRaw = [string]$DefinitionObject.RequirementRule.Architecture
     $archList = @(
         $archRaw -split ',' |
@@ -279,11 +279,11 @@ function Invoke-IntuneGraphWin32Import {
             'x64'   { 'x64' }
             'x86'   { 'x86' }
             'arm64' { 'arm64' }
-            default { 'AllWithARM64' }
+            default { 'x86,x64,arm64' }
         }
     }
     else {
-        'AllWithARM64'
+        'x86,x64,arm64'
     }
     Write-UILog -Message "Allowed architectures resolved to '$allowedArchitectures' (RequirementRule.Architecture='$archRaw')." -Level Info -SyncHash $SyncHash
 

@@ -85,7 +85,7 @@ WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures
 | `Invoke-LocalPackageInstall` | Stage installer content and execute install command locally from App.json definition |
 | `Invoke-IntunePackageBuild` | Download latest installer and create .intunewin package via IntuneWin32App module |
 | `Invoke-IntuneDefinitionUpdate` | Update App.json and Source\Install.json definition files with the latest version and SetupFile resolved via each definition's Application.Filter expression; updates detection rule version values in place |
-| `Invoke-IntuneGraphWin32Import` | Import Win32 apps to Intune via Graph API; parses RequirementRule.Architecture (single value or comma-separated list) and maps to Graph API `allowedArchitectures` string enum (`x64`, `x86`, `arm64`, or `AllWithARM64`) |
+| `Invoke-IntuneGraphWin32Import` | Import Win32 apps to Intune via Graph API; parses RequirementRule.Architecture (single value or comma-separated list) and maps to Graph API `allowedArchitectures` string enum (`x64`, `x86`, `arm64`, or `x86,x64,arm64`) |
 | `Set-IntuneGraphWin32Supersedence` | POST mobileAppSupersedence relationship between two Intune Win32 apps via Graph API |
 | `Get-M365AppConfigurations` | Parse ODT XML configuration files; returns channel, products, architecture, and GUID |
 | `Invoke-M365AppPackageBuild` | Download M365 setup.exe, update ODT XML, and build .intunewin for Intune import |
