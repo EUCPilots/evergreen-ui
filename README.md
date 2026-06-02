@@ -14,10 +14,17 @@ Evergreen Workbench ships as a separate PowerShell module so it never modifies t
 - **Dynamic filters** - filter panel builds itself at runtime from whatever properties a given app actually returns (Architecture, Channel, Ring, Language, Type, Release, etc.)
 - **Download queue** - select multiple app/version combinations and download them sequentially via `Save-EvergreenApp`
 - **Library management** - inspect and update an Evergreen library on disk using `Start-EvergreenLibraryUpdate` and related cmdlets
-- **Import tab (placeholder)** - switch between provider workflows (Nerdio Manager and Microsoft Intune) using left-side workflow navigation, ready for provider-specific implementation phases
-- **Fluent UI design** - light and dark themes aligned to the Evergreen docs brand palette
+- **Import** - four provider workflows accessed from a nested tab panel:
+  - **Intune Win32 Apps** - resolve the latest installer via App.json definitions, build `.intunewin` packages with `IntuneWin32App`, import to Intune via Graph API, and set Win32 app supersedence relationships
+  - **Nerdio Manager Shell Apps** - build `.zip` packages and upload to Azure Blob Storage for Nerdio Manager Shell Apps
+  - **Microsoft 365 Apps** - parse ODT XML configurations, download the M365 setup executable, and build `.intunewin` or `.zip` packages for Intune or Nerdio import
+  - **Authentication** - interactive Entra ID sign-in via `Connect-MgGraph` for Intune workflows and Azure sign-in via `Connect-AzAccount` for Nerdio workflows
+- **Install** - evaluate App.json detection rules (File, Registry, MSI) against the local machine, resolve the latest installer version, stage content, and execute the install command
+- **Update** - run Evergreen module and library updates with real-time output streamed to a dedicated panel
+- **Settings** - configure output and library paths, UI theme, log verbosity, and feature visibility toggles for the Import and Install tabs
+- **Fluent UI design** - light and dark themes aligned to the Evergreen docs brand palette, with native Windows 11 title bar accent colour applied via DWM
 - **Real-time log panel** - timestamped progress log with `Info`, `Warning`, and `Error` levels, updated live from background runspaces
-- **Session persistence** - last-used paths, theme, window size, and startup view stored in `$env:APPDATA\EvergreenUI\settings.json`
+- **Session persistence** - output path, library path, theme, window size, startup view, last-used app, and per-provider settings stored in `$env:APPDATA\EvergreenUI\settings.json`
 
 ## Requirements
 
@@ -59,50 +66,63 @@ Start-EvergreenWorkbench
 ## Repository structure
 
 ```
-EvergreenUI/
-├── .gitignore
+evergreen-ui/
 ├── README.md
 ├── CHANGELOG.md
 │
-├── docs/                          # Design documents and specifications
-│   ├── plan.md                    # Architecture and module design plan
-│   └── filter-design.md           # Dynamic filter panel specification
-│
-├── EvergreenUI/                   # The PowerShell module
-│   ├── EvergreenUI.psd1           # Module manifest
-│   ├── EvergreenUI.psm1           # Root module (dot-sources Public + Private)
+├── EvergreenUI/                        # The PowerShell module
+│   ├── EvergreenUI.psd1                # Module manifest
+│   ├── EvergreenUI.psm1                # Root module (dot-sources Public + Private)
+│   │
+│   ├── en-US/
+│   │   └── EvergreenUI-help.xml        # Comment-based help
 │   │
 │   ├── Public/
-│   │   └── Start-EvergreenWorkbench.ps1  # Only exported function - launches the GUI
+│   │   └── Start-EvergreenWorkbench.ps1  # Only exported function
 │   │
-│   └── Private/
-│       ├── themes/
-│       │   ├── Set-LightTheme.ps1
-│       │   └── Set-DarkTheme.ps1
-│       ├── Get-EvergreenAppList.ps1
-│       ├── New-WpfRunspace.ps1
-│       ├── Write-UILog.ps1
-│       ├── Test-EvergreenModule.ps1
-│       ├── Get-FilterableProperties.ps1
-│       ├── New-FilterPanel.ps1
-│       ├── Invoke-FilterUpdate.ps1
-│       ├── Invoke-AppDownload.ps1
-│       ├── Invoke-LibraryUpdate.ps1
-│       ├── Get-UIConfig.ps1
-│       └── Set-UIConfig.ps1
+│   ├── Private/
+│   │   ├── themes/
+│   │   │   ├── Set-LightTheme.ps1
+│   │   │   └── Set-DarkTheme.ps1
+│   │   ├── Format-LogEntry.ps1
+│   │   ├── Get-EvergreenAppList.ps1
+│   │   ├── Get-FilterableProperties.ps1
+│   │   ├── Get-InstallPackageDefinitions.ps1
+│   │   ├── Get-InstallPackageLatestVersion.ps1
+│   │   ├── Get-IntunePackageLatestVersion.ps1
+│   │   ├── Get-M365AppConfigurations.ps1
+│   │   ├── Get-SafeFolderName.ps1
+│   │   ├── Get-UIConfig.ps1
+│   │   ├── Invoke-AppDownload.ps1
+│   │   ├── Invoke-AzureSignIn.ps1      # Contains all Azure/Nerdio auth helpers
+│   │   ├── Invoke-FilterUpdate.ps1
+│   │   ├── Invoke-IntuneDefinitionUpdate.ps1
+│   │   ├── Invoke-IntuneGraphWin32Import.ps1
+│   │   ├── Invoke-IntunePackageBuild.ps1
+│   │   ├── Invoke-LibraryUpdate.ps1
+│   │   ├── Invoke-LocalPackageInstall.ps1
+│   │   ├── Invoke-M365AppPackageBuild.ps1
+│   │   ├── Invoke-M365AppShellAppBuild.ps1
+│   │   ├── Merge-ConfigSection.ps1
+│   │   ├── New-FilterPanel.ps1
+│   │   ├── New-WpfRunspace.ps1
+│   │   ├── Set-DwmTitleBarColor.ps1
+│   │   ├── Set-IntuneGraphWin32Supersedence.ps1
+│   │   ├── Set-UIConfig.ps1
+│   │   ├── Test-EvergreenModule.ps1
+│   │   ├── Test-LocalPackageDetection.ps1
+│   │   ├── Write-UILog.ps1
+│   │   └── Write-UpdateOutput.ps1
+│   │
+│   └── Resources/
+│       ├── EvergreenUI.xaml            # WPF UI definition (~3,900 lines)
+│       ├── NerdioShellApps.psm1        # Bundled Nerdio Shell Apps helper module
+│       ├── m365-app.json               # Microsoft 365 Apps App.json template
+│       └── evergreenbulk.png
 │
-└── tests/                         # Pester tests
+└── tests/                              # Pester tests
     └── EvergreenUI.tests.ps1
 ```
-
-## Design documentation
-
-Full design decisions are recorded in the `/docs` folder:
-
-- [`docs/plan.md`](docs/plan.md) - module architecture, view layouts, threading model, build phases
-- [`docs/filter-design.md`](docs/filter-design.md) - dynamic filter panel design, property taxonomy, edge case handling
-
-A static interactive HTML prototype is available at [`prototype/EvergreenUI-Prototype.html`](prototype/EvergreenUI-Prototype.html) - open it in any browser to explore the intended UI with dummy data. No server or build step required.
 
 ## Contributing
 
