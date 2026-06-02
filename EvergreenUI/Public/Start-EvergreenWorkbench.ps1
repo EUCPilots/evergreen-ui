@@ -3613,6 +3613,7 @@ function Start-EvergreenWorkbench {
                 DisplayPublisher      = [string]$intuneRow.Publisher
                 IntuneVersion         = [string]$intuneRow.DisplayVersion
                 DefinitionVersion     = '-'
+                Architecture          = '-'
                 PSPackageFactoryGuid  = if ([string]::IsNullOrWhiteSpace($guidText)) { '-' } else { $guidText }
                 IsMatched             = 'No'
                 UpdateRequired        = 'Unknown'
@@ -3666,6 +3667,8 @@ function Start-EvergreenWorkbench {
             $baseRow.DefinitionVersion = [string]$definitionRow.Version
             $baseRow.DefinitionPath = [string]$definitionRow.DefinitionPath
             $baseRow.DefinitionObject = $definitionRow.DefinitionObject
+            $archValue = [string]$definitionRow.DefinitionObject.Application.Architecture
+            $baseRow.Architecture = if ([string]::IsNullOrWhiteSpace($archValue)) { '-' } else { $archValue }
             if ([string]::IsNullOrWhiteSpace($baseRow.DisplayPublisher) -or $baseRow.DisplayPublisher -eq '-') {
                 $baseRow.DisplayPublisher = [string]$definitionRow.Publisher
             }
@@ -3731,6 +3734,7 @@ function Start-EvergreenWorkbench {
                 $importAction = 'Fix in definition'
             }
 
+            $defArchValue = [string]$definitionRow.DefinitionObject.Application.Architecture
             $comparisonRows.Add([PSCustomObject]@{
                     RowType               = 'Definition'
                     IntuneAppId           = ''
@@ -3740,6 +3744,7 @@ function Start-EvergreenWorkbench {
                     DisplayPublisher      = [string]$definitionRow.Publisher
                     IntuneVersion         = '-'
                     DefinitionVersion     = [string]$definitionRow.Version
+                    Architecture          = if ([string]::IsNullOrWhiteSpace($defArchValue)) { '-' } else { $defArchValue }
                     PSPackageFactoryGuid  = [string]$definitionRow.PSPackageFactoryGuid
                     IsMatched             = 'No'
                     UpdateRequired        = $updateRequired
