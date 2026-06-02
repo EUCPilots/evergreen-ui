@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.22] - 2026-06-02
+
+### Added
+
+- `Resources/Install.ps1`: generic install script that drives app installation from `Install.json`; a simple alternative to PSAppDeployToolkit for definitions that do not ship their own install script; writes CMTrace-compatible log entries via an internal `Write-LogFile` function; restarts in a 64-bit PowerShell session automatically when invoked from a 32-bit process
+- `Invoke-IntunePackageBuild`: copies `Install.ps1` from module Resources into the staging source path before packaging; skipped for PSADT packages (detected by the presence of `Invoke-AppDeployToolkit.ps1`); copy is best-effort and logs a warning on failure without aborting the build
+- Import tab / Microsoft Intune Win32 Apps: **Architecture** column added to the definitions list view; value is read from `Application.Architecture` in each definition's `App.json` and shown as `-` when absent
+
+### Changed
+
+- Import tab / Microsoft Intune Win32 Apps: **Import** button label updates dynamically -- shows "Import Win32 app" for a single selection and "Import N Win32 apps" when multiple actionable rows are selected; button enabled state now uses `@(...)` array coercion and `.Count -gt 0` instead of a `$null` check to handle single-item selections correctly
+- Import tab / Microsoft Intune Win32 Apps: multi-app import loop now stops on the first failure (`break`) instead of skipping to the next item (`continue`); a `StoppedEarly` flag is set on the result object; the completion log message reports skipped count and uses Warning level when stopped early
+
 ## [1.0.21] - 2026-06-02
 
 ### Added
