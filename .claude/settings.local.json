@@ -64,7 +64,8 @@
       "Bash(Sort-Object)",
       "Bash(Get-ChildItem -Path \"C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui\" -Recurse -Filter \"*.ps1\")",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(rtk ls *)"
+      "Bash(rtk ls *)",
+      "Bash(rtk git *)"
     ]
   },
   "defaultShell": "powershell"
