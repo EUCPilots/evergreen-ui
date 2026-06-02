@@ -258,15 +258,34 @@ function Invoke-IntuneGraphWin32Import {
         $minimumOsObject['v10_1809'] = $true  # safe default
     }
 
-    # -- Build architecture value ----------------------------------------------
+    # -- Build allowed architectures string -----------------------------------
+    # The Graph API allowedArchitectures field is a string enum, not an array.
+    # Parse RequirementRule.Architecture (single value or comma-separated list)
+    # and map to the nearest valid Graph enum value:
+    #   x64 only                -> 'x64'         (x64 machines only)
+    #   arm64 only              -> 'arm64'        (arm64 machines only)
+    #   x86 only                -> 'x86'          (x86 machines only)
+    #   x86,x64 or x86,x64,arm64 -> 'AllWithARM64' (union spans all machine types)
+    #   null / unspecified      -> 'AllWithARM64' (safe default)
     $archRaw = [string]$DefinitionObject.RequirementRule.Architecture
-    $applicableArchitectures = switch ($archRaw.ToLower()) {
-        'x64'   { 'x64' }
-        'x86'   { 'x86' }
-        'arm64' { 'arm64' }
-        'arm'   { 'arm' }
-        default { 'x64' }
+    $archList = @(
+        $archRaw -split ',' |
+        ForEach-Object { $_.Trim().ToLower() } |
+        Where-Object { $_ -ne '' }
+    )
+
+    $allowedArchitectures = if ($archList.Count -eq 1) {
+        switch ($archList[0]) {
+            'x64'   { 'x64' }
+            'x86'   { 'x86' }
+            'arm64' { 'arm64' }
+            default { 'AllWithARM64' }
+        }
     }
+    else {
+        'AllWithARM64'
+    }
+    Write-UILog -Message "Allowed architectures resolved to '$allowedArchitectures' (RequirementRule.Architecture='$archRaw')." -Level Info -SyncHash $SyncHash
 
     # -- Build install experience ----------------------------------------------
     $runAs          = if ([string]$DefinitionObject.Program.InstallExperience -ieq 'user') { 'user' } else { 'system' }
@@ -332,7 +351,7 @@ function Invoke-IntuneGraphWin32Import {
         'deviceRestartBehavior'      = $deviceRestart
         'allowAvailableUninstall'    = [bool]$DefinitionObject.Program.AllowAvailableUninstall
         'setupFilePath'              = $setupFilePath
-        'applicableArchitectures'    = $applicableArchitectures
+        'allowedArchitectures'        = $allowedArchitectures
         'minimumSupportedOperatingSystem' = $minimumOsObject
         'detectionRules'             = @($detectionRules)
         'requirementRules'           = @()
