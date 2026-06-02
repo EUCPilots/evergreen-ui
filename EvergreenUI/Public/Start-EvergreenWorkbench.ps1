@@ -615,17 +615,22 @@ function Start-EvergreenWorkbench {
     $updateIntuneRowActionButtons = {
         $selectedItems = if ($null -eq $intuneWin32AppsListView) { @() } else { @($intuneWin32AppsListView.SelectedItems) }
 
-        $hasActionable = $selectedItems | Where-Object {
+        $actionableItems = @($selectedItems | Where-Object {
             [string]$_.ImportAction -eq 'Import new app' -or [string]$_.ImportAction -eq 'Import new version and supersede'
-        }
+        })
 
-        $canImport = ($null -ne $hasActionable) `
+        $canImport = ($actionableItems.Count -gt 0) `
             -and (-not $syncHash.IsIntuneImportLoading) `
             -and ([bool]$syncHash.IntuneWin32AppLoaded) `
             -and ([bool]$syncHash.MgGraphModuleLoaded)
 
         if ($null -ne $intuneApplyImportButton) {
             $intuneApplyImportButton.IsEnabled = $canImport
+            $intuneApplyImportButton.Content = if ($actionableItems.Count -gt 1) {
+                "Import $($actionableItems.Count) Win32 apps"
+            } else {
+                'Import Win32 app'
+            }
         }
     }
 
@@ -1767,10 +1772,11 @@ function Start-EvergreenWorkbench {
                 )
 
                 $result = [PSCustomObject]@{
-                    Success   = $false
-                    Completed = [System.Collections.Generic.List[object]]::new()
-                    Failed    = [System.Collections.Generic.List[object]]::new()
-                    Error     = ''
+                    Success      = $false
+                    Completed    = [System.Collections.Generic.List[object]]::new()
+                    Failed       = [System.Collections.Generic.List[object]]::new()
+                    StoppedEarly = $false
+                    Error        = ''
                 }
 
                 try {
@@ -1815,7 +1821,8 @@ function Start-EvergreenWorkbench {
                         }
                         catch {
                             $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Failed to load App.json: $($_.Exception.Message)" })
-                            continue
+                            $result.StoppedEarly = ($itemIndex -lt $totalCount)
+                            break
                         }
 
                         # Stage 1: resolve latest version, download, and package
@@ -1827,7 +1834,8 @@ function Start-EvergreenWorkbench {
 
                         if (-not $buildResult.Succeeded) {
                             $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Build: $($buildResult.Error)" })
-                            continue
+                            $result.StoppedEarly = ($itemIndex -lt $totalCount)
+                            break
                         }
 
                         # Stage 2: upload to Intune via Graph
@@ -1842,7 +1850,8 @@ function Start-EvergreenWorkbench {
 
                         if (-not $importResult.Succeeded) {
                             $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Import: $($importResult.Error)" })
-                            continue
+                            $result.StoppedEarly = ($itemIndex -lt $totalCount)
+                            break
                         }
 
                         # Stage 3: configure supersedence for updates
@@ -1916,8 +1925,13 @@ function Start-EvergreenWorkbench {
                     }
                     else {
                         $completedCount = @($result.Completed).Count
-                        $failedCount = @($result.Failed).Count
-                        Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
+                        $failedCount    = @($result.Failed).Count
+                        if ($result.StoppedEarly) {
+                            $skippedCount = $importActions.Count - $completedCount - $failedCount
+                            Write-UILog -SyncHash $syncHash -Message "Intune: import stopped after failure - $completedCount succeeded, $failedCount failed, $skippedCount not attempted." -Level Warning
+                        } else {
+                            Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
+                        }
                         foreach ($item in @($result.Completed)) {
                             Write-UILog -SyncHash $syncHash -Message "  + Imported '$($item.DisplayName)' v$($item.Version) (id: $($item.AppId))" -Level Info
                         }

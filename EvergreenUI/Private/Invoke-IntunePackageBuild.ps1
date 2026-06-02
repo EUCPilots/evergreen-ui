@@ -148,6 +148,26 @@ function Invoke-IntunePackageBuild {
         }
     }
 
+    # Copy Install.ps1 from module Resources into the staging source path unless this
+    # is a PSADT package (which uses Deploy-Application.exe instead).
+    $isPsadt = Test-Path -LiteralPath (Join-Path -Path $sourcePath -ChildPath 'Invoke-AppDeployToolkit.ps1')
+    if (-not $isPsadt) {
+        $moduleRoot = Split-Path -Path $PSScriptRoot -Parent
+        $resourceInstallPs1 = Join-Path -Path $moduleRoot -ChildPath 'Resources\Install.ps1'
+        if (Test-Path -LiteralPath $resourceInstallPs1 -PathType Leaf) {
+            try {
+                Copy-Item -Path $resourceInstallPs1 -Destination $sourcePath -Force -ErrorAction Stop
+                Write-UILog -Message "Copied Install.ps1 from module Resources to '$sourcePath'." -Level Info -SyncHash $SyncHash
+            }
+            catch {
+                Write-UILog -Message "Failed to copy Install.ps1 from module Resources: $($_.Exception.Message)" -Level Warning -SyncHash $SyncHash
+            }
+        }
+        else {
+            Write-UILog -Message "Install.ps1 not found in module Resources at '$resourceInstallPs1'." -Level Warning -SyncHash $SyncHash
+        }
+    }
+
     # Download the latest installer
     $artifact = $latestResult.ResolvedArtifact
     $downloadResults = @()
