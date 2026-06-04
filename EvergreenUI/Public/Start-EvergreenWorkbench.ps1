@@ -1016,11 +1016,19 @@ function Start-EvergreenWorkbench {
 
         foreach ($definitionRow in $definitionRows) {
             $definitionObject = $definitionRow.DefinitionObject
+            $architecture = '-'
             $installedVersion = '-'
             $detectionStatus = 'Not evaluated'
             $installStatus = 'Needs latest check'
             $installAction = '-'
             $latestVersion = [string]$definitionRow.LatestVersion
+
+            if ($null -ne $definitionObject) {
+                $architectureValue = [string]$definitionObject.Application.Architecture
+                if (-not [string]::IsNullOrWhiteSpace($architectureValue)) {
+                    $architecture = $architectureValue
+                }
+            }
 
             if ([string]$definitionRow.DefinitionValid -ne 'Yes' -or $null -eq $definitionObject) {
                 $installStatus = [string]$definitionRow.Status
@@ -1077,6 +1085,7 @@ function Start-EvergreenWorkbench {
             $rows.Add([PSCustomObject]@{
                     Name              = [string]$definitionRow.Name
                     Publisher         = [string]$definitionRow.Publisher
+                    Architecture      = $architecture
                     DefinitionVersion = [string]$definitionRow.Version
                     InstalledVersion  = $installedVersion
                     LatestVersion     = if ([string]::IsNullOrWhiteSpace($latestVersion)) { '-' } else { $latestVersion }
