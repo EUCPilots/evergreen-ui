@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.23] - 2026-06-02
+
+### Added
+
+- Start-EvergreenWorkbench.ps1: introduce an Architecture field (default '-') and populate it from DefinitionObject.Application.Architecture when present, then include it in the PSCustomObject rows. EvergreenUI.xaml: add an "Architecture" GridView column bound to Architecture, and adjust the navigation radio buttons (swap/update icons and labels) so Update and Settings entries render correctly.
+
 ## [1.0.22] - 2026-06-02
 
 ### Added
