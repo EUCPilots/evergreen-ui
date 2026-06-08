@@ -615,17 +615,22 @@ function Start-EvergreenWorkbench {
     $updateIntuneRowActionButtons = {
         $selectedItems = if ($null -eq $intuneWin32AppsListView) { @() } else { @($intuneWin32AppsListView.SelectedItems) }
 
-        $hasActionable = $selectedItems | Where-Object {
+        $actionableItems = @($selectedItems | Where-Object {
             [string]$_.ImportAction -eq 'Import new app' -or [string]$_.ImportAction -eq 'Import new version and supersede'
-        }
+        })
 
-        $canImport = ($null -ne $hasActionable) `
+        $canImport = ($actionableItems.Count -gt 0) `
             -and (-not $syncHash.IsIntuneImportLoading) `
             -and ([bool]$syncHash.IntuneWin32AppLoaded) `
             -and ([bool]$syncHash.MgGraphModuleLoaded)
 
         if ($null -ne $intuneApplyImportButton) {
             $intuneApplyImportButton.IsEnabled = $canImport
+            $intuneApplyImportButton.Content = if ($actionableItems.Count -gt 1) {
+                "Import $($actionableItems.Count) Win32 apps"
+            } else {
+                'Import Win32 app'
+            }
         }
     }
 
@@ -1011,11 +1016,19 @@ function Start-EvergreenWorkbench {
 
         foreach ($definitionRow in $definitionRows) {
             $definitionObject = $definitionRow.DefinitionObject
+            $architecture = '-'
             $installedVersion = '-'
             $detectionStatus = 'Not evaluated'
             $installStatus = 'Needs latest check'
             $installAction = '-'
             $latestVersion = [string]$definitionRow.LatestVersion
+
+            if ($null -ne $definitionObject) {
+                $architectureValue = [string]$definitionObject.Application.Architecture
+                if (-not [string]::IsNullOrWhiteSpace($architectureValue)) {
+                    $architecture = $architectureValue
+                }
+            }
 
             if ([string]$definitionRow.DefinitionValid -ne 'Yes' -or $null -eq $definitionObject) {
                 $installStatus = [string]$definitionRow.Status
@@ -1072,6 +1085,7 @@ function Start-EvergreenWorkbench {
             $rows.Add([PSCustomObject]@{
                     Name              = [string]$definitionRow.Name
                     Publisher         = [string]$definitionRow.Publisher
+                    Architecture      = $architecture
                     DefinitionVersion = [string]$definitionRow.Version
                     InstalledVersion  = $installedVersion
                     LatestVersion     = if ([string]::IsNullOrWhiteSpace($latestVersion)) { '-' } else { $latestVersion }
@@ -1767,10 +1781,11 @@ function Start-EvergreenWorkbench {
                 )
 
                 $result = [PSCustomObject]@{
-                    Success   = $false
-                    Completed = [System.Collections.Generic.List[object]]::new()
-                    Failed    = [System.Collections.Generic.List[object]]::new()
-                    Error     = ''
+                    Success      = $false
+                    Completed    = [System.Collections.Generic.List[object]]::new()
+                    Failed       = [System.Collections.Generic.List[object]]::new()
+                    StoppedEarly = $false
+                    Error        = ''
                 }
 
                 try {
@@ -1815,7 +1830,8 @@ function Start-EvergreenWorkbench {
                         }
                         catch {
                             $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Failed to load App.json: $($_.Exception.Message)" })
-                            continue
+                            $result.StoppedEarly = ($itemIndex -lt $totalCount)
+                            break
                         }
 
                         # Stage 1: resolve latest version, download, and package
@@ -1827,7 +1843,8 @@ function Start-EvergreenWorkbench {
 
                         if (-not $buildResult.Succeeded) {
                             $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Build: $($buildResult.Error)" })
-                            continue
+                            $result.StoppedEarly = ($itemIndex -lt $totalCount)
+                            break
                         }
 
                         # Stage 2: upload to Intune via Graph
@@ -1842,7 +1859,8 @@ function Start-EvergreenWorkbench {
 
                         if (-not $importResult.Succeeded) {
                             $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Import: $($importResult.Error)" })
-                            continue
+                            $result.StoppedEarly = ($itemIndex -lt $totalCount)
+                            break
                         }
 
                         # Stage 3: configure supersedence for updates
@@ -1916,8 +1934,13 @@ function Start-EvergreenWorkbench {
                     }
                     else {
                         $completedCount = @($result.Completed).Count
-                        $failedCount = @($result.Failed).Count
-                        Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
+                        $failedCount    = @($result.Failed).Count
+                        if ($result.StoppedEarly) {
+                            $skippedCount = $importActions.Count - $completedCount - $failedCount
+                            Write-UILog -SyncHash $syncHash -Message "Intune: import stopped after failure - $completedCount succeeded, $failedCount failed, $skippedCount not attempted." -Level Warning
+                        } else {
+                            Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
+                        }
                         foreach ($item in @($result.Completed)) {
                             Write-UILog -SyncHash $syncHash -Message "  + Imported '$($item.DisplayName)' v$($item.Version) (id: $($item.AppId))" -Level Info
                         }
@@ -3613,6 +3636,7 @@ function Start-EvergreenWorkbench {
                 DisplayPublisher      = [string]$intuneRow.Publisher
                 IntuneVersion         = [string]$intuneRow.DisplayVersion
                 DefinitionVersion     = '-'
+                Architecture          = '-'
                 PSPackageFactoryGuid  = if ([string]::IsNullOrWhiteSpace($guidText)) { '-' } else { $guidText }
                 IsMatched             = 'No'
                 UpdateRequired        = 'Unknown'
@@ -3666,6 +3690,8 @@ function Start-EvergreenWorkbench {
             $baseRow.DefinitionVersion = [string]$definitionRow.Version
             $baseRow.DefinitionPath = [string]$definitionRow.DefinitionPath
             $baseRow.DefinitionObject = $definitionRow.DefinitionObject
+            $archValue = [string]$definitionRow.DefinitionObject.Application.Architecture
+            $baseRow.Architecture = if ([string]::IsNullOrWhiteSpace($archValue)) { '-' } else { $archValue }
             if ([string]::IsNullOrWhiteSpace($baseRow.DisplayPublisher) -or $baseRow.DisplayPublisher -eq '-') {
                 $baseRow.DisplayPublisher = [string]$definitionRow.Publisher
             }
@@ -3731,6 +3757,7 @@ function Start-EvergreenWorkbench {
                 $importAction = 'Fix in definition'
             }
 
+            $defArchValue = [string]$definitionRow.DefinitionObject.Application.Architecture
             $comparisonRows.Add([PSCustomObject]@{
                     RowType               = 'Definition'
                     IntuneAppId           = ''
@@ -3740,6 +3767,7 @@ function Start-EvergreenWorkbench {
                     DisplayPublisher      = [string]$definitionRow.Publisher
                     IntuneVersion         = '-'
                     DefinitionVersion     = [string]$definitionRow.Version
+                    Architecture          = if ([string]::IsNullOrWhiteSpace($defArchValue)) { '-' } else { $defArchValue }
                     PSPackageFactoryGuid  = [string]$definitionRow.PSPackageFactoryGuid
                     IsMatched             = 'No'
                     UpdateRequired        = $updateRequired

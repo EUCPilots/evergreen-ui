@@ -1100,16 +1100,6 @@
                 <Rectangle Height="1"
                            Fill="{DynamicResource ControlBorderBrush}"
                            Margin="14,8"/>
-                <RadioButton x:Name="NavSettings"
-                             AutomationProperties.Name="Settings"
-                             Style="{StaticResource NavRailRadioButton}">
-                    <RadioButton.Content>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE713;" FontSize="16" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="NavSettingsLabel" Text="Settings" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                        </StackPanel>
-                    </RadioButton.Content>
-                </RadioButton>
                 <RadioButton x:Name="NavUpdate"
                              AutomationProperties.Name="Update"
                              Style="{StaticResource NavRailRadioButton}">
@@ -1117,6 +1107,16 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE895;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavUpdateLabel" Text="Update" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
+                <RadioButton x:Name="NavSettings"
+                             AutomationProperties.Name="Settings"
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE713;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavSettingsLabel" Text="Settings" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
                 </RadioButton>
@@ -2039,7 +2039,8 @@
                                                     </ListView.ItemContainerStyle>
                                                     <ListView.View>
                                                         <GridView>
-                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="340"/>
+                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="300"/>
+                                                            <GridViewColumn Header="Architecture"    DisplayMemberBinding="{Binding Architecture}"    Width="90"/>
                                                             <GridViewColumn Header="Publisher"       DisplayMemberBinding="{Binding DisplayPublisher}" Width="130"/>
                                                             <GridViewColumn Header="Intune Version"  DisplayMemberBinding="{Binding IntuneVersion}"   Width="110"/>
                                                             <GridViewColumn Header="Latest"          DisplayMemberBinding="{Binding DefinitionVersion}" Width="110"/>
@@ -3301,6 +3302,7 @@
                                     <ListView.View>
                                         <GridView>
                                             <GridViewColumn Header="App" DisplayMemberBinding="{Binding Name}" Width="300"/>
+                                            <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}" Width="90"/>
                                             <GridViewColumn Header="Publisher" DisplayMemberBinding="{Binding Publisher}" Width="140"/>
                                             <GridViewColumn Header="Installed" DisplayMemberBinding="{Binding InstalledVersion}" Width="140"/>
                                             <GridViewColumn Header="Latest" DisplayMemberBinding="{Binding LatestVersion}" Width="140"/>

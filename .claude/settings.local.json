@@ -65,7 +65,11 @@
       "Bash(Get-ChildItem -Path \"C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui\" -Recurse -Filter \"*.ps1\")",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(rtk ls *)",
-      "Bash(rtk git *)"
+      "Bash(rtk git *)",
+      "Bash(Get-ChildItem -Path \"EvergreenUI/Resources\" -Name)",
+      "Bash(find /mnt/c/projects/_EUCPilots/evergreen-ui -type d | head -30)",
+      "Bash(Get-ChildItem -Path \"C:\\\\projects\\\\_EUCPilots\\\\evergreen-ui\" -Recurse -Include \"*.xaml\", \"*.ps1\")",
+      "Bash(Select-Object -First 20)"
     ]
   },
   "defaultShell": "powershell"
