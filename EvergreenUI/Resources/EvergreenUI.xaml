@@ -200,7 +200,7 @@
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
                                             <Setter TargetName="bd" Property="Background"
-                                                    Value="{DynamicResource AccentLightBrush}"/>
+                                                    Value="{DynamicResource RowHoverBrush}"/>
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter TargetName="bd" Property="Background"
@@ -2023,7 +2023,7 @@
                                                                             </DataTrigger>
                                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                                 <Setter TargetName="bd" Property="Background"
-                                                                                        Value="{DynamicResource AccentLightBrush}"/>
+                                                                                        Value="{DynamicResource RowHoverBrush}"/>
                                                                             </Trigger>
                                                                             <Trigger Property="IsSelected" Value="True">
                                                                                 <Setter TargetName="bd" Property="Background"
@@ -2327,7 +2327,7 @@
                                                                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusWarningLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                                                                         </Trigger>
                                                                         <Trigger Property="IsSelected" Value="True">
                                                                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
@@ -2626,7 +2626,7 @@
                                                                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusErrorLightBrush}"/>
                                                                         </DataTrigger>
                                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                                                                         </Trigger>
                                                                         <Trigger Property="IsSelected" Value="True">
                                                                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
@@ -3287,7 +3287,7 @@
                                                                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource StatusWarningLightBrush}"/>
                                                             </DataTrigger>
                                                             <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                                                             </Trigger>
                                                             <Trigger Property="IsSelected" Value="True">
                                                                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentLightBrush}"/>

@@ -62,6 +62,7 @@ function Set-DarkTheme {
     $res['StatusPositiveLightBrush'] = NewAlphaBrush 26  76 175  80  # #1A4CAF50 - row background: positive
     $res['StatusWarningLightBrush']  = NewAlphaBrush 26 255 179   0  # #1AFFB300 - row background: warning
     $res['StatusErrorLightBrush']    = NewAlphaBrush 26 255  51  51  # #1AFF3333 - row background: error
+    $res['RowHoverBrush']            = NewBrush  48  80  76          # #30504C   - row hover: visible mid-tone teal above dark bg
 
     $Window.Background = $res['WindowBackgroundBrush']
     if ($null -ne $ThemeLabelTextBlock) {
