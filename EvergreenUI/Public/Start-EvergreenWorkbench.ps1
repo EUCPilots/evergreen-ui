@@ -1014,6 +1014,13 @@ function Start-EvergreenWorkbench {
         $rows = [System.Collections.Generic.List[object]]::new()
         $actionableCount = 0
 
+        $localArch = switch ($env:PROCESSOR_ARCHITECTURE) {
+            'AMD64'  { 'x64' }
+            'x86'    { 'x86' }
+            'ARM64'  { 'arm64' }
+            default  { 'x64' }
+        }
+
         foreach ($definitionRow in $definitionRows) {
             $definitionObject = $definitionRow.DefinitionObject
             $architecture = '-'
@@ -1024,15 +1031,28 @@ function Start-EvergreenWorkbench {
             $latestVersion = [string]$definitionRow.LatestVersion
 
             if ($null -ne $definitionObject) {
-                $architectureValue = [string]$definitionObject.Application.Architecture
+                $architectureValue = [string]$definitionObject.RequirementRule.Architecture
                 if (-not [string]::IsNullOrWhiteSpace($architectureValue)) {
                     $architecture = $architectureValue
                 }
             }
 
+            $isArchCompatible = if ($architecture -eq '-' -or [string]::IsNullOrWhiteSpace($architecture) -or
+                $architecture -eq 'All' -or $architecture -eq 'x86,x64,arm64') {
+                $true
+            }
+            else {
+                $archList = @($architecture -split ',' | ForEach-Object { $_.Trim().ToLower() })
+                $archList -contains $localArch
+            }
+
             if ([string]$definitionRow.DefinitionValid -ne 'Yes' -or $null -eq $definitionObject) {
                 $installStatus = [string]$definitionRow.Status
                 $installAction = 'Fix definition'
+            }
+            elseif (-not $isArchCompatible) {
+                $installStatus = "Incompatible architecture ($architecture)"
+                $installAction = 'Incompatible'
             }
             else {
                 $detectionResult = Test-LocalPackageDetection -DefinitionObject $definitionObject
