@@ -535,7 +535,7 @@ function Start-EvergreenWorkbench {
 
     $aboutNameValue.Text = [string]$moduleMetadata.Name
     $aboutVersionValue.Text = [string]$moduleMetadata.Version
-    $aboutPrereleaseValue.Text = if ([string]::IsNullOrWhiteSpace([string]$moduleMetadata.Prerelease)) { 'n/a' } else { [string]$moduleMetadata.Prerelease }
+    $aboutPrereleaseValue.Text = if ([string]::IsNullOrWhiteSpace([string]$moduleMetadata.Prerelease)) { 'No' } else { [string]$moduleMetadata.Prerelease }
     $aboutAuthorValue.Text = [string]$moduleMetadata.Author
     $aboutCompanyValue.Text = [string]$moduleMetadata.CompanyName
     $aboutCopyrightValue.Text = [string]$moduleMetadata.Copyright
@@ -1014,9 +1014,17 @@ function Start-EvergreenWorkbench {
         $rows = [System.Collections.Generic.List[object]]::new()
         $actionableCount = 0
 
+        $localArch = switch ($env:PROCESSOR_ARCHITECTURE) {
+            'AMD64'  { 'x64' }
+            'x86'    { 'x86' }
+            'ARM64'  { 'arm64' }
+            default  { 'x64' }
+        }
+
         foreach ($definitionRow in $definitionRows) {
             $definitionObject = $definitionRow.DefinitionObject
             $architecture = '-'
+            $displayArchitecture = '-'
             $installedVersion = '-'
             $detectionStatus = 'Not evaluated'
             $installStatus = 'Needs latest check'
@@ -1024,15 +1032,32 @@ function Start-EvergreenWorkbench {
             $latestVersion = [string]$definitionRow.LatestVersion
 
             if ($null -ne $definitionObject) {
-                $architectureValue = [string]$definitionObject.Application.Architecture
-                if (-not [string]::IsNullOrWhiteSpace($architectureValue)) {
-                    $architecture = $architectureValue
+                $requirementArchValue = [string]$definitionObject.RequirementRule.Architecture
+                if (-not [string]::IsNullOrWhiteSpace($requirementArchValue)) {
+                    $architecture = $requirementArchValue
                 }
+                $appArchValue = [string]$definitionObject.Application.Architecture
+                if (-not [string]::IsNullOrWhiteSpace($appArchValue)) {
+                    $displayArchitecture = $appArchValue
+                }
+            }
+
+            $isArchCompatible = if ($architecture -eq '-' -or [string]::IsNullOrWhiteSpace($architecture) -or
+                $architecture -eq 'All' -or $architecture -eq 'x86,x64,arm64') {
+                $true
+            }
+            else {
+                $archList = @($architecture -split ',' | ForEach-Object { $_.Trim().ToLower() })
+                $archList -contains $localArch
             }
 
             if ([string]$definitionRow.DefinitionValid -ne 'Yes' -or $null -eq $definitionObject) {
                 $installStatus = [string]$definitionRow.Status
                 $installAction = 'Fix definition'
+            }
+            elseif (-not $isArchCompatible) {
+                $installStatus = "Incompatible architecture ($architecture)"
+                $installAction = 'Incompatible'
             }
             else {
                 $detectionResult = Test-LocalPackageDetection -DefinitionObject $definitionObject
@@ -1085,7 +1110,7 @@ function Start-EvergreenWorkbench {
             $rows.Add([PSCustomObject]@{
                     Name              = [string]$definitionRow.Name
                     Publisher         = [string]$definitionRow.Publisher
-                    Architecture      = $architecture
+                    Architecture      = $displayArchitecture
                     DefinitionVersion = [string]$definitionRow.Version
                     InstalledVersion  = $installedVersion
                     LatestVersion     = if ([string]::IsNullOrWhiteSpace($latestVersion)) { '-' } else { $latestVersion }
@@ -2985,7 +3010,7 @@ function Start-EvergreenWorkbench {
         param([string]$Provider)
 
         if ([string]::IsNullOrWhiteSpace($Provider)) {
-            return 'Nerdio'
+            return 'Authentication'
         }
 
         switch -Regex ($Provider.Trim()) {
@@ -2994,7 +3019,8 @@ function Start-EvergreenWorkbench {
             '^Microsoft\s+Intune$' { return 'Intune' }
             '^M365$' { return 'M365' }
             '^Microsoft\s+365.*$' { return 'M365' }
-            default { return 'Nerdio' }
+            '^Authentication$' { return 'Authentication' }
+            default { return 'Authentication' }
         }
     }
 
@@ -3015,10 +3041,11 @@ function Start-EvergreenWorkbench {
         }
 
         $targetIndex = switch ($resolvedProvider) {
-            'Intune'  { 0 }
-            'Nerdio'  { 1 }
-            'M365'    { 2 }
-            default   { 1 }
+            'Intune'         { 0 }
+            'Nerdio'         { 1 }
+            'M365'           { 2 }
+            'Authentication' { 3 }
+            default          { 3 }
         }
         if ($importProviderTabControl.SelectedIndex -ne $targetIndex) {
             $importProviderTabControl.SelectedIndex = $targetIndex
@@ -6969,12 +6996,11 @@ function Start-EvergreenWorkbench {
     $importProviderTabControl.add_SelectionChanged({
             param($s, $e)
             if ($s -ne $importProviderTabControl) { return }
-            # Index 3 is the shared Authentication tab - not a provider workflow, nothing to switch
-            if ($importProviderTabControl.SelectedIndex -eq 3) { return }
             $provider = switch ($importProviderTabControl.SelectedIndex) {
                 0       { 'Intune' }
                 1       { 'Nerdio' }
-                default { 'M365' }
+                2       { 'M365' }
+                default { 'Authentication' }
             }
             & $setImportProvider -Provider $provider -Persist
         })

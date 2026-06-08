@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.24] - 2026-07-02
+
+### Added
+
+- Bump to initial release version.
+
+### Changed
+
+- Compute local architecture from PROCESSOR_ARCHITECTURE and read definition architecture from RequirementRule.Architecture. Determine compatibility (treat '-', empty, 'All' or 'x86,x64,arm64' as compatible; otherwise split comma lists and match against local arch). Mark definitions with incompatible architectures by setting an explicit status and 'Incompatible' action before detection is attempted.
+- Introduce a dedicated RowHoverBrush resource in both Set-LightTheme.ps1 and Set-DarkTheme.ps1 (light: #D9F2EF, dark: #30504C) and update EvergreenUI.xaml to replace AccentLightBrush with RowHoverBrush for IsMouseOver triggers in row/list templates. This decouples hover background from the accent color, ensuring consistent and appropriate hover visuals across light and dark themes.
+- Introduce a new 'Authentication' import provider and make it the default/fallback. Updates Get-UIConfig to set ImportSettings.CurrentProvider to 'Authentication' when missing. Update Start-EvergreenWorkbench to resolve empty or unknown providers to 'Authentication', add an explicit 'Authentication' case, map it to tab index 3, and adjust the tab-selection handler so unknown indices fall back to 'Authentication' (and M365 is now index 2). These changes enable a shared Authentication tab and use it as the default provider.
+
 ## [1.0.23] - 2026-06-02
 
 ### Added

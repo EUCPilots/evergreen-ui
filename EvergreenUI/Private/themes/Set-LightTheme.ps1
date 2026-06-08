@@ -63,6 +63,7 @@ function Set-LightTheme {
     $res['StatusPositiveLightBrush'] = NewAlphaBrush 26  76 175  80  # #1A4CAF50 - row background: positive
     $res['StatusWarningLightBrush']  = NewAlphaBrush 26 255 179   0  # #1AFFB300 - row background: warning
     $res['StatusErrorLightBrush']    = NewAlphaBrush 26 255  51  51  # #1AFF3333 - row background: error
+    $res['RowHoverBrush']            = NewBrush 217 242 239          # #D9F2EF   - row hover: matches AccentLightBrush for light mode
 
     $Window.Background = $res['WindowBackgroundBrush']
     if ($null -ne $ThemeLabelTextBlock) {
