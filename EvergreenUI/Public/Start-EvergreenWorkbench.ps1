@@ -535,7 +535,7 @@ function Start-EvergreenWorkbench {
 
     $aboutNameValue.Text = [string]$moduleMetadata.Name
     $aboutVersionValue.Text = [string]$moduleMetadata.Version
-    $aboutPrereleaseValue.Text = if ([string]::IsNullOrWhiteSpace([string]$moduleMetadata.Prerelease)) { 'n/a' } else { [string]$moduleMetadata.Prerelease }
+    $aboutPrereleaseValue.Text = if ([string]::IsNullOrWhiteSpace([string]$moduleMetadata.Prerelease)) { 'No' } else { [string]$moduleMetadata.Prerelease }
     $aboutAuthorValue.Text = [string]$moduleMetadata.Author
     $aboutCompanyValue.Text = [string]$moduleMetadata.CompanyName
     $aboutCopyrightValue.Text = [string]$moduleMetadata.Copyright
@@ -1024,6 +1024,7 @@ function Start-EvergreenWorkbench {
         foreach ($definitionRow in $definitionRows) {
             $definitionObject = $definitionRow.DefinitionObject
             $architecture = '-'
+            $displayArchitecture = '-'
             $installedVersion = '-'
             $detectionStatus = 'Not evaluated'
             $installStatus = 'Needs latest check'
@@ -1031,9 +1032,13 @@ function Start-EvergreenWorkbench {
             $latestVersion = [string]$definitionRow.LatestVersion
 
             if ($null -ne $definitionObject) {
-                $architectureValue = [string]$definitionObject.RequirementRule.Architecture
-                if (-not [string]::IsNullOrWhiteSpace($architectureValue)) {
-                    $architecture = $architectureValue
+                $requirementArchValue = [string]$definitionObject.RequirementRule.Architecture
+                if (-not [string]::IsNullOrWhiteSpace($requirementArchValue)) {
+                    $architecture = $requirementArchValue
+                }
+                $appArchValue = [string]$definitionObject.Application.Architecture
+                if (-not [string]::IsNullOrWhiteSpace($appArchValue)) {
+                    $displayArchitecture = $appArchValue
                 }
             }
 
@@ -1105,7 +1110,7 @@ function Start-EvergreenWorkbench {
             $rows.Add([PSCustomObject]@{
                     Name              = [string]$definitionRow.Name
                     Publisher         = [string]$definitionRow.Publisher
-                    Architecture      = $architecture
+                    Architecture      = $displayArchitecture
                     DefinitionVersion = [string]$definitionRow.Version
                     InstalledVersion  = $installedVersion
                     LatestVersion     = if ([string]::IsNullOrWhiteSpace($latestVersion)) { '-' } else { $latestVersion }

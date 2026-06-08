@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.0.23'
+    ModuleVersion     = '1.0.24'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -72,11 +72,11 @@
     # Module metadata
     PrivateData = @{
         PSData = @{
-            Tags         = @('Evergreen', 'GUI', 'MSI', 'EvergreenUI', 'Windows')
+            Tags         = @('Evergreen', 'GUI', 'MSI', 'MSIX', 'Windows', 'Intune', 'Nerdio', 'M365')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Pre-release. Updates Intune Win32 package support including x64 and arm64 architectures.'
-            Prerelease   = 'beta'
+            ReleaseNotes = 'Initial release.'
+            Prerelease   = ''
         }
     }
 }
