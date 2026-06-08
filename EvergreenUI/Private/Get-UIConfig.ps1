@@ -44,7 +44,7 @@ function Get-UIConfig {
         WindowWidth       = 1200
         WindowHeight      = 750
         ImportSettings    = [PSCustomObject]@{
-            CurrentProvider = 'Nerdio'
+            CurrentProvider = 'Authentication'
         }
         NerdioSettings    = [PSCustomObject]@{
             NmeHost           = ''
@@ -112,7 +112,7 @@ function Get-UIConfig {
             $json | Add-Member -NotePropertyName 'ImportSettings' -NotePropertyValue $default.ImportSettings -Force
         }
         elseif ($null -eq $json.ImportSettings.CurrentProvider -or [string]::IsNullOrWhiteSpace([string]$json.ImportSettings.CurrentProvider)) {
-            $json.ImportSettings | Add-Member -NotePropertyName 'CurrentProvider' -NotePropertyValue 'Nerdio' -Force
+            $json.ImportSettings | Add-Member -NotePropertyName 'CurrentProvider' -NotePropertyValue 'Authentication' -Force
         }
 
         if ([string]::IsNullOrWhiteSpace([string]$json.OutputPath)) {

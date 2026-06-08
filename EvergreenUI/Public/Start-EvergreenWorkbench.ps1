@@ -3005,7 +3005,7 @@ function Start-EvergreenWorkbench {
         param([string]$Provider)
 
         if ([string]::IsNullOrWhiteSpace($Provider)) {
-            return 'Nerdio'
+            return 'Authentication'
         }
 
         switch -Regex ($Provider.Trim()) {
@@ -3014,7 +3014,8 @@ function Start-EvergreenWorkbench {
             '^Microsoft\s+Intune$' { return 'Intune' }
             '^M365$' { return 'M365' }
             '^Microsoft\s+365.*$' { return 'M365' }
-            default { return 'Nerdio' }
+            '^Authentication$' { return 'Authentication' }
+            default { return 'Authentication' }
         }
     }
 
@@ -3035,10 +3036,11 @@ function Start-EvergreenWorkbench {
         }
 
         $targetIndex = switch ($resolvedProvider) {
-            'Intune'  { 0 }
-            'Nerdio'  { 1 }
-            'M365'    { 2 }
-            default   { 1 }
+            'Intune'         { 0 }
+            'Nerdio'         { 1 }
+            'M365'           { 2 }
+            'Authentication' { 3 }
+            default          { 3 }
         }
         if ($importProviderTabControl.SelectedIndex -ne $targetIndex) {
             $importProviderTabControl.SelectedIndex = $targetIndex
@@ -6989,12 +6991,11 @@ function Start-EvergreenWorkbench {
     $importProviderTabControl.add_SelectionChanged({
             param($s, $e)
             if ($s -ne $importProviderTabControl) { return }
-            # Index 3 is the shared Authentication tab - not a provider workflow, nothing to switch
-            if ($importProviderTabControl.SelectedIndex -eq 3) { return }
             $provider = switch ($importProviderTabControl.SelectedIndex) {
                 0       { 'Intune' }
                 1       { 'Nerdio' }
-                default { 'M365' }
+                2       { 'M365' }
+                default { 'Authentication' }
             }
             & $setImportProvider -Provider $provider -Persist
         })
