@@ -129,6 +129,26 @@ function Invoke-M365AppPackageBuild {
         }
         Write-UILog -SyncHash $SyncHash -Message "M365: setup.exe downloaded to '$sourcePath'." -Level Info
 
+        # Get the file version from the downloaded setup.exe
+        $setupExeVersion = ''
+        try {
+            $setupExeVersionInfo = (Get-Item -LiteralPath $setupFile).VersionInfo
+            $setupExeVersion = if (-not [string]::IsNullOrWhiteSpace($setupExeVersionInfo.FileVersion)) {
+                $setupExeVersionInfo.FileVersion
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace($setupExeVersionInfo.ProductVersion)) {
+                $setupExeVersionInfo.ProductVersion
+            }
+            else {
+                $version
+            }
+            Write-UILog -SyncHash $SyncHash -Message "M365: setup.exe file version: $setupExeVersion" -Level Info
+        }
+        catch {
+            Write-UILog -SyncHash $SyncHash -Message "M365: could not read setup.exe file version, using Evergreen version ($version): $($_.Exception.Message)" -Level Warning
+            $setupExeVersion = $version
+        }
+
         # Copy and rename the install config XML
         $installXmlDest = Join-Path -Path $sourcePath -ChildPath 'Install-Microsoft365Apps.xml'
         Copy-Item -LiteralPath $ConfigRow.FilePath -Destination $installXmlDest -Force -ErrorAction Stop
@@ -188,7 +208,7 @@ function Invoke-M365AppPackageBuild {
         Write-UILog -SyncHash $SyncHash -Message "M365: Package built: $($intuneWinFile.Name)" -Level Info
 
         $result.IntuneWinPath = $intuneWinFile.FullName
-        $result.Version       = $version
+        $result.Version       = $setupExeVersion
 
         # Copy and update App.json from the template
         if (-not [string]::IsNullOrWhiteSpace($AppJsonTemplatePath) -and
@@ -201,7 +221,7 @@ function Invoke-M365AppPackageBuild {
             $appJson = Get-Content -LiteralPath $appJsonDest -Raw -ErrorAction Stop | ConvertFrom-Json
 
             # Package information
-            $appJson.PackageInformation.Version = $version
+            $appJson.PackageInformation.Version = $setupExeVersion
 
             # App information
             $appJson.Information.DisplayName         = $ConfigRow.DisplayName
@@ -222,10 +242,21 @@ function Invoke-M365AppPackageBuild {
 
             foreach ($rule in $appJson.DetectionRule) {
                 switch ([string]$rule.ValueName) {
-                    'VersionToReport'        { $rule.Value = $version }
+                    'VersionToReport'        { $rule.Value = $setupExeVersion }
                     'ProductReleaseIds'      { $rule.Value = $normalizedProducts }
                     'SharedComputerLicensing' { $rule.Value = $sclValue }
                 }
+            }
+
+            # Append description note with setup.exe version, SharedComputerLicensing, and original XML file name
+            $xmlFileName = [System.IO.Path]::GetFileName($ConfigRow.FilePath)
+            $descriptionNote = "Setup.exe version: $setupExeVersion | SharedComputerLicensing: $sharedComputerLicensingValue | Configuration XML: $xmlFileName"
+            $existingDesc = [string]$appJson.Information.Description
+            $appJson.Information.Description = if ([string]::IsNullOrWhiteSpace($existingDesc)) {
+                $descriptionNote
+            }
+            else {
+                "$existingDesc`n$descriptionNote"
             }
 
             $appJson | ConvertTo-Json -Depth 10 |

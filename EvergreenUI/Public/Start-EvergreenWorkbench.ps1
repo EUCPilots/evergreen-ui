@@ -2673,6 +2673,24 @@ function Start-EvergreenWorkbench {
 
                     $definition.name = [string]$ConfigRow.DisplayName
 
+                    # Append description note with setup.exe version, SharedComputerLicensing, and XML file name
+                    if (-not [string]::IsNullOrWhiteSpace($buildResult.DescriptionNote)) {
+                        $hasDescProp = $null -ne $definition.PSObject.Properties['description']
+                        $existingDesc = if ($hasDescProp) { [string]$definition.description } else { '' }
+                        $newDesc = if ([string]::IsNullOrWhiteSpace($existingDesc)) {
+                            $buildResult.DescriptionNote
+                        }
+                        else {
+                            "$existingDesc`n$($buildResult.DescriptionNote)"
+                        }
+                        if ($hasDescProp) {
+                            $definition.description = $newDesc
+                        }
+                        else {
+                            $definition | Add-Member -MemberType NoteProperty -Name 'description' -Value $newDesc -Force
+                        }
+                    }
+
                     $appMetadata = [PSCustomObject]@{
                         Version = $buildResult.Version
                         File    = $buildResult.ZipPath
