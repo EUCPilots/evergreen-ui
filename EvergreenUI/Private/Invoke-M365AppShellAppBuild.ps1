@@ -28,6 +28,10 @@
 .PARAMETER CompanyName
     The company name written to the AppSettings/Setup element in the XML.
 
+.PARAMETER ImportFor
+    Session type for import: 'Single session' sets SharedComputerLicensing to 0,
+    'Multi-session' sets SharedComputerLicensing to 1.
+
 .PARAMETER TenantId
     The Entra ID tenant ID written to the TenantId Property element in the XML.
 
@@ -55,6 +59,10 @@ function Invoke-M365AppShellAppBuild {
 
         [Parameter(Mandatory)]
         [string]$CompanyName,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('Single session', 'Multi-session')]
+        [string]$ImportFor,
 
         [Parameter(Mandatory)]
         [string]$TenantId,
@@ -130,6 +138,7 @@ function Invoke-M365AppShellAppBuild {
         # Update Install-Microsoft365Apps.xml with caller-supplied values
         Write-UILog -SyncHash $SyncHash -Message 'M365: Updating configuration XML with channel, tenant ID, and company name...' -Level Info
         [xml]$xml = Get-Content -LiteralPath $installXmlDest -Raw -ErrorAction Stop
+        $sharedComputerLicensingValue = if ($ImportFor -eq 'Multi-session') { '1' } else { '0' }
 
         $xml.Configuration.Add.Channel = $Channel
 
@@ -142,6 +151,14 @@ function Invoke-M365AppShellAppBuild {
 
         if ($null -ne $xml.Configuration.AppSettings -and $null -ne $xml.Configuration.AppSettings.Setup) {
             $xml.Configuration.AppSettings.Setup.Value = $CompanyName
+        }
+
+        # SharedComputerLicensing Property
+        $sclProp = $xml.Configuration.Property |
+            Where-Object { $_.Name -eq 'SharedComputerLicensing' } |
+            Select-Object -First 1
+        if ($null -ne $sclProp) {
+            $sclProp.Value = $sharedComputerLicensingValue
         }
 
         $xml.Save($installXmlDest)

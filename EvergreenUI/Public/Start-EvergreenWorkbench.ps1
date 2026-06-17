@@ -500,6 +500,7 @@ function Start-EvergreenWorkbench {
     $m365LoadConfigsButton     = $window.FindName('M365LoadConfigsButton')
     $m365ChannelCombo          = $window.FindName('M365ChannelCombo')
     $m365CompanyNameBox        = $window.FindName('M365CompanyNameBox')
+    $m365ImportForCombo        = $window.FindName('M365ImportForCombo')
     $m365ConfigsCountLabel     = $window.FindName('M365ConfigsCountLabel')
     $m365EvergreenVersionLabel = $window.FindName('M365EvergreenVersionLabel')
     $m365IntuneAuthStatusDot   = $window.FindName('M365IntuneAuthStatusDot')
@@ -2228,6 +2229,7 @@ function Start-EvergreenWorkbench {
 
         $channel     = if ($null -ne $m365ChannelCombo -and $null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
         $companyName = [string]$m365CompanyNameBox.Text.Trim()
+        $importFor   = if ($null -ne $m365ImportForCombo -and $null -ne $m365ImportForCombo.SelectedItem) { [string]$m365ImportForCombo.SelectedItem.Content } else { '' }
         $tenantId    = [string]$syncHash.Config.AzureAuthSettings.TenantId
 
         if ([string]::IsNullOrWhiteSpace($channel)) {
@@ -2237,6 +2239,11 @@ function Start-EvergreenWorkbench {
 
         if ([string]::IsNullOrWhiteSpace($companyName)) {
             Write-UILog -SyncHash $syncHash -Message 'M365: company name is required.' -Level Warning
+            return
+        }
+
+        if ([string]::IsNullOrWhiteSpace($importFor)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: import session type is required.' -Level Warning
             return
         }
 
@@ -2263,6 +2270,7 @@ function Start-EvergreenWorkbench {
         $capturedConfigDirPath     = $configDirPath
         $capturedChannel           = $channel
         $capturedCompanyName       = $companyName
+        $capturedImportFor         = $importFor
         $capturedTenantId          = $tenantId
         $capturedPackageOutputPath = $packageOutputPath
         $capturedAppJsonTemplate   = $appJsonTemplatePath
@@ -2290,6 +2298,7 @@ function Start-EvergreenWorkbench {
                     [string]        $ConfigDirectoryPath,
                     [string]        $Channel,
                     [string]        $CompanyName,
+                    [string]        $ImportFor,
                     [string]        $TenantId,
                     [string]        $WorkingPath,
                     [string]        $AppJsonTemplatePath
@@ -2324,6 +2333,7 @@ function Start-EvergreenWorkbench {
                         -ConfigDirectoryPath  $ConfigDirectoryPath `
                         -Channel              $Channel `
                         -CompanyName          $CompanyName `
+                        -ImportFor            $ImportFor `
                         -TenantId             $TenantId `
                         -WorkingPath          $WorkingPath `
                         -AppJsonTemplatePath  $AppJsonTemplatePath `
@@ -2380,6 +2390,7 @@ function Start-EvergreenWorkbench {
         [void]$ps.AddArgument($capturedConfigDirPath)
         [void]$ps.AddArgument($capturedChannel)
         [void]$ps.AddArgument($capturedCompanyName)
+        [void]$ps.AddArgument($capturedImportFor)
         [void]$ps.AddArgument($capturedTenantId)
         [void]$ps.AddArgument($capturedPackageOutputPath)
         [void]$ps.AddArgument($capturedAppJsonTemplate)
@@ -2494,6 +2505,7 @@ function Start-EvergreenWorkbench {
 
         $channel     = if ($null -ne $m365ChannelCombo -and $null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
         $companyName = [string]$m365CompanyNameBox.Text.Trim()
+        $importFor   = if ($null -ne $m365ImportForCombo -and $null -ne $m365ImportForCombo.SelectedItem) { [string]$m365ImportForCombo.SelectedItem.Content } else { '' }
         $tenantId    = [string]$syncHash.Config.AzureAuthSettings.TenantId
 
         if ([string]::IsNullOrWhiteSpace($channel)) {
@@ -2503,6 +2515,11 @@ function Start-EvergreenWorkbench {
 
         if ([string]::IsNullOrWhiteSpace($companyName)) {
             Write-UILog -SyncHash $syncHash -Message 'M365: company name is required.' -Level Warning
+            return
+        }
+
+        if ([string]::IsNullOrWhiteSpace($importFor)) {
+            Write-UILog -SyncHash $syncHash -Message 'M365: import session type is required.' -Level Warning
             return
         }
 
@@ -2526,6 +2543,7 @@ function Start-EvergreenWorkbench {
         $capturedShellAppDirPath   = $shellAppDirPath
         $capturedChannel           = $channel
         $capturedCompanyName       = $companyName
+        $capturedImportFor         = $importFor
         $capturedTenantId          = $tenantId
         $capturedPackageOutputPath = $packageOutputPath
         $capturedModulePath        = $modulePath
@@ -2553,6 +2571,7 @@ function Start-EvergreenWorkbench {
                     [string]        $ConfigDirectoryPath,
                     [string]        $Channel,
                     [string]        $CompanyName,
+                    [string]        $ImportFor,
                     [string]        $TenantId,
                     [string]        $WorkingPath,
                     [string]        $ShellAppDirPath,
@@ -2584,6 +2603,7 @@ function Start-EvergreenWorkbench {
                         -ConfigDirectoryPath $ConfigDirectoryPath `
                         -Channel             $Channel `
                         -CompanyName         $CompanyName `
+                        -ImportFor           $ImportFor `
                         -TenantId            $TenantId `
                         -WorkingPath         $WorkingPath `
                         -SyncHash            $syncHash
@@ -2674,6 +2694,7 @@ function Start-EvergreenWorkbench {
         [void]$ps.AddArgument($capturedConfigDirPath)
         [void]$ps.AddArgument($capturedChannel)
         [void]$ps.AddArgument($capturedCompanyName)
+        [void]$ps.AddArgument($capturedImportFor)
         [void]$ps.AddArgument($capturedTenantId)
         [void]$ps.AddArgument($capturedPackageOutputPath)
         [void]$ps.AddArgument($capturedShellAppDirPath)
@@ -6621,6 +6642,17 @@ function Start-EvergreenWorkbench {
                 if ($null -ne $m365CompanyNameBox) {
                     $m365CompanyNameBox.Text = [string]$syncHash.Config.M365Settings.CompanyName
                 }
+                if ($null -ne $m365ImportForCombo) {
+                    $savedM365ImportFor = [string]$syncHash.Config.M365Settings.ImportFor
+                    if ([string]::IsNullOrWhiteSpace($savedM365ImportFor)) {
+                        $savedM365ImportFor = 'Single session'
+                    }
+                    $importForItem = $m365ImportForCombo.Items | Where-Object { $_.Content -eq $savedM365ImportFor } | Select-Object -First 1
+                    if ($null -eq $importForItem) {
+                        $importForItem = $m365ImportForCombo.Items | Where-Object { $_.Content -eq 'Single session' } | Select-Object -First 1
+                    }
+                    if ($null -ne $importForItem) { $m365ImportForCombo.SelectedItem = $importForItem }
+                }
             }
             & $setInstallElevationState
             & $refreshImportAuthUi
@@ -7249,6 +7281,14 @@ function Start-EvergreenWorkbench {
     $m365CompanyNameBox.add_LostFocus({
             $syncHash.Config.M365Settings.CompanyName = $m365CompanyNameBox.Text.Trim()
             Set-UIConfig -Config $syncHash.Config
+        })
+
+    $m365ImportForCombo.add_SelectionChanged({
+            $selectedImportFor = if ($null -ne $m365ImportForCombo.SelectedItem) { [string]$m365ImportForCombo.SelectedItem.Content } else { '' }
+            if (-not [string]::IsNullOrWhiteSpace($selectedImportFor)) {
+                $syncHash.Config.M365Settings.ImportFor = $selectedImportFor
+                Set-UIConfig -Config $syncHash.Config
+            }
         })
 
     $m365ConfigsListView.add_SelectionChanged({

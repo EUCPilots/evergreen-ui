@@ -2739,7 +2739,20 @@
                                             <TextBox x:Name="M365CompanyNameBox"
                                                      Style="{StaticResource FluentTextBox}"
                                                      Width="200"
-                                                     Height="32"/>
+                                                     Height="32"
+                                                     Margin="0,0,10,0"/>
+                                            <TextBlock Text="Import for:"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0"/>
+                                            <ComboBox x:Name="M365ImportForCombo"
+                                                      Style="{StaticResource FluentComboBox}"
+                                                      Width="150"
+                                                      Height="32">
+                                                <ComboBoxItem Content="Single session"/>
+                                                <ComboBoxItem Content="Multi-session"/>
+                                            </ComboBox>
                                         </StackPanel>
                                         <TextBlock x:Name="M365ActionStatusLabel"
                                                    Text=""
