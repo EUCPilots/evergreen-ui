@@ -2640,10 +2640,11 @@
                                                 </ListView.ItemContainerStyle>
                                                 <ListView.View>
                                                     <GridView>
-                                                        <GridViewColumn Header="Filename"     DisplayMemberBinding="{Binding FileName}"         Width="300"/>
-                                                        <GridViewColumn Header="Display Name" DisplayMemberBinding="{Binding DisplayName}"      Width="380"/>
+                                                        <GridViewColumn Header="Filename"     DisplayMemberBinding="{Binding FileName}"         Width="280"/>
+                                                        <GridViewColumn Header="Status"       CellTemplate="{StaticResource M365StatusCellTemplate}" Width="75"/>
+                                                        <GridViewColumn Header="Name" DisplayMemberBinding="{Binding DisplayName}"      Width="350"/>
                                                         <GridViewColumn Header="Products"     DisplayMemberBinding="{Binding Products}"         Width="300"/>
-                                                        <GridViewColumn Header="Status"       CellTemplate="{StaticResource M365StatusCellTemplate}" Width="90"/>
+                                                        <GridViewColumn Header="Excluded Apps" DisplayMemberBinding="{Binding ExcludedProducts}" Width="420"/>
                                                     </GridView>
                                                 </ListView.View>
                                             </ListView>
