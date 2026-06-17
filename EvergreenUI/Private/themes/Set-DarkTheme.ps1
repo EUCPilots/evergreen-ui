@@ -43,18 +43,18 @@ function Set-DarkTheme {
 
     $res = $Window.Resources
 
-    # Evergreen brand dark palette - deep forest teal base
-    $res['WindowBackgroundBrush'] = NewBrush  20  29  28   # #141D1C
+    # Windows 11 dark background standard (#202020)
+    $res['WindowBackgroundBrush'] = NewBrush  32  32  32   # #202020
     $res['TextPrimaryBrush'] = NewBrush 232 242 240   # #E8F2F0
     $res['TextSecondaryBrush'] = NewBrush 144 170 167   # #90AAA7
     $res['AccentBrush'] = NewBrush  77 184 173   # #4DB8AD
     $res['AccentHoverBrush'] = NewBrush 103 185 201   # #67B9C9
     $res['AccentLightBrush'] = NewBrush  13  41  38   # #0D2926
-    $res['ControlBackgroundBrush'] = NewBrush  28  40  38   # #1C2826
-    $res['ControlBorderBrush'] = NewBrush  46  63  60   # #2E3F3C
+    $res['ControlBackgroundBrush'] = NewBrush  43  43  43   # #2B2B2B
+    $res['ControlBorderBrush'] = NewBrush  62  62  62   # #3E3E3E
     $res['ButtonForegroundBrush'] = NewBrush   0   0   0   # #000000
     $res['ToggleThumbBrush'] = NewBrush   0   0   0   # #000000
-    $res['SecondaryButtonBackgroundBrush'] = NewBrush  45  68  64   # #2D4440 - visible above window bg
+    $res['SecondaryButtonBackgroundBrush'] = NewBrush  51  51  51   # #333333 - Fluent dark neutral secondary surface
     $res['SecondaryButtonBorderBrush']     = NewBrush  90 123 119   # #5A7B77 - visible mid-tone border
     $res['StatusPositiveBrush']      = NewBrush 137 194 160        # #89C2A0 - text/icon: success state
     $res['StatusErrorBrush']         = NewBrush 210 132 132        # #D28484 - text/icon: error state
