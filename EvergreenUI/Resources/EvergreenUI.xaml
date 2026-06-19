@@ -1180,10 +1180,10 @@
                                 <Grid>
                                         <TextBox x:Name="AppSearchBox"
                                                  Style="{StaticResource FluentTextBox}"/>
-                                        <TextBlock Text="Search..."
+                                        <TextBlock Text="   Search..."
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    IsHitTestVisible="False"
-                                                   Margin="8,0,0,0"
+                                                   Margin="9,0,0,0"
                                                    VerticalAlignment="Center"
                                                    FontSize="13">
                                             <TextBlock.Style>
@@ -1856,7 +1856,7 @@
                                                 <TextBlock Text="Path to package definitions..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                                            IsHitTestVisible="False"
-                                                           Margin="8,0,6,0"
+                                                           Margin="9,0,6,0"
                                                            VerticalAlignment="Center"
                                                            FontSize="13"
                                                            Grid.Column="0">
@@ -2146,7 +2146,7 @@
                                                 <TextBlock Text="Path to Shell App definitions..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                                            IsHitTestVisible="False"
-                                                           Margin="8,0,6,0"
+                                                           Margin="9,0,6,0"
                                                            VerticalAlignment="Center"
                                                            FontSize="13"
                                                            Grid.Column="0">
@@ -2466,7 +2466,7 @@
                                                 <TextBlock Text="Path to M365 App configuration files..."
                                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                                            IsHitTestVisible="False"
-                                                           Margin="8,0,6,0"
+                                                           Margin="9,0,6,0"
                                                            VerticalAlignment="Center"
                                                            FontSize="13"
                                                            Grid.Column="0">
@@ -2809,10 +2809,10 @@
                                                      VerticalAlignment="Center"
                                                      ToolTip="Optional Entra tenant ID for Intune Graph workflows"/>
                                             <TextBlock Grid.Column="1"
-                                                       Text="Tenant ID (optional)"
+                                                       Text="   Tenant ID (optional)"
                                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                                        IsHitTestVisible="False"
-                                                       Margin="8,0,0,0"
+                                                       Margin="9,0,0,0"
                                                        VerticalAlignment="Center"
                                                        FontSize="12">
                                                 <TextBlock.Style>
@@ -2854,7 +2854,6 @@
                                                     IsEnabled="False"/>
                                         </Grid>
                                     </Border>
-
                                     <!-- Nerdio Manager API section -->
                                     <TextBlock Text="Nerdio Manager API"
                                                FontWeight="SemiBold"
@@ -2952,7 +2951,7 @@
                                                         <TextBlock Text="Tenant ID (optional)"
                                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                                    IsHitTestVisible="False"
-                                                                   
+                                                                   Margin="9,0,0,0"
                                                                    VerticalAlignment="Center"
                                                                    FontSize="12">
                                                             <TextBlock.Style>
@@ -3172,10 +3171,10 @@
                                              Style="{StaticResource FluentTextBox}"
                                              Margin="0,0,6,0"
                                              ToolTip="Path to package definitions that contain App.json files"/>
-                                    <TextBlock Text="Path to package definitions..."
+                                    <TextBlock Text="   Path to package definitions..."
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                IsHitTestVisible="False"
-                                               Margin="8,0,6,0"
+                                               Margin="9,0,6,0"
                                                VerticalAlignment="Center"
                                                FontSize="13"
                                                Grid.Column="0">
