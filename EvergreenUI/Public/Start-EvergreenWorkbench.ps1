@@ -664,7 +664,7 @@ function Start-EvergreenWorkbench {
 
         if ($null -ne $installElevationStatusLabel) {
             $installElevationStatusLabel.Text = if ($isElevated) {
-                'Workbench is running as administrator'
+                'Workbench is running elevated'
             }
             else {
                 'Not elevated - installers may prompt for UAC'
