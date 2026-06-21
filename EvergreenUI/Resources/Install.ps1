@@ -1,46 +1,40 @@
+#Requires -RunAsAdministrator
 <#
     .SYNOPSIS
-        Installs an application based on logic defined in Install.json. Simple alternative to PSAppDeployToolkit
-        Script is copied into Source folder if Install.json exists.
+        Installs an application based on logic defined in Install.json. Simple alternative to PSAppDeployToolkit.
+
+    .DESCRIPTION
+        This script reads package installation configuration from Install.json in the current directory
+        and executes the installation, pre-installation tasks (stopping processes, uninstalling previous
+        versions), and post-installation tasks (copying files, running additional scripts). Includes
+        automatic 64-bit process restart if running in 32-bit session on 64-bit OS.
+
+    .EXAMPLE
+        PS C:\> .\Install.ps1
+        Executes the installation using configuration from Install.json in the current directory.
+
+    .OUTPUTS
+        System.Int32
+        Returns the exit code from the installer (0 for success).
 
     .NOTES
         Author: Aaron Parker
-        Update: Constantin Lotz
+        - Requires Install.json configuration file in the current working directory
+        - Logs are written to $Env:ProgramData\Microsoft\IntuneManagementExtension\Logs\PSPackageFactoryInstall.log
+        - Supports both EXE and MSI installers
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param ()
 
-# Pass WhatIf and Verbose preferences to functions and cmdlets below
-if ($WhatIfPreference -eq $true) { $Script:WhatIfPref = $true } else { $WhatIfPref = $false }
-if ($VerbosePreference -eq $true) { $Script:VerbosePref = $true } else { $VerbosePref = $false }
+# Set strict mode and error handling
+Set-StrictMode -Version "Latest"
+$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+$InformationPreference = [System.Management.Automation.ActionPreference]::Continue
+$ProgressPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
 
-#region Restart if running in a 32-bit session
-if (!([System.Environment]::Is64BitProcess)) {
-    if ([System.Environment]::Is64BitOperatingSystem) {
-
-        # Create a string from the passed parameters
-        [System.String]$ParameterString = ""
-        foreach ($Parameter in $PSBoundParameters.GetEnumerator()) {
-            $ParameterString += " -$($Parameter.Key) $($Parameter.Value)"
-        }
-
-        # Execute the script in a 64-bit process with the passed parameters
-        $Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$($MyInvocation.MyCommand.Definition)`"$ParameterString"
-        $ProcessPath = $(Join-Path -Path $Env:SystemRoot -ChildPath "\Sysnative\WindowsPowerShell\v1.0\powershell.exe")
-        Write-LogFile -Message "Restarting in 64-bit PowerShell."
-        Write-LogFile -Message "File path: $ProcessPath."
-        Write-LogFile -Message "Arguments: $Arguments."
-        $params = @{
-            FilePath     = $ProcessPath
-            ArgumentList = $Arguments
-            Wait         = $True
-            WindowStyle  = "Hidden"
-        }
-        Start-Process @params
-        exit 0
-    }
-}
-#endregion
+# Log file path. Parent directory should exist if device is enrolled in Intune
+$Script:LogFile = "$Env:ProgramData\Microsoft\IntuneManagementExtension\Logs\PSPackageFactoryInstall.log"
 
 #region Logging Function
 function Write-LogFile {
@@ -92,8 +86,37 @@ function Write-LogFile {
 }
 #endregion
 
+#region Restart if running in a 32-bit session
+if (!([System.Environment]::Is64BitProcess)) {
+    if ([System.Environment]::Is64BitOperatingSystem) {
+
+        # Create a string from the passed parameters
+        [System.String]$ParameterString = ""
+        foreach ($Parameter in $PSBoundParameters.GetEnumerator()) {
+            $ParameterString += " -$($Parameter.Key) $($Parameter.Value)"
+        }
+
+        # Execute the script in a 64-bit process with the passed parameters
+        $Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$($MyInvocation.MyCommand.Definition)`"$ParameterString"
+        $ProcessPath = $(Join-Path -Path $Env:SystemRoot -ChildPath "\Sysnative\WindowsPowerShell\v1.0\powershell.exe")
+        Write-LogFile -Message "Restarting in 64-bit PowerShell."
+        Write-LogFile -Message "File path: $ProcessPath."
+        Write-LogFile -Message "Arguments: $Arguments."
+        $params = @{
+            FilePath     = $ProcessPath
+            ArgumentList = $Arguments
+            Wait         = $true
+            WindowStyle  = "Hidden"
+        }
+        Start-Process @params
+        exit 0
+    }
+}
+#endregion
+
 #region Installer functions
 function Get-InstallConfig {
+    [CmdletBinding()]
     param (
         [System.String] $File = "Install.json",
         [System.Management.Automation.PathInfo] $Path = $PWD
@@ -101,7 +124,40 @@ function Get-InstallConfig {
     try {
         $InstallFile = Join-Path -Path $Path -ChildPath $File
         Write-LogFile -Message "Read package install config: $InstallFile"
-        Get-Content -Path $InstallFile -ErrorAction "Stop" | ConvertFrom-Json -ErrorAction "Continue"
+        $Config = Get-Content -Path $InstallFile -Raw | ConvertFrom-Json
+        if ($null -eq $Config.PSObject.Properties["LogPath"] -or $null -eq $Config.LogPath) {
+            $Config | Add-Member -MemberType NoteProperty -Name "LogPath" -Value "" -Force
+        }
+
+        if ($null -eq $Config.PSObject.Properties["InstallTasks"] -or $null -eq $Config.InstallTasks) {
+            $Config | Add-Member -MemberType NoteProperty -Name "InstallTasks" -Value ([PSCustomObject]@{}) -Force
+        }
+        if ($null -eq $Config.InstallTasks.PSObject.Properties["ArgumentList"] -or $null -eq $Config.InstallTasks.ArgumentList) {
+            $Config.InstallTasks | Add-Member -MemberType NoteProperty -Name "ArgumentList" -Value "" -Force
+        }
+        if ($null -eq $Config.InstallTasks.PSObject.Properties["UninstallMsi"] -or $null -eq $Config.InstallTasks.UninstallMsi) {
+            $Config.InstallTasks | Add-Member -MemberType NoteProperty -Name "UninstallMsi" -Value @() -Force
+        }
+        if ($null -eq $Config.InstallTasks.PSObject.Properties["Wait"] -or $null -eq $Config.InstallTasks.Wait) {
+            $Config.InstallTasks | Add-Member -MemberType NoteProperty -Name "Wait" -Value 0 -Force
+        }
+
+        if ($null -eq $Config.PSObject.Properties["PostInstall"] -or $null -eq $Config.PostInstall) {
+            $Config | Add-Member -MemberType NoteProperty -Name "PostInstall" -Value ([PSCustomObject]@{}) -Force
+        }
+        if ($null -eq $Config.PostInstall.PSObject.Properties["StopPath"] -or $null -eq $Config.PostInstall.StopPath) {
+            $Config.PostInstall | Add-Member -MemberType NoteProperty -Name "StopPath" -Value @() -Force
+        }
+        if ($null -eq $Config.PostInstall.PSObject.Properties["Remove"] -or $null -eq $Config.PostInstall.Remove) {
+            $Config.PostInstall | Add-Member -MemberType NoteProperty -Name "Remove" -Value @() -Force
+        }
+        if ($null -eq $Config.PostInstall.PSObject.Properties["CopyFile"] -or $null -eq $Config.PostInstall.CopyFile) {
+            $Config.PostInstall | Add-Member -MemberType NoteProperty -Name "CopyFile" -Value @() -Force
+        }
+        if ($null -eq $Config.PostInstall.PSObject.Properties["Run"] -or $null -eq $Config.PostInstall.Run) {
+            $Config.PostInstall | Add-Member -MemberType NoteProperty -Name "Run" -Value @() -Force
+        }
+        return $Config
     }
     catch {
         Write-LogFile -Message "Get-InstallConfig: $($_.Exception.Message)" -LogLevel 3
@@ -110,12 +166,13 @@ function Get-InstallConfig {
 }
 
 function Get-Installer {
+    [CmdletBinding()]
     param (
         [System.String] $File,
         [System.Management.Automation.PathInfo] $Path = $PWD
     )
-    $Installer = Get-ChildItem -Path $Path -Filter $File -Recurse -ErrorAction "Continue" | Select-Object -First 1
-    if ([System.String]::IsNullOrEmpty($Installer.FullName)) {
+    $Installer = Get-ChildItem -Path $Path -Filter $File -Recurse | Select-Object -First 1
+    if ($null -eq $Installer -or [System.String]::IsNullOrEmpty($Installer.FullName)) {
         Write-LogFile -Message "File not found: $File" -LogLevel 3
         throw [System.IO.FileNotFoundException]::New("File not found: $File")
     }
@@ -134,7 +191,11 @@ function Copy-File {
     process {
         foreach ($Item in $File) {
             try {
-                $FilePath = Get-ChildItem -Path $Path -Filter $Item.Source -Recurse -ErrorAction "Continue"
+                $FilePath = Get-ChildItem -Path $Path -Filter $Item.Source -Recurse
+                if ($null -eq $FilePath) {
+                    Write-LogFile -Message "Copy-File: Source file not found: $($Item.Source)" -LogLevel 2
+                    continue
+                }
                 Write-LogFile -Message "Copy-File: Source: $($FilePath.FullName)"
                 Write-LogFile -Message "Copy-File: Destination: $($Item.Destination)"
                 $params = @{
@@ -142,9 +203,6 @@ function Copy-File {
                     Destination = $Item.Destination
                     Container   = $false
                     Force       = $true
-                    ErrorAction = "Continue"
-                    WhatIf      = $Script:WhatIfPref
-                    Verbose     = $Script:VerbosePref
                 }
                 Copy-Item @params
             }
@@ -166,23 +224,17 @@ function Remove-Path {
             try {
                 if (Test-Path -Path $Item -PathType "Container") {
                     $params = @{
-                        Path        = $Item
-                        Recurse     = $true
-                        Force       = $true
-                        ErrorAction = "Continue"
-                        WhatIf      = $Script:WhatIfPref
-                        Verbose     = $Script:VerbosePref
+                        Path    = $Item
+                        Recurse = $true
+                        Force   = $true
                     }
                     Remove-Item @params
                     Write-LogFile -Message "Remove-Item: $Item"
                 }
                 else {
                     $params = @{
-                        Path        = $Item
-                        Force       = $true
-                        ErrorAction = "Continue"
-                        WhatIf      = $Script:WhatIfPref
-                        Verbose     = $Script:VerbosePref
+                        Path  = $Item
+                        Force = $true
                     }
                     Remove-Item @params
                     Write-LogFile -Message "Remove-Item: $Item"
@@ -206,18 +258,13 @@ function Stop-PathProcess {
         foreach ($Item in $Path) {
             try {
                 Get-Process | Where-Object { $_.Path -like $Item } | ForEach-Object { Write-LogFile -Message "Stop-PathProcess: $($_.ProcessName)" }
-                $params = {
-                    ErrorAction = "Continue"
-                    WhatIf      = $Script:WhatIfPref
-                    Verbose     = $Script:VerbosePref
-                }
                 if ($PSBoundParameters.ContainsKey("Force")) {
                     Get-Process | Where-Object { $_.Path -like $Item } | `
-                        Stop-Process -Force @params
+                        Stop-Process -Force
                 }
                 else {
                     Get-Process | Where-Object { $_.Path -like $Item } | `
-                        Stop-Process @params
+                        Stop-Process
                 }
             }
             catch {
@@ -237,17 +284,18 @@ function Uninstall-Msi {
     process {
         foreach ($Item in $ProductName) {
             if ($PSCmdlet.ShouldProcess($Item)) {
-                $Product = Get-CimInstance -Class "Win32_InstalledWin32Program" | Where-Object { $_.Name -like $Item }
                 try {
                     $Product = Get-CimInstance -Class "Win32_InstalledWin32Program" | Where-Object { $_.Name -like $Item }
+                    if ($null -eq $Product) {
+                        Write-LogFile -Message "Product not found: $Item" -LogLevel 2
+                        continue
+                    }
                     $params = @{
                         FilePath     = "$Env:SystemRoot\System32\msiexec.exe"
                         ArgumentList = "/uninstall `"$($Product.MsiProductCode)`" /quiet /log `"$LogPath\Uninstall-$($Item -replace " ").log`""
                         NoNewWindow  = $true
                         PassThru     = $true
                         Wait         = $true
-                        ErrorAction  = "Continue"
-                        Verbose      = $Script:VerbosePref
                     }
                     $result = Start-Process @params
                     Write-LogFile -Message "$Env:SystemRoot\System32\msiexec.exe /uninstall `"$($Product.MsiProductCode)`" /quiet /log `"$LogPath\Uninstall-$($Item -replace " ").log`""
@@ -265,10 +313,6 @@ function Uninstall-Msi {
 #endregion
 
 #region Install logic
-
-# Log file path. Parent directory should exist if device is enrolled in Intune
-$Script:LogFile = "$Env:ProgramData\Microsoft\IntuneManagementExtension\Logs\PSPackageFactoryInstall.log"
-
 # Trim log if greater than 50 MB
 if (Test-Path -Path $Script:LogFile) {
     if ((Get-Item -Path $Script:LogFile).Length -gt 50MB) {
@@ -288,11 +332,11 @@ if ([System.String]::IsNullOrEmpty($Installer)) {
 else {
 
     # Stop processes before installing the application
-    if ($Install.InstallTasks.StopPath.Count -gt 0) { Stop-PathProcess -Path $Install.InstallTasks.StopPath }
+    if ($null -ne $Install.InstallTasks.StopPath -and $Install.InstallTasks.StopPath.Count -gt 0) { Stop-PathProcess -Path $Install.InstallTasks.StopPath }
 
     # Uninstall the application
-    if ($Install.InstallTasks.UninstallMsi.Count -gt 0) { Uninstall-Msi -ProductName $Install.InstallTasks.UninstallMsi -LogPath $Install.LogPath }
-    if ($Install.InstallTasks.Remove.Count -gt 0) { Remove-Path -Path $Install.InstallTasks.Remove }
+    if ($null -ne $Install.InstallTasks.UninstallMsi -and $Install.InstallTasks.UninstallMsi.Count -gt 0) { Uninstall-Msi -ProductName $Install.InstallTasks.UninstallMsi -LogPath $Install.LogPath }
+    if ($null -ne $Install.InstallTasks.Remove -and $Install.InstallTasks.Remove.Count -gt 0) { Remove-Path -Path $Install.InstallTasks.Remove }
 
     # Create the log folder
     if (Test-Path -Path $Install.LogPath -PathType "Container") {
@@ -300,7 +344,7 @@ else {
     }
     else {
         Write-LogFile -Message "Create directory: $($Install.LogPath)"
-        New-Item -Path $Install.LogPath -ItemType "Directory" -ErrorAction "Continue" | Out-Null
+        New-Item -Path $Install.LogPath -ItemType "Directory" | Out-Null
     }
 
     # Build the argument list
@@ -312,6 +356,7 @@ else {
 
     try {
         # Perform the application install
+        $result = @{ ExitCode = 0 }
         switch ($Install.PackageInformation.SetupType) {
             "EXE" {
                 Write-LogFile -Message "Installer: $Installer"
@@ -322,7 +367,6 @@ else {
                     NoNewWindow  = $true
                     PassThru     = $true
                     Wait         = $true
-                    Verbose      = $Script:VerbosePref
                 }
                 if ($PSCmdlet.ShouldProcess($Installer, $ArgumentList)) {
                     $result = Start-Process @params
@@ -337,7 +381,6 @@ else {
                     NoNewWindow  = $true
                     PassThru     = $true
                     Wait         = $true
-                    Verbose      = $Script:VerbosePref
                 }
                 if ($PSCmdlet.ShouldProcess("$Env:SystemRoot\System32\msiexec.exe", $ArgumentList)) {
                     $result = Start-Process @params
@@ -350,18 +393,18 @@ else {
         }
 
         # If wait specified, wait the specified seconds
-        if ($Install.InstallTasks.Wait -gt 0) { Start-Sleep -Seconds $Install.InstallTasks.Wait }
+        if ($null -ne $Install.InstallTasks.Wait -and $Install.InstallTasks.Wait -gt 0) { Start-Sleep -Seconds $Install.InstallTasks.Wait }
 
         # Stop processes after installing the application
-        if ($Install.PostInstall.StopPath.Count -gt 0) { Stop-PathProcess -Path $Install.PostInstall.StopPath }
+        if ($null -ne $Install.PostInstall.StopPath -and $Install.PostInstall.StopPath.Count -gt 0) { Stop-PathProcess -Path $Install.PostInstall.StopPath }
 
         # Perform post install actions
-        if ($Install.PostInstall.Remove.Count -gt 0) { Remove-Path -Path $Install.PostInstall.Remove }
-        if ($Install.PostInstall.CopyFile.Count -gt 0) { Copy-File -File $Install.PostInstall.CopyFile }
+        if ($null -ne $Install.PostInstall.Remove -and $Install.PostInstall.Remove.Count -gt 0) { Remove-Path -Path $Install.PostInstall.Remove }
+        if ($null -ne $Install.PostInstall.CopyFile -and $Install.PostInstall.CopyFile.Count -gt 0) { Copy-File -File $Install.PostInstall.CopyFile }
 
         # Execute run tasks
-        if ($Install.PostInstall.Run.Count -gt 0) {
-            foreach ($Task in $Install.PostInstall.Run) { Invoke-Expression -Command $Task }
+        if ($null -ne $Install.PostInstall.Run -and $Install.PostInstall.Run.Count -gt 0) {
+            foreach ($Task in $Install.PostInstall.Run) { & $Task }
         }
     }
     catch {
