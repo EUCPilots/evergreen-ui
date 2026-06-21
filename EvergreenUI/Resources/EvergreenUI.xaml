@@ -564,7 +564,7 @@
             <Setter Property="Background"                Value="Transparent"/>
             <Setter Property="Foreground"                Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderThickness"           Value="0"/>
-            <Setter Property="Cursor"                    Value="Hand"/>
+            <Setter Property="Cursor"                    Value="Arrow"/>
             <Setter Property="FontSize"                  Value="13"/>
             <Setter Property="FocusVisualStyle"          Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
@@ -1077,6 +1077,9 @@
                         </StackPanel>
                     </RadioButton.Content>
                 </RadioButton>
+                <Rectangle Height="1"
+                           Fill="{DynamicResource ControlBorderBrush}"
+                           Margin="14,8"/>
                 <RadioButton x:Name="NavImport"
                              AutomationProperties.Name="Import"
                              Style="{StaticResource NavRailRadioButton}">
