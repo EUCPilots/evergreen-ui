@@ -79,7 +79,7 @@ function Invoke-IntunePackageBuild {
         (Test-Path -LiteralPath $definitionPath -PathType Leaf)) {
         try {
             $definitionObject = Get-Content -LiteralPath $definitionPath -Raw -ErrorAction Stop |
-                ConvertFrom-Json -ErrorAction Stop
+            ConvertFrom-Json -ErrorAction Stop
         }
         catch {
             return (& $fail "Failed to load definition from '$definitionPath': $($_.Exception.Message)")
@@ -134,24 +134,16 @@ function Invoke-IntunePackageBuild {
         $definitionDir = [System.IO.Path]::GetDirectoryName($definitionPath)
         $definitionSrcDir = Join-Path -Path $definitionDir -ChildPath 'Source'
         if (Test-Path -LiteralPath $definitionSrcDir -PathType Container) {
-            $isPSADT = Test-Path -LiteralPath (Join-Path -Path $definitionSrcDir -ChildPath 'Invoke-AppDeployToolkit.ps1')
-            if ($isPSADT) {
-                Write-UILog -Message "Copying PSADT source content from '$definitionSrcDir' (excluding deploy script until installer is staged)..." -Level Info -SyncHash $SyncHash
-                # For PSADT packages, exclude the deploy script until the installer is in place
-                $null = Copy-Item -Path "$definitionSrcDir\*" -Destination $sourcePath -Recurse -Force `
-                    -Exclude 'Invoke-AppDeployToolkit.ps1' -ErrorAction Stop
-            }
-            else {
-                Write-UILog -Message "Copying source content from '$definitionSrcDir'..." -Level Info -SyncHash $SyncHash
-                $null = Copy-Item -Path "$definitionSrcDir\*" -Destination $sourcePath -Recurse -Force -ErrorAction Stop
-            }
+            Write-UILog -Message "Copying source content from '$definitionSrcDir'..." -Level Info -SyncHash $SyncHash
+            $null = Copy-Item -Path "$definitionSrcDir\*" -Destination $sourcePath -Recurse -Force -ErrorAction Stop
         }
     }
 
-    # Copy Install.ps1 from module Resources into the staging source path unless this
-    # is a PSADT package (which uses Deploy-Application.exe instead).
-    $isPsadt = Test-Path -LiteralPath (Join-Path -Path $sourcePath -ChildPath 'Invoke-AppDeployToolkit.ps1')
-    if (-not $isPsadt) {
+    # Copy Install.ps1 from module Resources into the staging source path.
+    if (Test-Path -Path (Join-Path -Path $sourcePath -ChildPath 'Install.ps1') -PathType Leaf) {
+        Write-UILog -Message "Warning: Install.ps1 already exists in source path; skip copy." -Level Warning -SyncHash $SyncHash
+    }
+    else {
         $moduleRoot = Split-Path -Path $PSScriptRoot -Parent
         $resourceInstallPs1 = Join-Path -Path $moduleRoot -ChildPath 'Resources\Install.ps1'
         if (Test-Path -LiteralPath $resourceInstallPs1 -PathType Leaf) {
@@ -195,7 +187,7 @@ function Invoke-IntunePackageBuild {
         $appJsonTarget = Join-Path -Path $sourcePath -ChildPath 'App.json'
         try {
             $appJson = Get-Content -LiteralPath $definitionPath -Raw -ErrorAction Stop |
-                ConvertFrom-Json -ErrorAction Stop
+            ConvertFrom-Json -ErrorAction Stop
             $appJson.PackageInformation.Version = [string]$latestResult.Version
             if ($downloadResults.Count -gt 0) {
                 $installerName = [System.IO.Path]::GetFileName($downloadResults[0].FullName)
@@ -204,7 +196,7 @@ function Invoke-IntunePackageBuild {
                 }
             }
             $appJson | ConvertTo-Json -Depth 10 |
-                Set-Content -LiteralPath $appJsonTarget -Encoding UTF8 -ErrorAction Stop
+            Set-Content -LiteralPath $appJsonTarget -Encoding UTF8 -ErrorAction Stop
             Write-UILog -Message "Copied App.json to staging path and updated version to '$([string]$latestResult.Version)'." -Level Info -SyncHash $SyncHash
         }
         catch {
@@ -213,7 +205,7 @@ function Invoke-IntunePackageBuild {
         }
     }
 
-    # Determine setup file and whether PSADT is involved.
+    # Determine setup file.
     # Prefer the actual downloaded filename; fall back to App.json then SetupType default.
     $setupFile = ''
     if ($downloadResults.Count -gt 0) {
@@ -225,17 +217,11 @@ function Invoke-IntunePackageBuild {
     if ([string]::IsNullOrWhiteSpace($setupFile)) {
         $setupType = [string]$definitionObject.PackageInformation.SetupType
         $setupFile = switch ($setupType.ToUpper()) {
-            'MSI'  { 'Setup.msi' }
+            'MSI' { 'Setup.msi' }
             'MSIX' { 'Setup.msix' }
             default { 'Setup.exe' }
         }
         Write-UILog -Message "SetupFile not specified; defaulting to '$setupFile'." -Level Warning -SyncHash $SyncHash
-    }
-
-    # If PSADT deploy script now exists in source, adjust setup file name
-    if (Test-Path -LiteralPath (Join-Path -Path $sourcePath -ChildPath 'Invoke-AppDeployToolkit.ps1')) {
-        $setupFile = 'Deploy-Application.exe'
-        Write-UILog -Message "PSADT deploy script detected; setup file overridden to 'Deploy-Application.exe'." -Level Info -SyncHash $SyncHash
     }
 
     # Verify IntuneWin32App module is available for packaging

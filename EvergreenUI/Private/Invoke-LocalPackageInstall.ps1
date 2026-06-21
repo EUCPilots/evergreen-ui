@@ -129,12 +129,12 @@ function Invoke-LocalPackageInstall {
         }
     }
 
-    # Copy Install.ps1 to the download directory. Prefer the package root,
-    # then the Source folder, then the shared intune template used by
+    # Copy Install.ps1 to the download directory. Prefer the Source folder,
+    # then the package root, then the shared intune template used by
     # evergreen-packages package definitions.
     $installPs1Source = @(
-        (Join-Path -Path $definitionDir -ChildPath 'Install.ps1')
         (Join-Path -Path $definitionSourceDir -ChildPath 'Install.ps1')
+        (Join-Path -Path $definitionDir -ChildPath 'Install.ps1')
         $sharedInstallPs1Source
     ) | Where-Object {
         -not [string]::IsNullOrWhiteSpace([string]$_) -and (Test-Path -LiteralPath $_ -PathType Leaf)
