@@ -70,7 +70,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding"         Value="16,6"/>
             <Setter Property="MinHeight"       Value="32"/>
-            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Cursor"          Value="Arrow"/>
             <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -286,7 +286,7 @@
         <!-- ── FluentCheckBox ── -->
         <Style x:Key="FluentCheckBox" TargetType="CheckBox">
             <Setter Property="Foreground"               Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="Cursor"                   Value="Hand"/>
+            <Setter Property="Cursor"                   Value="Arrow"/>
             <Setter Property="Height"                   Value="32"/>
             <Setter Property="MinHeight"                Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -392,7 +392,7 @@
 
         <!-- ── FluentToggleSwitch ── -->
         <Style x:Key="FluentToggleSwitch" TargetType="ToggleButton">
-            <Setter Property="Cursor"   Value="Hand"/>
+            <Setter Property="Cursor"   Value="Arrow"/>
             <Setter Property="Width"    Value="36"/>
             <Setter Property="Height"   Value="20"/>
             <Setter Property="Focusable" Value="True"/>
@@ -454,7 +454,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Padding"                  Value="8,0"/>
             <Setter Property="MinHeight"                Value="32"/>
-            <Setter Property="Cursor"                   Value="Hand"/>
+            <Setter Property="Cursor"                   Value="Arrow"/>
             <Setter Property="FocusVisualStyle"         Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
@@ -462,7 +462,7 @@
                         <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
                         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                         <Setter Property="Padding"    Value="8,6"/>
-                        <Setter Property="Cursor"     Value="Hand"/>
+                        <Setter Property="Cursor"     Value="Arrow"/>
                         <Style.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
@@ -666,7 +666,7 @@
             <Setter Property="Background"               Value="Transparent"/>
             <Setter Property="Foreground"               Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="BorderThickness"          Value="0"/>
-            <Setter Property="Cursor"                   Value="Hand"/>
+            <Setter Property="Cursor"                   Value="Arrow"/>
             <Setter Property="FontSize"                 Value="13"/>
             <Setter Property="MinWidth"                 Value="160"/>
             <Setter Property="MinHeight"                Value="44"/>
@@ -864,7 +864,7 @@
         <Style x:Key="FluentNavButton" TargetType="Button">
             <Setter Property="Background"          Value="Transparent"/>
             <Setter Property="BorderThickness"     Value="0"/>
-            <Setter Property="Cursor"              Value="Hand"/>
+            <Setter Property="Cursor"              Value="Arrow"/>
             <Setter Property="FocusVisualStyle"    Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -898,7 +898,7 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground"      Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="MinHeight"       Value="32"/>
-            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Cursor"          Value="Arrow"/>
             <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -1080,6 +1080,16 @@
                 <Rectangle Height="1"
                            Fill="{DynamicResource ControlBorderBrush}"
                            Margin="14,8"/>
+                <RadioButton x:Name="NavPackages"
+                             AutomationProperties.Name="Packages"
+                             Style="{StaticResource NavRailRadioButton}">
+                    <RadioButton.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE7B8;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavPackagesLabel" Text="Packages" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </RadioButton.Content>
+                </RadioButton>
                 <RadioButton x:Name="NavImport"
                              AutomationProperties.Name="Import"
                              Style="{StaticResource NavRailRadioButton}">
@@ -1095,7 +1105,7 @@
                              Style="{StaticResource NavRailRadioButton}">
                     <RadioButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xE7B8;" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock FontFamily="{DynamicResource FluentIconFontFamily}" Text="&#xEB3B;" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="NavInstallLabel" Text="Install" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </RadioButton.Content>
@@ -1260,7 +1270,7 @@
                                                     Tag="{Binding Name}"
                                                     BorderThickness="0"
                                                     Background="Transparent"
-                                                    Cursor="Hand"
+                                                    Cursor="Arrow"
                                                     FontSize="13"
                                                     Padding="6,0,0,0"
                                                     VerticalAlignment="Center">
@@ -1294,7 +1304,7 @@
                                     <Style TargetType="ListBoxItem">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                         <Setter Property="Padding"                   Value="12,7"/>
-                                        <Setter Property="Cursor"                    Value="Hand"/>
+                                        <Setter Property="Cursor"                    Value="Arrow"/>
                                         <Setter Property="FontSize"                  Value="13"/>
                                         <Setter Property="Foreground"                Value="{DynamicResource TextPrimaryBrush}"/>
                                         <Setter Property="Template">
@@ -1797,6 +1807,204 @@
                 </Grid>
             </Grid>
 
+            <!-- Packages view -->
+            <Grid x:Name="PackagesPanel"
+                  Visibility="Collapsed"
+                  Background="{DynamicResource WindowBackgroundBrush}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="22,16,22,12" Width="1120" HorizontalAlignment="Left">
+
+                        <TextBlock Text="Packages"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="Microsoft Intune"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,12"/>
+
+                                <TextBlock Text="Path to package definitions"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,6"/>
+                                <DockPanel Margin="0,0,0,12">
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
+                                        <Button x:Name="BrowseIntuneDefinitionsButton"
+                                                Content="Browse"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Margin="0,0,6,0"
+                                                Padding="10,6"/>
+                                        <Button x:Name="IntuneUpdateDefinitionsButton"
+                                                Content="Update definitions"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="10,6"
+                                                IsEnabled="False"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="IntuneDefinitionsPathBox"
+                                             Style="{StaticResource FluentTextBox}"
+                                             ToolTip="Path to the packagefactory application definitions root folder"/>
+                                </DockPanel>
+
+                                <Border BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="12,8"
+                                        Margin="0,0,0,12"
+                                        Background="{DynamicResource ControlBackgroundBrush}">
+                                    <DockPanel LastChildFill="False">
+                                        <StackPanel Orientation="Horizontal"
+                                                    VerticalAlignment="Center"
+                                                    DockPanel.Dock="Left">
+                                            <TextBlock x:Name="IntuneDefinitionsCountLabel"
+                                                       Text="0 loaded"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,10,0"/>
+                                            <TextBlock x:Name="IntuneWin32AppsCountLabel"
+                                                       Text="0 apps"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal"
+                                                    VerticalAlignment="Center"
+                                                    DockPanel.Dock="Right">
+                                            <Ellipse x:Name="IntuneConnectionStatusDot"
+                                                     AutomationProperties.Name="Intune connection status"
+                                                     Style="{StaticResource StatusDot}"
+                                                     Fill="{DynamicResource StatusErrorBrush}"/>
+                                            <TextBlock Text="Microsoft Intune:"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="5,0,4,0"/>
+                                            <TextBlock x:Name="IntuneConnectionStatusLabel"
+                                                       Text="Not signed in"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <Border x:Name="IntuneImportLoadingPanel"
+                                        BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="12,8"
+                                        Margin="0,0,0,12"
+                                        Background="{DynamicResource WindowBackgroundBrush}"
+                                        Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock x:Name="IntuneImportLoadingLabel"
+                                                   Text="Working..."
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   FontSize="12"
+                                                   Margin="0,0,0,6"/>
+                                        <ProgressBar x:Name="IntuneImportProgressBar"
+                                                     IsIndeterminate="True"
+                                                     Height="3"
+                                                     Foreground="{DynamicResource AccentBrush}"
+                                                     Background="{DynamicResource ControlBorderBrush}"
+                                                     BorderThickness="0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="Intune package output path"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,6"/>
+                                <DockPanel Margin="0,0,0,12">
+                                    <Button x:Name="IntuneBrowsePackageOutputButton"
+                                            Content="Browse"
+                                            DockPanel.Dock="Right"
+                                            Margin="8,0,0,0"
+                                            Style="{StaticResource FluentSecondaryButton}"/>
+                                    <TextBox x:Name="IntunePackageOutputPathBox"
+                                             Style="{StaticResource FluentTextBox}"
+                                             ToolTip="Folder where .intunewin packages are written during the Package step"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14"
+                                Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Nerdio Manager Shell Apps"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,12"/>
+
+                                <TextBlock Text="Path to Shell Apps definitions"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,6"/>
+                                <DockPanel>
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
+                                        <Button x:Name="BrowseNerdioDefinitionsButton"
+                                                Content="Browse"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Margin="0,0,6,0"
+                                                Padding="10,6"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="NerdioDefinitionsPathBox"
+                                             Style="{StaticResource FluentTextBox}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderThickness="1"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                Background="{DynamicResource ControlBackgroundBrush}"
+                                CornerRadius="8"
+                                Padding="14"
+                                Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Microsoft 365 Apps"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,12"/>
+
+                                <TextBlock Text="Path to M365 Apps configurations"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12"
+                                           Margin="0,0,0,6"/>
+                                <DockPanel>
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
+                                        <Button x:Name="BrowseM365ConfigButton"
+                                                Content="Browse"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Margin="0,0,6,0"
+                                                Padding="10,6"/>
+                                        <Button x:Name="M365LoadConfigsButton"
+                                                Content="Load configurations"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="10,6"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="M365ConfigPathBox"
+                                             Style="{StaticResource FluentTextBox}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
             <!-- Import view -->
             <Grid x:Name="ImportPanel"
                   Visibility="Collapsed"
@@ -1837,133 +2045,13 @@
                                         Margin="0,0,0,12"
                                         ClipToBounds="True">
                                     <DockPanel>
-
                                         <Border DockPanel.Dock="Top"
                                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                                 BorderThickness="0,0,0,1"
                                                 Padding="10,8"
                                                 Background="{DynamicResource WindowBackgroundBrush}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="IntuneDefinitionsPathBox"
-                                                         Grid.Column="0"
-                                                         Style="{StaticResource FluentTextBox}"
-                                                         Margin="0,0,6,0"
-                                                         ToolTip="Path to the packagefactory application definitions root folder"/>
-                                                <TextBlock Text="   Path to package definitions..."
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           IsHitTestVisible="False"
-                                                           Margin="9,0,6,0"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="13"
-                                                           Grid.Column="0">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Text, ElementName=IntuneDefinitionsPathBox}" Value="">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <Button x:Name="BrowseIntuneDefinitionsButton"
-                                                        Grid.Column="1"
-                                                        Content="Browse"
-                                                        Style="{StaticResource FluentSecondaryButton}"
-                                                        Margin="0,0,6,0"
-                                                        Padding="10,6"/>
-                                                <Button x:Name="IntuneLoadDefinitionsButton"
-                                                        Grid.Column="2"
-                                                        Content="Reload definitions"
-                                                        Style="{StaticResource FluentSecondaryButton}"
-                                                        Margin="0,0,6,0"
-                                                        Padding="10,6"/>
-                                                <Button x:Name="IntuneUpdateDefinitionsButton"
-                                                        Grid.Column="3"
-                                                        Content="Update definitions"
-                                                        Style="{StaticResource FluentSecondaryButton}"
-                                                        Margin="0,0,6,0"
-                                                        Padding="10,6"
-                                                        IsEnabled="False"/>
-                                                <Button x:Name="IntuneRefreshCatalogButton"
-                                                        Grid.Column="4"
-                                                        Content="Compare with Microsoft Intune"
-                                                        Style="{StaticResource FluentButton}"
-                                                    Padding="10,6"
-                                                    IsEnabled="False"/>
-                                            </Grid>
-                                        </Border>
-
-                                        <Border DockPanel.Dock="Top"
-                                                BorderBrush="{DynamicResource ControlBorderBrush}"
-                                                BorderThickness="0,0,0,1"
-                                                Padding="12,8"
-                                                Background="{DynamicResource ControlBackgroundBrush}">
                                             <DockPanel LastChildFill="False">
-                                                <StackPanel Orientation="Horizontal"
-                                                            VerticalAlignment="Center"
-                                                            DockPanel.Dock="Left">
-                                                    <TextBlock x:Name="IntuneDefinitionsCountLabel"
-                                                               Text="0 loaded"
-                                                               FontSize="12"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               VerticalAlignment="Center"
-                                                               Margin="0,0,10,0"/>
-                                                    <TextBlock x:Name="IntuneWin32AppsCountLabel"
-                                                               Text="0 apps"
-                                                               FontSize="12"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal"
-                                                            VerticalAlignment="Center"
-                                                            DockPanel.Dock="Right">
-                                                    <Ellipse x:Name="IntuneConnectionStatusDot"
-                                                             AutomationProperties.Name="Intune connection status"
-                                                             Style="{StaticResource StatusDot}"
-                                                             Fill="{DynamicResource StatusErrorBrush}"/>
-                                                    <TextBlock Text="Microsoft Intune:"
-                                                               FontSize="12"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               VerticalAlignment="Center"
-                                                               Margin="5,0,4,0"/>
-                                                    <TextBlock x:Name="IntuneConnectionStatusLabel"
-                                                               Text="Not signed in"
-                                                               FontSize="12"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               VerticalAlignment="Center"/>
-                                                </StackPanel>
                                             </DockPanel>
-                                        </Border>
-
-                                        <Border x:Name="IntuneImportLoadingPanel"
-                                                DockPanel.Dock="Top"
-                                                BorderBrush="{DynamicResource ControlBorderBrush}"
-                                                BorderThickness="0,0,0,1"
-                                                Padding="12,8"
-                                                Background="{DynamicResource WindowBackgroundBrush}"
-                                                Visibility="Collapsed">
-                                            <StackPanel>
-                                                <TextBlock x:Name="IntuneImportLoadingLabel"
-                                                           Text="Working..."
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           FontSize="12"
-                                                           Margin="0,0,0,6"/>
-                                                <ProgressBar x:Name="IntuneImportProgressBar"
-                                                             IsIndeterminate="True"
-                                                             Height="3"
-                                                             Foreground="{DynamicResource AccentBrush}"
-                                                             Background="{DynamicResource ControlBorderBrush}"
-                                                             BorderThickness="0"/>
-                                            </StackPanel>
                                         </Border>
 
                                         <!-- Reconciliation list + empty hint -->
@@ -2095,6 +2183,19 @@
                                     <DockPanel LastChildFill="True">
                                         <StackPanel Orientation="Horizontal"
                                                     DockPanel.Dock="Right">
+                                            <Button x:Name="IntuneLoadDefinitionsButton"
+                                                Content="Reload definitions"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Height="32"
+                                                Padding="10,6"
+                                                Margin="0,0,6,0"/>
+                                            <Button x:Name="IntuneRefreshCatalogButton"
+                                                Content="Compare with Intune"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Height="32"
+                                                Padding="10,6"
+                                                Margin="0,0,6,0"
+                                                IsEnabled="False"/>
                                             <Button x:Name="IntuneApplyImportButton"
                                                     Content="Import Win32 app"
                                                     Style="{StaticResource FluentButton}"
@@ -2135,54 +2236,8 @@
                                                 BorderThickness="0,0,0,1"
                                                 Padding="10,8"
                                                 Background="{DynamicResource WindowBackgroundBrush}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="NerdioDefinitionsPathBox"
-                                                         Grid.Column="0"
-                                                         Style="{StaticResource FluentTextBox}"
-                                                         Margin="0,0,6,0"/>
-                                                <TextBlock Text="   Path to Shell App definitions..."
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           IsHitTestVisible="False"
-                                                           Margin="9,0,6,0"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="13"
-                                                           Grid.Column="0">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Text, ElementName=NerdioDefinitionsPathBox}" Value="">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <Button x:Name="BrowseNerdioDefinitionsButton"
-                                                        Grid.Column="1"
-                                                        Content="Browse"
-                                                        Style="{StaticResource FluentSecondaryButton}"
-                                                        Margin="0,0,6,0"
-                                                        Padding="10,6"/>
-                                                <Button x:Name="NerdioLoadDefinitionsButton"
-                                                        Grid.Column="2"
-                                                        Content="Reload definitions"
-                                                        Style="{StaticResource FluentSecondaryButton}"
-                                                    Padding="10,6"
-                                                    Margin="0,0,6,0"/>
-                                                <Button x:Name="NerdioListShellAppsButton"
-                                                    Grid.Column="3"
-                                                    Content="Compare with Nerdio Manager"
-                                                    Style="{StaticResource FluentButton}"
-                                                    Padding="10,6"
-                                                    IsEnabled="False"/>
-                                            </Grid>
+                                            <DockPanel LastChildFill="False">
+                                            </DockPanel>
                                         </Border>
 
                                         <Border DockPanel.Dock="Top"
@@ -2409,8 +2464,19 @@
                                     <DockPanel LastChildFill="True">
                                         <StackPanel Orientation="Horizontal"
                                                     DockPanel.Dock="Right">
+                                            <Button x:Name="NerdioLoadDefinitionsButton"
+                                                Content="Reload definitions"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="12,6"
+                                                Margin="0,0,8,0"/>
+                                            <Button x:Name="NerdioListShellAppsButton"
+                                                Content="Compare with Nerdio Manager"
+                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Padding="12,6"
+                                                Margin="0,0,8,0"
+                                                IsEnabled="False"/>
                                             <Button x:Name="NerdioAddVersionButton"
-                                                    Content="Add new version to existing Shell App"
+                                                    Content="Add to existing Shell App"
                                                     Style="{StaticResource FluentSecondaryButton}"
                                                     Padding="12,6"
                                                     IsEnabled="False"
@@ -2449,54 +2515,6 @@
                                         Margin="0,0,0,12"
                                         ClipToBounds="True">
                                     <DockPanel>
-
-                                        <!-- Path input and load buttons -->
-                                        <Border DockPanel.Dock="Top"
-                                                BorderBrush="{DynamicResource ControlBorderBrush}"
-                                                BorderThickness="0,0,0,1"
-                                                Padding="10,8"
-                                                Background="{DynamicResource WindowBackgroundBrush}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="M365ConfigPathBox"
-                                                         Grid.Column="0"
-                                                         Style="{StaticResource FluentTextBox}"
-                                                         Margin="0,0,6,0"/>
-                                                <TextBlock Text="   Path to M365 App configuration files..."
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           IsHitTestVisible="False"
-                                                           Margin="9,0,6,0"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="13"
-                                                           Grid.Column="0">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Text, ElementName=M365ConfigPathBox}" Value="">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <Button x:Name="BrowseM365ConfigButton"
-                                                        Grid.Column="1"
-                                                        Content="Browse"
-                                                        Style="{StaticResource FluentSecondaryButton}"
-                                                        Margin="0,0,6,0"
-                                                        Padding="10,6"/>
-                                                <Button x:Name="M365LoadConfigsButton"
-                                                        Grid.Column="2"
-                                                        Content="Load configurations"
-                                                        Style="{StaticResource FluentButton}"
-                                                        Padding="10,6"/>
-                                            </Grid>
-                                        </Border>
 
                                         <!-- Count and version status -->
                                         <Border DockPanel.Dock="Top"
@@ -3575,75 +3593,6 @@
                                                 Style="{StaticResource FluentSecondaryButton}"/>
                                     </StackPanel>
                                 </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <Border BorderThickness="1"
-                                BorderBrush="{DynamicResource ControlBorderBrush}"
-                                Background="{DynamicResource ControlBackgroundBrush}"
-                                CornerRadius="8"
-                                Padding="14"
-                                Margin="0,12,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="170"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                                           Text="Microsoft Intune"
-                                           FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"
-                                           Margin="0,0,0,14"/>
-
-                                <TextBlock Grid.Row="1" Grid.Column="0"
-                                           Text="IntuneWin32App module"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="12"
-                                           Margin="0,7,10,16"/>
-                                <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,16">
-                                    <Button x:Name="IntuneReloadModuleSettingsButton"
-                                            Content="Reload"
-                                            DockPanel.Dock="Right"
-                                            Margin="8,0,0,0"
-                                            Style="{StaticResource FluentSecondaryButton}"
-                                            Width="{Binding ElementName=IntuneBrowsePackageOutputButton, Path=ActualWidth}"
-                                            />
-                                    <DockPanel VerticalAlignment="Center">
-                                        <Ellipse x:Name="IntuneSettingsModuleStatusDot"
-                                                 DockPanel.Dock="Left"
-                                                 Style="{StaticResource StatusDot}"
-                                                 Fill="{DynamicResource ControlBorderBrush}"/>
-                                        <TextBlock x:Name="IntuneSettingsModuleStatusLabel"
-                                                   Text="Module not checked."
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   FontSize="12"
-                                                   VerticalAlignment="Center"
-                                                   TextWrapping="Wrap"/>
-                                    </DockPanel>
-                                </DockPanel>
-
-                                <TextBlock Grid.Row="2" Grid.Column="0"
-                                           Text="Package output path"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="12"
-                                           Margin="0,7,10,0"/>
-                                <DockPanel Grid.Row="2" Grid.Column="1">
-                                    <Button x:Name="IntuneBrowsePackageOutputButton"
-                                            Content="Browse"
-                                            DockPanel.Dock="Right"
-                                            Margin="8,0,0,0"
-                                            Style="{StaticResource FluentSecondaryButton}"
-                                            />
-                                    <TextBox x:Name="IntunePackageOutputPathBox"
-                                             Style="{StaticResource FluentTextBox}"
-                                             ToolTip="Folder where .intunewin packages are written during the Package step"/>
-                                </DockPanel>
                             </Grid>
                         </Border>
 

@@ -331,6 +331,7 @@ function Start-EvergreenWorkbench {
     $navApps = $window.FindName('NavApps')
     $navDownload = $window.FindName('NavDownload')
     $navLibrary = $window.FindName('NavLibrary')
+    $navPackages = $window.FindName('NavPackages')
     $navImport = $window.FindName('NavImport')
     $navInstall = $window.FindName('NavInstall')
     $navSettings = $window.FindName('NavSettings')
@@ -340,6 +341,7 @@ function Start-EvergreenWorkbench {
     $appsPanel = $window.FindName('AppsPanel')
     $downloadPanel = $window.FindName('DownloadPanel')
     $libraryPanel = $window.FindName('LibraryPanel')
+    $packagesPanel = $window.FindName('PackagesPanel')
     $importPanel = $window.FindName('ImportPanel')
     $installPanel = $window.FindName('InstallPanel')
     $settingsPanel = $window.FindName('SettingsPanel')
@@ -455,10 +457,6 @@ function Start-EvergreenWorkbench {
     $installPackagesListView = $window.FindName('InstallPackagesListView')
     $installApplyButton = $window.FindName('InstallApplyButton')
     $installActionStatusLabel = $window.FindName('InstallActionStatusLabel')
-    # Intune Settings controls
-    $intuneReloadModuleSettingsButton = $window.FindName('IntuneReloadModuleSettingsButton')
-    $intuneSettingsModuleStatusDot = $window.FindName('IntuneSettingsModuleStatusDot')
-    $intuneSettingsModuleStatusLabel = $window.FindName('IntuneSettingsModuleStatusLabel')
     # Nerdio Shell Apps controls
     $nmeHostBox = $window.FindName('NmeHostBox')
     $nmeClientIdBox = $window.FindName('NmeClientIdBox')
@@ -3150,6 +3148,9 @@ function Start-EvergreenWorkbench {
         elseif ($navLibrary.IsChecked) {
             return 'Library'
         }
+        elseif ($navPackages.IsChecked) {
+            return 'Packages'
+        }
         elseif ($navImport.IsChecked) {
             return 'Import'
         }
@@ -5413,32 +5414,6 @@ function Start-EvergreenWorkbench {
         $pollTimer.Start()
     }
 
-    $refreshIntuneModuleStatus = {
-        param(
-            [bool]$IsLoaded,
-            [string]$Message
-        )
-
-        if ($null -eq $intuneSettingsModuleStatusLabel) { return }
-
-        if ($IsLoaded) {
-            $statusBrush = & $getThemeStatusBrush -ResourceKey 'StatusPositiveBrush' -FallbackBrush ([System.Windows.Media.Brushes]::LightGreen)
-            $intuneSettingsModuleStatusLabel.Foreground = $statusBrush
-            if ($null -ne $intuneSettingsModuleStatusDot) {
-                $intuneSettingsModuleStatusDot.Fill = $statusBrush
-            }
-        }
-        else {
-            $statusBrush = & $getThemeStatusBrush -ResourceKey 'StatusErrorBrush' -FallbackBrush ([System.Windows.Media.Brushes]::OrangeRed)
-            $intuneSettingsModuleStatusLabel.Foreground = $statusBrush
-            if ($null -ne $intuneSettingsModuleStatusDot) {
-                $intuneSettingsModuleStatusDot.Fill = $statusBrush
-            }
-        }
-
-        $intuneSettingsModuleStatusLabel.Text = $Message
-    }
-
     $loadIntuneWin32AppModule = {
         param([switch]$Force)
 
@@ -5449,19 +5424,17 @@ function Start-EvergreenWorkbench {
 
             Import-Module -Name IntuneWin32App -Force:$Force -ErrorAction Stop | Out-Null
             $ver = (Get-Module -Name IntuneWin32App).Version
-            & $refreshIntuneModuleStatus -IsLoaded $true -Message "IntuneWin32App v$ver loaded."
             Write-UILog -SyncHash $syncHash -Message "IntuneWin32App module v$ver loaded successfully." -Level Info
             return $true
         }
         catch {
-            & $refreshIntuneModuleStatus -IsLoaded $false -Message "Failed to load module: $($_.Exception.Message)"
             Write-UILog -SyncHash $syncHash -Message "Failed to load IntuneWin32App module: $($_.Exception.Message)" -Level Error
             return $false
         }
     }
 
     $loadImportTabModules = {
-        # IntuneWin32App - reuse existing loader which handles status dot + log output
+        # IntuneWin32App
         Write-UILog -SyncHash $syncHash -Message 'Import tab: loading IntuneWin32App...' -Level Info
         $intuneOk = & $loadIntuneWin32AppModule
         $syncHash.IntuneWin32AppLoaded = $intuneOk
@@ -6717,6 +6690,9 @@ function Start-EvergreenWorkbench {
                 'Library' {
                     $navLibrary.IsChecked = $true
                 }
+                'Packages' {
+                    $navPackages.IsChecked = $true
+                }
                 'Import' {
                     if ([bool]$syncHash.Config.ShowImportTab) {
                         $navImport.IsChecked = $true
@@ -6857,6 +6833,11 @@ function Start-EvergreenWorkbench {
                 elseif ($navLibrary.IsChecked) {
                     & $refreshLibraryView
                 }
+                elseif ($navPackages.IsChecked) {
+                    & $refreshImportAuthUi
+                    & $refreshNerdioApiAuthUi
+                    & $refreshNerdioAzureAuthUi
+                }
                 elseif ($navImport.IsChecked) {
                     & $setImportProvider -Provider $syncHash.Config.ImportSettings.CurrentProvider
                 }
@@ -6908,6 +6889,7 @@ function Start-EvergreenWorkbench {
         NavApps     = $appsPanel
         NavDownload = $downloadPanel
         NavLibrary  = $libraryPanel
+        NavPackages = $packagesPanel
         NavImport   = $importPanel
         NavInstall  = $installPanel
         NavSettings = $settingsPanel
@@ -6927,13 +6909,13 @@ function Start-EvergreenWorkbench {
         }
     }
 
-    foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navImport, $navInstall, $navSettings, $navUpdate, $navAbout)) {
+    foreach ($navBtn in @($navApps, $navDownload, $navLibrary, $navPackages, $navImport, $navInstall, $navSettings, $navUpdate, $navAbout)) {
         $navBtn.add_Checked($navCheckedHandler)
     }
 
     # Collapse/expand nav rail when hamburger button is clicked
     # 72px leaves enough room for Segoe Fluent Icons glyph overhang when labels are hidden.
-    $navRailLabels = @('NavAppsLabel', 'NavDownloadLabel', 'NavLibraryLabel', 'NavImportLabel',
+    $navRailLabels = @('NavAppsLabel', 'NavDownloadLabel', 'NavLibraryLabel', 'NavPackagesLabel', 'NavImportLabel',
         'NavInstallLabel', 'NavSettingsLabel', 'NavUpdateLabel', 'NavAboutLabel') |
         ForEach-Object { $window.FindName($_) }
     $navToggleButton.add_Click({
@@ -6964,6 +6946,55 @@ function Start-EvergreenWorkbench {
             }
             if (-not [string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
                 & $refreshLibraryView
+            }
+        })
+
+    $navPackages.add_Checked({
+            # Load Import-tab dependent modules on first visit only
+            if (-not $syncHash.ImportModulesInitialized) {
+                Write-UILog -SyncHash $syncHash -Message 'Packages tab: initializing required modules...' -Level Info
+                & $loadImportTabModules
+            }
+
+            & $refreshImportAuthUi
+            & $refreshNerdioApiAuthUi
+            & $refreshNerdioAzureAuthUi
+
+            # Auto-load local definitions only - do not query Intune or Nerdio Manager.
+            $savedIntunePath = if ($null -ne $syncHash.Config.IntuneSettings) {
+                [string]$syncHash.Config.IntuneSettings.DefinitionsPath
+            }
+            else {
+                ''
+            }
+            if (-not [string]::IsNullOrWhiteSpace($savedIntunePath) -and
+                (Test-Path -LiteralPath $savedIntunePath -PathType Container) -and
+                @($syncHash.IntuneWin32Rows).Count -eq 0) {
+                & $loadIntuneDefinitions
+            }
+
+            $savedNerdioPath = if ($null -ne $syncHash.Config.NerdioSettings) {
+                [string]$syncHash.Config.NerdioSettings.DefinitionsPath
+            }
+            else {
+                ''
+            }
+            if (-not [string]::IsNullOrWhiteSpace($savedNerdioPath) -and
+                (Test-Path -LiteralPath $savedNerdioPath -PathType Container) -and
+                @($syncHash.NerdioShellAppRows).Count -eq 0) {
+                & $loadNerdioDefinitions
+            }
+
+            $savedM365Path = if ($null -ne $syncHash.Config.M365Settings) {
+                [string]$syncHash.Config.M365Settings.DefinitionsPath
+            }
+            else {
+                ''
+            }
+            if (-not [string]::IsNullOrWhiteSpace($savedM365Path) -and
+                (Test-Path -LiteralPath $savedM365Path -PathType Container) -and
+                @($syncHash.M365ConfigRows).Count -eq 0) {
+                & $loadM365Configs
             }
         })
 
@@ -7455,10 +7486,6 @@ function Start-EvergreenWorkbench {
     $intuneApplyImportButton.add_Click({
             if (-not (& $requireImportAuth -ActionName 'Intune apply import')) { return }
             & $startIntuneImportOperation
-        })
-
-    $intuneReloadModuleSettingsButton.add_Click({
-            [void](& $loadIntuneWin32AppModule -Force)
         })
 
     $installBrowseDefinitionsButton.add_Click({
@@ -8208,14 +8235,6 @@ function Start-EvergreenWorkbench {
     $navSettings.add_Checked({
             $outputPathBox.Text = $syncHash.Config.OutputPath
             $evergreenAppsPathBox.Text = (Get-EvergreenAppsPath)
-
-            $intuneLoaded = $null -ne (Get-Module -Name IntuneWin32App)
-            if ($intuneLoaded) {
-                & $refreshIntuneModuleStatus -IsLoaded $true -Message 'IntuneWin32App module is loaded.'
-            }
-            else {
-                & $refreshIntuneModuleStatus -IsLoaded $false -Message 'IntuneWin32App module not loaded. Install from the PowerShell Gallery and click Reload.'
-            }
 
             $themeComboBox.SelectedIndex = if ([string]$syncHash.Config.Theme -eq 'Dark') { 1 } else { 0 }
             if ($null -ne $showImportTabToggle) {
