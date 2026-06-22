@@ -1840,6 +1840,7 @@
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
                                         <Button x:Name="BrowseIntuneDefinitionsButton"
                                                 Content="Browse"
+                                            Width="90"
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Margin="0,0,6,0"
                                                 Padding="10,6"/>
@@ -1851,7 +1852,7 @@
                                     </StackPanel>
                                     <TextBox x:Name="IntuneDefinitionsPathBox"
                                              Style="{StaticResource FluentTextBox}"
-                                             ToolTip="Path to the packagefactory application definitions root folder"/>
+                                             ToolTip="Path to the application definitions root folder"/>
                                 </DockPanel>
 
                                 <Border BorderBrush="{DynamicResource ControlBorderBrush}"
@@ -1927,6 +1928,7 @@
                                 <DockPanel Margin="0,0,0,12">
                                     <Button x:Name="IntuneBrowsePackageOutputButton"
                                             Content="Browse"
+                                            Width="90"
                                             DockPanel.Dock="Right"
                                             Margin="8,0,0,0"
                                             Style="{StaticResource FluentSecondaryButton}"/>
@@ -1957,8 +1959,9 @@
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
                                         <Button x:Name="BrowseNerdioDefinitionsButton"
                                                 Content="Browse"
+                                                Width="90"
                                                 Style="{StaticResource FluentSecondaryButton}"
-                                                Margin="0,0,6,0"
+                                                Margin="8,0,0,0"
                                                 Padding="10,6"/>
                                     </StackPanel>
                                     <TextBox x:Name="NerdioDefinitionsPathBox"
@@ -1987,6 +1990,7 @@
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
                                         <Button x:Name="BrowseM365ConfigButton"
                                                 Content="Browse"
+                                            Width="90"
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Margin="0,0,6,0"
                                                 Padding="10,6"/>
