@@ -478,6 +478,7 @@ function Start-EvergreenWorkbench {
     $nerdioListShellAppsButton = $window.FindName('NerdioListShellAppsButton')
     $nerdioDefinitionsListView = $window.FindName('NerdioDefinitionsListView')
     $nerdioDefinitionsCountLabel = $window.FindName('NerdioDefinitionsCountLabel')
+    $nerdioPackagesDefinitionsCountLabel = $window.FindName('NerdioPackagesDefinitionsCountLabel')
     $nerdioShellAppsCountLabel = $window.FindName('NerdioShellAppsCountLabel')
     $nerdioShellAppsLoadingPanel = $window.FindName('NerdioShellAppsLoadingPanel')
     $nerdioShellAppsLoadingLabel = $window.FindName('NerdioShellAppsLoadingLabel')
@@ -500,6 +501,7 @@ function Start-EvergreenWorkbench {
     $m365CompanyNameBox        = $window.FindName('M365CompanyNameBox')
     $m365ImportForCombo        = $window.FindName('M365ImportForCombo')
     $m365ConfigsCountLabel     = $window.FindName('M365ConfigsCountLabel')
+    $m365PackagesConfigsCountLabel = $window.FindName('M365PackagesConfigsCountLabel')
     $m365EvergreenVersionLabel = $window.FindName('M365EvergreenVersionLabel')
     $m365IntuneAuthStatusDot   = $window.FindName('M365IntuneAuthStatusDot')
     $m365IntuneAuthStatusLabel = $window.FindName('M365IntuneAuthStatusLabel')
@@ -2175,7 +2177,11 @@ function Start-EvergreenWorkbench {
         $m365ConfigsListView.ItemsSource = $observableRows
 
         $validCount = @($rows | Where-Object { $_.Status -eq 'Valid' }).Count
-        $m365ConfigsCountLabel.Text = "$($rows.Count) configuration$(if ($rows.Count -ne 1) {'s'}) ($validCount valid)"
+        $m365ConfigsCountText = "$($rows.Count) configuration$(if ($rows.Count -ne 1) {'s'}) ($validCount valid)"
+        $m365ConfigsCountLabel.Text = $m365ConfigsCountText
+        if ($null -ne $m365PackagesConfigsCountLabel) {
+            $m365PackagesConfigsCountLabel.Text = $m365ConfigsCountText
+        }
 
         Write-UILog -SyncHash $syncHash -Message "M365: loaded $($rows.Count) configuration(s)." -Level Info
 
@@ -4520,9 +4526,15 @@ function Start-EvergreenWorkbench {
         $syncHash.NerdioComparisonRows = $sortedRows
         $nerdioDefinitionsListView.ItemsSource = $sortedRows
 
+        $validDefinitionCount = @($definitionRows | Where-Object { [string]$_.DefinitionValid -eq 'Yes' }).Count
+        $nerdioDefinitionsText = "$($definitionRows.Count) loaded ($validDefinitionCount valid)"
+
         if ($null -ne $nerdioDefinitionsCountLabel) {
-            $validDefinitionCount = @($definitionRows | Where-Object { [string]$_.DefinitionValid -eq 'Yes' }).Count
-            $nerdioDefinitionsCountLabel.Text = "$($definitionRows.Count) definitions ($validDefinitionCount valid)"
+            $nerdioDefinitionsCountLabel.Text = $nerdioDefinitionsText
+        }
+
+        if ($null -ne $nerdioPackagesDefinitionsCountLabel) {
+            $nerdioPackagesDefinitionsCountLabel.Text = $nerdioDefinitionsText
         }
 
         if ($null -ne $nerdioShellAppsCountLabel -and -not $syncHash.IsNerdioShellAppsLoading) {

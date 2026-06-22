@@ -1951,7 +1951,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,12"/>
 
-                                <TextBlock Text="Path to Shell Apps definitions"
+                                <TextBlock Text="Path to apps definitions"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
@@ -1967,6 +1967,22 @@
                                     <TextBox x:Name="NerdioDefinitionsPathBox"
                                              Style="{StaticResource FluentTextBox}"/>
                                 </DockPanel>
+
+                                <Border BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="12,8"
+                                        Margin="0,12,0,0"
+                                        Background="{DynamicResource ControlBackgroundBrush}">
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock x:Name="NerdioPackagesDefinitionsCountLabel"
+                                                   Text="0 loaded (0 valid)"
+                                                   FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"
+                                                   DockPanel.Dock="Left"/>
+                                    </DockPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -1982,7 +1998,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,12"/>
 
-                                <TextBlock Text="Path to M365 Apps configurations"
+                                <TextBlock Text="Path to configuration files"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
@@ -2002,6 +2018,22 @@
                                     <TextBox x:Name="M365ConfigPathBox"
                                              Style="{StaticResource FluentTextBox}"/>
                                 </DockPanel>
+
+                                <Border BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="12,8"
+                                        Margin="0,12,0,0"
+                                        Background="{DynamicResource ControlBackgroundBrush}">
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock x:Name="M365PackagesConfigsCountLabel"
+                                                   Text="0 configurations (0 valid)"
+                                                   FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"
+                                                   DockPanel.Dock="Left"/>
+                                    </DockPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -2049,6 +2081,43 @@
                                         Margin="0,0,0,12"
                                         ClipToBounds="True">
                                     <DockPanel>
+
+                                        <Border DockPanel.Dock="Top"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,8"
+                                                Background="{DynamicResource ControlBackgroundBrush}">
+                                            <DockPanel LastChildFill="False">
+                                                <StackPanel Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            DockPanel.Dock="Left">
+                                                    <TextBlock Text="{Binding Text, ElementName=IntuneDefinitionsCountLabel}"
+                                                               FontSize="12"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,10,0"/>
+                                                    <TextBlock Text="{Binding Text, ElementName=IntuneWin32AppsCountLabel}"
+                                                               FontSize="12"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            DockPanel.Dock="Right">
+                                                    <Ellipse Style="{StaticResource StatusDot}"
+                                                             Fill="{Binding Fill, ElementName=IntuneConnectionStatusDot}"/>
+                                                    <TextBlock Text="Microsoft Intune:"
+                                                               FontSize="12"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="5,0,4,0"/>
+                                                    <TextBlock Text="{Binding Text, ElementName=IntuneConnectionStatusLabel}"
+                                                               FontSize="12"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
 
                                         <!-- Reconciliation list + empty hint -->
                                         <Grid>
