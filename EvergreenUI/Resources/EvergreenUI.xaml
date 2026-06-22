@@ -1832,7 +1832,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,12"/>
 
-                                <TextBlock Text="Path to package definitions"
+                                <TextBlock Text="Path to package definitions (for Intune and Install)"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
@@ -3234,62 +3234,6 @@
                             <Border DockPanel.Dock="Top"
                                     BorderBrush="{DynamicResource ControlBorderBrush}"
                                     BorderThickness="0,0,0,1"
-                                    Padding="10,8"
-                                    Background="{DynamicResource WindowBackgroundBrush}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="InstallDefinitionsPathBox"
-                                             Grid.Column="0"
-                                             Style="{StaticResource FluentTextBox}"
-                                             Margin="0,0,6,0"
-                                             ToolTip="Path to package definitions that contain App.json files"/>
-                                    <TextBlock Text="   Path to package definitions..."
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               IsHitTestVisible="False"
-                                               Margin="9,0,6,0"
-                                               VerticalAlignment="Center"
-                                               FontSize="13"
-                                               Grid.Column="0">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Text, ElementName=InstallDefinitionsPathBox}" Value="">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                    <Button x:Name="InstallBrowseDefinitionsButton"
-                                            Grid.Column="1"
-                                            Content="Browse"
-                                            Style="{StaticResource FluentSecondaryButton}"
-                                            Margin="0,0,6,0"
-                                            Padding="10,6"/>
-                                    <Button x:Name="InstallLoadDefinitionsButton"
-                                            Grid.Column="2"
-                                            Content="Reload definitions"
-                                            Style="{StaticResource FluentSecondaryButton}"
-                                            Margin="0,0,6,0"
-                                            Padding="10,6"/>
-                                        <Button x:Name="InstallResolveLatestButton"
-                                            Grid.Column="3"
-                                            Content="Find latest versions"
-                                            Style="{StaticResource FluentButton}"
-                                            IsEnabled="False"
-                                            Padding="10,6"/>
-                                </Grid>
-                            </Border>
-
-                            <Border DockPanel.Dock="Top"
-                                    BorderBrush="{DynamicResource ControlBorderBrush}"
-                                    BorderThickness="0,0,0,1"
                                     Padding="12,8"
                                     Background="{DynamicResource ControlBackgroundBrush}">
                                 <DockPanel LastChildFill="False">
@@ -3421,7 +3365,7 @@
                                                FontSize="12"
                                                FontWeight="SemiBold"
                                                TextWrapping="Wrap"/>
-                                    <TextBlock Text="Load package definitions, find latest versions, then install selected packages."
+                                    <TextBlock Text="Set the Intune package definitions path on the Packages tab, reload definitions, then install selected packages."
                                                HorizontalAlignment="Center"
                                                TextAlignment="Center"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
@@ -3443,6 +3387,17 @@
                         <DockPanel LastChildFill="True">
                             <StackPanel Orientation="Horizontal"
                                         DockPanel.Dock="Right">
+                            <Button x:Name="InstallLoadDefinitionsButton"
+                                Content="Reload definitions"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Margin="0,0,6,0"
+                                Padding="10,6"/>
+                            <Button x:Name="InstallResolveLatestButton"
+                                Content="Find latest versions"
+                                Style="{StaticResource FluentSecondaryButton}"
+                                Margin="0,0,6,0"
+                                IsEnabled="False"
+                                Padding="10,6"/>
                                 <Button x:Name="InstallApplyButton"
                                         Content="Install selected"
                                         Style="{StaticResource FluentButton}"

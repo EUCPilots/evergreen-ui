@@ -443,8 +443,6 @@ function Start-EvergreenWorkbench {
     $intuneImportLoadingLabel = $window.FindName('IntuneImportLoadingLabel')
     $intuneImportProgressBar = $window.FindName('IntuneImportProgressBar')
     # Local Install controls
-    $installDefinitionsPathBox = $window.FindName('InstallDefinitionsPathBox')
-    $installBrowseDefinitionsButton = $window.FindName('InstallBrowseDefinitionsButton')
     $installLoadDefinitionsButton = $window.FindName('InstallLoadDefinitionsButton')
     $installResolveLatestButton = $window.FindName('InstallResolveLatestButton')
     $installDefinitionsCountLabel = $window.FindName('InstallDefinitionsCountLabel')
@@ -1156,14 +1154,20 @@ function Start-EvergreenWorkbench {
     }
 
     $loadInstallDefinitions = {
-        $definitionsRoot = & $normalizeDirectoryPath -PathValue ([string]$installDefinitionsPathBox.Text)
-        $installDefinitionsPathBox.Text = $definitionsRoot
-        & $applyInstallPathsToConfig
+        $definitionsRoot = ''
+        if ($null -ne $intuneDefinitionsPathBox) {
+            $definitionsRoot = & $normalizeDirectoryPath -PathValue ([string]$intuneDefinitionsPathBox.Text)
+            $intuneDefinitionsPathBox.Text = $definitionsRoot
+            & $applyIntunePathsToConfig
+        }
+        elseif ($null -ne $syncHash.Config.IntuneSettings) {
+            $definitionsRoot = & $normalizeDirectoryPath -PathValue ([string]$syncHash.Config.IntuneSettings.DefinitionsPath)
+        }
 
         if ([string]::IsNullOrWhiteSpace($definitionsRoot)) {
             $syncHash.InstallDefinitionRows = @()
             & $refreshInstallRows
-            Write-UILog -SyncHash $syncHash -Message 'Install: provide a package definitions folder path first.' -Level Warning
+            Write-UILog -SyncHash $syncHash -Message 'Install: set a package definitions folder path on the Packages tab first.' -Level Warning
             return
         }
 
@@ -3222,14 +3226,6 @@ function Start-EvergreenWorkbench {
         $syncHash.Config.IntuneSettings.DefinitionsPath = & $normalizeDirectoryPath -PathValue ([string]$intuneDefinitionsPathBox.Text)
         $syncHash.Config.IntuneSettings.PackageOutputPath = & $normalizeDirectoryPath -PathValue ([string]$intunePackageOutputPathBox.Text)
 
-        if ($null -eq $syncHash.Config.InstallSettings) {
-            $syncHash.Config | Add-Member -NotePropertyName 'InstallSettings' -NotePropertyValue ([PSCustomObject]@{
-                    DefinitionsPath = ''
-                }) -Force
-        }
-
-        $syncHash.Config.InstallSettings.DefinitionsPath = & $normalizeDirectoryPath -PathValue ([string]$installDefinitionsPathBox.Text)
-
         $syncHash.Config.AzureAuthSettings.TenantId = [string]$importTenantIdBox.Text
         $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$nerdioTenantIdBox.Text
 
@@ -3482,19 +3478,6 @@ function Start-EvergreenWorkbench {
     $applyM365PathsToConfig = {
         $definitionsPath = if ($null -eq $m365ConfigPathBox) { '' } else { [string]$m365ConfigPathBox.Text }
         $syncHash.Config.M365Settings.DefinitionsPath = (& $normalizeDirectoryPath -PathValue $definitionsPath)
-        Set-UIConfig -Config $syncHash.Config
-    }
-
-    $applyInstallPathsToConfig = {
-        $definitionsPath = if ($null -eq $installDefinitionsPathBox) { '' } else { [string]$installDefinitionsPathBox.Text }
-
-        if ($null -eq $syncHash.Config.InstallSettings) {
-            $syncHash.Config | Add-Member -NotePropertyName 'InstallSettings' -NotePropertyValue ([PSCustomObject]@{
-                    DefinitionsPath = ''
-                }) -Force
-        }
-
-        $syncHash.Config.InstallSettings.DefinitionsPath = (& $normalizeDirectoryPath -PathValue $definitionsPath)
         Set-UIConfig -Config $syncHash.Config
     }
 
@@ -6632,9 +6615,6 @@ function Start-EvergreenWorkbench {
             $nerdioDefinitionsPathBox.Text = [string]$syncHash.Config.NerdioSettings.DefinitionsPath
             $intuneDefinitionsPathBox.Text = [string]$syncHash.Config.IntuneSettings.DefinitionsPath
             $intunePackageOutputPathBox.Text = [string]$syncHash.Config.IntuneSettings.PackageOutputPath
-            if ($null -ne $syncHash.Config.InstallSettings) {
-                $installDefinitionsPathBox.Text = [string]$syncHash.Config.InstallSettings.DefinitionsPath
-            }
             if ($null -ne $syncHash.Config.M365Settings) {
                 $m365ConfigPathBox.Text = [string]$syncHash.Config.M365Settings.DefinitionsPath
                 $savedM365Channel = [string]$syncHash.Config.M365Settings.Channel
@@ -7065,8 +7045,8 @@ function Start-EvergreenWorkbench {
 
     $navInstall.add_Checked({
             & $setInstallElevationState
-            $savedInstallPath = if ($null -ne $syncHash.Config.InstallSettings) {
-                [string]$syncHash.Config.InstallSettings.DefinitionsPath
+            $savedInstallPath = if ($null -ne $syncHash.Config.IntuneSettings) {
+                [string]$syncHash.Config.IntuneSettings.DefinitionsPath
             }
             else {
                 ''
@@ -7500,28 +7480,8 @@ function Start-EvergreenWorkbench {
             & $startIntuneImportOperation
         })
 
-    $installBrowseDefinitionsButton.add_Click({
-            $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
-            $dlg.Description = 'Select package definitions folder for local install'
-            if (-not [string]::IsNullOrWhiteSpace($installDefinitionsPathBox.Text)) {
-                $dlg.SelectedPath = $installDefinitionsPathBox.Text
-            }
-
-            if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-                $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
-                $installDefinitionsPathBox.Text = $normalised
-                & $applyInstallPathsToConfig
-            }
-        })
-
     $installLoadDefinitionsButton.add_Click({
             & $loadInstallDefinitions
-        })
-
-    $installDefinitionsPathBox.add_LostFocus({
-            $normalised = & $normalizeDirectoryPath -PathValue $installDefinitionsPathBox.Text
-            $installDefinitionsPathBox.Text = $normalised
-            & $applyInstallPathsToConfig
         })
 
     $installResolveLatestButton.add_Click({

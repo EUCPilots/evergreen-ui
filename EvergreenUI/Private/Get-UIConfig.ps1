@@ -68,9 +68,6 @@ function Get-UIConfig {
             CompanyName       = ''
             ImportFor         = 'Single session'
         }
-        InstallSettings   = [PSCustomObject]@{
-            DefinitionsPath   = ''
-        }
         AzureAuthSettings = [PSCustomObject]@{
             TenantId              = ''
             LastAccountId         = ''
@@ -105,8 +102,12 @@ function Get-UIConfig {
         $json.NerdioSettings    = Merge-ConfigSection -Loaded $json.NerdioSettings    -Default $default.NerdioSettings
         $json.IntuneSettings    = Merge-ConfigSection -Loaded $json.IntuneSettings    -Default $default.IntuneSettings
         $json.M365Settings      = Merge-ConfigSection -Loaded $json.M365Settings      -Default $default.M365Settings
-        $json.InstallSettings   = Merge-ConfigSection -Loaded $json.InstallSettings   -Default $default.InstallSettings
         $json.AzureAuthSettings = Merge-ConfigSection -Loaded $json.AzureAuthSettings -Default $default.AzureAuthSettings
+
+        # Retired setting cleanup: remove legacy InstallSettings so it no longer persists.
+        if ($json.PSObject.Properties.Match('InstallSettings').Count -gt 0) {
+            [void]$json.PSObject.Properties.Remove('InstallSettings')
+        }
 
         # ImportSettings has a special case: if present but CurrentProvider is blank, restore the default.
         if ($null -eq $json.ImportSettings) {
