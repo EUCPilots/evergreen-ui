@@ -2049,14 +2049,6 @@
                                         Margin="0,0,0,12"
                                         ClipToBounds="True">
                                     <DockPanel>
-                                        <Border DockPanel.Dock="Top"
-                                                BorderBrush="{DynamicResource ControlBorderBrush}"
-                                                BorderThickness="0,0,0,1"
-                                                Padding="10,8"
-                                                Background="{DynamicResource WindowBackgroundBrush}">
-                                            <DockPanel LastChildFill="False">
-                                            </DockPanel>
-                                        </Border>
 
                                         <!-- Reconciliation list + empty hint -->
                                         <Grid>
@@ -2234,15 +2226,6 @@
                                         Margin="0,0,0,12"
                                         ClipToBounds="True">
                                     <DockPanel>
-
-                                        <Border DockPanel.Dock="Top"
-                                                BorderBrush="{DynamicResource ControlBorderBrush}"
-                                                BorderThickness="0,0,0,1"
-                                                Padding="10,8"
-                                                Background="{DynamicResource WindowBackgroundBrush}">
-                                            <DockPanel LastChildFill="False">
-                                            </DockPanel>
-                                        </Border>
 
                                         <Border DockPanel.Dock="Top"
                                                 BorderBrush="{DynamicResource ControlBorderBrush}"
