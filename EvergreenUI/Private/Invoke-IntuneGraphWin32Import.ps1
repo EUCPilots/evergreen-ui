@@ -178,6 +178,173 @@ function Invoke-IntuneGraphWin32Import {
 
     Write-UILog -Message "Creating Win32 app: '$displayName'..." -Level Info -SyncHash $SyncHash
 
+    $definitionFolder = if (-not [string]::IsNullOrWhiteSpace($DefinitionPath)) {
+        Split-Path -Path $DefinitionPath -Parent
+    }
+    else {
+        $null
+    }
+
+    $requirementRules = @()
+
+    $convertToJsonDate = {
+        param([datetime]$DateTimeValue, [bool]$UseLocalTime)
+
+        if ($UseLocalTime) {
+            return $DateTimeValue.ToString('o')
+        }
+
+        return $DateTimeValue.ToUniversalTime().ToString('o')
+    }
+
+    $resolveRelativePath = {
+        param([string]$PathValue)
+
+        if ([string]::IsNullOrWhiteSpace($PathValue)) {
+            return ''
+        }
+
+        if (Test-Path -LiteralPath $PathValue -PathType Leaf) {
+            return $PathValue
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($definitionFolder)) {
+            $candidatePath = Join-Path -Path $definitionFolder -ChildPath $PathValue
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                return $candidatePath
+            }
+
+            $sourceFolder = Join-Path -Path $definitionFolder -ChildPath 'Source'
+            $sourceCandidatePath = Join-Path -Path $sourceFolder -ChildPath $PathValue
+            if (Test-Path -LiteralPath $sourceCandidatePath -PathType Leaf) {
+                return $sourceCandidatePath
+            }
+        }
+
+        return $PathValue
+    }
+
+    if ($null -ne $DefinitionObject.CustomRequirementRule) {
+        foreach ($rule in $DefinitionObject.CustomRequirementRule) {
+            switch ([string]$rule.Type) {
+                'File' {
+                    $requirementType = switch ([string]$rule.DetectionMethod) {
+                        'Version'      { 'version' }
+                        'Existence'    { 'exists' }
+                        'Size'         { 'sizeOrDateModified' }
+                        'DateModified' { 'modifiedDate' }
+                        'DateCreated'  { 'createdDate' }
+                        default        { 'version' }
+                    }
+
+                    $requirementBody = [ordered]@{
+                        '@odata.type'          = '#microsoft.graph.win32LobAppFileSystemRequirement'
+                        'path'                 = [string]$rule.Path
+                        'fileOrFolderName'     = [string]$rule.FileOrFolder
+                        'check32BitOn64System' = ([string]$rule.Check32BitOn64System -ieq 'true')
+                        'detectionType'        = $requirementType
+                    }
+
+                    if ($requirementType -ne 'exists') {
+                        $requirementBody['operator'] = [string]$rule.Operator
+
+                        if ($rule.PSObject.Properties.Name -contains 'DateTimeValue') {
+                            $requirementBody['detectionValue'] = & $convertToJsonDate ([datetime]$rule.DateTimeValue) $false
+                        }
+                        elseif ($rule.PSObject.Properties.Name -contains 'VersionValue') {
+                            $requirementBody['detectionValue'] = [string]$rule.VersionValue
+                        }
+                        elseif ($rule.PSObject.Properties.Name -contains 'SizeInMBValue') {
+                            $requirementBody['detectionValue'] = [string]$rule.SizeInMBValue
+                        }
+                    }
+
+                    $requirementRules += $requirementBody
+                }
+                'Registry' {
+                    $requirementType = switch ([string]$rule.DetectionMethod) {
+                        'VersionComparison' { 'version' }
+                        'Existence'         { 'exists' }
+                        'StringComparison'  { 'string' }
+                        'IntegerComparison' { 'integer' }
+                        default             { 'string' }
+                    }
+
+                    $requirementBody = [ordered]@{
+                        '@odata.type'          = '#microsoft.graph.win32LobAppRegistryRequirement'
+                        'keyPath'              = [string]$rule.KeyPath
+                        'valueName'            = [string]$rule.ValueName
+                        'check32BitOn64System' = ([string]$rule.Check32BitOn64System -ieq 'true')
+                        'detectionType'        = $requirementType
+                    }
+
+                    if ($requirementType -ne 'exists') {
+                        $requirementBody['operator'] = [string]$rule.Operator
+                        $requirementBody['detectionValue'] = [string]$rule.Value
+                    }
+
+                    $requirementRules += $requirementBody
+                }
+                'Script' {
+                    $scriptFilePath = & $resolveRelativePath ([string]$rule.ScriptFile)
+                    if (-not (Test-Path -LiteralPath $scriptFilePath -PathType Leaf)) {
+                        return (& $fail "Custom requirement script not found: $scriptFilePath")
+                    }
+
+                    $scriptContent = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content -LiteralPath $scriptFilePath -Raw -Encoding UTF8)))
+                    $requirementType = switch ([string]$rule.DetectionMethod) {
+                        'StringOutput'   { 'string' }
+                        'IntegerOutput'  { 'integer' }
+                        'BooleanOutput'  { 'boolean' }
+                        'DateTimeOutput' { 'dateTime' }
+                        'FloatOutput'    { 'float' }
+                        'VersionOutput'  { 'version' }
+                        default          { 'string' }
+                    }
+
+                    $requirementBody = [ordered]@{
+                        '@odata.type'           = '#microsoft.graph.win32LobAppPowerShellScriptRequirement'
+                        'displayName'           = [System.IO.Path]::GetFileName($scriptFilePath)
+                        'enforceSignatureCheck' = ([string]$rule.EnforceSignatureCheck -ieq 'true')
+                        'runAs32Bit'            = ([string]$rule.RunAs32BitOn64System -ieq 'true')
+                        'runAsAccount'          = [string]$rule.ScriptContext
+                        'scriptContent'         = $scriptContent
+                        'detectionType'         = $requirementType
+                    }
+
+                    switch ($requirementType) {
+                        'string' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                        'integer' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                        'boolean' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                        'dateTime' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = & $convertToJsonDate ([datetime]$rule.Value) $false
+                        }
+                        'float' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                        'version' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                    }
+
+                    $requirementRules += $requirementBody
+                }
+            }
+        }
+    }
+
     # -- Build detection rules -------------------------------------------------
     $detectionRules = @()
     if ($null -ne $DefinitionObject.DetectionRule) {
@@ -354,7 +521,7 @@ function Invoke-IntuneGraphWin32Import {
         'allowedArchitectures'        = $allowedArchitectures
         'minimumSupportedOperatingSystem' = $minimumOsObject
         'detectionRules'             = @($detectionRules)
-        'requirementRules'           = @()
+        'requirementRules'           = @($requirementRules)
         'notes'                      = $notesJson
     }
 
@@ -647,6 +814,107 @@ function Invoke-IntuneGraphWin32Import {
     }
     catch {
         return (& $fail "Failed to set committedContentVersion on app '$appId': $($_.Exception.Message)")
+    }
+
+    if ($null -ne $DefinitionObject.Assignments) {
+        foreach ($assignment in $DefinitionObject.Assignments) {
+            $assignmentType = [string]$assignment.Type
+            $intent = [string]$assignment.Intent
+            $notification = [string]$assignment.Notification
+            if ([string]::IsNullOrWhiteSpace($notification)) {
+                $notification = 'showAll'
+            }
+
+            $settingsBody = [ordered]@{
+                '@odata.type' = '#microsoft.graph.win32LobAppAssignmentSettings'
+                'notifications' = $notification
+                'deliveryOptimizationPriority' = if ([string]::IsNullOrWhiteSpace([string]$assignment.DeliveryOptimizationPriority)) { 'notConfigured' } else { [string]$assignment.DeliveryOptimizationPriority }
+                'restartSettings' = $null
+                'installTimeSettings' = $null
+            }
+
+            if ($intent -ieq 'available') {
+                $settingsBody['autoUpdateSettings'] = @{
+                    'autoUpdateSupersededAppsState' = if ([string]::IsNullOrWhiteSpace([string]$assignment.AutoUpdateSupersededApps)) { 'notConfigured' } else { [string]$assignment.AutoUpdateSupersededApps }
+                }
+            }
+
+            if ($assignment.PSObject.Properties.Name -contains 'AvailableTime' -or $assignment.PSObject.Properties.Name -contains 'DeadlineTime') {
+                $useLocalTime = ([string]$assignment.UseLocalTime -ieq 'true')
+                $installTimeSettings = [ordered]@{
+                    'useLocalTime' = $useLocalTime
+                    'startDateTime' = $null
+                    'deadlineDateTime' = $null
+                }
+
+                if ($assignment.PSObject.Properties.Name -contains 'AvailableTime' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.AvailableTime)) {
+                    $installTimeSettings['startDateTime'] = & $convertToJsonDate ([datetime]$assignment.AvailableTime) $useLocalTime
+                }
+                if ($assignment.PSObject.Properties.Name -contains 'DeadlineTime' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.DeadlineTime)) {
+                    $installTimeSettings['deadlineDateTime'] = & $convertToJsonDate ([datetime]$assignment.DeadlineTime) $useLocalTime
+                }
+
+                $settingsBody['installTimeSettings'] = $installTimeSettings
+            }
+
+            if ([string]$assignment.EnableRestartGracePeriod -ieq 'true') {
+                if ($deviceRestart -ieq 'basedOnReturnCode') {
+                    $settingsBody['restartSettings'] = @{
+                        'gracePeriodInMinutes' = if ($assignment.PSObject.Properties.Name -contains 'RestartGracePeriod' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.RestartGracePeriod)) { [int]$assignment.RestartGracePeriod } else { 1440 }
+                        'countdownDisplayBeforeRestartInMinutes' = if ($assignment.PSObject.Properties.Name -contains 'RestartCountDownDisplay' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.RestartCountDownDisplay)) { [int]$assignment.RestartCountDownDisplay } else { 15 }
+                        'restartNotificationSnoozeDurationInMinutes' = if ($assignment.PSObject.Properties.Name -contains 'RestartNotificationSnooze' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.RestartNotificationSnooze)) { [int]$assignment.RestartNotificationSnooze } else { 240 }
+                    }
+                }
+                else {
+                    Write-UILog -Message "Restart settings were requested for assignment '$assignmentType', but the app is not configured for 'basedOnReturnCode'." -Level Warning -SyncHash $SyncHash
+                }
+            }
+
+            $targetBody = switch ($assignmentType) {
+                'AllDevices' {
+                    [ordered]@{
+                        '@odata.type' = '#microsoft.graph.allDevicesAssignmentTarget'
+                    }
+                }
+                'AllUsers' {
+                    [ordered]@{
+                        '@odata.type' = '#microsoft.graph.allLicensedUsersAssignmentTarget'
+                    }
+                }
+                'Group' {
+                    if ([string]::IsNullOrWhiteSpace([string]$assignment.GroupID)) {
+                        return (& $fail 'Group assignment is missing GroupID.')
+                    }
+
+                    [ordered]@{
+                        '@odata.type' = '#microsoft.graph.groupAssignmentTarget'
+                        'groupId' = [string]$assignment.GroupID
+                    }
+                }
+                default {
+                    return (& $fail "Unsupported assignment type: $assignmentType")
+                }
+            }
+
+            $assignmentBody = [ordered]@{
+                '@odata.type' = '#microsoft.graph.mobileAppAssignment'
+                'intent' = $intent
+                'source' = 'direct'
+                'target' = $targetBody
+                'settings' = $settingsBody
+            }
+
+            Write-UILog -Message "Creating assignment '$assignmentType' for app '$displayName'..." -Level Info -SyncHash $SyncHash
+            try {
+                Invoke-MgGraphRequest -Method POST `
+                    -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId/assignments" `
+                    -Body ($assignmentBody | ConvertTo-Json -Depth 20) `
+                    -ContentType 'application/json' -ErrorAction Stop | Out-Null
+            }
+            catch {
+                return (& $fail "Failed to create assignment '$assignmentType' for app '$appId': $($_.Exception.Message)")
+            }
+        }
     }
 
     Write-UILog -Message "Import complete. App '$displayName' created with id: $appId" -Level Info -SyncHash $SyncHash

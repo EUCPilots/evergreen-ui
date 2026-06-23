@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Workbench (beta)"
+        Title="Workbench"
         MinWidth="900" MinHeight="600"
         Width="1200" Height="750"
         WindowStartupLocation="CenterScreen"
