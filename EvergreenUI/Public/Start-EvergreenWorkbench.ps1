@@ -472,6 +472,7 @@ function Start-EvergreenWorkbench {
     $nerdioApiSignOutButton = $window.FindName('NerdioApiSignOutButton')
     $nerdioDefinitionsPathBox = $window.FindName('NerdioDefinitionsPathBox')
     $browseNerdioDefinitionsButton = $window.FindName('BrowseNerdioDefinitionsButton')
+    $nerdioLoadConfigsButton = $window.FindName('NerdioLoadConfigsButton')
     $nerdioLoadDefinitionsButton = $window.FindName('NerdioLoadDefinitionsButton')
     $nerdioListShellAppsButton = $window.FindName('NerdioListShellAppsButton')
     $nerdioDefinitionsListView = $window.FindName('NerdioDefinitionsListView')
@@ -7246,6 +7247,10 @@ function Start-EvergreenWorkbench {
         })
 
     $nerdioLoadDefinitionsButton.add_Click({
+            & $loadNerdioDefinitions
+        })
+
+    $nerdioLoadConfigsButton.add_Click({
             & $loadNerdioDefinitions
         })
 
