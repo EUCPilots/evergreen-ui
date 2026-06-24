@@ -1075,9 +1075,35 @@ function Start-EvergreenWorkbench {
 
                     $detectionStatus = [string]$detectionResult.Status
 
+                    $hasDetectedInstallEvidence = -not [string]::IsNullOrWhiteSpace([string]$detectionResult.DetectedVersion)
+
                     if (-not $detectionResult.Installed) {
-                        $installStatus = 'Not installed'
-                        $installAction = 'Install'
+                        if ($hasDetectedInstallEvidence) {
+                            if ([string]::IsNullOrWhiteSpace($latestVersion)) {
+                                $installStatus = 'Installed (latest not checked)'
+                                $installAction = '-'
+                            }
+                            else {
+                                $installedComparable = & $parseComparableVersion -VersionText $installedVersion
+                                $latestComparable = & $parseComparableVersion -VersionText $latestVersion
+                                if ($installedComparable.Success -and $latestComparable.Success -and $installedComparable.Parsed -lt $latestComparable.Parsed) {
+                                    $installStatus = 'Installed (update needed)'
+                                    $installAction = 'Update'
+                                }
+                                elseif ($installedComparable.Success -and $latestComparable.Success) {
+                                    $installStatus = 'Installed (up to date)'
+                                    $installAction = '-'
+                                }
+                                else {
+                                    $installStatus = 'Installed (compare unavailable)'
+                                    $installAction = '-'
+                                }
+                            }
+                        }
+                        else {
+                            $installStatus = 'Not installed'
+                            $installAction = 'Install'
+                        }
                     }
                     elseif ([string]::IsNullOrWhiteSpace($latestVersion)) {
                         $installStatus = 'Installed (latest not checked)'
