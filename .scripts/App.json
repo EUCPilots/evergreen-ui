@@ -1,0 +1,59 @@
+{
+  "Application": {
+    "Name": "ImageCustomise",
+    "Filter": "Get-EvergreenApp -Name \"WindowsEnterpriseDefaults\" | Where-Object { $_.Type -eq \"intunewin\" } | Select-Object -First 1",
+    "Title": "Windows Enterprise Defaults",
+    "Language": "en-US",
+    "Architecture": "x86"
+  },
+  "PackageInformation": {
+    "SetupType": "EXE",
+    "SetupFile": "Install-Defaults.intunewin",
+    "Version": "2606.07.248",
+    "SourceFolder": "Source",
+    "OutputFolder": "Package",
+    "IconFile": "https://github.com/aaronparker/icons/raw/main/companyportal/Package.png"
+  },
+  "Information": {
+    "DisplayName": "Windows Enterprise Defaults",
+    "Description": "Customisations to **make Windows 10 & Windows 11 enterprise-ready** by configuring a clean OS default state, uninstalling unnecessary in-box AppX apps, and improving the end-user experience by updating the default user profile and default Start menu. Includes support for localising Windows and setting a time zone.",
+    "Publisher": "stealthpuppy",
+    "InformationURL": "https://stealthpuppy.com/image-customise/",
+    "PrivacyURL": "https://stealthpuppy.com/image-customise/",
+    "Categories": [],
+    "PSPackageFactoryGuid": "9fddd581-f505-4760-9bb3-2365db204b38"
+  },
+  "Program": {
+    "InstallTemplate": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy RemoteSigned -File .\\Install-Defaults.ps1",
+    "InstallCommand": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy RemoteSigned -File .\\Install-Defaults.ps1",
+    "UninstallCommand": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy RemoteSigned -File .\\Remove-Defaults.ps1",
+    "InstallExperience": "system",
+    "DeviceRestartBehavior": "suppress",
+    "AllowAvailableUninstall": false
+  },
+  "RequirementRule": {
+    "MinimumRequiredOperatingSystem": "W10_1809",
+    "Architecture": "All"
+  },
+  "CustomRequirementRule": [],
+  "DetectionRule": [
+    {
+      "Type": "Registry",
+      "DetectionMethod": "VersionComparison",
+      "KeyPath": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{f38de27b-799e-4c30-8a01-bfdedc622944}",
+      "ValueName": "DisplayVersion",
+      "Operator": "greaterThanOrEqual",
+      "Value": "2606.07.248",
+      "Check32BitOn64System": "false"
+    }
+  ],
+  "Dependencies": [],
+  "Supersedence": [],
+  "Assignments": [
+    {
+      "Type": "AllDevices",
+      "Intent": "required",
+      "Notification": "hideAll"
+    }
+  ]
+}
