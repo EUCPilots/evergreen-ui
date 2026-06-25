@@ -1925,13 +1925,14 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
-                                <DockPanel Margin="0,0,0,12">
+                                <DockPanel Margin="0,0,0,0">
                                     <Button x:Name="IntuneBrowsePackageOutputButton"
                                             Content="Browse"
                                             Width="90"
                                             DockPanel.Dock="Right"
                                             Margin="8,0,0,0"
-                                            Style="{StaticResource FluentSecondaryButton}"/>
+                                        Style="{StaticResource FluentSecondaryButton}"
+                                        Padding="10,6"/>
                                     <TextBox x:Name="IntunePackageOutputPathBox"
                                              Style="{StaticResource FluentTextBox}"
                                              ToolTip="Folder where .intunewin packages are written during the Package step"/>
@@ -1955,7 +1956,7 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
-                                <DockPanel>
+                                <DockPanel Margin="0,0,0,12">
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
                                         <Button x:Name="BrowseNerdioDefinitionsButton"
                                                 Content="Browse"
@@ -1985,6 +1986,21 @@
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center"
                                                    DockPanel.Dock="Left"/>
+                                        <StackPanel Orientation="Horizontal"
+                                                    VerticalAlignment="Center"
+                                                    DockPanel.Dock="Right">
+                                            <Ellipse Style="{StaticResource StatusDot}"
+                                                     Fill="{Binding Fill, ElementName=NerdioImportAuthStatusDot}"/>
+                                            <TextBlock Text="Nerdio Manager:"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="5,0,4,0"/>
+                                            <TextBlock Text="{Binding Text, ElementName=NerdioImportAuthStatusLabel}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
                                     </DockPanel>
                                 </Border>
                             </StackPanel>
@@ -2006,11 +2022,11 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
-                                <DockPanel>
+                                <DockPanel Margin="0,0,0,12">
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
                                         <Button x:Name="BrowseM365ConfigButton"
                                                 Content="Browse"
-                                            Width="90"
+                                                Width="90"
                                                 Style="{StaticResource FluentSecondaryButton}"
                                                 Margin="0,0,6,0"
                                                 Padding="10,6"/>
@@ -3305,6 +3321,7 @@
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                             <Setter Property="MinHeight" Value="32"/>
                                             <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="FontSize" Value="12"/>
                                             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                             <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
                                             <Setter Property="Template">
