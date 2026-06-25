@@ -122,8 +122,8 @@ function Start-EvergreenWorkbench {
             $installedVersion = 'Not installed'
             try {
                 $installed = Get-Module -Name $modName -ListAvailable -ErrorAction Stop |
-                    Sort-Object -Property Version -Descending |
-                    Select-Object -First 1
+                Sort-Object -Property Version -Descending |
+                Select-Object -First 1
                 if ($null -ne $installed) {
                     $installedVersion = [string]$installed.Version
                 }
@@ -133,9 +133,9 @@ function Start-EvergreenWorkbench {
                 Write-Verbose -Message "EvergreenUI: Could not resolve installed version for '$modName': $_"
             }
             $requiredModulesList.Add([PSCustomObject]@{
-                Name             = $modName
-                InstalledVersion = $installedVersion
-            })
+                    Name             = $modName
+                    InstalledVersion = $installedVersion
+                })
         }
         $moduleMetadata.RequiredModules = $requiredModulesList
     }
@@ -493,26 +493,26 @@ function Start-EvergreenWorkbench {
     $nerdioAzureSignOutButton = $window.FindName('NerdioAzureSignOutButton')
     $intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
     # Microsoft 365 Apps controls
-    $m365ConfigPathBox         = $window.FindName('M365ConfigPathBox')
-    $browseM365ConfigButton    = $window.FindName('BrowseM365ConfigButton')
-    $m365LoadConfigsButton     = $window.FindName('M365LoadConfigsButton')
-    $m365ChannelCombo          = $window.FindName('M365ChannelCombo')
-    $m365CompanyNameBox        = $window.FindName('M365CompanyNameBox')
-    $m365ImportForCombo        = $window.FindName('M365ImportForCombo')
-    $m365ConfigsCountLabel     = $window.FindName('M365ConfigsCountLabel')
+    $m365ConfigPathBox = $window.FindName('M365ConfigPathBox')
+    $browseM365ConfigButton = $window.FindName('BrowseM365ConfigButton')
+    $m365LoadConfigsButton = $window.FindName('M365LoadConfigsButton')
+    $m365ChannelCombo = $window.FindName('M365ChannelCombo')
+    $m365CompanyNameBox = $window.FindName('M365CompanyNameBox')
+    $m365ImportForCombo = $window.FindName('M365ImportForCombo')
+    $m365ConfigsCountLabel = $window.FindName('M365ConfigsCountLabel')
     $m365PackagesConfigsCountLabel = $window.FindName('M365PackagesConfigsCountLabel')
     $m365EvergreenVersionLabel = $window.FindName('M365EvergreenVersionLabel')
-    $m365IntuneAuthStatusDot   = $window.FindName('M365IntuneAuthStatusDot')
+    $m365IntuneAuthStatusDot = $window.FindName('M365IntuneAuthStatusDot')
     $m365IntuneAuthStatusLabel = $window.FindName('M365IntuneAuthStatusLabel')
-    $m365NerdioAuthStatusDot   = $window.FindName('M365NerdioAuthStatusDot')
+    $m365NerdioAuthStatusDot = $window.FindName('M365NerdioAuthStatusDot')
     $m365NerdioAuthStatusLabel = $window.FindName('M365NerdioAuthStatusLabel')
-    $m365ConfigsLoadingPanel   = $window.FindName('M365ConfigsLoadingPanel')
-    $m365ConfigsLoadingLabel   = $window.FindName('M365ConfigsLoadingLabel')
-    $m365ConfigsProgressBar    = $window.FindName('M365ConfigsProgressBar')
-    $m365ConfigsListView       = $window.FindName('M365ConfigsListView')
-    $m365ImportIntuneButton    = $window.FindName('M365ImportIntuneButton')
-    $m365ImportNerdioButton    = $window.FindName('M365ImportNerdioButton')
-    $m365ActionStatusLabel     = $window.FindName('M365ActionStatusLabel')
+    $m365ConfigsLoadingPanel = $window.FindName('M365ConfigsLoadingPanel')
+    $m365ConfigsLoadingLabel = $window.FindName('M365ConfigsLoadingLabel')
+    $m365ConfigsProgressBar = $window.FindName('M365ConfigsProgressBar')
+    $m365ConfigsListView = $window.FindName('M365ConfigsListView')
+    $m365ImportIntuneButton = $window.FindName('M365ImportIntuneButton')
+    $m365ImportNerdioButton = $window.FindName('M365ImportNerdioButton')
+    $m365ActionStatusLabel = $window.FindName('M365ActionStatusLabel')
     # Log row is RowDefinitions[3]; track its height for collapse/restore
     $logRowDef = $rootGrid.RowDefinitions[3]
 
@@ -527,11 +527,11 @@ function Start-EvergreenWorkbench {
     $syncHash.IntuneWin32AppsListView = $intuneWin32AppsListView
     $syncHash.InstallLoadingLabel = $installLoadingLabel
     $syncHash.InstallActionStatusLabel = $installActionStatusLabel
-    $syncHash.M365ConfigsLoadingPanel   = $m365ConfigsLoadingPanel
-    $syncHash.M365ConfigsLoadingLabel   = $m365ConfigsLoadingLabel
-    $syncHash.M365ActionStatusLabel     = $m365ActionStatusLabel
+    $syncHash.M365ConfigsLoadingPanel = $m365ConfigsLoadingPanel
+    $syncHash.M365ConfigsLoadingLabel = $m365ConfigsLoadingLabel
+    $syncHash.M365ActionStatusLabel = $m365ActionStatusLabel
     $syncHash.M365EvergreenVersionLabel = $m365EvergreenVersionLabel
-    $syncHash.M365ConfigsListView       = $m365ConfigsListView
+    $syncHash.M365ConfigsListView = $m365ConfigsListView
 
     $aboutNameValue.Text = [string]$moduleMetadata.Name
     $aboutVersionValue.Text = [string]$moduleMetadata.Version
@@ -616,8 +616,8 @@ function Start-EvergreenWorkbench {
         $selectedItems = if ($null -eq $intuneWin32AppsListView) { @() } else { @($intuneWin32AppsListView.SelectedItems) }
 
         $actionableItems = @($selectedItems | Where-Object {
-            [string]$_.ImportAction -eq 'Import new app' -or [string]$_.ImportAction -eq 'Import new version and supersede'
-        })
+                [string]$_.ImportAction -eq 'Import new app' -or [string]$_.ImportAction -eq 'Import new version and supersede'
+            })
 
         $canImport = ($actionableItems.Count -gt 0) `
             -and (-not $syncHash.IsIntuneImportLoading) `
@@ -628,7 +628,8 @@ function Start-EvergreenWorkbench {
             $intuneApplyImportButton.IsEnabled = $canImport
             $intuneApplyImportButton.Content = if ($actionableItems.Count -gt 1) {
                 "Import $($actionableItems.Count) Win32 apps"
-            } else {
+            }
+            else {
                 'Import Win32 app'
             }
         }
@@ -1015,10 +1016,10 @@ function Start-EvergreenWorkbench {
         $actionableCount = 0
 
         $localArch = switch ($env:PROCESSOR_ARCHITECTURE) {
-            'AMD64'  { 'x64' }
-            'x86'    { 'x86' }
-            'ARM64'  { 'arm64' }
-            default  { 'x64' }
+            'AMD64' { 'x64' }
+            'x86' { 'x86' }
+            'ARM64' { 'arm64' }
+            default { 'x64' }
         }
 
         foreach ($definitionRow in $definitionRows) {
@@ -1991,11 +1992,12 @@ function Start-EvergreenWorkbench {
                     }
                     else {
                         $completedCount = @($result.Completed).Count
-                        $failedCount    = @($result.Failed).Count
+                        $failedCount = @($result.Failed).Count
                         if ($result.StoppedEarly) {
                             $skippedCount = $importActions.Count - $completedCount - $failedCount
                             Write-UILog -SyncHash $syncHash -Message "Intune: import stopped after failure - $completedCount succeeded, $failedCount failed, $skippedCount not attempted." -Level Warning
-                        } else {
+                        }
+                        else {
                             Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
                         }
                         foreach ($item in @($result.Completed)) {
@@ -2023,16 +2025,16 @@ function Start-EvergreenWorkbench {
     # ── Microsoft 365 Apps tab scriptblocks ──────────────────────────────────
 
     $updateM365ActionButtons = {
-        $selected   = if ($null -ne $m365ConfigsListView) { $m365ConfigsListView.SelectedItem } else { $null }
-        $hasValid   = ($null -ne $selected) -and ([string]$selected.Status -eq 'Valid')
+        $selected = if ($null -ne $m365ConfigsListView) { $m365ConfigsListView.SelectedItem } else { $null }
+        $hasValid = ($null -ne $selected) -and ([string]$selected.Status -eq 'Valid')
         $notLoading = -not $syncHash.IsM365ImportLoading
 
-        $intuneReady  = $hasValid -and $notLoading -and
-                        $syncHash.AzureAuthState.IsAuthenticated -and
-                        $syncHash.AzureAuthState.IntuneConnected
+        $intuneReady = $hasValid -and $notLoading -and
+        $syncHash.AzureAuthState.IsAuthenticated -and
+        $syncHash.AzureAuthState.IntuneConnected
 
-        $nerdioReady  = $hasValid -and $notLoading -and
-                        $syncHash.NerdioApiAuthState.IsAuthenticated
+        $nerdioReady = $hasValid -and $notLoading -and
+        $syncHash.NerdioApiAuthState.IsAuthenticated
 
         if ($null -ne $m365ImportIntuneButton) { $m365ImportIntuneButton.IsEnabled = $intuneReady }
         if ($null -ne $m365ImportNerdioButton) { $m365ImportNerdioButton.IsEnabled = $nerdioReady }
@@ -2151,8 +2153,8 @@ function Start-EvergreenWorkbench {
                 $selectedChannel = if ($null -ne $m365ChannelCombo) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
                 foreach ($row in $syncHash.M365ConfigRows) {
                     $match = $evRows | Where-Object { $_.Channel -eq $row.Channel } |
-                        Sort-Object -Property { [System.Version]$_.Version } -Descending |
-                        Select-Object -First 1
+                    Sort-Object -Property { [System.Version]$_.Version } -Descending |
+                    Select-Object -First 1
                     if ($null -ne $match) {
                         $row.EvergreenVersion = [string]$match.Version
                     }
@@ -2163,8 +2165,8 @@ function Start-EvergreenWorkbench {
                 # Update version label for the currently selected channel
                 if (-not [string]::IsNullOrWhiteSpace($selectedChannel)) {
                     $channelMatch = $evRows | Where-Object { $_.Channel -eq $selectedChannel } |
-                        Sort-Object -Property { [System.Version]$_.Version } -Descending |
-                        Select-Object -First 1
+                    Sort-Object -Property { [System.Version]$_.Version } -Descending |
+                    Select-Object -First 1
                     if ($null -ne $channelMatch -and $null -ne $m365EvergreenVersionLabel) {
                         $m365EvergreenVersionLabel.Text = [string]$channelMatch.Version
                     }
@@ -2262,10 +2264,10 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        $channel     = if ($null -ne $m365ChannelCombo -and $null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
+        $channel = if ($null -ne $m365ChannelCombo -and $null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
         $companyName = [string]$m365CompanyNameBox.Text.Trim()
-        $importFor   = if ($null -ne $m365ImportForCombo -and $null -ne $m365ImportForCombo.SelectedItem) { [string]$m365ImportForCombo.SelectedItem.Content } else { '' }
-        $tenantId    = [string]$syncHash.Config.AzureAuthSettings.TenantId
+        $importFor = if ($null -ne $m365ImportForCombo -and $null -ne $m365ImportForCombo.SelectedItem) { [string]$m365ImportForCombo.SelectedItem.Content } else { '' }
+        $tenantId = [string]$syncHash.Config.AzureAuthSettings.TenantId
 
         if ([string]::IsNullOrWhiteSpace($channel)) {
             Write-UILog -SyncHash $syncHash -Message 'M365: no channel selected.' -Level Warning
@@ -2293,7 +2295,8 @@ function Start-EvergreenWorkbench {
         $appJsonTemplatePath = Join-Path -Path $PSScriptRoot -ChildPath '..\Resources\m365-app.json'
         $appJsonTemplatePath = if (Test-Path -LiteralPath $appJsonTemplatePath -PathType Leaf) {
             (Resolve-Path -LiteralPath $appJsonTemplatePath).Path
-        } else { '' }
+        }
+        else { '' }
 
         if ([string]::IsNullOrWhiteSpace($appJsonTemplatePath)) {
             Write-UILog -SyncHash $syncHash -Message 'M365: App.json template not found in module Resources folder.' -Level Warning
@@ -2301,14 +2304,14 @@ function Start-EvergreenWorkbench {
         }
 
         # Capture variables for closure
-        $capturedRow               = $selectedRow
-        $capturedConfigDirPath     = $configDirPath
-        $capturedChannel           = $channel
-        $capturedCompanyName       = $companyName
-        $capturedImportFor         = $importFor
-        $capturedTenantId          = $tenantId
+        $capturedRow = $selectedRow
+        $capturedConfigDirPath = $configDirPath
+        $capturedChannel = $channel
+        $capturedCompanyName = $companyName
+        $capturedImportFor = $importFor
+        $capturedTenantId = $tenantId
         $capturedPackageOutputPath = $packageOutputPath
-        $capturedAppJsonTemplate   = $appJsonTemplatePath
+        $capturedAppJsonTemplate = $appJsonTemplatePath
 
         & $setM365LoadingState -IsLoading $true -Message "Building package for '$displayName'..."
         Write-UILog -SyncHash $syncHash -Message "M365: starting Intune import for '$displayName' (channel: $channel)..." -Level Info
@@ -2385,8 +2388,8 @@ function Start-EvergreenWorkbench {
                         throw "App.json was not produced by the build step."
                     }
 
-                    $appJsonContent   = Get-Content -LiteralPath $buildResult.AppJsonPath -Raw -ErrorAction Stop | ConvertFrom-Json
-                    $psPackageGuid    = [string]$appJsonContent.Information.PSPackageFactoryGuid
+                    $appJsonContent = Get-Content -LiteralPath $buildResult.AppJsonPath -Raw -ErrorAction Stop | ConvertFrom-Json
+                    $psPackageGuid = [string]$appJsonContent.Information.PSPackageFactoryGuid
                     $importDisplayName = [string]$appJsonContent.Information.DisplayName
 
                     $syncHash.Window.Dispatcher.Invoke([action] {
@@ -2411,7 +2414,7 @@ function Start-EvergreenWorkbench {
                         throw "Intune import failed: $($importResult.Error)"
                     }
 
-                    $result.AppId   = $importResult.IntuneAppId
+                    $result.AppId = $importResult.IntuneAppId
                     $result.Success = $true
                 }
                 catch {
@@ -2538,10 +2541,10 @@ function Start-EvergreenWorkbench {
             return
         }
 
-        $channel     = if ($null -ne $m365ChannelCombo -and $null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
+        $channel = if ($null -ne $m365ChannelCombo -and $null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
         $companyName = [string]$m365CompanyNameBox.Text.Trim()
-        $importFor   = if ($null -ne $m365ImportForCombo -and $null -ne $m365ImportForCombo.SelectedItem) { [string]$m365ImportForCombo.SelectedItem.Content } else { '' }
-        $tenantId    = [string]$syncHash.Config.AzureAuthSettings.TenantId
+        $importFor = if ($null -ne $m365ImportForCombo -and $null -ne $m365ImportForCombo.SelectedItem) { [string]$m365ImportForCombo.SelectedItem.Content } else { '' }
+        $tenantId = [string]$syncHash.Config.AzureAuthSettings.TenantId
 
         if ([string]::IsNullOrWhiteSpace($channel)) {
             Write-UILog -SyncHash $syncHash -Message 'M365: no channel selected.' -Level Warning
@@ -2573,16 +2576,16 @@ function Start-EvergreenWorkbench {
             Container      = [string]$nmeContainerCombo.SelectedItem
         }
 
-        $capturedRow               = $selectedRow
-        $capturedConfigDirPath     = $configDirPath
-        $capturedShellAppDirPath   = $shellAppDirPath
-        $capturedChannel           = $channel
-        $capturedCompanyName       = $companyName
-        $capturedImportFor         = $importFor
-        $capturedTenantId          = $tenantId
+        $capturedRow = $selectedRow
+        $capturedConfigDirPath = $configDirPath
+        $capturedShellAppDirPath = $shellAppDirPath
+        $capturedChannel = $channel
+        $capturedCompanyName = $companyName
+        $capturedImportFor = $importFor
+        $capturedTenantId = $tenantId
         $capturedPackageOutputPath = $packageOutputPath
-        $capturedModulePath        = $modulePath
-        $capturedNerdioAuth        = $nerdioAuthContext
+        $capturedModulePath = $modulePath
+        $capturedNerdioAuth = $nerdioAuthContext
 
         & $setM365LoadingState -IsLoading $true -Message "Building package for '$displayName'..."
         Write-UILog -SyncHash $syncHash -Message "M365: starting Nerdio Shell App import for '$displayName' (channel: $channel)..." -Level Info
@@ -2665,21 +2668,21 @@ function Start-EvergreenWorkbench {
                         $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
                     }
 
-                    $setNmeCredCmd     = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials'    -ErrorAction SilentlyContinue
-                    $connectNmeCmd     = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
+                    $setNmeCredCmd = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials'    -ErrorAction SilentlyContinue
+                    $connectNmeCmd = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
                     $getShellAppDefCmd = Get-Command -Name 'NerdioShellApps\Get-ShellAppDefinition' -ErrorAction SilentlyContinue
-                    $newShellAppCmd    = Get-Command -Name 'NerdioShellApps\New-ShellApp'           -ErrorAction SilentlyContinue
+                    $newShellAppCmd = Get-Command -Name 'NerdioShellApps\New-ShellApp'           -ErrorAction SilentlyContinue
 
-                    if ($null -eq $setNmeCredCmd)    { throw 'Set-NmeCredentials not found in NerdioShellApps module.' }
-                    if ($null -eq $connectNmeCmd)     { throw 'Connect-Nme not found in NerdioShellApps module.' }
+                    if ($null -eq $setNmeCredCmd) { throw 'Set-NmeCredentials not found in NerdioShellApps module.' }
+                    if ($null -eq $connectNmeCmd) { throw 'Connect-Nme not found in NerdioShellApps module.' }
                     if ($null -eq $getShellAppDefCmd) { throw 'Get-ShellAppDefinition not found in NerdioShellApps module.' }
-                    if ($null -eq $newShellAppCmd)    { throw 'New-ShellApp not found in NerdioShellApps module.' }
+                    if ($null -eq $newShellAppCmd) { throw 'New-ShellApp not found in NerdioShellApps module.' }
 
                     foreach ($required in @(
-                            @{ Name = 'Tenant ID';     Value = [string]$NerdioAuthContext.TenantId },
-                            @{ Name = 'NME Host';      Value = [string]$NerdioAuthContext.NmeHost },
-                            @{ Name = 'Client ID';     Value = [string]$NerdioAuthContext.ClientId },
-                            @{ Name = 'API Scope';     Value = [string]$NerdioAuthContext.ApiScope },
+                            @{ Name = 'Tenant ID'; Value = [string]$NerdioAuthContext.TenantId },
+                            @{ Name = 'NME Host'; Value = [string]$NerdioAuthContext.NmeHost },
+                            @{ Name = 'Client ID'; Value = [string]$NerdioAuthContext.ClientId },
+                            @{ Name = 'API Scope'; Value = [string]$NerdioAuthContext.ApiScope },
                             @{ Name = 'Client Secret'; Value = [string]$NerdioAuthContext.ClientSecret }
                         )) {
                         if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
@@ -2839,9 +2842,9 @@ function Start-EvergreenWorkbench {
 
         # Favourites first (descending), then alphabetical by FriendlyName
         $sorted = @($source | Sort-Object -Property @(
-            @{ Expression = 'IsFavourite'; Descending = $true },
-            @{ Expression = 'FriendlyName' }
-        ))
+                @{ Expression = 'IsFavourite'; Descending = $true },
+                @{ Expression = 'FriendlyName' }
+            ))
 
         $appsListBox.ItemsSource = $sorted
         $appCountLabel.Text = " $($sorted.Count) of $($allApps.Count)"
@@ -2945,8 +2948,8 @@ function Start-EvergreenWorkbench {
     $updateAddToLibraryButtonState = {
         $appSelected = $null -ne $appsListBox.SelectedItem -and $syncHash.CurrentAppResults.Count -gt 0
         $libraryPath = $syncHash.Config.LibraryPath
-        $jsonExists  = (-not [string]::IsNullOrWhiteSpace($libraryPath)) -and
-                       (Test-Path -LiteralPath (Join-Path $libraryPath 'EvergreenLibrary.json'))
+        $jsonExists = (-not [string]::IsNullOrWhiteSpace($libraryPath)) -and
+        (Test-Path -LiteralPath (Join-Path $libraryPath 'EvergreenLibrary.json'))
         $addToLibraryButton.IsEnabled = $appSelected -and $jsonExists
     }
 
@@ -3115,11 +3118,11 @@ function Start-EvergreenWorkbench {
         }
 
         $targetIndex = switch ($resolvedProvider) {
-            'Intune'         { 0 }
-            'Nerdio'         { 1 }
-            'M365'           { 2 }
+            'Intune' { 0 }
+            'Nerdio' { 1 }
+            'M365' { 2 }
             'Authentication' { 3 }
-            default          { 3 }
+            default { 3 }
         }
         if ($importProviderTabControl.SelectedIndex -ne $targetIndex) {
             $importProviderTabControl.SelectedIndex = $targetIndex
@@ -3876,7 +3879,7 @@ function Start-EvergreenWorkbench {
                     if ([string]$_.UpdateRequired -eq 'Unknown') { return 2 }
                     if ([string]$_.RowType -eq 'Intune') { return 3 }
                     return 4
-                } 
+                }
             },
             DisplayPublisher,
             DefinitionDisplayName,
@@ -4081,9 +4084,9 @@ function Start-EvergreenWorkbench {
         [void]$ps.AddArgument($helperScripts)
         [void]$ps.AddArgument($definitionRows)
 
-        $syncHash.PendingIntuneUpdatePS       = $ps
+        $syncHash.PendingIntuneUpdatePS = $ps
         $syncHash.PendingIntuneUpdateRunspace = $rs
-        $syncHash.PendingIntuneUpdateAsync    = $ps.BeginInvoke()
+        $syncHash.PendingIntuneUpdateAsync = $ps.BeginInvoke()
 
         $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
         $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
@@ -4123,7 +4126,7 @@ function Start-EvergreenWorkbench {
 
                 $updatedCount = @($updateResults | Where-Object { $_.Succeeded -and -not $_.NoUpdateNeeded }).Count
                 $currentCount = @($updateResults | Where-Object { $_.NoUpdateNeeded }).Count
-                $failedCount  = @($updateResults | Where-Object { -not $_.Succeeded }).Count
+                $failedCount = @($updateResults | Where-Object { -not $_.Succeeded }).Count
 
                 Write-UILog -SyncHash $syncHash -Message "Intune update complete: $updatedCount updated, $currentCount already current, $failedCount failed." -Level Info
 
@@ -4526,7 +4529,7 @@ function Start-EvergreenWorkbench {
                     if ([string]$_.MatchStatus -eq 'Unsupported source type') { return 5 }
                     if ([string]$_.RowType -eq 'Nerdio') { return 6 }
                     return 7
-                } 
+                }
             },
             Publisher,
             AppName,
@@ -5309,10 +5312,10 @@ function Start-EvergreenWorkbench {
                     }
 
                     $setNmeCredentialsCommand = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials'     -ErrorAction SilentlyContinue
-                    $connectNmeCommand        = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
-                    $getShellAppDefCommand    = Get-Command -Name 'NerdioShellApps\Get-ShellAppDefinition' -ErrorAction SilentlyContinue
-                    $getAppMetadataCommand    = Get-Command -Name 'NerdioShellApps\Get-AppMetadata'        -ErrorAction SilentlyContinue
-                    $newShellAppCommand       = Get-Command -Name 'NerdioShellApps\New-ShellApp'           -ErrorAction SilentlyContinue
+                    $connectNmeCommand = Get-Command -Name 'NerdioShellApps\Connect-Nme'            -ErrorAction SilentlyContinue
+                    $getShellAppDefCommand = Get-Command -Name 'NerdioShellApps\Get-ShellAppDefinition' -ErrorAction SilentlyContinue
+                    $getAppMetadataCommand = Get-Command -Name 'NerdioShellApps\Get-AppMetadata'        -ErrorAction SilentlyContinue
+                    $newShellAppCommand = Get-Command -Name 'NerdioShellApps\New-ShellApp'           -ErrorAction SilentlyContinue
 
                     if ($null -eq $setNmeCredentialsCommand) { throw 'Required command Set-NmeCredentials was not found in NerdioShellApps module.' }
                     if ($null -eq $connectNmeCommand) { throw 'Required command Connect-Nme was not found in NerdioShellApps module.' }
@@ -5367,10 +5370,10 @@ function Start-EvergreenWorkbench {
                 return $result
             }).AddArgument($modulePath).AddArgument($nerdioAuthContext).AddArgument($definitionPath)
 
-        $syncHash.PendingNerdioImportNewPS        = $ps
-        $syncHash.PendingNerdioImportNewRunspace  = $rs
-        $syncHash.PendingNerdioImportNewAsync     = $ps.BeginInvoke()
-        $syncHash.PendingNerdioImportNewAppName   = $appName
+        $syncHash.PendingNerdioImportNewPS = $ps
+        $syncHash.PendingNerdioImportNewRunspace = $rs
+        $syncHash.PendingNerdioImportNewAsync = $ps.BeginInvoke()
+        $syncHash.PendingNerdioImportNewAppName = $appName
 
         $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
         $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
@@ -5399,9 +5402,9 @@ function Start-EvergreenWorkbench {
                 finally {
                     try { $syncHash.PendingNerdioImportNewPS.Dispose() } catch {}
                     try { $syncHash.PendingNerdioImportNewRunspace.Dispose() } catch {}
-                    $syncHash.PendingNerdioImportNewPS       = $null
+                    $syncHash.PendingNerdioImportNewPS = $null
                     $syncHash.PendingNerdioImportNewRunspace = $null
-                    $syncHash.PendingNerdioImportNewAsync    = $null
+                    $syncHash.PendingNerdioImportNewAsync = $null
                 }
 
                 if ($null -eq $importResult -or -not $importResult.Success) {
@@ -5563,13 +5566,13 @@ function Start-EvergreenWorkbench {
 
                     $r = Invoke-AzureSignIn -TenantId $TenantId
                     if ($null -ne $r) {
-                        $result.Succeeded          = [bool]$r.Succeeded
-                        $result.AccountId          = [string]$r.AccountId
-                        $result.TenantId           = [string]$r.TenantId
-                        $result.SubscriptionName   = [string]$r.SubscriptionName
-                        $result.AuthMethod         = if ($r.PSObject.Properties.Name -contains 'AuthMethod') { [string]$r.AuthMethod } else { '' }
-                        $result.ErrorMessage       = [string]$r.ErrorMessage
-                        $result.IntuneConnected    = if ($r.PSObject.Properties.Name -contains 'IntuneConnected') { [bool]$r.IntuneConnected } else { $false }
+                        $result.Succeeded = [bool]$r.Succeeded
+                        $result.AccountId = [string]$r.AccountId
+                        $result.TenantId = [string]$r.TenantId
+                        $result.SubscriptionName = [string]$r.SubscriptionName
+                        $result.AuthMethod = if ($r.PSObject.Properties.Name -contains 'AuthMethod') { [string]$r.AuthMethod } else { '' }
+                        $result.ErrorMessage = [string]$r.ErrorMessage
+                        $result.IntuneConnected = if ($r.PSObject.Properties.Name -contains 'IntuneConnected') { [bool]$r.IntuneConnected } else { $false }
                         $result.IntuneConnectError = if ($r.PSObject.Properties.Name -contains 'IntuneConnectError') { [string]$r.IntuneConnectError } else { '' }
                     }
                 }
@@ -5580,9 +5583,9 @@ function Start-EvergreenWorkbench {
                 return $result
             }).AddArgument($signInHelperScripts).AddArgument($tenant)
 
-        $syncHash.PendingImportSignInPS       = $ps
+        $syncHash.PendingImportSignInPS = $ps
         $syncHash.PendingImportSignInRunspace = $rs
-        $syncHash.PendingImportSignInAsync    = $ps.BeginInvoke()
+        $syncHash.PendingImportSignInAsync = $ps.BeginInvoke()
 
         $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
         $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
@@ -5615,27 +5618,27 @@ function Start-EvergreenWorkbench {
                 finally {
                     try { $syncHash.PendingImportSignInPS.Dispose() } catch {}
                     try { $syncHash.PendingImportSignInRunspace.Dispose() } catch {}
-                    $syncHash.PendingImportSignInPS       = $null
+                    $syncHash.PendingImportSignInPS = $null
                     $syncHash.PendingImportSignInRunspace = $null
-                    $syncHash.PendingImportSignInAsync    = $null
+                    $syncHash.PendingImportSignInAsync = $null
                 }
 
                 if ($null -ne $r -and $r.Succeeded) {
-                    $syncHash.AzureAuthState.IsAuthenticated    = $true
-                    $syncHash.AzureAuthState.AccountId          = [string]$r.AccountId
-                    $syncHash.AzureAuthState.TenantId           = [string]$r.TenantId
-                    $syncHash.AzureAuthState.SubscriptionName   = [string]$r.SubscriptionName
-                    $syncHash.AzureAuthState.ErrorMessage       = ''
-                    $syncHash.AzureAuthState.IntuneConnected    = [bool]$r.IntuneConnected
+                    $syncHash.AzureAuthState.IsAuthenticated = $true
+                    $syncHash.AzureAuthState.AccountId = [string]$r.AccountId
+                    $syncHash.AzureAuthState.TenantId = [string]$r.TenantId
+                    $syncHash.AzureAuthState.SubscriptionName = [string]$r.SubscriptionName
+                    $syncHash.AzureAuthState.ErrorMessage = ''
+                    $syncHash.AzureAuthState.IntuneConnected = [bool]$r.IntuneConnected
                     $syncHash.AzureAuthState.IntuneConnectError = [string]$r.IntuneConnectError
 
                     if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
                         $syncHash.ImportTenantIdBox.Text = [string]$r.TenantId
                     }
 
-                    $syncHash.Config.AzureAuthSettings.TenantId        = [string]$syncHash.ImportTenantIdBox.Text
-                    $syncHash.Config.AzureAuthSettings.LastAccountId   = [string]$r.AccountId
-                    $syncHash.Config.AzureAuthSettings.LastTenantId    = [string]$r.TenantId
+                    $syncHash.Config.AzureAuthSettings.TenantId = [string]$syncHash.ImportTenantIdBox.Text
+                    $syncHash.Config.AzureAuthSettings.LastAccountId = [string]$r.AccountId
+                    $syncHash.Config.AzureAuthSettings.LastTenantId = [string]$r.TenantId
                     $syncHash.Config.AzureAuthSettings.LastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
                     Set-UIConfig -Config $syncHash.Config
 
@@ -5651,13 +5654,13 @@ function Start-EvergreenWorkbench {
                     }
                 }
                 else {
-                    $syncHash.AzureAuthState.IsAuthenticated    = $false
-                    $syncHash.AzureAuthState.AccountId          = ''
-                    $syncHash.AzureAuthState.TenantId           = ''
-                    $syncHash.AzureAuthState.SubscriptionName   = ''
-                    $syncHash.AzureAuthState.IntuneConnected    = $false
+                    $syncHash.AzureAuthState.IsAuthenticated = $false
+                    $syncHash.AzureAuthState.AccountId = ''
+                    $syncHash.AzureAuthState.TenantId = ''
+                    $syncHash.AzureAuthState.SubscriptionName = ''
+                    $syncHash.AzureAuthState.IntuneConnected = $false
                     $syncHash.AzureAuthState.IntuneConnectError = ''
-                    $syncHash.AzureAuthState.ErrorMessage       = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                    $syncHash.AzureAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
                     Write-UILog -SyncHash $syncHash -Message "Sign-in failed: $($syncHash.AzureAuthState.ErrorMessage)" -Level Error
                 }
 
@@ -5699,16 +5702,16 @@ function Start-EvergreenWorkbench {
         }
 
         # Read all credential fields on the UI thread before going async.
-        $tenant        = [string]$nerdioTenantIdBox.Text
-        $nmeHost       = [string]$nmeHostBox.Text
-        $clientId      = [string]$nmeClientIdBox.Text
-        $apiScope      = [string]$nmeApiScopeBox.Text
+        $tenant = [string]$nerdioTenantIdBox.Text
+        $nmeHost = [string]$nmeHostBox.Text
+        $clientId = [string]$nmeClientIdBox.Text
+        $apiScope = [string]$nmeApiScopeBox.Text
         $oAuthTokenUrl = [string]$nmeOAuthTokenUrlBox.Text
-        $clientSecret  = [string]$nmeClientSecretBox.Password
+        $clientSecret = [string]$nmeClientSecretBox.Password
         $subscriptionId = [string]$nmeSubscriptionIdBox.Text
-        $resourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
+        $resourceGroup = [string]$nmeResourceGroupCombo.SelectedItem
         $storageAccount = [string]$nmeStorageAccountCombo.SelectedItem
-        $container      = [string]$nmeContainerCombo.SelectedItem
+        $container = [string]$nmeContainerCombo.SelectedItem
 
         foreach ($required in @(
                 @{ Name = 'Tenant ID'; Value = $tenant },
@@ -5796,9 +5799,9 @@ function Start-EvergreenWorkbench {
                         throw 'Connect-Nme returned no connection context. Verify the NME host URL and credentials.'
                     }
 
-                    $result.Succeeded   = $true
-                    $result.AccountId   = $ClientId
-                    $result.TenantId    = $TenantId.Trim()
+                    $result.Succeeded = $true
+                    $result.AccountId = $ClientId
+                    $result.TenantId = $TenantId.Trim()
                     $result.ContextName = $NmeHost.Trim()
                 }
                 catch {
@@ -5808,9 +5811,9 @@ function Start-EvergreenWorkbench {
                 return $result
             }).AddArgument($nerdioApiHelperScripts).AddArgument($nmeModulePath).AddArgument($tenant).AddArgument($nmeHost).AddArgument($clientId).AddArgument($clientSecret).AddArgument($apiScope).AddArgument($oAuthTokenUrl).AddArgument($subscriptionId).AddArgument($resourceGroup).AddArgument($storageAccount).AddArgument($container)
 
-        $syncHash.PendingNerdioApiSignInPS       = $ps
+        $syncHash.PendingNerdioApiSignInPS = $ps
         $syncHash.PendingNerdioApiSignInRunspace = $rs
-        $syncHash.PendingNerdioApiSignInAsync    = $ps.BeginInvoke()
+        $syncHash.PendingNerdioApiSignInAsync = $ps.BeginInvoke()
 
         $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
         $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
@@ -5842,17 +5845,17 @@ function Start-EvergreenWorkbench {
                 finally {
                     try { $syncHash.PendingNerdioApiSignInPS.Dispose() } catch {}
                     try { $syncHash.PendingNerdioApiSignInRunspace.Dispose() } catch {}
-                    $syncHash.PendingNerdioApiSignInPS       = $null
+                    $syncHash.PendingNerdioApiSignInPS = $null
                     $syncHash.PendingNerdioApiSignInRunspace = $null
-                    $syncHash.PendingNerdioApiSignInAsync    = $null
+                    $syncHash.PendingNerdioApiSignInAsync = $null
                 }
 
                 if ($null -ne $r -and $r.Succeeded) {
                     $syncHash.NerdioApiAuthState.IsAuthenticated = $true
-                    $syncHash.NerdioApiAuthState.AccountId       = [string]$r.AccountId
-                    $syncHash.NerdioApiAuthState.TenantId        = [string]$r.TenantId
-                    $syncHash.NerdioApiAuthState.ContextName     = [string]$r.ContextName
-                    $syncHash.NerdioApiAuthState.ErrorMessage    = ''
+                    $syncHash.NerdioApiAuthState.AccountId = [string]$r.AccountId
+                    $syncHash.NerdioApiAuthState.TenantId = [string]$r.TenantId
+                    $syncHash.NerdioApiAuthState.ContextName = [string]$r.ContextName
+                    $syncHash.NerdioApiAuthState.ErrorMessage = ''
 
                     $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$r.TenantId
                     Set-UIConfig -Config $syncHash.Config
@@ -5861,10 +5864,10 @@ function Start-EvergreenWorkbench {
                 }
                 else {
                     $syncHash.NerdioApiAuthState.IsAuthenticated = $false
-                    $syncHash.NerdioApiAuthState.AccountId       = ''
-                    $syncHash.NerdioApiAuthState.TenantId        = ''
-                    $syncHash.NerdioApiAuthState.ContextName     = ''
-                    $syncHash.NerdioApiAuthState.ErrorMessage    = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                    $syncHash.NerdioApiAuthState.AccountId = ''
+                    $syncHash.NerdioApiAuthState.TenantId = ''
+                    $syncHash.NerdioApiAuthState.ContextName = ''
+                    $syncHash.NerdioApiAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
                     Write-UILog -SyncHash $syncHash -Message "Nerdio API sign-in failed: $($syncHash.NerdioApiAuthState.ErrorMessage)" -Level Error
                 }
 
@@ -5957,9 +5960,9 @@ function Start-EvergreenWorkbench {
                         return $result
                     }
 
-                    $result.Succeeded        = $true
-                    $result.AccountId        = [string]$r.AccountId
-                    $result.TenantId         = [string]$r.TenantId
+                    $result.Succeeded = $true
+                    $result.AccountId = [string]$r.AccountId
+                    $result.TenantId = [string]$r.TenantId
                     $result.SubscriptionName = [string]$r.SubscriptionName
 
                     Write-UILog -SyncHash $syncHash -Message 'Azure sign-in succeeded. Loading resource groups...' -Level Info
@@ -5972,9 +5975,9 @@ function Start-EvergreenWorkbench {
                 return $result
             }).AddArgument($azureHelperScripts).AddArgument($subscriptionId).AddArgument($tenant)
 
-        $syncHash.PendingNerdioAzureAuthPS       = $ps
+        $syncHash.PendingNerdioAzureAuthPS = $ps
         $syncHash.PendingNerdioAzureAuthRunspace = $rs
-        $syncHash.PendingNerdioAzureAuthAsync    = $ps.BeginInvoke()
+        $syncHash.PendingNerdioAzureAuthAsync = $ps.BeginInvoke()
 
         $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
         $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
@@ -6006,25 +6009,25 @@ function Start-EvergreenWorkbench {
                 finally {
                     try { $syncHash.PendingNerdioAzureAuthPS.Dispose() } catch {}
                     try { $syncHash.PendingNerdioAzureAuthRunspace.Dispose() } catch {}
-                    $syncHash.PendingNerdioAzureAuthPS       = $null
+                    $syncHash.PendingNerdioAzureAuthPS = $null
                     $syncHash.PendingNerdioAzureAuthRunspace = $null
-                    $syncHash.PendingNerdioAzureAuthAsync    = $null
+                    $syncHash.PendingNerdioAzureAuthAsync = $null
                 }
 
                 if ($null -ne $r -and $r.Succeeded) {
-                    $syncHash.NerdioAzureAuthState.IsAuthenticated  = $true
-                    $syncHash.NerdioAzureAuthState.AccountId        = [string]$r.AccountId
-                    $syncHash.NerdioAzureAuthState.TenantId         = [string]$r.TenantId
+                    $syncHash.NerdioAzureAuthState.IsAuthenticated = $true
+                    $syncHash.NerdioAzureAuthState.AccountId = [string]$r.AccountId
+                    $syncHash.NerdioAzureAuthState.TenantId = [string]$r.TenantId
                     $syncHash.NerdioAzureAuthState.SubscriptionName = [string]$r.SubscriptionName
-                    $syncHash.NerdioAzureAuthState.ErrorMessage     = ''
+                    $syncHash.NerdioAzureAuthState.ErrorMessage = ''
 
                     if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
                         $nerdioTenantIdBox.Text = [string]$r.TenantId
                     }
 
-                    $syncHash.Config.AzureAuthSettings.NerdioTenantId        = [string]$nerdioTenantIdBox.Text
-                    $syncHash.Config.AzureAuthSettings.NerdioLastAccountId   = [string]$r.AccountId
-                    $syncHash.Config.AzureAuthSettings.NerdioLastTenantId    = [string]$r.TenantId
+                    $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$nerdioTenantIdBox.Text
+                    $syncHash.Config.AzureAuthSettings.NerdioLastAccountId = [string]$r.AccountId
+                    $syncHash.Config.AzureAuthSettings.NerdioLastTenantId = [string]$r.TenantId
                     $syncHash.Config.AzureAuthSettings.NerdioLastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
                     Set-UIConfig -Config $syncHash.Config
 
@@ -6043,9 +6046,9 @@ function Start-EvergreenWorkbench {
                     Write-UILog -SyncHash $syncHash -Message "$($nmeResourceGroupCombo.Items.Count) resource group(s) loaded." -Level Info
 
                     # Restore saved storage selections if they still exist.
-                    $savedResourceGroup  = [string]$syncHash.Config.NerdioSettings.NmeResourceGroup
+                    $savedResourceGroup = [string]$syncHash.Config.NerdioSettings.NmeResourceGroup
                     $savedStorageAccount = [string]$syncHash.Config.NerdioSettings.NmeStorageAccount
-                    $savedContainer      = [string]$syncHash.Config.NerdioSettings.NmeContainer
+                    $savedContainer = [string]$syncHash.Config.NerdioSettings.NmeContainer
 
                     if (-not [string]::IsNullOrWhiteSpace($savedResourceGroup)) {
                         $matchedRg = @($nmeResourceGroupCombo.Items | Where-Object { [string]$_ -eq $savedResourceGroup } | Select-Object -First 1)
@@ -6063,11 +6066,11 @@ function Start-EvergreenWorkbench {
                     }
                 }
                 else {
-                    $syncHash.NerdioAzureAuthState.IsAuthenticated  = $false
-                    $syncHash.NerdioAzureAuthState.AccountId        = ''
-                    $syncHash.NerdioAzureAuthState.TenantId         = ''
+                    $syncHash.NerdioAzureAuthState.IsAuthenticated = $false
+                    $syncHash.NerdioAzureAuthState.AccountId = ''
+                    $syncHash.NerdioAzureAuthState.TenantId = ''
                     $syncHash.NerdioAzureAuthState.SubscriptionName = ''
-                    $syncHash.NerdioAzureAuthState.ErrorMessage     = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                    $syncHash.NerdioAzureAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
                     Write-UILog -SyncHash $syncHash -Message "Nerdio Azure sign-in failed: $($syncHash.NerdioAzureAuthState.ErrorMessage)" -Level Error
                 }
 
@@ -6773,10 +6776,10 @@ function Start-EvergreenWorkbench {
                 if ($null -ne $syncHash.PendingImportSignInRunspace) {
                     try { $syncHash.PendingImportSignInRunspace.Dispose() } catch {}
                 }
-                $syncHash.PendingImportSignInTimer    = $null
-                $syncHash.PendingImportSignInPS       = $null
+                $syncHash.PendingImportSignInTimer = $null
+                $syncHash.PendingImportSignInPS = $null
                 $syncHash.PendingImportSignInRunspace = $null
-                $syncHash.PendingImportSignInAsync    = $null
+                $syncHash.PendingImportSignInAsync = $null
 
                 if ($null -ne $syncHash.PendingNerdioApiSignInTimer -and $syncHash.PendingNerdioApiSignInTimer.IsEnabled) {
                     $syncHash.PendingNerdioApiSignInTimer.Stop()
@@ -6788,10 +6791,10 @@ function Start-EvergreenWorkbench {
                 if ($null -ne $syncHash.PendingNerdioApiSignInRunspace) {
                     try { $syncHash.PendingNerdioApiSignInRunspace.Dispose() } catch {}
                 }
-                $syncHash.PendingNerdioApiSignInTimer    = $null
-                $syncHash.PendingNerdioApiSignInPS       = $null
+                $syncHash.PendingNerdioApiSignInTimer = $null
+                $syncHash.PendingNerdioApiSignInPS = $null
                 $syncHash.PendingNerdioApiSignInRunspace = $null
-                $syncHash.PendingNerdioApiSignInAsync    = $null
+                $syncHash.PendingNerdioApiSignInAsync = $null
 
                 if ($null -ne $syncHash.PendingNerdioAzureAuthTimer -and $syncHash.PendingNerdioAzureAuthTimer.IsEnabled) {
                     $syncHash.PendingNerdioAzureAuthTimer.Stop()
@@ -6803,10 +6806,10 @@ function Start-EvergreenWorkbench {
                 if ($null -ne $syncHash.PendingNerdioAzureAuthRunspace) {
                     try { $syncHash.PendingNerdioAzureAuthRunspace.Dispose() } catch {}
                 }
-                $syncHash.PendingNerdioAzureAuthTimer    = $null
-                $syncHash.PendingNerdioAzureAuthPS       = $null
+                $syncHash.PendingNerdioAzureAuthTimer = $null
+                $syncHash.PendingNerdioAzureAuthPS = $null
                 $syncHash.PendingNerdioAzureAuthRunspace = $null
-                $syncHash.PendingNerdioAzureAuthAsync    = $null
+                $syncHash.PendingNerdioAzureAuthAsync = $null
 
                 if ($null -ne $syncHash.PendingIntuneImportTimer -and $syncHash.PendingIntuneImportTimer.IsEnabled) {
                     $syncHash.PendingIntuneImportTimer.Stop()
@@ -6936,7 +6939,7 @@ function Start-EvergreenWorkbench {
     # 72px leaves enough room for Segoe Fluent Icons glyph overhang when labels are hidden.
     $navRailLabels = @('NavAppsLabel', 'NavDownloadLabel', 'NavLibraryLabel', 'NavPackagesLabel', 'NavImportLabel',
         'NavInstallLabel', 'NavSettingsLabel', 'NavUpdateLabel', 'NavAboutLabel') |
-        ForEach-Object { $window.FindName($_) }
+    ForEach-Object { $window.FindName($_) }
     $navToggleButton.add_Click({
             $navColumn = $rootGrid.ColumnDefinitions[0]
             if ($navColumn.Width.Value -gt 70) {
@@ -7097,9 +7100,9 @@ function Start-EvergreenWorkbench {
             param($s, $e)
             if ($s -ne $importProviderTabControl) { return }
             $provider = switch ($importProviderTabControl.SelectedIndex) {
-                0       { 'Intune' }
-                1       { 'Nerdio' }
-                2       { 'M365' }
+                0 { 'Intune' }
+                1 { 'Nerdio' }
+                2 { 'M365' }
                 default { 'Authentication' }
             }
             & $setImportProvider -Provider $provider -Persist
@@ -7342,8 +7345,8 @@ function Start-EvergreenWorkbench {
 
             if ($syncHash.M365EvergreenRows.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($selectedChannel)) {
                 $match = $syncHash.M365EvergreenRows | Where-Object { $_.Channel -eq $selectedChannel } |
-                    Sort-Object -Property { [System.Version]$_.Version } -Descending |
-                    Select-Object -First 1
+                Sort-Object -Property { [System.Version]$_.Version } -Descending |
+                Select-Object -First 1
                 if ($null -ne $match -and $null -ne $m365EvergreenVersionLabel) {
                     $m365EvergreenVersionLabel.Text = [string]$match.Version
                 }
@@ -7858,8 +7861,8 @@ function Start-EvergreenWorkbench {
         })
 
     $addToLibraryButton.add_Click({
-            $selectedApp  = $appsListBox.SelectedItem
-            $libraryPath  = $syncHash.Config.LibraryPath
+            $selectedApp = $appsListBox.SelectedItem
+            $libraryPath = $syncHash.Config.LibraryPath
             $libraryJsonPath = Join-Path -Path $libraryPath -ChildPath 'EvergreenLibrary.json'
 
             if ($null -eq $selectedApp -or [string]::IsNullOrWhiteSpace($libraryPath)) {
@@ -7934,9 +7937,9 @@ function Start-EvergreenWorkbench {
                     $clearTimer = [System.Windows.Threading.DispatcherTimer]::new()
                     $clearTimer.Interval = [TimeSpan]::FromSeconds(3)
                     $clearTimer.add_Tick({
-                        $appsActionStatusLabel.Text = ''
-                        $clearTimer.Stop()
-                    }.GetNewClosure())
+                            $appsActionStatusLabel.Text = ''
+                            $clearTimer.Stop()
+                        }.GetNewClosure())
                     $clearTimer.Start()
                 }
             }
