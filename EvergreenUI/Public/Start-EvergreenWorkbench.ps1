@@ -2966,7 +2966,7 @@ function Start-EvergreenWorkbench {
         # Show loading state
         $appDetailContent.Visibility = [System.Windows.Visibility]::Collapsed
         $appDetailLoading.Visibility = [System.Windows.Visibility]::Visible
-        $appDetailLoadingLabel.Text = "Retrieving details for $appName with Evergreen..."
+        $appDetailLoadingLabel.Text = "Retrieving details for $appName `nwith Get-EvergreenApp..."
 
         Write-UILog -SyncHash $syncHash -Message "Loading versions for $appName..." -Level Info
         Write-UILog -SyncHash $syncHash -Message "Get-EvergreenApp -Name '$appName'" -Level Cmd
