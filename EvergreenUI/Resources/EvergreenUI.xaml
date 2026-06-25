@@ -1971,7 +1971,7 @@
                                         Margin="0,0,6,0"
                                         Padding="10,6"/>
                                     <Button x:Name="NerdioLoadConfigsButton"
-                                        Content="Load Configurations"
+                                        Content="Load definitions"
                                         Style="{StaticResource FluentSecondaryButton}"
                                                 Padding="10,6"/>
                                     </StackPanel>
@@ -3387,7 +3387,7 @@
                                             <GridViewColumn Header="Publisher" DisplayMemberBinding="{Binding Publisher}" Width="180"/>
                                             <GridViewColumn Header="Installed" DisplayMemberBinding="{Binding InstalledVersion}" Width="140"/>
                                             <GridViewColumn Header="Latest" DisplayMemberBinding="{Binding LatestVersion}" Width="140"/>
-                                            <GridViewColumn Header="Status" DisplayMemberBinding="{Binding InstallStatus}" Width="200"/>
+                                            <GridViewColumn Header="Status" DisplayMemberBinding="{Binding InstallStatus}" Width="220"/>
                                             <GridViewColumn Header="Action" DisplayMemberBinding="{Binding InstallAction}" Width="120"/>
                                         </GridView>
                                     </ListView.View>
@@ -3433,6 +3433,20 @@
                             CornerRadius="4"
                             Padding="12,10">
                         <DockPanel LastChildFill="True">
+                            <StackPanel Orientation="Horizontal"
+                                        DockPanel.Dock="Left"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,12,0">
+                                <TextBlock Text="Hide incompatible architecture"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0"/>
+                                <ToggleButton x:Name="InstallHideIncompatibleArchitectureToggle"
+                                              AutomationProperties.Name="Hide incompatible architecture"
+                                              Style="{StaticResource FluentToggleSwitch}"
+                                              FontSize="12"
+                                              VerticalAlignment="Center"/>
+                            </StackPanel>
                             <StackPanel Orientation="Horizontal"
                                         DockPanel.Dock="Right">
                             <Button x:Name="InstallLoadDefinitionsButton"

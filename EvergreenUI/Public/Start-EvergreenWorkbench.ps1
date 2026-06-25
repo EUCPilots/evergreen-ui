@@ -445,6 +445,7 @@ function Start-EvergreenWorkbench {
     # Local Install controls
     $installLoadDefinitionsButton = $window.FindName('InstallLoadDefinitionsButton')
     $installResolveLatestButton = $window.FindName('InstallResolveLatestButton')
+    $installHideIncompatibleArchitectureToggle = $window.FindName('InstallHideIncompatibleArchitectureToggle')
     $installDefinitionsCountLabel = $window.FindName('InstallDefinitionsCountLabel')
     $installActionableCountLabel = $window.FindName('InstallActionableCountLabel')
     $installElevationStatusDot = $window.FindName('InstallElevationStatusDot')
@@ -1014,6 +1015,13 @@ function Start-EvergreenWorkbench {
         $definitionRows = @($syncHash.InstallDefinitionRows)
         $rows = [System.Collections.Generic.List[object]]::new()
         $actionableCount = 0
+        $hideIncompatibleArchitecture = $false
+        if ($null -ne $installHideIncompatibleArchitectureToggle) {
+            $hideIncompatibleArchitecture = [bool]$installHideIncompatibleArchitectureToggle.IsChecked
+        }
+        elseif ($null -ne $syncHash.Config.InstallSettings) {
+            $hideIncompatibleArchitecture = [bool]$syncHash.Config.InstallSettings.HideIncompatibleArchitecture
+        }
 
         $localArch = switch ($env:PROCESSOR_ARCHITECTURE) {
             'AMD64' { 'x64' }
@@ -1059,6 +1067,9 @@ function Start-EvergreenWorkbench {
             elseif (-not $isArchCompatible) {
                 $installStatus = "Incompatible architecture ($architecture)"
                 $installAction = 'Incompatible'
+                if ($hideIncompatibleArchitecture) {
+                    continue
+                }
             }
             else {
                 $detectionResult = Test-LocalPackageDetection -DefinitionObject $definitionObject
@@ -6685,6 +6696,9 @@ function Start-EvergreenWorkbench {
             if ($null -ne $showInstallTabToggle) {
                 $showInstallTabToggle.IsChecked = [bool]$syncHash.Config.ShowInstallTab
             }
+            if ($null -ne $installHideIncompatibleArchitectureToggle) {
+                $installHideIncompatibleArchitectureToggle.IsChecked = [bool]$syncHash.Config.InstallSettings.HideIncompatibleArchitecture
+            }
             & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall ([bool]$syncHash.Config.ShowInstallTab)
 
             $syncHash.SettingsLastSavedJson = $syncHash.Config | ConvertTo-Json -Depth 5
@@ -8267,6 +8281,20 @@ function Start-EvergreenWorkbench {
                 $syncHash.Config.ShowInstallTab = $showInstall
                 & $setImportTabVisibility -ShowImport ([bool]$syncHash.Config.ShowImportTab) -ShowInstall $showInstall
                 Set-UIConfig -Config $syncHash.Config
+            })
+    }
+
+    if ($null -ne $installHideIncompatibleArchitectureToggle) {
+        $installHideIncompatibleArchitectureToggle.add_Click({
+                $hideIncompatibleArchitecture = [bool]$installHideIncompatibleArchitectureToggle.IsChecked
+                if ($null -eq $syncHash.Config.InstallSettings) {
+                    $syncHash.Config | Add-Member -NotePropertyName 'InstallSettings' -NotePropertyValue ([PSCustomObject]@{ HideIncompatibleArchitecture = $hideIncompatibleArchitecture }) -Force
+                }
+                else {
+                    $syncHash.Config.InstallSettings.HideIncompatibleArchitecture = $hideIncompatibleArchitecture
+                }
+                Set-UIConfig -Config $syncHash.Config
+                & $refreshInstallRows
             })
     }
 
