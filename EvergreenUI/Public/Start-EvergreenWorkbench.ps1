@@ -3129,11 +3129,11 @@ function Start-EvergreenWorkbench {
         }
 
         $targetIndex = switch ($resolvedProvider) {
-            'Intune' { 0 }
-            'Nerdio' { 1 }
-            'M365' { 2 }
-            'Authentication' { 3 }
-            default { 3 }
+            'Authentication' { 0 }
+            'Intune' { 1 }
+            'Nerdio' { 2 }
+            'M365' { 3 }
+            default { 0 }
         }
         if ($importProviderTabControl.SelectedIndex -ne $targetIndex) {
             $importProviderTabControl.SelectedIndex = $targetIndex
@@ -7114,9 +7114,10 @@ function Start-EvergreenWorkbench {
             param($s, $e)
             if ($s -ne $importProviderTabControl) { return }
             $provider = switch ($importProviderTabControl.SelectedIndex) {
-                0 { 'Intune' }
-                1 { 'Nerdio' }
-                2 { 'M365' }
+                0 { 'Authentication' }
+                1 { 'Intune' }
+                2 { 'Nerdio' }
+                3 { 'M365' }
                 default { 'Authentication' }
             }
             & $setImportProvider -Provider $provider -Persist

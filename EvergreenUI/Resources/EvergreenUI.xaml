@@ -1819,7 +1819,7 @@
                   Background="{DynamicResource WindowBackgroundBrush}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="22,16,22,12" Width="1120" HorizontalAlignment="Left">
+                    <StackPanel Margin="22,16,22,12" HorizontalAlignment="Stretch">
 
                         <TextBlock Text="Packages"
                                    FontSize="20"
@@ -2089,6 +2089,361 @@
                     <TabControl Grid.Row="1"
                                 x:Name="ImportProviderTabControl"
                                 Style="{StaticResource FluentTabControl}">
+
+                        <!-- ── Authentication tab ── -->
+                        <TabItem Header="Authentication"
+                                 Style="{StaticResource FluentTabItem}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Padding="0,2,0,0">
+                                <StackPanel>
+
+                                    <!-- Entra ID (Intune) section -->
+                                    <TextBlock Text="Entra ID"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <Border BorderThickness="1"
+                                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                                            Background="{DynamicResource ControlBackgroundBrush}"
+                                            CornerRadius="8"
+                                            Padding="12"
+                                            Margin="0,0,0,20">
+                                        <!-- Sign-in row: tenant input, auth status, and Entra sign-in/out buttons -->
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="290"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="Entra ID sign-in"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,12,0"/>
+                                            <TextBox x:Name="ImportTenantIdBox"
+                                                     Grid.Column="1"
+                                                     Style="{StaticResource FluentTextBox}"
+                                                     VerticalAlignment="Center"
+                                                     ToolTip="Optional Entra tenant ID for Intune Graph workflows"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="   Tenant ID (optional)"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       IsHitTestVisible="False"
+                                                       Margin="9,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="12">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=ImportTenantIdBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <StackPanel Grid.Column="3"
+                                                        Orientation="Horizontal"
+                                                        VerticalAlignment="Center">
+                                                <Ellipse x:Name="ImportAuthStatusDot"
+                                                         AutomationProperties.Name="Import authentication status"
+                                                         Style="{StaticResource StatusDot}"
+                                                         Fill="{DynamicResource ControlBorderBrush}"/>
+                                                <TextBlock x:Name="ImportAuthStatusLabel"
+                                                           Text="Not signed in"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,8,0"/>
+                                            </StackPanel>
+                                            <Button x:Name="ImportSignInButton"
+                                                    Grid.Column="4"
+                                                    Content="Sign in"
+                                                    Style="{StaticResource FluentButton}"
+                                                    Padding="14,6"
+                                                    Margin="0,0,8,0"/>
+                                            <Button x:Name="ImportSignOutButton"
+                                                    Grid.Column="5"
+                                                    Content="Sign out"
+                                                    Style="{StaticResource FluentSecondaryButton}"
+                                                    Padding="14,6"
+                                                    IsEnabled="False"/>
+                                        </Grid>
+                                    </Border>
+                                    <!-- Nerdio Manager API section -->
+                                    <TextBlock Text="Nerdio Manager API"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <Border BorderThickness="1"
+                                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                                            Background="{DynamicResource ControlBackgroundBrush}"
+                                            CornerRadius="8"
+                                            Padding="14"
+                                            Margin="0,0,0,20">
+                                        <StackPanel>
+
+                                            <!-- Top row: Nerdio host, client, scope, token URL, and secret inputs -->
+                                            <Grid Margin="0,0,0,12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                                    <TextBlock Text="NME Host"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeHostBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                                                    <TextBlock Text="Client ID"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeClientIdBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Margin="0,0,8,0">
+                                                    <TextBlock Text="API Scope"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeApiScopeBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3" Margin="0,0,8,0">
+                                                    <TextBlock Text="OAuth token URL"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeOAuthTokenUrlBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="4">
+                                                    <TextBlock Text="Client Secret"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <PasswordBox x:Name="NmeClientSecretBox"
+                                                                 AutomationProperties.Name="Nerdio Manager client secret"
+                                                                 Style="{StaticResource FluentPasswordBox}"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                        <!-- Bottom row: shared tenant ID, auth status, and Nerdio API sign-in controls -->
+                                            <Border BorderThickness="1"
+                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                    Background="{DynamicResource WindowBackgroundBrush}"
+                                                    CornerRadius="6"
+                                                    Padding="10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="290"/>
+                                                        <ColumnDefinition Width="16"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="Tenant ID"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,8,0"/>
+                                                    <Grid Grid.Column="1">
+                                                        <TextBox x:Name="NerdioTenantIdBox"
+                                                                 Style="{StaticResource FluentTextBox}"
+                                                                 VerticalAlignment="Center"
+                                                                 ToolTip="Tenant ID shared by Nerdio Manager API sign-in and optional Azure sign-in"/>
+                                                        <TextBlock Text="Tenant ID (optional)"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   IsHitTestVisible="False"
+                                                                   Margin="9,0,0,0"
+                                                                   VerticalAlignment="Center"
+                                                                   FontSize="12">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Text, ElementName=NerdioTenantIdBox}" Value="">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Grid>
+                                                    <StackPanel Grid.Column="4"
+                                                                Orientation="Horizontal"
+                                                                VerticalAlignment="Center">
+                                                        <Ellipse x:Name="NerdioApiAuthStatusDot"
+                                                                 AutomationProperties.Name="Nerdio API authentication status"
+                                                                 Style="{StaticResource StatusDot}"
+                                                                 Fill="{DynamicResource ControlBorderBrush}"/>
+                                                        <TextBlock x:Name="NerdioApiAuthStatusLabel"
+                                                                   Text="Not signed in"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   FontSize="12"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"/>
+                                                    </StackPanel>
+                                                    <Button x:Name="NerdioApiSignInButton"
+                                                            Grid.Column="5"
+                                                            Content="Sign in"
+                                                            Style="{StaticResource FluentButton}"
+                                                            Padding="12,6"
+                                                            Margin="0,0,8,0"/>
+                                                    <Button x:Name="NerdioApiSignOutButton"
+                                                            Grid.Column="6"
+                                                            Content="Sign out"
+                                                            Style="{StaticResource FluentSecondaryButton}"
+                                                            Padding="12,6"
+                                                            IsEnabled="False"/>
+                                                </Grid>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Azure Storage section -->
+                                    <TextBlock Text="Azure Storage for Nerdio Manager Shell Apps"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <Border BorderThickness="1"
+                                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                                            Background="{DynamicResource ControlBackgroundBrush}"
+                                            CornerRadius="8"
+                                            Padding="14"
+                                            Margin="0,0,0,20">
+                                        <StackPanel>
+
+                                            <!-- Top row: Azure subscription, resource group, storage account, and container selectors -->
+                                            <Grid Margin="0,0,0,12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                                    <TextBlock Text="Subscription ID"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="NmeSubscriptionIdBox"
+                                                             Style="{StaticResource FluentTextBox}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                                                    <TextBlock Text="Resource Group"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="NmeResourceGroupCombo"
+                                                              Style="{StaticResource FluentComboBox}"
+                                                              Height="32"
+                                                              IsEnabled="False"
+                                                              ToolTip="Sign in to Azure to populate this list"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Margin="0,0,8,0">
+                                                    <TextBlock Text="Storage Account"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="NmeStorageAccountCombo"
+                                                              Style="{StaticResource FluentComboBox}"
+                                                              Height="32"
+                                                              IsEnabled="False"
+                                                              ToolTip="Select a Resource Group first"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3">
+                                                    <TextBlock Text="Container"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="NmeContainerCombo"
+                                                              Style="{StaticResource FluentComboBox}"
+                                                              Height="32"
+                                                              IsEnabled="False"
+                                                              ToolTip="Select a Storage Account first"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                        <!-- Bottom row: Azure auth state and sign-in/out buttons used to populate the storage selectors -->
+                                            <Border BorderThickness="1"
+                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                    Background="{DynamicResource WindowBackgroundBrush}"
+                                                    CornerRadius="6"
+                                                    Padding="10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="8"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="Azure sign-in"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,10,0"/>
+                                                    <StackPanel Grid.Column="2"
+                                                                Orientation="Horizontal"
+                                                                VerticalAlignment="Center">
+                                                        <Ellipse x:Name="NerdioAzureAuthStatusDot"
+                                                                 AutomationProperties.Name="Nerdio Azure authentication status"
+                                                                 Style="{StaticResource StatusDot}"
+                                                                 Fill="{DynamicResource ControlBorderBrush}"/>
+                                                        <TextBlock x:Name="NerdioAzureAuthStatusLabel"
+                                                                   Text="Not signed in"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   FontSize="12"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"/>
+                                                    </StackPanel>
+                                                    <Button x:Name="NerdioAzureSignInButton"
+                                                            Grid.Column="3"
+                                                            Content="Sign in"
+                                                            Style="{StaticResource FluentButton}"
+                                                            Padding="12,6"
+                                                            Margin="0,0,8,0"
+                                                            IsEnabled="False"/>
+                                                    <Button x:Name="NerdioAzureSignOutButton"
+                                                            Grid.Column="4"
+                                                            Content="Sign out"
+                                                            Style="{StaticResource FluentSecondaryButton}"
+                                                            Padding="12,6"
+                                                            IsEnabled="False"/>
+                                                </Grid>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </Border>
+
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
 
                         <TabItem Header="Microsoft Intune Win32 Apps"
                                  Style="{StaticResource FluentTabItem}">
@@ -2887,360 +3242,6 @@
                             </Grid>
                         </TabItem>
 
-                        <!-- ── Authentication tab ── -->
-                        <TabItem Header="Authentication"
-                                 Style="{StaticResource FluentTabItem}">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled"
-                                          Padding="0,2,0,0">
-                                <StackPanel>
-
-                                    <!-- Entra ID (Intune) section -->
-                                    <TextBlock Text="Entra ID"
-                                               FontWeight="SemiBold"
-                                               FontSize="13"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                               Margin="0,0,0,8"/>
-                                    <Border BorderThickness="1"
-                                            BorderBrush="{DynamicResource ControlBorderBrush}"
-                                            Background="{DynamicResource ControlBackgroundBrush}"
-                                            CornerRadius="8"
-                                            Padding="12"
-                                            Margin="0,0,0,20">
-                                        <!-- Sign-in row: tenant input, auth status, and Entra sign-in/out buttons -->
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="290"/>
-                                                <ColumnDefinition Width="8"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0"
-                                                       Text="Entra ID sign-in"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                                       FontSize="13"
-                                                       FontWeight="SemiBold"
-                                                       VerticalAlignment="Center"
-                                                       Margin="0,0,12,0"/>
-                                            <TextBox x:Name="ImportTenantIdBox"
-                                                     Grid.Column="1"
-                                                     Style="{StaticResource FluentTextBox}"
-                                                     VerticalAlignment="Center"
-                                                     ToolTip="Optional Entra tenant ID for Intune Graph workflows"/>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="   Tenant ID (optional)"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       IsHitTestVisible="False"
-                                                       Margin="9,0,0,0"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="12">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=ImportTenantIdBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <StackPanel Grid.Column="3"
-                                                        Orientation="Horizontal"
-                                                        VerticalAlignment="Center">
-                                                <Ellipse x:Name="ImportAuthStatusDot"
-                                                         AutomationProperties.Name="Import authentication status"
-                                                         Style="{StaticResource StatusDot}"
-                                                         Fill="{DynamicResource ControlBorderBrush}"/>
-                                                <TextBlock x:Name="ImportAuthStatusLabel"
-                                                           Text="Not signed in"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           FontSize="12"
-                                                           VerticalAlignment="Center"
-                                                           Margin="0,0,8,0"/>
-                                            </StackPanel>
-                                            <Button x:Name="ImportSignInButton"
-                                                    Grid.Column="4"
-                                                    Content="Sign in"
-                                                    Style="{StaticResource FluentButton}"
-                                                    Padding="14,6"
-                                                    Margin="0,0,8,0"/>
-                                            <Button x:Name="ImportSignOutButton"
-                                                    Grid.Column="5"
-                                                    Content="Sign out"
-                                                    Style="{StaticResource FluentSecondaryButton}"
-                                                    Padding="14,6"
-                                                    IsEnabled="False"/>
-                                        </Grid>
-                                    </Border>
-                                    <!-- Nerdio Manager API section -->
-                                    <TextBlock Text="Nerdio Manager API"
-                                               FontWeight="SemiBold"
-                                               FontSize="13"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                               Margin="0,0,0,8"/>
-                                    <Border BorderThickness="1"
-                                            BorderBrush="{DynamicResource ControlBorderBrush}"
-                                            Background="{DynamicResource ControlBackgroundBrush}"
-                                            CornerRadius="8"
-                                            Padding="14"
-                                            Margin="0,0,0,20">
-                                        <StackPanel>
-
-                                            <!-- Top row: Nerdio host, client, scope, token URL, and secret inputs -->
-                                            <Grid Margin="0,0,0,12">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                                    <TextBlock Text="NME Host"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <TextBox x:Name="NmeHostBox"
-                                                             Style="{StaticResource FluentTextBox}"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
-                                                    <TextBlock Text="Client ID"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <TextBox x:Name="NmeClientIdBox"
-                                                             Style="{StaticResource FluentTextBox}"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="2" Margin="0,0,8,0">
-                                                    <TextBlock Text="API Scope"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <TextBox x:Name="NmeApiScopeBox"
-                                                             Style="{StaticResource FluentTextBox}"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="3" Margin="0,0,8,0">
-                                                    <TextBlock Text="OAuth token URL"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <TextBox x:Name="NmeOAuthTokenUrlBox"
-                                                             Style="{StaticResource FluentTextBox}"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="4">
-                                                    <TextBlock Text="Client Secret"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <PasswordBox x:Name="NmeClientSecretBox"
-                                                                 AutomationProperties.Name="Nerdio Manager client secret"
-                                                                 Style="{StaticResource FluentPasswordBox}"/>
-                                                </StackPanel>
-                                            </Grid>
-
-                        <!-- Bottom row: shared tenant ID, auth status, and Nerdio API sign-in controls -->
-                                            <Border BorderThickness="1"
-                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
-                                                    Background="{DynamicResource WindowBackgroundBrush}"
-                                                    CornerRadius="6"
-                                                    Padding="10">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="290"/>
-                                                        <ColumnDefinition Width="16"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0"
-                                                               Text="Tenant ID"
-                                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                                               FontSize="12"
-                                                               FontWeight="SemiBold"
-                                                               VerticalAlignment="Center"
-                                                               Margin="0,0,8,0"/>
-                                                    <Grid Grid.Column="1">
-                                                        <TextBox x:Name="NerdioTenantIdBox"
-                                                                 Style="{StaticResource FluentTextBox}"
-                                                                 VerticalAlignment="Center"
-                                                                 ToolTip="Tenant ID shared by Nerdio Manager API sign-in and optional Azure sign-in"/>
-                                                        <TextBlock Text="Tenant ID (optional)"
-                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                                   IsHitTestVisible="False"
-                                                                   Margin="9,0,0,0"
-                                                                   VerticalAlignment="Center"
-                                                                   FontSize="12">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Text, ElementName=NerdioTenantIdBox}" Value="">
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                    </Grid>
-                                                    <StackPanel Grid.Column="4"
-                                                                Orientation="Horizontal"
-                                                                VerticalAlignment="Center">
-                                                        <Ellipse x:Name="NerdioApiAuthStatusDot"
-                                                                 AutomationProperties.Name="Nerdio API authentication status"
-                                                                 Style="{StaticResource StatusDot}"
-                                                                 Fill="{DynamicResource ControlBorderBrush}"/>
-                                                        <TextBlock x:Name="NerdioApiAuthStatusLabel"
-                                                                   Text="Not signed in"
-                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                                   FontSize="12"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="0,0,8,0"/>
-                                                    </StackPanel>
-                                                    <Button x:Name="NerdioApiSignInButton"
-                                                            Grid.Column="5"
-                                                            Content="Sign in"
-                                                            Style="{StaticResource FluentButton}"
-                                                            Padding="12,6"
-                                                            Margin="0,0,8,0"/>
-                                                    <Button x:Name="NerdioApiSignOutButton"
-                                                            Grid.Column="6"
-                                                            Content="Sign out"
-                                                            Style="{StaticResource FluentSecondaryButton}"
-                                                            Padding="12,6"
-                                                            IsEnabled="False"/>
-                                                </Grid>
-                                            </Border>
-
-                                        </StackPanel>
-                                    </Border>
-
-                                    <!-- Azure Storage section -->
-                                    <TextBlock Text="Azure Storage for Nerdio Manager Shell Apps"
-                                               FontWeight="SemiBold"
-                                               FontSize="13"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                               Margin="0,0,0,8"/>
-                                    <Border BorderThickness="1"
-                                            BorderBrush="{DynamicResource ControlBorderBrush}"
-                                            Background="{DynamicResource ControlBackgroundBrush}"
-                                            CornerRadius="8"
-                                            Padding="14"
-                                            Margin="0,0,0,20">
-                                        <StackPanel>
-
-                                            <!-- Top row: Azure subscription, resource group, storage account, and container selectors -->
-                                            <Grid Margin="0,0,0,12">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                                    <TextBlock Text="Subscription ID"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <TextBox x:Name="NmeSubscriptionIdBox"
-                                                             Style="{StaticResource FluentTextBox}"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
-                                                    <TextBlock Text="Resource Group"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <ComboBox x:Name="NmeResourceGroupCombo"
-                                                              Style="{StaticResource FluentComboBox}"
-                                                              Height="32"
-                                                              IsEnabled="False"
-                                                              ToolTip="Sign in to Azure to populate this list"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="2" Margin="0,0,8,0">
-                                                    <TextBlock Text="Storage Account"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <ComboBox x:Name="NmeStorageAccountCombo"
-                                                              Style="{StaticResource FluentComboBox}"
-                                                              Height="32"
-                                                              IsEnabled="False"
-                                                              ToolTip="Select a Resource Group first"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="3">
-                                                    <TextBlock Text="Container"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontSize="12"
-                                                               Margin="0,0,0,4"/>
-                                                    <ComboBox x:Name="NmeContainerCombo"
-                                                              Style="{StaticResource FluentComboBox}"
-                                                              Height="32"
-                                                              IsEnabled="False"
-                                                              ToolTip="Select a Storage Account first"/>
-                                                </StackPanel>
-                                            </Grid>
-
-                        <!-- Bottom row: Azure auth state and sign-in/out buttons used to populate the storage selectors -->
-                                            <Border BorderThickness="1"
-                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
-                                                    Background="{DynamicResource WindowBackgroundBrush}"
-                                                    CornerRadius="6"
-                                                    Padding="10">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0"
-                                                               Text="Azure sign-in"
-                                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                                               FontSize="12"
-                                                               FontWeight="SemiBold"
-                                                               VerticalAlignment="Center"
-                                                               Margin="0,0,10,0"/>
-                                                    <StackPanel Grid.Column="2"
-                                                                Orientation="Horizontal"
-                                                                VerticalAlignment="Center">
-                                                        <Ellipse x:Name="NerdioAzureAuthStatusDot"
-                                                                 AutomationProperties.Name="Nerdio Azure authentication status"
-                                                                 Style="{StaticResource StatusDot}"
-                                                                 Fill="{DynamicResource ControlBorderBrush}"/>
-                                                        <TextBlock x:Name="NerdioAzureAuthStatusLabel"
-                                                                   Text="Not signed in"
-                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                                   FontSize="12"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="0,0,8,0"/>
-                                                    </StackPanel>
-                                                    <Button x:Name="NerdioAzureSignInButton"
-                                                            Grid.Column="3"
-                                                            Content="Sign in"
-                                                            Style="{StaticResource FluentButton}"
-                                                            Padding="12,6"
-                                                            Margin="0,0,8,0"
-                                                            IsEnabled="False"/>
-                                                    <Button x:Name="NerdioAzureSignOutButton"
-                                                            Grid.Column="4"
-                                                            Content="Sign out"
-                                                            Style="{StaticResource FluentSecondaryButton}"
-                                                            Padding="12,6"
-                                                            IsEnabled="False"/>
-                                                </Grid>
-                                            </Border>
-
-                                        </StackPanel>
-                                    </Border>
-
-                                </StackPanel>
-                            </ScrollViewer>
-                        </TabItem>
 
                     </TabControl>
                 </Grid>
