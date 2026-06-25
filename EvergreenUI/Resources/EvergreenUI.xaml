@@ -1515,6 +1515,7 @@
                                           Style="{StaticResource FluentListView}"
                                           BorderBrush="{DynamicResource ControlBorderBrush}"
                                           BorderThickness="0,1,0,0"
+                                          FontSize="13"
                                           SelectionMode="Extended">
                                     <ListView.View>
                                         <GridView>
@@ -1594,23 +1595,25 @@
                             BorderBrush="{DynamicResource ControlBorderBrush}"
                             Background="{DynamicResource ControlBackgroundBrush}"
                             CornerRadius="4">
+                        <!-- Download queue table: queued items, version details, and target download paths -->
                         <ListView x:Name="DownloadQueueListView"
                                   Style="{StaticResource FluentListView}"
+                                  FontSize="13"
                                   SelectionMode="Single">
                             <ListView.View>
                                 <GridView>
                                     <GridViewColumn Header="Status"       DisplayMemberBinding="{Binding Status}"        Width="110"/>
                                     <GridViewColumn Header="App"          DisplayMemberBinding="{Binding AppName}"       Width="180"/>
-                                    <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="130"/>
-                                    <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="110"/>
-                                    <GridViewColumn Header="URI"          Width="390">
+                                    <GridViewColumn Header="Version"      DisplayMemberBinding="{Binding Version}"       Width="110"/>
+                                    <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}"  Width="115"/>
+                                    <GridViewColumn Header="URI"          Width="600">
                                         <GridViewColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Uri}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Uri}"/>
                                             </DataTemplate>
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>
-                                    <GridViewColumn Header="Path"         Width="280">
+                                    <GridViewColumn Header="Path"         Width="480">
                                         <GridViewColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}"/>
@@ -1744,6 +1747,7 @@
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        Margin="0,0,0,8"/>
 
+                            <!-- Library contents table: folders already present in the local Evergreen library -->
                             <ListView x:Name="LibraryContentsListView"
                                       Style="{StaticResource FluentListView}"
                                       SelectionMode="Single">
@@ -1784,14 +1788,16 @@
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        Margin="0,0,0,8"/>
 
+                            <!-- Library detail table: individual versions for the selected app -->
                             <ListView x:Name="LibraryDetailsListView"
                                       Style="{StaticResource FluentListView}"
+                                      FontSize="13"
                                       SelectionMode="Single">
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="App (Version)"  DisplayMemberBinding="{Binding Version}"      Width="180"/>
+                                        <GridViewColumn Header="App (Version)"  DisplayMemberBinding="{Binding Version}"      Width="120"/>
                                         <GridViewColumn Header="Architecture"    DisplayMemberBinding="{Binding Architecture}" Width="110"/>
-                                        <GridViewColumn Header="Type"            DisplayMemberBinding="{Binding Type}"         Width="80"/>
+                                        <GridViewColumn Header="Type"            DisplayMemberBinding="{Binding Type}"         Width="60"/>
                                         <GridViewColumn Header="URI"             Width="460">
                                             <GridViewColumn.CellTemplate>
                                                 <DataTemplate>
@@ -2092,6 +2098,7 @@
                                     <RowDefinition Height="Auto"/>  <!-- Action bar    -->
                                 </Grid.RowDefinitions>
 
+                                <!-- Top section: reconciliation list with summary and connection status -->
                                 <!-- Unified reconciliation view with definitions toolbar -->
                                 <Border Grid.Row="0"
                                         BorderThickness="1"
@@ -2107,6 +2114,7 @@
                                                 BorderThickness="0,0,0,1"
                                                 Padding="12,8"
                                                 Background="{DynamicResource ControlBackgroundBrush}">
+                                            <!-- Left side shows definition and app counts; right side shows Intune connection state -->
                                             <DockPanel LastChildFill="False">
                                                 <StackPanel Orientation="Horizontal"
                                                             VerticalAlignment="Center"
@@ -2141,6 +2149,7 @@
 
                                         <!-- Reconciliation list + empty hint -->
                                         <Grid>
+                                            <!-- Main reconciliation table: app rows, status colors, and import action suggestions -->
                                                 <ListView x:Name="IntuneWin32AppsListView"
                                                           Style="{StaticResource FluentListView}"
                                                           BorderThickness="0"
@@ -2215,16 +2224,17 @@
                                                     </ListView.ItemContainerStyle>
                                                     <ListView.View>
                                                         <GridView>
-                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="300"/>
-                                                            <GridViewColumn Header="Architecture"    DisplayMemberBinding="{Binding Architecture}"    Width="90"/>
+                                                            <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="400"/>
+                                                            <GridViewColumn Header="Architecture"    DisplayMemberBinding="{Binding Architecture}"    Width="88"/>
                                                             <GridViewColumn Header="Publisher"       DisplayMemberBinding="{Binding DisplayPublisher}" Width="130"/>
                                                             <GridViewColumn Header="Intune Version"  DisplayMemberBinding="{Binding IntuneVersion}"   Width="110"/>
                                                             <GridViewColumn Header="Latest"          DisplayMemberBinding="{Binding DefinitionVersion}" Width="110"/>
-                                                            <GridViewColumn Header="Status"          DisplayMemberBinding="{Binding MatchStatus}"     Width="200"/>
-                                                            <GridViewColumn Header="Action"          CellTemplate="{StaticResource IntuneActionCellTemplate}" Width="130"/>
+                                                            <GridViewColumn Header="Status"          DisplayMemberBinding="{Binding MatchStatus}"     Width="190"/>
+                                                            <GridViewColumn Header="Action"          CellTemplate="{StaticResource IntuneActionCellTemplate}" Width="220"/>
                                                         </GridView>
                                                     </ListView.View>
                                                 </ListView>
+                                                <!-- Empty-state hint centered over the table when no reconciliation rows are loaded -->
                                                 <StackPanel HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
                                                             Margin="16">
@@ -2265,6 +2275,7 @@
                                         Background="{DynamicResource ControlBackgroundBrush}"
                                         CornerRadius="4"
                                         Padding="12,10">
+                                    <!-- Bottom controls: reload, compare, and import buttons plus status text -->
                                     <DockPanel LastChildFill="True">
                                         <StackPanel Orientation="Horizontal"
                                                     DockPanel.Dock="Right">
@@ -2307,6 +2318,7 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
+                                <!-- Top section: Nerdio definitions and Shell App reconciliation list -->
                                 <Border Grid.Row="0"
                                         BorderThickness="1"
                                         BorderBrush="{DynamicResource ControlBorderBrush}"
@@ -2321,6 +2333,7 @@
                                                 BorderThickness="0,0,0,1"
                                                 Padding="12,8"
                                                 Background="{DynamicResource ControlBackgroundBrush}">
+                                            <!-- Summary counts on the left, Nerdio sign-in state on the right -->
                                             <DockPanel LastChildFill="False">
                                                 <StackPanel Orientation="Horizontal"
                                                             VerticalAlignment="Center"
@@ -2365,6 +2378,7 @@
                                                 Padding="12,8"
                                                 Background="{DynamicResource WindowBackgroundBrush}"
                                                 Visibility="Collapsed">
+                                            <!-- Progress indicator shown while Shell Apps are queried from Nerdio Manager -->
                                             <StackPanel>
                                                 <TextBlock x:Name="NerdioShellAppsLoadingLabel"
                                                            Text="Loading Shell Apps from Nerdio Manager..."
@@ -2381,6 +2395,7 @@
                                         </Border>
 
                                         <Grid>
+                                            <!-- Main Nerdio reconciliation table: definitions, matches, and action state -->
                                             <ListView x:Name="NerdioDefinitionsListView"
                                                       Style="{StaticResource FluentListView}"
                                                       BorderThickness="0"
@@ -2475,7 +2490,7 @@
                                                 </ListView.ItemContainerStyle>
                                                 <ListView.View>
                                                     <GridView>
-                                                        <GridViewColumn Header="App"               Width="300">
+                                                        <GridViewColumn Header="App"               Width="330">
                                                             <GridViewColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}"/>
@@ -2483,14 +2498,14 @@
                                                             </GridViewColumn.CellTemplate>
                                                         </GridViewColumn>
                                                         <GridViewColumn Header="Publisher"          DisplayMemberBinding="{Binding Publisher}"        Width="140"/>
-                                                        <GridViewColumn Header="Shell App"          Width="165">
+                                                        <GridViewColumn Header="Shell App"          Width="240">
                                                             <GridViewColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <TextBlock Text="{Binding NerdioAppName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding NerdioAppName}"/>
                                                                 </DataTemplate>
                                                             </GridViewColumn.CellTemplate>
                                                         </GridViewColumn>
-                                                        <GridViewColumn Header="Versions"           DisplayMemberBinding="{Binding VersionCount}"     Width="75"/>
+                                                        <GridViewColumn Header="Versions"           DisplayMemberBinding="{Binding VersionCount}"     Width="70"/>
                                                         <GridViewColumn Header="Shell App Version"  DisplayMemberBinding="{Binding NerdioVersion}"    Width="115"/>
                                                         <GridViewColumn Header="Latest"             DisplayMemberBinding="{Binding EvergreenVersion}" Width="115"/>
                                                         <GridViewColumn Header="Status"             CellTemplate="{StaticResource NerdioStatusCellTemplate}" Width="200"/>
@@ -2498,6 +2513,7 @@
                                                     </GridView>
                                                 </ListView.View>
                                             </ListView>
+                                            <!-- Empty-state hint centered over the table when no Nerdio data is available -->
                                             <StackPanel HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
                                                         Margin="16">
@@ -2537,6 +2553,7 @@
                                         Background="{DynamicResource ControlBackgroundBrush}"
                                         CornerRadius="4"
                                         Padding="12,10">
+                                    <!-- Bottom controls: reload, compare, update, and import buttons plus status text -->
                                     <DockPanel LastChildFill="True">
                                         <StackPanel Orientation="Horizontal"
                                                     DockPanel.Dock="Right">
@@ -2583,6 +2600,7 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
+                                <!-- Top section: configuration list with connection and validation summary -->
                                 <Border Grid.Row="0"
                                         BorderThickness="1"
                                         BorderBrush="{DynamicResource ControlBorderBrush}"
@@ -2598,6 +2616,7 @@
                                                 BorderThickness="0,0,0,1"
                                                 Padding="12,8"
                                                 Background="{DynamicResource ControlBackgroundBrush}">
+                                            <!-- Configuration count on the left; Intune and Nerdio auth state on the right -->
                                             <DockPanel LastChildFill="False">
                                                 <TextBlock x:Name="M365ConfigsCountLabel"
                                                            Text="0 configurations"
@@ -2649,6 +2668,7 @@
                                                 Padding="12,8"
                                                 Background="{DynamicResource WindowBackgroundBrush}"
                                                 Visibility="Collapsed">
+                                            <!-- Loading message and progress bar shown while M365 configs are scanned -->
                                             <StackPanel>
                                                 <TextBlock x:Name="M365ConfigsLoadingLabel"
                                                            Text="Loading..."
@@ -2666,6 +2686,7 @@
 
                                         <!-- Configurations list -->
                                         <Grid>
+                                            <!-- Main configuration table: file metadata, validation status, and product selection -->
                                             <ListView x:Name="M365ConfigsListView"
                                                       Style="{StaticResource FluentListView}"
                                                       BorderThickness="0"
@@ -2741,10 +2762,11 @@
                                                         <GridViewColumn Header="Status"       CellTemplate="{StaticResource M365StatusCellTemplate}" Width="75"/>
                                                         <GridViewColumn Header="Name" DisplayMemberBinding="{Binding DisplayName}"      Width="350"/>
                                                         <GridViewColumn Header="Products"     DisplayMemberBinding="{Binding Products}"         Width="300"/>
-                                                        <GridViewColumn Header="Excluded Apps" DisplayMemberBinding="{Binding ExcludedProducts}" Width="420"/>
+                                                        <GridViewColumn Header="Excluded Apps" DisplayMemberBinding="{Binding ExcludedProducts}" Width="460"/>
                                                     </GridView>
                                                 </ListView.View>
                                             </ListView>
+                                            <!-- Empty-state hint centered over the table when no configuration files are loaded -->
                                             <StackPanel HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
                                                         Margin="16">
@@ -2785,6 +2807,7 @@
                                         Background="{DynamicResource ControlBackgroundBrush}"
                                         CornerRadius="4"
                                         Padding="12,10">
+                                    <!-- Bottom controls: import actions on the right, channel and import settings on the left -->
                                     <DockPanel LastChildFill="True">
                                         <StackPanel Orientation="Horizontal"
                                                     DockPanel.Dock="Right">
@@ -2884,6 +2907,7 @@
                                             CornerRadius="8"
                                             Padding="12"
                                             Margin="0,0,0,20">
+                                        <!-- Sign-in row: tenant input, auth status, and Entra sign-in/out buttons -->
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
@@ -2965,7 +2989,7 @@
                                             Margin="0,0,0,20">
                                         <StackPanel>
 
-                                            <!-- API credential fields -->
+                                            <!-- Top row: Nerdio host, client, scope, token URL, and secret inputs -->
                                             <Grid Margin="0,0,0,12">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
@@ -3017,7 +3041,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                            <!-- Tenant ID + API sign-in row -->
+                        <!-- Bottom row: shared tenant ID, auth status, and Nerdio API sign-in controls -->
                                             <Border BorderThickness="1"
                                                     BorderBrush="{DynamicResource ControlBorderBrush}"
                                                     Background="{DynamicResource WindowBackgroundBrush}"
@@ -3109,7 +3133,7 @@
                                             Margin="0,0,0,20">
                                         <StackPanel>
 
-                                            <!-- Storage fields -->
+                                            <!-- Top row: Azure subscription, resource group, storage account, and container selectors -->
                                             <Grid Margin="0,0,0,12">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
@@ -3160,7 +3184,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                            <!-- Azure sign-in row -->
+                        <!-- Bottom row: Azure auth state and sign-in/out buttons used to populate the storage selectors -->
                                             <Border BorderThickness="1"
                                                     BorderBrush="{DynamicResource ControlBorderBrush}"
                                                     Background="{DynamicResource WindowBackgroundBrush}"
@@ -3242,6 +3266,7 @@
                                    VerticalAlignment="Center"/>
                     </DockPanel>
 
+                    <!-- Top section: package definitions summary, elevation state, and loading progress -->
                     <Border Grid.Row="1"
                             BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorderBrush}"
@@ -3312,6 +3337,7 @@
                             </Border>
 
                             <Grid>
+                                <!-- Main install table: local definitions, installed state, latest version, and install actions -->
                                 <ListView x:Name="InstallPackagesListView"
                                           Style="{StaticResource FluentListView}"
                                           BorderThickness="0"
@@ -3321,7 +3347,7 @@
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                             <Setter Property="MinHeight" Value="32"/>
                                             <Setter Property="Padding" Value="0"/>
-                                            <Setter Property="FontSize" Value="12"/>
+                                            <Setter Property="FontSize" Value="13"/>
                                             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                             <Setter Property="FocusVisualStyle" Value="{StaticResource FluentFocusVisualStyle}"/>
                                             <Setter Property="Template">
@@ -3356,12 +3382,12 @@
                                     </ListView.ItemContainerStyle>
                                     <ListView.View>
                                         <GridView>
-                                            <GridViewColumn Header="App" DisplayMemberBinding="{Binding Name}" Width="300"/>
+                                            <GridViewColumn Header="App" DisplayMemberBinding="{Binding Name}" Width="340"/>
                                             <GridViewColumn Header="Architecture" DisplayMemberBinding="{Binding Architecture}" Width="90"/>
-                                            <GridViewColumn Header="Publisher" DisplayMemberBinding="{Binding Publisher}" Width="140"/>
+                                            <GridViewColumn Header="Publisher" DisplayMemberBinding="{Binding Publisher}" Width="180"/>
                                             <GridViewColumn Header="Installed" DisplayMemberBinding="{Binding InstalledVersion}" Width="140"/>
                                             <GridViewColumn Header="Latest" DisplayMemberBinding="{Binding LatestVersion}" Width="140"/>
-                                            <GridViewColumn Header="Status" DisplayMemberBinding="{Binding InstallStatus}" Width="190"/>
+                                            <GridViewColumn Header="Status" DisplayMemberBinding="{Binding InstallStatus}" Width="200"/>
                                             <GridViewColumn Header="Action" DisplayMemberBinding="{Binding InstallAction}" Width="120"/>
                                         </GridView>
                                     </ListView.View>
@@ -3399,6 +3425,7 @@
                         </DockPanel>
                     </Border>
 
+                    <!-- Bottom action bar: reload definitions, resolve versions, and start the install -->
                     <Border Grid.Row="2"
                             BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorderBrush}"
@@ -3448,6 +3475,7 @@
                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
 
+                                                <!-- General settings card: paths, theme preference, tab visibility, cache, and logs -->
                         <Border BorderThickness="1"
                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                 Background="{DynamicResource ControlBackgroundBrush}"
@@ -3473,6 +3501,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,14"/>
 
+                                <!-- Paths section: download output path and Evergreen apps folder shortcut -->
                                 <TextBlock Grid.Row="1" Grid.Column="0"
                                            Text="Download output path"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
@@ -3515,6 +3544,7 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,7,10,16"/>
+                                <!-- Appearance and feature toggles: theme selector plus import/install tab visibility -->
                                 <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -3587,6 +3617,7 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,7,10,16"/>
+                                <!-- Cache controls: inspect or clear locally cached app version data -->
                                 <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,16">
                                     <TextBlock Text="Cached version data is stored locally and loaded automatically when you select an app. Clear the cache to force a fetch via Evergreen on next selection."
                                                Foreground="{DynamicResource TextSecondaryBrush}"
@@ -3609,6 +3640,7 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,7,10,0"/>
+                                <!-- Log controls: open or clear local EvergreenUI log files -->
                                 <StackPanel Grid.Row="5" Grid.Column="1">
                                     <TextBlock Text="The Evergreen Workbench keeps logs for review and troubleshooting. Open the EvergreenUI logs folder or clear all local log files (*.log)."
                                                Foreground="{DynamicResource TextSecondaryBrush}"
@@ -3653,6 +3685,7 @@
                                    VerticalAlignment="Center"/>
                     </DockPanel>
 
+                    <!-- Single action area: run the Evergreen cache update workflow -->
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
                         <Button x:Name="RunUpdateEvergreenButton"
                                 Content="Update Evergreen apps cache"
@@ -3661,6 +3694,7 @@
                                 Margin="0,0,8,0"/>
                     </StackPanel>
 
+                    <!-- Console-style output area for update progress and diagnostics -->
                     <Border Grid.Row="2"
                             BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorderBrush}"
@@ -3708,6 +3742,7 @@
                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
 
+                        <!-- Module metadata card: identity, versioning, author, and project links -->
                         <Border BorderThickness="1"
                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                 Background="{DynamicResource ControlBackgroundBrush}"
@@ -3787,6 +3822,7 @@
                             </Grid>
                         </Border>
 
+                            <!-- Description card: longer module summary text -->
                         <Border BorderThickness="1"
                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                 Background="{DynamicResource ControlBackgroundBrush}"
@@ -3804,6 +3840,7 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Required modules card: dependency list and installed versions -->
                         <Border BorderThickness="1"
                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                 Background="{DynamicResource ControlBackgroundBrush}"
@@ -3815,6 +3852,7 @@
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,8"/>
+                                <!-- Repeating item template for each required module entry -->
                                 <ItemsControl x:Name="AboutRequiredModulesList">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
