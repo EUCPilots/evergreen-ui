@@ -1852,7 +1852,7 @@
                                                 Padding="10,6"/>
                                         <Button x:Name="IntuneUpdateDefinitionsButton"
                                                 Content="Update definitions"
-                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Style="{StaticResource FluentButton}"
                                                 Padding="10,6"
                                                 IsEnabled="False"/>
                                     </StackPanel>
@@ -1972,7 +1972,7 @@
                                         Padding="10,6"/>
                                     <Button x:Name="NerdioLoadConfigsButton"
                                         Content="Load definitions"
-                                        Style="{StaticResource FluentSecondaryButton}"
+                                        Style="{StaticResource FluentButton}"
                                                 Padding="10,6"/>
                                     </StackPanel>
                                     <TextBox x:Name="NerdioDefinitionsPathBox"
@@ -2038,7 +2038,7 @@
                                                 Padding="10,6"/>
                                         <Button x:Name="M365LoadConfigsButton"
                                                 Content="Load configurations"
-                                                Style="{StaticResource FluentSecondaryButton}"
+                                                Style="{StaticResource FluentButton}"
                                                 Padding="10,6"/>
                                     </StackPanel>
                                     <TextBox x:Name="M365ConfigPathBox"
