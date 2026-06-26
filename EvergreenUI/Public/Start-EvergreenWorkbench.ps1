@@ -439,6 +439,9 @@ function Start-EvergreenWorkbench {
     $intuneConnectionStatusLabel = $window.FindName('IntuneConnectionStatusLabel')
     $intuneWin32AppsListView = $window.FindName('IntuneWin32AppsListView')
     $intuneActionStatusLabel = $window.FindName('IntuneActionStatusLabel')
+    $intuneDefinitionsLoadingPanel = $window.FindName('IntuneDefinitionsLoadingPanel')
+    $intuneDefinitionsLoadingLabel = $window.FindName('IntuneDefinitionsLoadingLabel')
+    $intuneDefinitionsProgressBar = $window.FindName('IntuneDefinitionsProgressBar')
     $intuneImportLoadingPanel = $window.FindName('IntuneImportLoadingPanel')
     $intuneImportLoadingLabel = $window.FindName('IntuneImportLoadingLabel')
     $intuneImportProgressBar = $window.FindName('IntuneImportProgressBar')
@@ -897,10 +900,12 @@ function Start-EvergreenWorkbench {
         $view.Refresh()
     }
 
-    $setIntuneImportLoadingState = {
+    $setIntuneLoadingState = {
         param(
             [bool]$IsLoading,
-            [string]$Message = ''
+            [string]$Message = '',
+            [ValidateSet('Import', 'Definitions')]
+            [string]$Panel = 'Import'
         )
 
         $syncHash.IsIntuneImportLoading = $IsLoading
@@ -925,21 +930,38 @@ function Start-EvergreenWorkbench {
             $syncHash.IntuneActionButtonStates.Clear()
         }
 
+        if ($null -ne $intuneDefinitionsLoadingPanel) {
+            $intuneDefinitionsLoadingPanel.Visibility = if ($IsLoading -and $Panel -eq 'Definitions') { 'Visible' } else { 'Collapsed' }
+        }
+
+        if ($null -ne $intuneDefinitionsLoadingLabel) {
+            if ($IsLoading -and $Panel -eq 'Definitions' -and -not [string]::IsNullOrWhiteSpace($Message)) {
+                $intuneDefinitionsLoadingLabel.Text = $Message
+            }
+            elseif (-not $IsLoading) {
+                $intuneDefinitionsLoadingLabel.Text = 'Updating definitions...'
+            }
+        }
+
+        if ($null -ne $intuneDefinitionsProgressBar) {
+            $intuneDefinitionsProgressBar.Visibility = if ($IsLoading -and $Panel -eq 'Definitions') { 'Visible' } else { 'Collapsed' }
+        }
+
         if ($null -ne $intuneImportLoadingPanel) {
-            $intuneImportLoadingPanel.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+            $intuneImportLoadingPanel.Visibility = if ($IsLoading -and $Panel -eq 'Import') { 'Visible' } else { 'Collapsed' }
         }
 
         if ($null -ne $intuneImportLoadingLabel) {
-            if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
+            if ($IsLoading -and $Panel -eq 'Import' -and -not [string]::IsNullOrWhiteSpace($Message)) {
                 $intuneImportLoadingLabel.Text = $Message
             }
             elseif (-not $IsLoading) {
-                $intuneImportLoadingLabel.Text = 'Working...'
+                $intuneImportLoadingLabel.Text = 'Importing Win32 apps...'
             }
         }
 
         if ($null -ne $intuneImportProgressBar) {
-            $intuneImportProgressBar.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
+            $intuneImportProgressBar.Visibility = if ($IsLoading -and $Panel -eq 'Import') { 'Visible' } else { 'Collapsed' }
         }
 
         if ($null -ne $intuneActionStatusLabel) {
@@ -1822,7 +1844,7 @@ function Start-EvergreenWorkbench {
             $syncHash[$key] = $null
         }
 
-        & $setIntuneImportLoadingState -IsLoading $true -Message "Importing $($importActions.Count) app(s)..."
+        & $setIntuneLoadingState -IsLoading $true -Message "Importing $($importActions.Count) app(s)..." -Panel 'Import'
         Write-UILog -SyncHash $syncHash -Message "Intune: starting import of $($importActions.Count) app(s)..." -Level Info
 
         # Resolve required private helper scripts explicitly so the runspace does not import the full UI module.
@@ -2020,13 +2042,13 @@ function Start-EvergreenWorkbench {
                     }
 
                     # Clear loading state before refresh, otherwise loadIntuneWin32Apps exits early.
-                    & $setIntuneImportLoadingState -IsLoading $false
+                    & $setIntuneLoadingState -IsLoading $false
 
                     # Refresh the comparison table against the updated Intune catalog
                     & $loadIntuneWin32Apps
                 }
                 finally {
-                    & $setIntuneImportLoadingState -IsLoading $false
+                    & $setIntuneLoadingState -IsLoading $false
                 }
             })
 
@@ -4057,7 +4079,7 @@ function Start-EvergreenWorkbench {
             $syncHash[$pendingOp] = $null
         }
 
-        & $setIntuneImportLoadingState -IsLoading $true -Message 'Updating definitions...'
+        & $setIntuneLoadingState -IsLoading $true -Message 'Updating definitions...' -Panel 'Definitions'
         Write-UILog -SyncHash $syncHash -Message "Intune: updating $($definitionRows.Count) definitions via Evergreen..." -Level Info
 
         $privateRoot = Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\Private') -ErrorAction SilentlyContinue
@@ -4141,7 +4163,7 @@ function Start-EvergreenWorkbench {
 
                 Write-UILog -SyncHash $syncHash -Message "Intune update complete: $updatedCount updated, $currentCount already current, $failedCount failed." -Level Info
 
-                & $setIntuneImportLoadingState -IsLoading $false
+                & $setIntuneLoadingState -IsLoading $false
                 & $loadIntuneDefinitions
             })
 
@@ -4162,7 +4184,7 @@ function Start-EvergreenWorkbench {
             $syncHash[$pendingOp] = $null
         }
 
-        & $setIntuneImportLoadingState -IsLoading $true -Message 'Listing Win32 apps from Microsoft Intune...'
+        & $setIntuneLoadingState -IsLoading $true -Message 'Listing Win32 apps from Microsoft Intune...' -Panel 'Import'
         Write-UILog -SyncHash $syncHash -Message 'Intune: retrieving Win32 apps via Microsoft Graph...' -Level Info
 
         $rs = New-WpfRunspace -SyncHash $syncHash
@@ -4286,7 +4308,7 @@ function Start-EvergreenWorkbench {
                     & $refreshIntuneComparison
                 }
                 finally {
-                    & $setIntuneImportLoadingState -IsLoading $false
+                    & $setIntuneLoadingState -IsLoading $false
                 }
             })
 

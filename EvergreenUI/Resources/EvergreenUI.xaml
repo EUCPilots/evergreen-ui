@@ -1838,7 +1838,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,12"/>
 
-                                <TextBlock Text="Path to package definitions (for Intune and Install)"
+                                <TextBlock Text="Path to package definitions (for import into Intune or local Install)"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
@@ -1904,7 +1904,7 @@
                                     </DockPanel>
                                 </Border>
 
-                                <Border x:Name="IntuneImportLoadingPanel"
+                                <Border x:Name="IntuneDefinitionsLoadingPanel"
                                         BorderBrush="{DynamicResource ControlBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="4"
@@ -1913,12 +1913,12 @@
                                         Background="{DynamicResource WindowBackgroundBrush}"
                                         Visibility="Collapsed">
                                     <StackPanel>
-                                        <TextBlock x:Name="IntuneImportLoadingLabel"
-                                                   Text="Working..."
+                                    <TextBlock x:Name="IntuneDefinitionsLoadingLabel"
+                                           Text="Updating definitions..."
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    FontSize="12"
                                                    Margin="0,0,0,6"/>
-                                        <ProgressBar x:Name="IntuneImportProgressBar"
+                                    <ProgressBar x:Name="IntuneDefinitionsProgressBar"
                                                      IsIndeterminate="True"
                                                      Height="3"
                                                      Foreground="{DynamicResource AccentBrush}"
@@ -2582,8 +2582,8 @@
                                                             <GridViewColumn Header="App"            DisplayMemberBinding="{Binding DisplayName}"    Width="400"/>
                                                             <GridViewColumn Header="Architecture"    DisplayMemberBinding="{Binding Architecture}"    Width="88"/>
                                                             <GridViewColumn Header="Publisher"       DisplayMemberBinding="{Binding DisplayPublisher}" Width="130"/>
-                                                            <GridViewColumn Header="Intune Version"  DisplayMemberBinding="{Binding IntuneVersion}"   Width="110"/>
-                                                            <GridViewColumn Header="Latest"          DisplayMemberBinding="{Binding DefinitionVersion}" Width="110"/>
+                                                            <GridViewColumn Header="Intune Version"  DisplayMemberBinding="{Binding IntuneVersion}"   Width="115"/>
+                                                            <GridViewColumn Header="Latest"          DisplayMemberBinding="{Binding DefinitionVersion}" Width="115"/>
                                                             <GridViewColumn Header="Status"          DisplayMemberBinding="{Binding MatchStatus}"     Width="190"/>
                                                             <GridViewColumn Header="Action"          CellTemplate="{StaticResource IntuneActionCellTemplate}" Width="220"/>
                                                         </GridView>
@@ -2630,10 +2630,40 @@
                                         Background="{DynamicResource ControlBackgroundBrush}"
                                         CornerRadius="4"
                                         Padding="12,10">
-                                    <!-- Bottom controls: reload, compare, and import buttons plus status text -->
-                                    <DockPanel LastChildFill="True">
-                                        <StackPanel Orientation="Horizontal"
-                                                    DockPanel.Dock="Right">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Border x:Name="IntuneImportLoadingPanel"
+                                                Grid.Row="0"
+                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="12,8"
+                                                Margin="0,0,0,10"
+                                                Background="{DynamicResource WindowBackgroundBrush}"
+                                                Visibility="Collapsed">
+                                            <StackPanel>
+                                                <TextBlock x:Name="IntuneImportLoadingLabel"
+                                                           Text="Importing Win32 apps..."
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           FontSize="12"
+                                                           Margin="0,0,0,6"/>
+                                                <ProgressBar x:Name="IntuneImportProgressBar"
+                                                             IsIndeterminate="True"
+                                                             Height="3"
+                                                             Foreground="{DynamicResource AccentBrush}"
+                                                             Background="{DynamicResource ControlBorderBrush}"
+                                                             BorderThickness="0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Bottom controls: reload, compare, and import buttons plus status text -->
+                                        <DockPanel Grid.Row="1" LastChildFill="True">
+                                            <StackPanel Orientation="Horizontal"
+                                                        DockPanel.Dock="Right">
                                             <Button x:Name="IntuneLoadDefinitionsButton"
                                                 Content="Reload definitions"
                                                 Style="{StaticResource FluentSecondaryButton}"
@@ -2653,13 +2683,14 @@
                                                     Height="32"
                                                     Padding="12,0"
                                                     IsEnabled="False"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="IntuneActionStatusLabel"
-                                                   Text=""
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="12"/>
-                                    </DockPanel>
+                                            </StackPanel>
+                                            <TextBlock x:Name="IntuneActionStatusLabel"
+                                                       Text=""
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="12"/>
+                                        </DockPanel>
+                                    </Grid>
                                 </Border>
 
                             </Grid>
