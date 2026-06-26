@@ -1838,7 +1838,19 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,12"/>
 
-                                <TextBlock Text="Path to package definitions (for import into Intune or local Install)"
+                                <Border BorderBrush="{DynamicResource ControlBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="12,8"
+                                        Margin="0,0,0,12"
+                                        Background="{DynamicResource ControlBackgroundBrush}">
+                                    <TextBlock Text="Packages specified here are used for import into Microsoft Intune and for local Install. Use the 'Update definitions' button to find new versions of applications and update the definitions before importing packages or installing."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"/>
+                                </Border>
+
+                                <TextBlock Text="Path to package definitions"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
@@ -1958,7 +1970,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,0,0,12"/>
 
-                                <TextBlock Text="Path to apps definitions"
+                                <TextBlock Text="Path to shell apps definitions"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="12"
                                            Margin="0,0,0,6"/>
