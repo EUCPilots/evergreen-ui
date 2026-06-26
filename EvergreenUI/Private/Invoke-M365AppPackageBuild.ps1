@@ -25,6 +25,10 @@
 .PARAMETER CompanyName
     The company name written to the AppSettings/Setup element in the XML.
 
+.PARAMETER ImportFor
+    Session type for import: 'Single session' sets SharedComputerLicensing to 0,
+    'Multi-session' sets SharedComputerLicensing to 1.
+
 .PARAMETER TenantId
     The Entra ID tenant ID written to the TenantId Property element in the XML.
 
@@ -53,6 +57,10 @@ function Invoke-M365AppPackageBuild {
 
         [Parameter(Mandatory)]
         [string]$CompanyName,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('Single session', 'Multi-session')]
+        [string]$ImportFor,
 
         [Parameter(Mandatory)]
         [string]$TenantId,
@@ -121,6 +129,26 @@ function Invoke-M365AppPackageBuild {
         }
         Write-UILog -SyncHash $SyncHash -Message "M365: setup.exe downloaded to '$sourcePath'." -Level Info
 
+        # Get the file version from the downloaded setup.exe
+        $setupExeVersion = ''
+        try {
+            $setupExeVersionInfo = (Get-Item -LiteralPath $setupFile).VersionInfo
+            $setupExeVersion = if (-not [string]::IsNullOrWhiteSpace($setupExeVersionInfo.FileVersion)) {
+                $setupExeVersionInfo.FileVersion
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace($setupExeVersionInfo.ProductVersion)) {
+                $setupExeVersionInfo.ProductVersion
+            }
+            else {
+                $version
+            }
+            Write-UILog -SyncHash $SyncHash -Message "M365: setup.exe file version: $setupExeVersion" -Level Info
+        }
+        catch {
+            Write-UILog -SyncHash $SyncHash -Message "M365: could not read setup.exe file version, using Evergreen version ($version): $($_.Exception.Message)" -Level Warning
+            $setupExeVersion = $version
+        }
+
         # Copy and rename the install config XML
         $installXmlDest = Join-Path -Path $sourcePath -ChildPath 'Install-Microsoft365Apps.xml'
         Copy-Item -LiteralPath $ConfigRow.FilePath -Destination $installXmlDest -Force -ErrorAction Stop
@@ -135,6 +163,7 @@ function Invoke-M365AppPackageBuild {
         # Update Install-Microsoft365Apps.xml with caller-supplied values
         Write-UILog -SyncHash $SyncHash -Message 'M365: Updating configuration XML with channel, tenant ID, and company name...' -Level Info
         [xml]$xml = Get-Content -LiteralPath $installXmlDest -Raw -ErrorAction Stop
+        $sharedComputerLicensingValue = if ($ImportFor -eq 'Multi-session') { '1' } else { '0' }
 
         # Channel
         $xml.Configuration.Add.Channel = $Channel
@@ -148,6 +177,12 @@ function Invoke-M365AppPackageBuild {
         # CompanyName via AppSettings/Setup
         if ($null -ne $xml.Configuration.AppSettings -and $null -ne $xml.Configuration.AppSettings.Setup) {
             $xml.Configuration.AppSettings.Setup.Value = $CompanyName
+        }
+
+        # SharedComputerLicensing Property
+        $sclProp = $xml.Configuration.Property | Where-Object { $_.Name -eq 'SharedComputerLicensing' } | Select-Object -First 1
+        if ($null -ne $sclProp) {
+            $sclProp.Value = $sharedComputerLicensingValue
         }
 
         $xml.Save($installXmlDest)
@@ -173,7 +208,7 @@ function Invoke-M365AppPackageBuild {
         Write-UILog -SyncHash $SyncHash -Message "M365: Package built: $($intuneWinFile.Name)" -Level Info
 
         $result.IntuneWinPath = $intuneWinFile.FullName
-        $result.Version       = $version
+        $result.Version       = $setupExeVersion
 
         # Copy and update App.json from the template
         if (-not [string]::IsNullOrWhiteSpace($AppJsonTemplatePath) -and
@@ -186,7 +221,7 @@ function Invoke-M365AppPackageBuild {
             $appJson = Get-Content -LiteralPath $appJsonDest -Raw -ErrorAction Stop | ConvertFrom-Json
 
             # Package information
-            $appJson.PackageInformation.Version = $version
+            $appJson.PackageInformation.Version = $setupExeVersion
 
             # App information
             $appJson.Information.DisplayName         = $ConfigRow.DisplayName
@@ -203,14 +238,25 @@ function Invoke-M365AppPackageBuild {
             $normalizedProducts = (([string]$ConfigRow.Products) -split '\s*,\s*' |
                 ForEach-Object { $_.Trim() } |
                 Where-Object { $_ -ne '' }) -join ','
-            $sclValue = if ([bool]$ConfigRow.IsVdi) { '1' } else { '0' }
+            $sclValue = $sharedComputerLicensingValue
 
             foreach ($rule in $appJson.DetectionRule) {
                 switch ([string]$rule.ValueName) {
-                    'VersionToReport'        { $rule.Value = $version }
+                    'VersionToReport'        { $rule.Value = $setupExeVersion }
                     'ProductReleaseIds'      { $rule.Value = $normalizedProducts }
                     'SharedComputerLicensing' { $rule.Value = $sclValue }
                 }
+            }
+
+            # Append description note with setup.exe version, SharedComputerLicensing, and original XML file name
+            $xmlFileName = [System.IO.Path]::GetFileName($ConfigRow.FilePath)
+            $descriptionNote = "Setup.exe version: $setupExeVersion | SharedComputerLicensing: $sharedComputerLicensingValue | Configuration XML: $xmlFileName"
+            $existingDesc = [string]$appJson.Information.Description
+            $appJson.Information.Description = if ([string]::IsNullOrWhiteSpace($existingDesc)) {
+                $descriptionNote
+            }
+            else {
+                "$existingDesc`n$descriptionNote"
             }
 
             $appJson | ConvertTo-Json -Depth 10 |

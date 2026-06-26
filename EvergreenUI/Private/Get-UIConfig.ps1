@@ -66,9 +66,10 @@ function Get-UIConfig {
             PackageOutputPath = ''
             Channel           = 'MonthlyEnterprise'
             CompanyName       = ''
+            ImportFor         = 'Single session'
         }
         InstallSettings   = [PSCustomObject]@{
-            DefinitionsPath   = ''
+            HideIncompatibleArchitecture = $false
         }
         AzureAuthSettings = [PSCustomObject]@{
             TenantId              = ''

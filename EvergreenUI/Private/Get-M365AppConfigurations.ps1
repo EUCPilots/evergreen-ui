@@ -6,7 +6,8 @@
 .DESCRIPTION
     Finds all *.xml files in the specified root directory (non-recursive), excluding
     Uninstall-Microsoft365Apps.xml, and parses each for configuration details including
-    the PSPackageFactory GUID (Configuration/@ID), channel, products, and architecture.
+    the PSPackageFactory GUID (Configuration/@ID), channel, products, excluded products,
+    and architecture.
 
 .PARAMETER DefinitionsRoot
     Path to the directory containing the M365 Apps XML configuration files.
@@ -48,6 +49,17 @@ function Get-M365AppConfigurations {
             # Collect product IDs
             $productNodes = @($addNode.Product)
             $productIds   = ($productNodes | ForEach-Object { [string]$_.ID }) -join ', '
+            $excludedProductList = foreach ($productNode in $productNodes) {
+                if ($productNode.PSObject.Properties.Match('ExcludeApp').Count -eq 0) { continue }
+                foreach ($excludeNode in @($productNode.ExcludeApp)) {
+                    if ($null -eq $excludeNode) { continue }
+                    $excludeId = [string]$excludeNode.ID
+                    if (-not [string]::IsNullOrWhiteSpace($excludeId)) {
+                        $excludeId
+                    }
+                }
+            }
+            $excludedProductIds = @($excludedProductList) -join ', '
 
             # Determine primary product for display name
             $displayProducts = foreach ($p in $productNodes) {
@@ -62,11 +74,11 @@ function Get-M365AppConfigurations {
             $isVdi   = [string]$sclProp.Value -eq '1'
             $envText = if ($isVdi) { 'VDI' } else { 'Desktop' }
 
-            # Compose full display name: "Products: Environment, Architecture"
+            # Compose full display name: "Products: Architecture"
             # Channel is a placeholder in the XML (#Channel) and comes from the user's
             # dropdown selection at packaging time, so it is excluded from the display name.
             $displayName = if ($displayProductsText) {
-                "$displayProductsText`: $envText, $archText"
+                "$displayProductsText`: $archText"
             } else {
                 $file.BaseName
             }
@@ -90,6 +102,7 @@ function Get-M365AppConfigurations {
                 Channel          = $channel
                 Architecture     = $archText
                 Products         = $productIds
+                ExcludedProducts = $excludedProductIds
                 IsVdi            = $isVdi
                 Description      = $description
                 ConfigId         = $configId
@@ -105,6 +118,7 @@ function Get-M365AppConfigurations {
                 Channel          = ''
                 Architecture     = ''
                 Products         = ''
+                ExcludedProducts = ''
                 IsVdi            = $false
                 Description      = ''
                 ConfigId         = ''

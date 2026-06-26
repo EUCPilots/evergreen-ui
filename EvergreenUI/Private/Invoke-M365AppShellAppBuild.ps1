@@ -28,6 +28,10 @@
 .PARAMETER CompanyName
     The company name written to the AppSettings/Setup element in the XML.
 
+.PARAMETER ImportFor
+    Session type for import: 'Single session' sets SharedComputerLicensing to 0,
+    'Multi-session' sets SharedComputerLicensing to 1.
+
 .PARAMETER TenantId
     The Entra ID tenant ID written to the TenantId Property element in the XML.
 
@@ -57,6 +61,10 @@ function Invoke-M365AppShellAppBuild {
         [string]$CompanyName,
 
         [Parameter(Mandatory)]
+        [ValidateSet('Single session', 'Multi-session')]
+        [string]$ImportFor,
+
+        [Parameter(Mandatory)]
         [string]$TenantId,
 
         [Parameter(Mandatory)]
@@ -73,11 +81,12 @@ function Invoke-M365AppShellAppBuild {
         param([string]$Msg)
         Write-UILog -SyncHash $SyncHash -Message "M365 Shell App build: $Msg" -Level Error
         return [PSCustomObject]@{
-            Succeeded  = $false
-            ZipPath    = ''
-            Version    = ''
-            SourcePath = ''
-            Error      = $Msg
+            Succeeded       = $false
+            ZipPath         = ''
+            Version         = ''
+            SourcePath      = ''
+            DescriptionNote = ''
+            Error           = $Msg
         }
     }
 
@@ -115,6 +124,26 @@ function Invoke-M365AppShellAppBuild {
         }
         Write-UILog -SyncHash $SyncHash -Message "M365: setup.exe downloaded to '$sourcePath'." -Level Info
 
+        # Get the file version from the downloaded setup.exe
+        $setupExeVersion = ''
+        try {
+            $setupExeVersionInfo = (Get-Item -LiteralPath $setupFile).VersionInfo
+            $setupExeVersion = if (-not [string]::IsNullOrWhiteSpace($setupExeVersionInfo.FileVersion)) {
+                $setupExeVersionInfo.FileVersion
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace($setupExeVersionInfo.ProductVersion)) {
+                $setupExeVersionInfo.ProductVersion
+            }
+            else {
+                $version
+            }
+            Write-UILog -SyncHash $SyncHash -Message "M365: setup.exe file version: $setupExeVersion" -Level Info
+        }
+        catch {
+            Write-UILog -SyncHash $SyncHash -Message "M365: could not read setup.exe file version, using Evergreen version ($version): $($_.Exception.Message)" -Level Warning
+            $setupExeVersion = $version
+        }
+
         # Copy and rename the install config XML
         $installXmlDest = Join-Path -Path $sourcePath -ChildPath 'Install-Microsoft365Apps.xml'
         Copy-Item -LiteralPath $ConfigRow.FilePath -Destination $installXmlDest -Force -ErrorAction Stop
@@ -130,6 +159,7 @@ function Invoke-M365AppShellAppBuild {
         # Update Install-Microsoft365Apps.xml with caller-supplied values
         Write-UILog -SyncHash $SyncHash -Message 'M365: Updating configuration XML with channel, tenant ID, and company name...' -Level Info
         [xml]$xml = Get-Content -LiteralPath $installXmlDest -Raw -ErrorAction Stop
+        $sharedComputerLicensingValue = if ($ImportFor -eq 'Multi-session') { '1' } else { '0' }
 
         $xml.Configuration.Add.Channel = $Channel
 
@@ -144,8 +174,20 @@ function Invoke-M365AppShellAppBuild {
             $xml.Configuration.AppSettings.Setup.Value = $CompanyName
         }
 
+        # SharedComputerLicensing Property
+        $sclProp = $xml.Configuration.Property |
+            Where-Object { $_.Name -eq 'SharedComputerLicensing' } |
+            Select-Object -First 1
+        if ($null -ne $sclProp) {
+            $sclProp.Value = $sharedComputerLicensingValue
+        }
+
         $xml.Save($installXmlDest)
         Write-UILog -SyncHash $SyncHash -Message 'M365: Configuration XML updated.' -Level Info
+
+        # Build description note with setup.exe version, SharedComputerLicensing, and original XML file name
+        $xmlFileName = [System.IO.Path]::GetFileName($ConfigRow.FilePath)
+        $descriptionNote = "Setup.exe version: $setupExeVersion | SharedComputerLicensing: $sharedComputerLicensingValue | Configuration XML: $xmlFileName"
 
         # Build zip archive containing setup.exe and both XMLs
         $zipPath = Join-Path -Path $WorkingPath -ChildPath ($safeName + '\Microsoft365Apps.zip')
@@ -174,11 +216,12 @@ function Invoke-M365AppShellAppBuild {
         Write-UILog -SyncHash $SyncHash -Message "M365: Zip archive created: $zipPath" -Level Info
 
         return [PSCustomObject]@{
-            Succeeded  = $true
-            ZipPath    = $zipPath
-            Version    = $version
-            SourcePath = $sourcePath
-            Error      = ''
+            Succeeded       = $true
+            ZipPath         = $zipPath
+            Version         = $setupExeVersion
+            SourcePath      = $sourcePath
+            DescriptionNote = $descriptionNote
+            Error           = ''
         }
     }
     catch {

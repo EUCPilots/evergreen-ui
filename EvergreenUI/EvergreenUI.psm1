@@ -17,7 +17,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# Dot-source Private functions 
+# Dot-source Private functions
 $privatePath = Join-Path -Path $PSScriptRoot -ChildPath 'Private'
 
 # Themes first - other helpers may reference theme functions
@@ -28,7 +28,7 @@ Get-ChildItem -Path (Join-Path -Path $privatePath -ChildPath 'themes') -Filter '
 Get-ChildItem -Path $privatePath -Filter '*.ps1' |
     ForEach-Object { . $_.FullName }
 
-# Dot-source Public functions 
+# Dot-source Public functions
 $publicPath = Join-Path -Path $PSScriptRoot -ChildPath 'Public'
 Get-ChildItem -Path $publicPath -Filter '*.ps1' |
     ForEach-Object { . $_.FullName }

@@ -77,6 +77,23 @@ function Test-LocalPackageDetection {
             }
         }
 
+        $leftNumber = 0.0
+        $rightNumber = 0.0
+        $leftIsNumber = [double]::TryParse($Left, [ref]$leftNumber)
+        $rightIsNumber = [double]::TryParse($Right, [ref]$rightNumber)
+
+        if ($leftIsNumber -and $rightIsNumber) {
+            switch -Regex ($op.ToLowerInvariant()) {
+                '^equal$|^eq$' { return $leftNumber -eq $rightNumber }
+                '^notequal$|^ne$' { return $leftNumber -ne $rightNumber }
+                '^greaterthan$|^gt$' { return $leftNumber -gt $rightNumber }
+                '^greaterthanorequal$|^greaterthanorequals$|^ge$' { return $leftNumber -ge $rightNumber }
+                '^lessthan$|^lt$' { return $leftNumber -lt $rightNumber }
+                '^lessthanorequal$|^lessthanorequals$|^le$' { return $leftNumber -le $rightNumber }
+                default { return $leftNumber -eq $rightNumber }
+            }
+        }
+
         switch -Regex ($op.ToLowerInvariant()) {
             '^equal$|^eq$' { return [string]::Equals($Left, $Right, [System.StringComparison]::OrdinalIgnoreCase) }
             '^notequal$|^ne$' { return -not [string]::Equals($Left, $Right, [System.StringComparison]::OrdinalIgnoreCase) }
@@ -96,11 +113,17 @@ function Test-LocalPackageDetection {
         }
 
         $normalized = $RawPath.Trim()
-        if ($normalized -match '^HKEY_LOCAL_MACHINE' -or $normalized -match '^HKLM') {
-            $normalized = $normalized -replace '^HKEY_LOCAL_MACHINE', 'HKLM:' -replace '^HKLM', 'HKLM:'
+        if ($normalized -match '^HKEY_LOCAL_MACHINE') {
+            $normalized = $normalized -replace '^HKEY_LOCAL_MACHINE', 'HKLM:'
         }
-        elseif ($normalized -match '^HKEY_CURRENT_USER' -or $normalized -match '^HKCU') {
-            $normalized = $normalized -replace '^HKEY_CURRENT_USER', 'HKCU:' -replace '^HKCU', 'HKCU:'
+        elseif ($normalized -match '^HKLM[^:]') {
+            $normalized = $normalized -replace '^HKLM', 'HKLM:'
+        }
+        elseif ($normalized -match '^HKEY_CURRENT_USER') {
+            $normalized = $normalized -replace '^HKEY_CURRENT_USER', 'HKCU:'
+        }
+        elseif ($normalized -match '^HKCU[^:]') {
+            $normalized = $normalized -replace '^HKCU', 'HKCU:'
         }
 
         if ($Check32BitOn64System -and $normalized -like 'HKLM:*' -and $normalized -notmatch 'WOW6432Node') {
@@ -162,12 +185,35 @@ function Test-LocalPackageDetection {
                     }
                 }
                 'Registry' {
-                    $registryPath = & $resolveRegistryPath -RawPath ([string]$rule.KeyPath) -Check32BitOn64System ([string]$rule.Check32BitOn64System -ieq 'true')
+                    $rawRegistryPath = ''
+                    if ($rule.PSObject.Properties.Name -contains 'KeyPath' -and -not [string]::IsNullOrWhiteSpace([string]$rule.KeyPath)) {
+                        $rawRegistryPath = [string]$rule.KeyPath
+                    }
+                    elseif ($rule.PSObject.Properties.Name -contains 'Path' -and -not [string]::IsNullOrWhiteSpace([string]$rule.Path)) {
+                        $rawRegistryPath = [string]$rule.Path
+                    }
+
+                    $registryPath = & $resolveRegistryPath -RawPath $rawRegistryPath -Check32BitOn64System ([string]$rule.Check32BitOn64System -ieq 'true')
                     if (-not [string]::IsNullOrWhiteSpace($registryPath) -and (Test-Path -LiteralPath $registryPath)) {
-                        $method = [string]$rule.DetectionMethod
+                        $rawMethod = [string]$rule.DetectionMethod
+                        $method = switch -Regex ($rawMethod) {
+                            '^VersionComparison$' { 'Version' }
+                            '^StringComparison$' { 'String' }
+                            '^IntegerComparison$' { 'Integer' }
+                            '^BooleanComparison$' { 'Boolean' }
+                            default { $rawMethod }
+                        }
+
                         if ($method -eq 'Existence') {
-                            $rulePassed = $true
-                            Write-Verbose -Message "EvergreenUI: Registry rule (existence) - key='$registryPath' passed=$rulePassed"
+                            $valueName = [string]$rule.ValueName
+                            if ([string]::IsNullOrWhiteSpace($valueName)) {
+                                $rulePassed = $true
+                            }
+                            else {
+                                $item = Get-ItemProperty -LiteralPath $registryPath -ErrorAction SilentlyContinue
+                                $rulePassed = $null -ne $item -and $item.PSObject.Properties.Name -contains $valueName
+                            }
+                            Write-Verbose -Message "EvergreenUI: Registry rule (existence) - key='$registryPath' value='$valueName' passed=$rulePassed"
                         }
                         else {
                             $valueName = [string]$rule.ValueName
@@ -183,7 +229,17 @@ function Test-LocalPackageDetection {
                                 $detectedVersion = $currentValue
                             }
 
-                            $expectedValue = if ($method -eq 'Version') { [string]$rule.DetectionValue } else { [string]$rule.DetectionValue }
+                            $expectedValue = ''
+                            if ($rule.PSObject.Properties.Name -contains 'DetectionValue' -and -not [string]::IsNullOrWhiteSpace([string]$rule.DetectionValue)) {
+                                $expectedValue = [string]$rule.DetectionValue
+                            }
+                            elseif ($rule.PSObject.Properties.Name -contains 'Value' -and -not [string]::IsNullOrWhiteSpace([string]$rule.Value)) {
+                                $expectedValue = [string]$rule.Value
+                            }
+                            elseif ($rule.PSObject.Properties.Name -contains 'VersionValue' -and -not [string]::IsNullOrWhiteSpace([string]$rule.VersionValue)) {
+                                $expectedValue = [string]$rule.VersionValue
+                            }
+
                             $rulePassed = & $compareValues -Operator ([string]$rule.Operator) -Left $currentValue -Right $expectedValue
                             Write-Verbose -Message "EvergreenUI: Registry rule ($method) - key='$registryPath' value='$valueName' detected='$currentValue' expected='$expectedValue' passed=$rulePassed"
                         }
