@@ -4,13 +4,9 @@ A WPF-based graphical frontend for the [Evergreen](https://eucpilots.com/evergre
 
 Evergreen Workbench ships as a separate PowerShell module so it never modifies the core Evergreen module. It targets Windows only, requires no external DLLs, and supports both **PowerShell 5.1** (Desktop) and **PowerShell 7+**.
 
-![](docs/ui.png)
-
-> **Status:** Pre-release - core functionality implemented; published to PSGallery as beta.
-
 ## Features
 
-- **Apps view** - search and browse all 500+ Evergreen-supported applications; inspect version and download metadata returned by `Get-EvergreenApp`
+- **Apps view** - search and browse all 550+ Evergreen-supported applications; inspect version and download metadata returned by `Get-EvergreenApp`
 - **Dynamic filters** - filter panel builds itself at runtime from whatever properties a given app actually returns (Architecture, Channel, Ring, Language, Type, Release, etc.)
 - **Download queue** - select multiple app/version combinations and download them sequentially via `Save-EvergreenApp`
 - **Library management** - inspect and update an Evergreen library on disk using `Start-EvergreenLibraryUpdate` and related cmdlets
@@ -42,7 +38,7 @@ No additional DLLs are required. The UI is built entirely using WPF assemblies t
 To install from the PowerShell Gallery:
 
 ```powershell
-Install-Module -Name EvergreenUI -AllowPrerelease
+Install-Module -Name EvergreenUI
 ```
 
 To run from source:

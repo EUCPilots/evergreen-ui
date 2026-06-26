@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.1.25]
+
+### New Packages workflow and navigation updates
+- Added a new Packages top-level view to centralize package definition and output settings.
+- Moved key package-related controls out of other views into this dedicated area.
+- Updated navigation and startup behavior to support the new Packages view cleanly.
+- Added package definition counts and richer status presentation across Intune, Nerdio, and M365 package areas.
+
+### Microsoft 365 packaging improvements
+- Added Import for option with Single session and Multi-session modes.
+- Propagated session mode into SharedComputerLicensing handling during package build.
+- Updated M365 config parsing to include ExcludedProducts and surfaced this in the UI.
+- Switched M365 versioning to use downloaded setup.exe file version where possible.
+- Added package description metadata note containing setup.exe version, SharedComputerLicensing value, and source XML name.
+- Improved M365 tables and labels for better clarity.
+
+### Intune Win32 import enhancements
+- Extended import logic to map and send custom requirement rules (file, registry, script) into Graph payloads.
+- Added assignment creation support (AllDevices, AllUsers, Group) with assignment settings.
+- Added install-time/date handling and restart-related assignment behavior support.
+- Split Intune loading indicators into separate Import and Definitions states for clearer feedback.
+- Improved comparison and import action UI wording/flow.
+
+### Install workflow reliability and compatibility
+- Added Hide incompatible architecture option for local install lists.
+- Improved architecture compatibility handling in install rows.
+- Enhanced local detection to support multiple registry schema variants and stronger numeric/operator comparisons.
+- Improved behavior for installed-but-not-detected edge cases when latest version is known or unavailable.
+- Consolidated install definitions source with Intune definitions path workflow.
+
+### UI/theme and usability polish
+- Added broader UI text, spacing, column width, and label updates.
+- Added or refined loading/status panels across major views.
+- Switched various controls to FluentButton variants for consistency.
+- Aligned dark theme base to Windows 11 dark palette.
+- Disabled forced WPF SoftwareOnly rendering path (commented fallback retained).
+- Reordered import provider tabs and made Authentication the default/fallback position.
+
+### Behavioral Notes
+- Import provider tab order changed; Authentication is now the first/default provider.
+- Install definitions are now driven by the package definitions path flow rather than a standalone install path field.
+- Several labels/button captions were updated for consistency and discoverability.
+
 ## [1.0.24] - 2026-07-02
 
 ### Added
