@@ -710,6 +710,102 @@ function Remove-ShellAppVersion {
     }
 }
 
+function Remove-ShellAppVersionHistory {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName)]
+        [System.String] $Id,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateRange(1, [System.Int32]::MaxValue)]
+        [System.Int32] $KeepVersions
+    )
+    process {
+        $versions = @()
+        $removedVersions = [System.Collections.Generic.List[string]]::new()
+        $failedVersions = [System.Collections.Generic.List[string]]::new()
+
+        try {
+            $versions = @(Get-ShellAppVersion -Id $Id)
+        }
+        catch {
+            throw "Failed to query Shell App versions for '$Id': $($_.Exception.Message)"
+        }
+
+        $totalVersions = $versions.Count
+        if ($totalVersions -le $KeepVersions) {
+            Write-Information -MessageData "$($PSStyle.Foreground.Cyan)No versions removed for Shell App '$Id'. Current versions: $totalVersions, keep requested: $KeepVersions."
+            return [PSCustomObject]@{
+                Id               = $Id
+                TotalVersions    = $totalVersions
+                KeepVersions     = $KeepVersions
+                RemovedCount     = 0
+                RemovedVersions  = @()
+                FailedCount      = 0
+                FailedVersions   = @()
+                RequestedRemovals = 0
+            }
+        }
+
+        $sortedVersions = @(
+            $versions |
+                Sort-Object -Property `
+                    @{ Expression = {
+                            $name = [string]$_.name
+                            if ([string]::IsNullOrWhiteSpace($name)) {
+                                return [System.Version]::new([System.Int32]::MaxValue, [System.Int32]::MaxValue, [System.Int32]::MaxValue, [System.Int32]::MaxValue)
+                            }
+
+                            $normalised = $name.TrimStart('v', 'V')
+                            $parsedVersion = $null
+                            if ([System.Version]::TryParse($normalised, [ref]$parsedVersion)) {
+                                return $parsedVersion
+                            }
+
+                            return [System.Version]::new([System.Int32]::MaxValue, [System.Int32]::MaxValue, [System.Int32]::MaxValue, [System.Int32]::MaxValue)
+                        }
+                    },
+                    @{ Expression = { [string]$_.name } }
+        )
+
+        $removeCount = $totalVersions - $KeepVersions
+        $versionsToRemove = @($sortedVersions | Select-Object -First $removeCount)
+
+        foreach ($version in $versionsToRemove) {
+            $versionName = [string]$version.name
+            if ([string]::IsNullOrWhiteSpace($versionName)) {
+                $failedVersions.Add('<unknown>') | Out-Null
+                continue
+            }
+
+            if (-not $PSCmdlet.ShouldProcess("Shell App: $Id", "Remove version '$versionName'")) {
+                Write-Information -MessageData "$($PSStyle.Foreground.Yellow)Skipping removal of Shell App version: $Id, $versionName"
+                continue
+            }
+
+            try {
+                Remove-ShellAppVersion -Id $Id -Name $versionName -Confirm:$false | Out-Null
+                $removedVersions.Add($versionName) | Out-Null
+            }
+            catch {
+                $failedVersions.Add($versionName) | Out-Null
+                Write-Error -Message "Failed to remove Shell App version ($Id, $versionName): $($_.Exception.Message)"
+            }
+        }
+
+        return [PSCustomObject]@{
+            Id                = $Id
+            TotalVersions     = $totalVersions
+            KeepVersions      = $KeepVersions
+            RemovedCount      = $removedVersions.Count
+            RemovedVersions   = @($removedVersions)
+            FailedCount       = $failedVersions.Count
+            FailedVersions    = @($failedVersions)
+            RequestedRemovals = $removeCount
+        }
+    }
+}
+
 function Update-ShellApp {
     [CmdletBinding()]
     param (

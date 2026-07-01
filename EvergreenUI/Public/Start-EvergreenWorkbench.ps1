@@ -238,6 +238,11 @@ function Start-EvergreenWorkbench {
             PendingNerdioAddVersionPS                       = $null
             PendingNerdioAddVersionRunspace                 = $null
             PendingNerdioAddVersionAsync                    = $null
+            PendingNerdioPruneVersionsTimer                 = $null
+            PendingNerdioPruneVersionsPS                    = $null
+            PendingNerdioPruneVersionsRunspace              = $null
+            PendingNerdioPruneVersionsAsync                 = $null
+            PendingNerdioPruneVersionsAppName               = ''
             PendingNerdioImportNewTimer                     = $null
             PendingNerdioImportNewPS                        = $null
             PendingNerdioImportNewRunspace                  = $null
@@ -487,6 +492,7 @@ function Start-EvergreenWorkbench {
     $nerdioShellAppsLoadingLabel = $window.FindName('NerdioShellAppsLoadingLabel')
     $nerdioShellAppsProgressBar = $window.FindName('NerdioShellAppsProgressBar')
     $nerdioAddVersionButton = $window.FindName('NerdioAddVersionButton')
+    $nerdioPruneVersionsButton = $window.FindName('NerdioPruneVersionsButton')
     $nerdioImportNewButton = $window.FindName('NerdioImportNewButton')
     $nerdioActionStatusLabel = $window.FindName('NerdioActionStatusLabel')
     $nerdioImportAuthStatusDot = $window.FindName('NerdioImportAuthStatusDot')
@@ -592,12 +598,14 @@ function Start-EvergreenWorkbench {
 
         $canImportNew = $false
         $canAddVersion = $false
+        $canPruneVersions = $false
 
         if ($null -ne $selectedRow) {
             $hasDefinition = ([string]$selectedRow.HasDefinition -eq 'Yes')
             $isMatched = ([string]$selectedRow.IsMatched -eq 'Yes')
             $isNewApp = ([string]$selectedRow.IsNewApp -eq 'Yes')
             $updateNeeded = ([string]$selectedRow.UpdateNeeded -eq 'Yes')
+            $hasShellAppId = -not [string]::IsNullOrWhiteSpace([string]$selectedRow.NerdioAppId)
 
             $canImportNew = $hasDefinition -and $isNewApp `
                 -and ([bool]$syncHash.IntuneWin32AppLoaded) `
@@ -605,6 +613,7 @@ function Start-EvergreenWorkbench {
             $canAddVersion = $isMatched -and $updateNeeded `
                 -and ([bool]$syncHash.IntuneWin32AppLoaded) `
                 -and ([bool]$syncHash.AzModulesLoaded)
+            $canPruneVersions = $hasShellAppId -and ([bool]$syncHash.NerdioShellAppsLoaded)
         }
 
         if ($null -ne $nerdioImportNewButton) {
@@ -613,6 +622,10 @@ function Start-EvergreenWorkbench {
 
         if ($null -ne $nerdioAddVersionButton) {
             $nerdioAddVersionButton.IsEnabled = (-not $syncHash.IsNerdioShellAppsLoading) -and $canAddVersion
+        }
+
+        if ($null -ne $nerdioPruneVersionsButton) {
+            $nerdioPruneVersionsButton.IsEnabled = (-not $syncHash.IsNerdioShellAppsLoading) -and $canPruneVersions
         }
     }
 
@@ -5274,6 +5287,521 @@ function Start-EvergreenWorkbench {
         $pollTimer.Start()
     }
 
+    $syncDialogTitleBarToBackground = {
+        param([System.Windows.Window]$DialogWindow)
+
+        try {
+            $backgroundBrush = $DialogWindow.Background -as [System.Windows.Media.SolidColorBrush]
+            if ($null -eq $backgroundBrush) {
+                return
+            }
+
+            $captionColorRef =
+                ([int]$backgroundBrush.Color.B -shl 16) -bor
+                ([int]$backgroundBrush.Color.G -shl 8) -bor
+                [int]$backgroundBrush.Color.R
+            $isDarkBackground = (([int]$backgroundBrush.Color.R + [int]$backgroundBrush.Color.G + [int]$backgroundBrush.Color.B) / 3) -lt 128
+
+            Set-DwmTitleBarColor -Window $DialogWindow -CaptionColorRef $captionColorRef -UseDarkMode $isDarkBackground
+        }
+        catch {
+            # best-effort - titlebar theming is cosmetic and must not block dialog display
+            Write-Verbose -Message "EvergreenUI: Failed to apply dialog titlebar colour: $($_.Exception.Message)"
+        }
+    }
+
+    $showNerdioConfirmationDialog = {
+        param(
+            [string]$Title,
+            [string]$Message,
+            [System.Windows.MessageBoxImage]$Icon = [System.Windows.MessageBoxImage]::None,
+            [string]$PrimaryButtonText = 'Continue',
+            [string]$SecondaryButtonText = 'Cancel'
+        )
+
+        $confirmWindow = [System.Windows.Window]::new()
+        $confirmWindow.Title = $Title
+        $confirmWindow.Width = 500
+        $confirmWindow.Height = 250
+        $confirmWindow.MinWidth = 460
+        $confirmWindow.MinHeight = 220
+        $confirmWindow.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
+        $confirmWindow.ResizeMode = [System.Windows.ResizeMode]::NoResize
+        $confirmWindow.Owner = $window
+        $confirmWindow.Background = $window.Background
+        $confirmWindow.Foreground = $window.Foreground
+        $confirmWindow.FontFamily = $window.FontFamily
+        $confirmWindow.FontSize = $window.FontSize
+
+        $windowBackgroundBrush = $window.TryFindResource('WindowBackgroundBrush')
+        if ($null -ne $windowBackgroundBrush) {
+            $confirmWindow.Background = $windowBackgroundBrush
+        }
+
+        $textPrimaryBrush = $window.TryFindResource('TextPrimaryBrush')
+        if ($null -ne $textPrimaryBrush) {
+            $confirmWindow.Foreground = $textPrimaryBrush
+        }
+
+        $fluentPrimaryButtonStyle = $window.TryFindResource('FluentButton')
+        $fluentSecondaryButtonStyle = $window.TryFindResource('FluentSecondaryButton')
+
+        $accentBrush = $window.TryFindResource('AccentBrush')
+        $statusWarningBrush = $window.TryFindResource('StatusWarningBrush')
+        $iconBrush = if ($Icon -eq [System.Windows.MessageBoxImage]::Warning -and $null -ne $statusWarningBrush) { $statusWarningBrush } elseif ($null -ne $accentBrush) { $accentBrush } else { $confirmWindow.Foreground }
+
+        $root = [System.Windows.Controls.Grid]::new()
+        $root.Margin = [System.Windows.Thickness]::new(16)
+        [void]$root.RowDefinitions.Add([System.Windows.Controls.RowDefinition]::new())
+        [void]$root.RowDefinitions.Add([System.Windows.Controls.RowDefinition]::new())
+        $root.RowDefinitions[1].Height = [System.Windows.GridLength]::Auto
+
+        $contentGrid = [System.Windows.Controls.Grid]::new()
+        [void]$contentGrid.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new())
+        [void]$contentGrid.ColumnDefinitions.Add([System.Windows.Controls.ColumnDefinition]::new())
+        $contentGrid.ColumnDefinitions[0].Width = [System.Windows.GridLength]::Auto
+
+        $iconText = [System.Windows.Controls.TextBlock]::new()
+        $iconText.Margin = [System.Windows.Thickness]::new(0, 0, 12, 0)
+        $iconText.FontSize = 18
+        $iconText.Foreground = $iconBrush
+        if ($Icon -eq [System.Windows.MessageBoxImage]::Warning) {
+            $iconText.Text = [char]0xE7BA
+        }
+        elseif ($Icon -eq [System.Windows.MessageBoxImage]::Information) {
+            $iconText.Text = [char]0xE946
+        }
+        else {
+            $iconText.Text = [char]0xE783
+        }
+
+        $fluentIconFontFamily = $window.TryFindResource('FluentIconFontFamily')
+        if ($null -ne $fluentIconFontFamily) {
+            $iconText.FontFamily = $fluentIconFontFamily
+        }
+
+        $messageText = [System.Windows.Controls.TextBlock]::new()
+        $messageText.Text = $Message
+        $messageText.TextWrapping = [System.Windows.TextWrapping]::Wrap
+        $messageText.Margin = [System.Windows.Thickness]::new(0, 2, 0, 0)
+        if ($null -ne $textPrimaryBrush) {
+            $messageText.Foreground = $textPrimaryBrush
+        }
+
+        [System.Windows.Controls.Grid]::SetColumn($iconText, 0)
+        [System.Windows.Controls.Grid]::SetColumn($messageText, 1)
+        $contentGrid.Children.Add($iconText) | Out-Null
+        $contentGrid.Children.Add($messageText) | Out-Null
+
+        $buttons = [System.Windows.Controls.StackPanel]::new()
+        $buttons.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+        $buttons.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+        $buttons.Margin = [System.Windows.Thickness]::new(0, 16, 0, 0)
+
+        $cancelButton = [System.Windows.Controls.Button]::new()
+        $cancelButton.Content = $SecondaryButtonText
+        $cancelButton.MinWidth = 96
+        $cancelButton.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
+        if ($null -ne $fluentSecondaryButtonStyle) {
+            $cancelButton.Style = $fluentSecondaryButtonStyle
+        }
+
+        $okButton = [System.Windows.Controls.Button]::new()
+        $okButton.Content = $PrimaryButtonText
+        $okButton.MinWidth = 96
+        if ($null -ne $fluentPrimaryButtonStyle) {
+            $okButton.Style = $fluentPrimaryButtonStyle
+        }
+
+        $cancelButton.Add_Click({
+                $confirmWindow.DialogResult = $false
+                $confirmWindow.Close()
+            })
+
+        $okButton.Add_Click({
+                $confirmWindow.DialogResult = $true
+                $confirmWindow.Close()
+            })
+
+        $buttons.Children.Add($cancelButton) | Out-Null
+        $buttons.Children.Add($okButton) | Out-Null
+
+        [System.Windows.Controls.Grid]::SetRow($contentGrid, 0)
+        [System.Windows.Controls.Grid]::SetRow($buttons, 1)
+        $root.Children.Add($contentGrid) | Out-Null
+        $root.Children.Add($buttons) | Out-Null
+
+        $confirmWindow.Content = $root
+        $confirmWindow.Add_SourceInitialized({
+                & $syncDialogTitleBarToBackground -DialogWindow $confirmWindow
+            })
+
+        return ([bool]$confirmWindow.ShowDialog())
+    }
+
+    $showNerdioKeepVersionsDialog = {
+        param(
+            [string]$AppName,
+            [int]$CurrentVersionCount
+        )
+
+        $dialogWindow = [System.Windows.Window]::new()
+        $dialogWindow.Title = 'Prune Shell App versions'
+        $dialogWindow.Width = 470
+        $dialogWindow.Height = 250
+        $dialogWindow.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
+        $dialogWindow.ResizeMode = [System.Windows.ResizeMode]::NoResize
+        $dialogWindow.Owner = $window
+        $dialogWindow.Background = $window.Background
+        $dialogWindow.Foreground = $window.Foreground
+        $dialogWindow.FontFamily = $window.FontFamily
+        $dialogWindow.FontSize = $window.FontSize
+
+        $windowBackgroundBrush = $window.TryFindResource('WindowBackgroundBrush')
+        if ($null -ne $windowBackgroundBrush) {
+            $dialogWindow.Background = $windowBackgroundBrush
+        }
+
+        $textPrimaryBrush = $window.TryFindResource('TextPrimaryBrush')
+        if ($null -ne $textPrimaryBrush) {
+            $dialogWindow.Foreground = $textPrimaryBrush
+        }
+
+        $textSecondaryBrush = $window.TryFindResource('TextSecondaryBrush')
+        $statusWarningBrush = $window.TryFindResource('StatusWarningBrush')
+        $fluentTextBoxStyle = $window.TryFindResource('FluentTextBox')
+        $fluentPrimaryButtonStyle = $window.TryFindResource('FluentButton')
+        $fluentSecondaryButtonStyle = $window.TryFindResource('FluentSecondaryButton')
+
+        $panel = [System.Windows.Controls.StackPanel]::new()
+        $panel.Margin = [System.Windows.Thickness]::new(16)
+
+        $titleText = [System.Windows.Controls.TextBlock]::new()
+        $titleText.Text = "Shell App: $AppName"
+        $titleText.FontWeight = [System.Windows.FontWeights]::SemiBold
+        if ($null -ne $textPrimaryBrush) {
+            $titleText.Foreground = $textPrimaryBrush
+        }
+        $titleText.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
+
+        $infoText = [System.Windows.Controls.TextBlock]::new()
+        $infoText.Text = "Current versions: $CurrentVersionCount`nEnter how many latest versions to keep (minimum 1)."
+        $infoText.TextWrapping = [System.Windows.TextWrapping]::Wrap
+        if ($null -ne $textSecondaryBrush) {
+            $infoText.Foreground = $textSecondaryBrush
+        }
+        $infoText.Margin = [System.Windows.Thickness]::new(0, 0, 0, 10)
+
+        $keepBox = [System.Windows.Controls.TextBox]::new()
+        $keepBox.MinHeight = 30
+        $keepBox.Text = '1'
+        $keepBox.Margin = [System.Windows.Thickness]::new(0, 0, 0, 6)
+        if ($null -ne $fluentTextBoxStyle) {
+            $keepBox.Style = $fluentTextBoxStyle
+        }
+
+        $validationText = [System.Windows.Controls.TextBlock]::new()
+        $validationText.Visibility = [System.Windows.Visibility]::Collapsed
+        $validationText.TextWrapping = [System.Windows.TextWrapping]::Wrap
+        $validationText.Margin = [System.Windows.Thickness]::new(0, 0, 0, 10)
+        if ($null -ne $statusWarningBrush) {
+            $validationText.Foreground = $statusWarningBrush
+        }
+
+        $buttons = [System.Windows.Controls.StackPanel]::new()
+        $buttons.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+        $buttons.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+        $buttons.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
+
+        $cancelButton = [System.Windows.Controls.Button]::new()
+        $cancelButton.Content = 'Cancel'
+        $cancelButton.MinWidth = 88
+        $cancelButton.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
+        if ($null -ne $fluentSecondaryButtonStyle) {
+            $cancelButton.Style = $fluentSecondaryButtonStyle
+        }
+
+        $okButton = [System.Windows.Controls.Button]::new()
+        $okButton.Content = 'Continue'
+        $okButton.MinWidth = 88
+        if ($null -ne $fluentPrimaryButtonStyle) {
+            $okButton.Style = $fluentPrimaryButtonStyle
+        }
+
+        $result = [PSCustomObject]@{
+            Confirmed    = $false
+            KeepVersions = 0
+        }
+
+        $cancelButton.Add_Click({
+                $dialogWindow.DialogResult = $false
+                $dialogWindow.Close()
+            })
+
+        $okButton.Add_Click({
+                $parsedValue = 0
+                $candidate = [string]$keepBox.Text
+                if (-not [int]::TryParse($candidate, [ref]$parsedValue) -or $parsedValue -lt 1) {
+                    $validationText.Text = 'Enter a whole number greater than or equal to 1.'
+                    $validationText.Visibility = [System.Windows.Visibility]::Visible
+                    return
+                }
+
+                $validationText.Visibility = [System.Windows.Visibility]::Collapsed
+
+                $result.Confirmed = $true
+                $result.KeepVersions = $parsedValue
+                $dialogWindow.DialogResult = $true
+                $dialogWindow.Close()
+            })
+
+        $buttons.Children.Add($cancelButton) | Out-Null
+        $buttons.Children.Add($okButton) | Out-Null
+
+        $panel.Children.Add($titleText) | Out-Null
+        $panel.Children.Add($infoText) | Out-Null
+        $panel.Children.Add($keepBox) | Out-Null
+        $panel.Children.Add($validationText) | Out-Null
+        $panel.Children.Add($buttons) | Out-Null
+
+        $dialogWindow.Content = $panel
+        $dialogWindow.Add_SourceInitialized({
+                & $syncDialogTitleBarToBackground -DialogWindow $dialogWindow
+            })
+        $dialogWindow.ShowDialog() | Out-Null
+
+        return $result
+    }
+
+    $startNerdioPruneVersions = {
+        $selectedRow = $syncHash.NerdioSelectedComparisonRow
+        if ($null -eq $selectedRow) {
+            Write-UILog -SyncHash $syncHash -Message 'Nerdio: no row selected for pruning versions.' -Level Warning
+            return
+        }
+
+        if ($syncHash.IsNerdioShellAppsLoading) {
+            return
+        }
+
+        $modulePath = & $normalizeDirectoryPath -PathValue $nerdioBundledModulePath
+        if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
+            Write-UILog -SyncHash $syncHash -Message "Nerdio: bundled module is missing: $modulePath" -Level Error
+            return
+        }
+
+        $shellAppId = [string]$selectedRow.NerdioAppId
+        $appName = [string]$selectedRow.NerdioAppName
+        if ([string]::IsNullOrWhiteSpace($appName)) {
+            $appName = [string]$selectedRow.DisplayName
+        }
+
+        if ([string]::IsNullOrWhiteSpace($shellAppId)) {
+            Write-UILog -SyncHash $syncHash -Message 'Nerdio: selected row does not have a Shell App ID.' -Level Error
+            return
+        }
+
+        $currentVersionCount = 0
+        if (-not [int]::TryParse([string]$selectedRow.VersionCount, [ref]$currentVersionCount) -or $currentVersionCount -lt 1) {
+            Write-UILog -SyncHash $syncHash -Message "Nerdio: selected row does not have a valid version count for '$appName'." -Level Warning
+            return
+        }
+
+        $dialogResult = & $showNerdioKeepVersionsDialog -AppName $appName -CurrentVersionCount $currentVersionCount
+        if ($null -eq $dialogResult -or -not $dialogResult.Confirmed) {
+            return
+        }
+
+        $keepVersions = [int]$dialogResult.KeepVersions
+        $removeCount = [Math]::Max(0, ($currentVersionCount - $keepVersions))
+
+        if ($removeCount -eq 0) {
+            $noOpMessage = "Nerdio: no versions removed for '$appName'. Current versions: $currentVersionCount, keep requested: $keepVersions."
+            if ($null -ne $nerdioActionStatusLabel) {
+                $nerdioActionStatusLabel.Text = $noOpMessage
+            }
+            Write-UILog -SyncHash $syncHash -Message $noOpMessage -Level Info
+            return
+        }
+
+        $confirmPrompt = "This will remove $removeCount oldest version(s) from '$appName' and keep $keepVersions version(s).`n`nContinue?"
+        $confirmed = & $showNerdioConfirmationDialog `
+            -Title 'Confirm prune versions' `
+            -Message $confirmPrompt `
+            -Icon ([System.Windows.MessageBoxImage]::Warning) `
+            -PrimaryButtonText 'Yes' `
+            -SecondaryButtonText 'No'
+
+        if (-not $confirmed) {
+            return
+        }
+
+        $nerdioAuthContext = [PSCustomObject]@{
+            TenantId       = [string]$nerdioTenantIdBox.Text
+            NmeHost        = [string]$nmeHostBox.Text
+            ClientId       = [string]$nmeClientIdBox.Text
+            ApiScope       = [string]$nmeApiScopeBox.Text
+            OAuthTokenUrl  = [string]$nmeOAuthTokenUrlBox.Text
+            ClientSecret   = [string]$nmeClientSecretBox.Password
+            SubscriptionId = [string]$nmeSubscriptionIdBox.Text
+            ResourceGroup  = [string]$nmeResourceGroupCombo.SelectedItem
+            StorageAccount = [string]$nmeStorageAccountCombo.SelectedItem
+            Container      = [string]$nmeContainerCombo.SelectedItem
+        }
+
+        & $setNerdioShellAppsLoadingState -IsLoading $true -Message "Pruning version history for Shell App '$appName'..."
+        Write-UILog -SyncHash $syncHash -Message "Nerdio: pruning $removeCount oldest version(s) from '$appName' (id: $shellAppId), keeping $keepVersions." -Level Info
+
+        $rs = New-WpfRunspace -SyncHash $syncHash
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+
+        [void]$ps.AddScript({
+                param(
+                    [string]$ModulePath,
+                    [PSCustomObject]$NerdioAuthContext,
+                    [string]$ShellAppId,
+                    [int]$KeepVersions
+                )
+
+                $result = [PSCustomObject]@{
+                    Success = $false
+                    Error   = ''
+                    Summary = $null
+                }
+
+                try {
+                    Import-Module -Name $ModulePath -Force -ErrorAction Stop | Out-Null
+
+                    $module = Get-Module -Name NerdioShellApps -ErrorAction SilentlyContinue
+                    if ($null -ne $module -and $null -ne $module.SessionState -and $null -ne $module.SessionState.PSVariable) {
+                        $module.SessionState.PSVariable.Set('InformationPreference', 'SilentlyContinue')
+                    }
+
+                    $setNmeCredentialsCommand = Get-Command -Name 'NerdioShellApps\Set-NmeCredentials' -ErrorAction SilentlyContinue
+                    $connectNmeCommand = Get-Command -Name 'NerdioShellApps\Connect-Nme' -ErrorAction SilentlyContinue
+                    $removeVersionHistoryCommand = Get-Command -Name 'NerdioShellApps\Remove-ShellAppVersionHistory' -ErrorAction SilentlyContinue
+
+                    if ($null -eq $setNmeCredentialsCommand) { throw 'Required command Set-NmeCredentials was not found in NerdioShellApps module.' }
+                    if ($null -eq $connectNmeCommand) { throw 'Required command Connect-Nme was not found in NerdioShellApps module.' }
+                    if ($null -eq $removeVersionHistoryCommand) { throw 'Required command Remove-ShellAppVersionHistory was not found in NerdioShellApps module.' }
+
+                    foreach ($required in @(
+                            @{ Name = 'Tenant ID'; Value = [string]$NerdioAuthContext.TenantId },
+                            @{ Name = 'NME Host'; Value = [string]$NerdioAuthContext.NmeHost },
+                            @{ Name = 'Client ID'; Value = [string]$NerdioAuthContext.ClientId },
+                            @{ Name = 'API Scope'; Value = [string]$NerdioAuthContext.ApiScope },
+                            @{ Name = 'Client Secret'; Value = [string]$NerdioAuthContext.ClientSecret }
+                        )) {
+                        if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
+                            throw "Nerdio API $($required.Name) is required to prune Shell App versions."
+                        }
+                    }
+
+                    & $setNmeCredentialsCommand `
+                        -ClientId           ([string]$NerdioAuthContext.ClientId) `
+                        -ClientSecret       ([string]$NerdioAuthContext.ClientSecret) `
+                        -TenantId           ([string]$NerdioAuthContext.TenantId) `
+                        -ApiScope           ([string]$NerdioAuthContext.ApiScope) `
+                        -OAuthToken         ([string]$NerdioAuthContext.OAuthTokenUrl) `
+                        -SubscriptionId     ([string]$NerdioAuthContext.SubscriptionId) `
+                        -ResourceGroupName  ([string]$NerdioAuthContext.ResourceGroup) `
+                        -StorageAccountName ([string]$NerdioAuthContext.StorageAccount) `
+                        -ContainerName      ([string]$NerdioAuthContext.Container) `
+                        -NmeHost            ([string]$NerdioAuthContext.NmeHost)
+
+                    $null = & $connectNmeCommand -PassThru
+                    $summary = & $removeVersionHistoryCommand -Id $ShellAppId -KeepVersions $KeepVersions -Confirm:$false
+
+                    $result.Summary = $summary
+                    $result.Success = $true
+                }
+                catch {
+                    $result.Error = $_.Exception.Message
+                }
+
+                return $result
+            }).AddArgument($modulePath).AddArgument($nerdioAuthContext).AddArgument($shellAppId).AddArgument($keepVersions)
+
+        $syncHash.PendingNerdioPruneVersionsPS = $ps
+        $syncHash.PendingNerdioPruneVersionsRunspace = $rs
+        $syncHash.PendingNerdioPruneVersionsAsync = $ps.BeginInvoke()
+        $syncHash.PendingNerdioPruneVersionsAppName = $appName
+
+        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+        $syncHash.PendingNerdioPruneVersionsTimer = $pollTimer
+
+        $pollTimer.add_Tick({
+                if ($null -eq $syncHash.PendingNerdioPruneVersionsAsync -or -not $syncHash.PendingNerdioPruneVersionsAsync.IsCompleted) {
+                    return
+                }
+
+                if ($null -ne $syncHash.PendingNerdioPruneVersionsTimer) {
+                    $syncHash.PendingNerdioPruneVersionsTimer.Stop()
+                    $syncHash.PendingNerdioPruneVersionsTimer = $null
+                }
+
+                $pruneResult = $null
+                try {
+                    $output = $syncHash.PendingNerdioPruneVersionsPS.EndInvoke($syncHash.PendingNerdioPruneVersionsAsync)
+                    if ($null -ne $output -and $output.Count -gt 0) {
+                        $pruneResult = $output[$output.Count - 1]
+                    }
+                }
+                catch {
+                    $pruneResult = [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
+                }
+                finally {
+                    try { $syncHash.PendingNerdioPruneVersionsPS.Dispose() } catch {}
+                    try { $syncHash.PendingNerdioPruneVersionsRunspace.Dispose() } catch {}
+                    $syncHash.PendingNerdioPruneVersionsPS = $null
+                    $syncHash.PendingNerdioPruneVersionsRunspace = $null
+                    $syncHash.PendingNerdioPruneVersionsAsync = $null
+                }
+
+                if ($null -eq $pruneResult -or -not $pruneResult.Success) {
+                    $errMsg = if ($null -eq $pruneResult -or [string]::IsNullOrWhiteSpace([string]$pruneResult.Error)) {
+                        'Unknown error occurred while pruning Shell App versions.'
+                    }
+                    else {
+                        [string]$pruneResult.Error
+                    }
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to prune Shell App versions: $errMsg" -Level Error
+                    & $setNerdioShellAppsLoadingState -IsLoading $false
+                    return
+                }
+
+                $completedAppName = [string]$syncHash.PendingNerdioPruneVersionsAppName
+                $syncHash.PendingNerdioPruneVersionsAppName = ''
+                $summary = $pruneResult.Summary
+                if ($null -eq $summary) {
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: completed pruning Shell App '$completedAppName'." -Level Info
+                }
+                elseif ([int]$summary.FailedCount -gt 0) {
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: pruned '$completedAppName' with partial failures. Removed: $([int]$summary.RemovedCount), failed: $([int]$summary.FailedCount)." -Level Warning
+                }
+                else {
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: successfully pruned '$completedAppName'. Removed: $([int]$summary.RemovedCount), kept: $([int]$summary.KeepVersions)." -Level Info
+                }
+
+                try {
+                    & $setNerdioShellAppsLoadingState -IsLoading $false
+                    & $loadNerdioShellApps
+                }
+                catch {
+                    Write-UILog -SyncHash $syncHash -Message "Nerdio: refresh after pruning Shell App versions failed: $($_.Exception.Message)" -Level Error
+                }
+                finally {
+                    if ($syncHash.IsNerdioShellAppsLoading) {
+                        & $setNerdioShellAppsLoadingState -IsLoading $false
+                    }
+                }
+            })
+
+        $pollTimer.Start()
+    }
+
     $startNerdioImportNew = {
         $selectedRow = $syncHash.NerdioSelectedComparisonRow
         if ($null -eq $selectedRow) {
@@ -7342,6 +7870,11 @@ function Start-EvergreenWorkbench {
     $nerdioAddVersionButton.add_Click({
             if (-not (& $requireImportAuth -ActionName 'Add Shell App version' -Provider 'Nerdio')) { return }
             & $startNerdioAddVersion
+        })
+
+    $nerdioPruneVersionsButton.add_Click({
+            if (-not (& $requireImportAuth -ActionName 'Prune Shell App versions' -Provider 'Nerdio')) { return }
+            & $startNerdioPruneVersions
         })
 
     $nerdioImportNewButton.add_Click({
