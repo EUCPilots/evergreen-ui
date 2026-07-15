@@ -66,6 +66,48 @@ function Get-TrimmedValueOrNull {
     return $trimmedValue
 }
 
+function Get-HttpExceptionDetail {
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.Management.Automation.ErrorRecord] $ErrorRecord
+    )
+
+    $message = $ErrorRecord.Exception.Message
+    $response = $ErrorRecord.Exception.Response
+    if ($null -eq $response) {
+        return $message
+    }
+
+    try {
+        $stream = $response.GetResponseStream()
+        if ($null -eq $stream) {
+            return $message
+        }
+
+        try {
+            $reader = [System.IO.StreamReader]::new($stream)
+            try {
+                $responseBody = $reader.ReadToEnd()
+            }
+            finally {
+                $reader.Dispose()
+            }
+        }
+        finally {
+            $stream.Dispose()
+        }
+
+        if ([string]::IsNullOrWhiteSpace($responseBody)) {
+            return $message
+        }
+
+        return "$message Response body: $responseBody"
+    }
+    catch {
+        return $message
+    }
+}
+
 function Set-NmeCredentials {
     param (
         [Parameter(Mandatory = $false)]
@@ -512,10 +554,10 @@ function New-ShellApp {
             $File = New-ShellAppFile @params
 
             # Update the app definition
-            # if ($File.FileType -eq "zip") {
-            #     Write-Information -MessageData "$($PSStyle.Foreground.Cyan)Using fileUnzip: true for zip files."
-            #     $Definition.fileUnzip = $true
-            # }
+            if ($File.FileType -eq 'zip') {
+                Write-Information -MessageData "$($PSStyle.Foreground.Cyan)Using fileUnzip: true for zip files."
+                $Definition.fileUnzip = $true
+            }
             $Definition.versions[0].name = $AppMetadata.Version
             $Definition.versions[0].file.sourceUrl = $File.SourceUrl
             $Definition.versions[0].file.sha256 = $File.Sha256
@@ -547,7 +589,7 @@ function New-ShellApp {
         catch {
             $lineNumber = $_.InvocationInfo.ScriptLineNumber
             $scriptName = $_.InvocationInfo.ScriptName
-            $errorMsg = $_.Exception.Message
+            $errorMsg = Get-HttpExceptionDetail -ErrorRecord $_
             Write-Error -Message "Error on line $lineNumber in ${scriptName}: $errorMsg"
         }
     }
@@ -619,7 +661,7 @@ function New-ShellAppVersion {
         catch {
             $lineNumber = $_.InvocationInfo.ScriptLineNumber
             $scriptName = $_.InvocationInfo.ScriptName
-            $errorMsg = $_.Exception.Message
+            $errorMsg = Get-HttpExceptionDetail -ErrorRecord $_
             Write-Error -Message "Error on line $lineNumber in ${scriptName}: $errorMsg"
         }
     }
