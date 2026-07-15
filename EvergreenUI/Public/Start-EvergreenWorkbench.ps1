@@ -7151,7 +7151,7 @@ function Start-EvergreenWorkbench {
                 $evergreenVersionText.Text = 'Evergreen: loading...'
                 $evergreenStatusDot.Fill = [System.Windows.Media.Brushes]::Gold
                 Import-Module -Name Evergreen -ErrorAction Stop | Out-Null
-                $egModule = Get-Module -Name Evergreen | Select-Object -First 1
+                $egModule = Get-Module -Name Evergreen -ListAvailable | Sort-Object -Property "Version" | Select-Object -Last 1
                 if ($null -ne $egModule) {
                     $syncHash.EvergreenVersion = "v$($egModule.Version)"
                     $syncHash.EvergreenModuleLoaded = $true
