@@ -23,11 +23,11 @@ Describe 'Module manifest' {
         { Test-ModuleManifest -Path $manifestPath -ErrorAction Stop } | Should -Not -Throw
     }
 
-    It 'Exports only Start-EvergreenWorkbench' {
+    It 'Exports only Start-EvergreenWorkbench, Start-EvergreenTui' {
         $manifest = Import-PowerShellDataFile -Path (
             Join-Path $PSScriptRoot '..\EvergreenUI\EvergreenUI.psd1'
         )
-        $manifest.FunctionsToExport | Should -Be @('Start-EvergreenWorkbench')
+        $manifest.FunctionsToExport | Should -Be @('Start-EvergreenWorkbench', 'Start-EvergreenTui')
     }
 }
 
