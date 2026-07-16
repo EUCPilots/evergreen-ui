@@ -16,7 +16,7 @@
     RootModule        = 'EvergreenUI.psm1'
 
     # Exports - only Start-EvergreenWorkbench is public
-    FunctionsToExport = @('Start-EvergreenWorkbench')
+    FunctionsToExport = @('Start-EvergreenWorkbench', 'Start-EvergreenTui')
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
@@ -35,6 +35,10 @@
         'Resources\NerdioShellApps.psm1'
         'Resources\m365-app.json'
         'Resources\evergreenbulb.png'
+        'Resources\TerminalGui\NStack.dll'
+        'Resources\TerminalGui\System.Management.dll'
+        'Resources\TerminalGui\Terminal.Gui.dll'
+        'Public\Start-EvergreenTui.ps1'
         'Public\Start-EvergreenWorkbench.ps1'
         'Private\Format-LogEntry.ps1'
         'Private\Get-EvergreenAppList.ps1'
