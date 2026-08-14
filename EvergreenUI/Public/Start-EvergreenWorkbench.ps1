@@ -3463,6 +3463,7 @@ function Start-EvergreenWorkbench {
 
     $refreshNerdioAzureAuthUi = {
         $state = $syncHash.NerdioAzureAuthState
+        $hasSubscription = -not [string]::IsNullOrWhiteSpace([string]$nmeSubscriptionIdBox.Text)
         if ($state.IsAuthInProgress) {
             $nerdioAzureAuthStatusDot.Fill = [System.Windows.Media.Brushes]::Gold
             $nerdioAzureAuthStatusLabel.Text = 'Signing in...'
@@ -3489,7 +3490,7 @@ function Start-EvergreenWorkbench {
         else {
             $nerdioAzureAuthStatusLabel.Text = 'Sign-in failed'
         }
-        $nerdioAzureSignInButton.IsEnabled = [bool]$syncHash.AzModulesLoaded
+        $nerdioAzureSignInButton.IsEnabled = $hasSubscription
         $nerdioAzureSignOutButton.IsEnabled = $false
     }
 
@@ -6019,6 +6020,47 @@ function Start-EvergreenWorkbench {
         }
     }
 
+    $ensureAzModulesLoaded = {
+        param([switch]$Force)
+
+        $result = [PSCustomObject]@{
+            Succeeded    = $false
+            ErrorMessage = ''
+        }
+
+        $wasLoaded = [bool]$syncHash.AzModulesLoaded
+
+        try {
+            if ($Force) {
+                Remove-Module -Name Az.Storage   -ErrorAction SilentlyContinue
+                Remove-Module -Name Az.Resources -ErrorAction SilentlyContinue
+                Remove-Module -Name Az.Accounts  -ErrorAction SilentlyContinue
+            }
+
+            if (-not $wasLoaded) {
+                Write-UILog -SyncHash $syncHash -Message 'Loading Az.Accounts, Az.Resources, Az.Storage for Nerdio Azure workflows...' -Level Info
+            }
+
+            Import-Module -Name Az.Accounts  -Force:$Force -ErrorAction Stop | Out-Null
+            Import-Module -Name Az.Resources -Force:$Force -ErrorAction Stop | Out-Null
+            Import-Module -Name Az.Storage   -Force:$Force -ErrorAction Stop | Out-Null
+
+            $syncHash.AzModulesLoaded = $true
+            if (-not $wasLoaded) {
+                Write-UILog -SyncHash $syncHash -Message 'Az modules loaded.' -Level Info
+            }
+
+            $result.Succeeded = $true
+            return $result
+        }
+        catch {
+            $syncHash.AzModulesLoaded = $false
+            $result.ErrorMessage = $_.Exception.Message
+            Write-UILog -SyncHash $syncHash -Message "Failed to load one or more Az modules: $($result.ErrorMessage). Nerdio Azure sign-in will be unavailable." -Level Error
+            return $result
+        }
+    }
+
     $loadImportTabModules = {
         # IntuneWin32App
         Write-UILog -SyncHash $syncHash -Message 'Import tab: loading IntuneWin32App...' -Level Info
@@ -6048,19 +6090,10 @@ function Start-EvergreenWorkbench {
             Write-UILog -SyncHash $syncHash -Message "Failed to load Microsoft.Graph.Authentication: $($_.Exception.Message). Intune sign-in will be unavailable." -Level Error
         }
 
-        # Az.Accounts, Az.Resources, Az.Storage
-        try {
-            Write-UILog -SyncHash $syncHash -Message 'Import tab: loading Az.Accounts, Az.Resources, Az.Storage...' -Level Info
-            Import-Module -Name Az.Accounts  -ErrorAction Stop | Out-Null
-            Import-Module -Name Az.Resources -ErrorAction Stop | Out-Null
-            Import-Module -Name Az.Storage   -ErrorAction Stop | Out-Null
-            $syncHash.AzModulesLoaded = $true
-            Write-UILog -SyncHash $syncHash -Message 'Az modules loaded.' -Level Info
-        }
-        catch {
-            $syncHash.AzModulesLoaded = $false
-            Write-UILog -SyncHash $syncHash -Message "Failed to load one or more Az modules: $($_.Exception.Message). Nerdio Azure sign-in will be unavailable." -Level Error
-        }
+        # Load Az modules lazily when Nerdio Azure sign-in starts. This avoids
+        # Azure.Identity assembly collisions that can break Connect-MgGraph.
+        $syncHash.AzModulesLoaded = $false
+        Write-UILog -SyncHash $syncHash -Message 'Import tab: deferring Az module load until Nerdio Azure sign-in is requested.' -Level Info
 
         # Refresh all Import-tab button states now that module availability is known
         & $refreshImportAuthUi
@@ -6473,6 +6506,19 @@ function Start-EvergreenWorkbench {
         $syncHash.NerdioAzureAuthState.IsAuthInProgress = $true
         $syncHash.NerdioAzureAuthState.ErrorMessage = ''
         & $refreshNerdioAzureAuthUi
+
+        $azLoadResult = & $ensureAzModulesLoaded
+        if (-not $azLoadResult.Succeeded) {
+            $syncHash.NerdioAzureAuthState.IsAuthInProgress = $false
+            $syncHash.NerdioAzureAuthState.IsAuthenticated = $false
+            $syncHash.NerdioAzureAuthState.ErrorMessage = [string]$azLoadResult.ErrorMessage
+            & $refreshNerdioAzureAuthUi
+            & $updateNerdioRowActionButtons
+            return
+        }
+
+        & $refreshNerdioAzureAuthUi
+        & $updateNerdioRowActionButtons
 
         $tenant = [string]$nerdioTenantIdBox.Text
         Write-UILog -SyncHash $syncHash -Message "Starting Azure sign-in for Nerdio workflows (subscription: $subscriptionId)..." -Level Info
@@ -7708,7 +7754,7 @@ function Start-EvergreenWorkbench {
     # but only when not already signed in (sign-in is disabled while authenticated).
     $nmeSubscriptionIdBox.add_TextChanged({
             $notAuthenticated = -not [bool]$syncHash.NerdioAzureAuthState.IsAuthenticated
-            $nerdioAzureSignInButton.IsEnabled = $notAuthenticated -and (-not [string]::IsNullOrWhiteSpace($nmeSubscriptionIdBox.Text)) -and ([bool]$syncHash.AzModulesLoaded)
+            $nerdioAzureSignInButton.IsEnabled = $notAuthenticated -and (-not [string]::IsNullOrWhiteSpace($nmeSubscriptionIdBox.Text))
             $syncHash.Config.NerdioSettings.NmeSubscriptionId = [string]$nmeSubscriptionIdBox.Text
             Set-UIConfig -Config $syncHash.Config
         })
