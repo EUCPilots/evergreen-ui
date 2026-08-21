@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.26]
+
+### Nerdio Manager Shell Apps
+- Added version pruning for Shell Apps, including confirmation, configurable versions to keep, and post-operation refresh.
+- Improved Nerdio API error reporting so HTTP failures include more useful response details.
+- Deferred Az module loading until Nerdio Azure sign-in is requested to avoid Azure.Identity assembly conflicts with Microsoft Graph sign-in.
+
+### Evergreen integration
+- Fixed Evergreen module version detection when resolving the installed module version.
+
 ## [1.1.25]
 
 ### New Packages workflow and navigation updates
@@ -43,7 +53,7 @@
 - Install definitions are now driven by the package definitions path flow rather than a standalone install path field.
 - Several labels/button captions were updated for consistency and discoverability.
 
-## [1.0.24] - 2026-07-02
+## [1.0.24]
 
 ### Added
 
@@ -55,13 +65,13 @@
 - Introduce a dedicated RowHoverBrush resource in both Set-LightTheme.ps1 and Set-DarkTheme.ps1 (light: #D9F2EF, dark: #30504C) and update EvergreenUI.xaml to replace AccentLightBrush with RowHoverBrush for IsMouseOver triggers in row/list templates. This decouples hover background from the accent color, ensuring consistent and appropriate hover visuals across light and dark themes.
 - Introduce a new 'Authentication' import provider and make it the default/fallback. Updates Get-UIConfig to set ImportSettings.CurrentProvider to 'Authentication' when missing. Update Start-EvergreenWorkbench to resolve empty or unknown providers to 'Authentication', add an explicit 'Authentication' case, map it to tab index 3, and adjust the tab-selection handler so unknown indices fall back to 'Authentication' (and M365 is now index 2). These changes enable a shared Authentication tab and use it as the default provider.
 
-## [1.0.23] - 2026-06-02
+## [1.0.23]
 
 ### Added
 
 - Start-EvergreenWorkbench.ps1: introduce an Architecture field (default '-') and populate it from DefinitionObject.Application.Architecture when present, then include it in the PSCustomObject rows. EvergreenUI.xaml: add an "Architecture" GridView column bound to Architecture, and adjust the navigation radio buttons (swap/update icons and labels) so Update and Settings entries render correctly.
 
-## [1.0.22] - 2026-06-02
+## [1.0.22]
 
 ### Added
 
@@ -74,7 +84,7 @@
 - Import tab / Microsoft Intune Win32 Apps: **Import** button label updates dynamically -- shows "Import Win32 app" for a single selection and "Import N Win32 apps" when multiple actionable rows are selected; button enabled state now uses `@(...)` array coercion and `.Count -gt 0` instead of a `$null` check to handle single-item selections correctly
 - Import tab / Microsoft Intune Win32 Apps: multi-app import loop now stops on the first failure (`break`) instead of skipping to the next item (`continue`); a `StoppedEarly` flag is set on the result object; the completion log message reports skipped count and uses Warning level when stopped early
 
-## [1.0.21] - 2026-06-02
+## [1.0.21]
 
 ### Added
 
@@ -90,7 +100,7 @@
 - XAML / `CheckBox` control template: outer grid and box sizes increased; border stroke thickness and colours revised; indeterminate dash widened; hover and checked state triggers added; high-contrast `DataTrigger` added for accessibility
 - `Start-EvergreenWorkbench`: log panel row height save and restore logic updated to account for the new 48 px status bar base height
 
-## [1.0.20] - 2026-04-17
+## [1.0.20]
 
 ### Added
 
@@ -100,7 +110,7 @@
 
 - Import tab / Microsoft 365 Apps: **Import Nerdio Manager Shell App** workflow replaced to follow the same pattern as the Nerdio Manager Shell Apps tab import; the workflow now reads Shell App definition files (`Definition.json`, `Detect.ps1`, `Install.ps1`, `Uninstall.ps1`) from a `shell-app` subdirectory alongside the M365 XML configuration files, validates all four files are present before starting, builds a zip archive of `setup.exe` and the configuration XMLs via `Invoke-M365AppShellAppBuild`, loads the definition via `Get-ShellAppDefinition`, sets the Shell App name from the selected configuration display name, and creates the Shell App via `New-ShellApp -Definition -AppMetadata`; the IntuneWin32App module is no longer required for this workflow
 
-## [1.0.19] - 2026-04-07
+## [1.0.19]
 
 ### Added
 
@@ -120,7 +130,7 @@
 
 - Import tab / collection counts: pipelines and collections not wrapped in `@(...)` before accessing `.Count` returned incorrect counts or missed conditional loads for Intune, Nerdio, and Microsoft 365 data when a query returned a single item or null; all affected `.Count` accesses now use `@(...)` array coercion to ensure correct behavior
 
-## [1.0.18] - 2026-04-05
+## [1.0.18]
 
 ### Added
 
@@ -142,7 +152,7 @@
 
 - Import tab sign-in operations blocked the WPF dispatcher thread when OAuth redirects failed (e.g. "localhost refused to connect"), causing the UI to hang; sign-in now runs in a background STA runspace so the UI remains responsive regardless of redirect outcome
 
-## [1.0.17] - 2026-04-04
+## [1.0.17]
 
 ### Added
 
@@ -158,7 +168,7 @@
 - Apps tab / Versions list: `Md5` added to the display-only property set in `Get-FilterableProperties`; MD5 checksums are now treated as display-only columns consistent with `Sha`, `Sha1`, and `Sha256`
 - Update tab: `ClearUpdateOutputButton` and its `Click` event handler removed; the control was unreferenced and served no function
 
-## [1.0.16] - 2026-04-02
+## [1.0.16]
 
 ### Added
 
@@ -180,7 +190,7 @@
 - Install tab: `Install.ps1` could fail to locate the installer for EXE packages whose filename embeds the version (e.g. `audacity-win-3.7.7-64bit.exe`) when a newer version had been downloaded; updating `PackageInformation.SetupFile` in the staged `Install.json` resolves the mismatch
 - Import tab / Microsoft Intune Win32 Apps: `New-IntuneWin32AppPackage` could reference a non-existent setup file for EXE packages with version-embedded filenames when `$setupFile` was read from a stale `App.json`; preferring the actual downloaded filename corrects this
 
-## [1.0.15] - 2026-04-01
+## [1.0.15]
 
 ### Changed
 
@@ -195,7 +205,7 @@
 - Five status dot `Ellipse` fills using hardcoded `OrangeRed` and `Gold` replaced with named brush resources; `StatusDot` named style applied consistently across all status indicators
 - `NerdioStatusCellStyle` Gold foreground and `EvergreenStatusDot` `#88FFFFFF` semi-transparent fill replaced with named brush resources so colours adapt to the active theme
 
-## [1.0.14] - 2026-03-30
+## [1.0.14]
 
 ### Added
 - Progress log entries are now written to a per-session log file at `%LocalAppData%\EvergreenUI\logs\EvergreenUI-<timestamp>.log` (UTF-8, no BOM); a new file is created on each launch of the Workbench
@@ -224,7 +234,7 @@
 - NerdioShellApps module updated for Windows PowerShell 5.1 compatibility: PS 7-only ternary and null-coalescing operators replaced, temp directory detection rewritten using Windows-compatible environment checks, `PSStyle` fallback added for informational logging
 - Em dash characters (`—`) replaced with hyphens in string literals across private functions; UTF-8 em dashes were misread by PowerShell 5.1 as Windows-1252, causing the middle byte (`0x94`) to be interpreted as a closing double-quote and breaking script parsing on import
 
-## [1.0.13] - 2026-03-29
+## [1.0.13]
 
 ### Added
 - Import tab / Microsoft 365 Apps: new sub-tab for packaging and importing Microsoft 365 Apps configurations into Intune and Nerdio Manager
