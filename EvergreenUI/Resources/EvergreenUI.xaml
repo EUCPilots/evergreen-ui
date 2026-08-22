@@ -2689,11 +2689,19 @@
                                                 Padding="10,6"
                                                 Margin="0,0,6,0"
                                                 IsEnabled="False"/>
+                                            <Button x:Name="IntuneApplyUpdateImportButton"
+                                                    Content="Import Win32 update"
+                                                    Style="{StaticResource FluentSecondaryButton}"
+                                                    Height="32"
+                                                    Padding="12,0"
+                                                    Margin="0,0,6,0"
+                                                    IsEnabled="False"/>
                                             <Button x:Name="IntuneApplyImportButton"
                                                     Content="Import Win32 app"
                                                     Style="{StaticResource FluentButton}"
                                                     Height="32"
                                                     Padding="12,0"
+                                                    Margin="0,0,0,0"
                                                     IsEnabled="False"/>
                                             </StackPanel>
                                             <TextBlock x:Name="IntuneActionStatusLabel"
