@@ -66,6 +66,48 @@ function Get-TrimmedValueOrNull {
     return $trimmedValue
 }
 
+function Get-HttpExceptionDetail {
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.Management.Automation.ErrorRecord] $ErrorRecord
+    )
+
+    $message = $ErrorRecord.Exception.Message
+    $response = $ErrorRecord.Exception.Response
+    if ($null -eq $response) {
+        return $message
+    }
+
+    try {
+        $stream = $response.GetResponseStream()
+        if ($null -eq $stream) {
+            return $message
+        }
+
+        try {
+            $reader = [System.IO.StreamReader]::new($stream)
+            try {
+                $responseBody = $reader.ReadToEnd()
+            }
+            finally {
+                $reader.Dispose()
+            }
+        }
+        finally {
+            $stream.Dispose()
+        }
+
+        if ([string]::IsNullOrWhiteSpace($responseBody)) {
+            return $message
+        }
+
+        return "$message Response body: $responseBody"
+    }
+    catch {
+        return $message
+    }
+}
+
 function Set-NmeCredentials {
     param (
         [Parameter(Mandatory = $false)]
@@ -512,10 +554,10 @@ function New-ShellApp {
             $File = New-ShellAppFile @params
 
             # Update the app definition
-            # if ($File.FileType -eq "zip") {
-            #     Write-Information -MessageData "$($PSStyle.Foreground.Cyan)Using fileUnzip: true for zip files."
-            #     $Definition.fileUnzip = $true
-            # }
+            if ($File.FileType -eq 'zip') {
+                Write-Information -MessageData "$($PSStyle.Foreground.Cyan)Using fileUnzip: true for zip files."
+                $Definition.fileUnzip = $true
+            }
             $Definition.versions[0].name = $AppMetadata.Version
             $Definition.versions[0].file.sourceUrl = $File.SourceUrl
             $Definition.versions[0].file.sha256 = $File.Sha256
@@ -547,7 +589,7 @@ function New-ShellApp {
         catch {
             $lineNumber = $_.InvocationInfo.ScriptLineNumber
             $scriptName = $_.InvocationInfo.ScriptName
-            $errorMsg = $_.Exception.Message
+            $errorMsg = Get-HttpExceptionDetail -ErrorRecord $_
             Write-Error -Message "Error on line $lineNumber in ${scriptName}: $errorMsg"
         }
     }
@@ -619,7 +661,7 @@ function New-ShellAppVersion {
         catch {
             $lineNumber = $_.InvocationInfo.ScriptLineNumber
             $scriptName = $_.InvocationInfo.ScriptName
-            $errorMsg = $_.Exception.Message
+            $errorMsg = Get-HttpExceptionDetail -ErrorRecord $_
             Write-Error -Message "Error on line $lineNumber in ${scriptName}: $errorMsg"
         }
     }
@@ -706,6 +748,102 @@ function Remove-ShellAppVersion {
         else {
             Write-Information -MessageData "$($PSStyle.Foreground.Yellow)Skipping removal of Shell App Id: $Id with version: $Name"
             return
+        }
+    }
+}
+
+function Remove-ShellAppVersionHistory {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName)]
+        [System.String] $Id,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateRange(1, [System.Int32]::MaxValue)]
+        [System.Int32] $KeepVersions
+    )
+    process {
+        $versions = @()
+        $removedVersions = [System.Collections.Generic.List[string]]::new()
+        $failedVersions = [System.Collections.Generic.List[string]]::new()
+
+        try {
+            $versions = @(Get-ShellAppVersion -Id $Id)
+        }
+        catch {
+            throw "Failed to query Shell App versions for '$Id': $($_.Exception.Message)"
+        }
+
+        $totalVersions = $versions.Count
+        if ($totalVersions -le $KeepVersions) {
+            Write-Information -MessageData "$($PSStyle.Foreground.Cyan)No versions removed for Shell App '$Id'. Current versions: $totalVersions, keep requested: $KeepVersions."
+            return [PSCustomObject]@{
+                Id               = $Id
+                TotalVersions    = $totalVersions
+                KeepVersions     = $KeepVersions
+                RemovedCount     = 0
+                RemovedVersions  = @()
+                FailedCount      = 0
+                FailedVersions   = @()
+                RequestedRemovals = 0
+            }
+        }
+
+        $sortedVersions = @(
+            $versions |
+                Sort-Object -Property `
+                    @{ Expression = {
+                            $name = [string]$_.name
+                            if ([string]::IsNullOrWhiteSpace($name)) {
+                                return [System.Version]::new([System.Int32]::MaxValue, [System.Int32]::MaxValue, [System.Int32]::MaxValue, [System.Int32]::MaxValue)
+                            }
+
+                            $normalised = $name.TrimStart('v', 'V')
+                            $parsedVersion = $null
+                            if ([System.Version]::TryParse($normalised, [ref]$parsedVersion)) {
+                                return $parsedVersion
+                            }
+
+                            return [System.Version]::new([System.Int32]::MaxValue, [System.Int32]::MaxValue, [System.Int32]::MaxValue, [System.Int32]::MaxValue)
+                        }
+                    },
+                    @{ Expression = { [string]$_.name } }
+        )
+
+        $removeCount = $totalVersions - $KeepVersions
+        $versionsToRemove = @($sortedVersions | Select-Object -First $removeCount)
+
+        foreach ($version in $versionsToRemove) {
+            $versionName = [string]$version.name
+            if ([string]::IsNullOrWhiteSpace($versionName)) {
+                $failedVersions.Add('<unknown>') | Out-Null
+                continue
+            }
+
+            if (-not $PSCmdlet.ShouldProcess("Shell App: $Id", "Remove version '$versionName'")) {
+                Write-Information -MessageData "$($PSStyle.Foreground.Yellow)Skipping removal of Shell App version: $Id, $versionName"
+                continue
+            }
+
+            try {
+                Remove-ShellAppVersion -Id $Id -Name $versionName -Confirm:$false | Out-Null
+                $removedVersions.Add($versionName) | Out-Null
+            }
+            catch {
+                $failedVersions.Add($versionName) | Out-Null
+                Write-Error -Message "Failed to remove Shell App version ($Id, $versionName): $($_.Exception.Message)"
+            }
+        }
+
+        return [PSCustomObject]@{
+            Id                = $Id
+            TotalVersions     = $totalVersions
+            KeepVersions      = $KeepVersions
+            RemovedCount      = $removedVersions.Count
+            RemovedVersions   = @($removedVersions)
+            FailedCount       = $failedVersions.Count
+            FailedVersions    = @($failedVersions)
+            RequestedRemovals = $removeCount
         }
     }
 }

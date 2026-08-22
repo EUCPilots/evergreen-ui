@@ -2967,7 +2967,13 @@
                                                 Margin="0,0,8,0"
                                                 IsEnabled="False"/>
                                             <Button x:Name="NerdioAddVersionButton"
-                                                    Content="Add to existing Shell App"
+                                                    Content="Add to Shell App"
+                                                    Style="{StaticResource FluentSecondaryButton}"
+                                                    Padding="12,6"
+                                                    IsEnabled="False"
+                                                    Margin="0,0,8,0"/>
+                                                <Button x:Name="NerdioPruneVersionsButton"
+                                                    Content="Prune versions"
                                                     Style="{StaticResource FluentSecondaryButton}"
                                                     Padding="12,6"
                                                     IsEnabled="False"
