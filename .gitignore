@@ -73,3 +73,6 @@ serviceprincipal.csv
 *.temp
 ~$*
 /tmp
+
+# AI files
+/.github/skills/msgraph
