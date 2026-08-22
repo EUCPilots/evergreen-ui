@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.27]
+
+- Add a second import path that creates a companion "Update {Name}" Win32 app in Intune, assigned to All Devices (required), alongside the existing base install import.
+
 ## [1.1.26]
 
 ### Nerdio Manager Shell Apps
