@@ -42,6 +42,12 @@
 .PARAMETER PSPackageFactoryGuid
     The PSPackageFactory GUID from App.json Information.PSPackageFactoryGuid.
 
+.PARAMETER ImportAsUpdate
+    When set, imports the app as an update companion: the display name is
+    prefixed with 'Update ', a CustomRequirementRule is auto-generated from
+    DetectionRule when App.json does not already define one, and the app is
+    always assigned to All Devices (required), ignoring App.json Assignments.
+
 .PARAMETER SyncHash
     The shared UI synchronised hashtable used by Write-UILog.
 
@@ -73,6 +79,9 @@ function Invoke-IntuneGraphWin32Import {
 
         [Parameter()]
         [string]$DefinitionPath = '',
+
+        [Parameter()]
+        [switch]$ImportAsUpdate,
 
         [Parameter(Mandatory)]
         [System.Collections.Hashtable]$SyncHash
@@ -172,6 +181,9 @@ function Invoke-IntuneGraphWin32Import {
     if ([string]::IsNullOrWhiteSpace($baseDisplayName)) {
         $baseDisplayName = [string]$DefinitionObject.Application.Name
     }
+    if ($ImportAsUpdate) {
+        $baseDisplayName = "Update for $baseDisplayName"
+    }
     # Replace version placeholder: strip existing version and append current
     $displayName = "$baseDisplayName $DownloadedVersion" -replace '\s+\d[\d\.]+$', ''
     $displayName = "$baseDisplayName $DownloadedVersion"
@@ -224,8 +236,107 @@ function Invoke-IntuneGraphWin32Import {
         return $PathValue
     }
 
-    if ($null -ne $DefinitionObject.CustomRequirementRule) {
-        foreach ($rule in $DefinitionObject.CustomRequirementRule) {
+    # -- Auto-generate an update CustomRequirementRule from DetectionRule when needed --
+    $negateOperator = {
+        param([string]$Operator)
+        switch ($Operator) {
+            'greaterThanOrEqual' { 'lessThan' }
+            'greaterThan'        { 'lessThanOrEqual' }
+            'lessThanOrEqual'    { 'greaterThan' }
+            'lessThan'           { 'greaterThanOrEqual' }
+            'equal'              { 'notEqual' }
+            'notEqual'           { 'equal' }
+            default              { $null }
+        }
+    }
+
+    $buildAutoCustomRequirementRule = {
+        param([object[]]$SourceDetectionRules)
+
+        $generated = [System.Collections.Generic.List[object]]::new()
+
+        foreach ($rule in @($SourceDetectionRules)) {
+            $ruleType = [string]$rule.Type
+            switch ($ruleType) {
+                'File' {
+                    if ($rule.PSObject.Properties.Name -notcontains 'Operator' -or [string]::IsNullOrWhiteSpace([string]$rule.Operator)) {
+                        Write-UILog -Message "Intune update: File DetectionRule for '$([string]$rule.FileOrFolder)' has no comparable Operator - cannot auto-generate an update requirement rule." -Level Warning -SyncHash $SyncHash
+                        continue
+                    }
+
+                    $negated = & $negateOperator ([string]$rule.Operator)
+                    if ($null -eq $negated) {
+                        Write-UILog -Message "Intune update: unsupported Operator '$($rule.Operator)' on File DetectionRule for '$([string]$rule.FileOrFolder)' - skipped." -Level Warning -SyncHash $SyncHash
+                        continue
+                    }
+
+                    $generated.Add([PSCustomObject]@{
+                            Type                 = 'File'
+                            DetectionMethod      = [string]$rule.DetectionMethod
+                            Path                 = [string]$rule.Path
+                            FileOrFolder         = [string]$rule.FileOrFolder
+                            Operator             = $negated
+                            VersionValue         = [string]$rule.VersionValue
+                            Check32BitOn64System = [string]$rule.Check32BitOn64System
+                        })
+                }
+                'Registry' {
+                    if ($rule.PSObject.Properties.Name -notcontains 'Operator' -or [string]::IsNullOrWhiteSpace([string]$rule.Operator)) {
+                        Write-UILog -Message "Intune update: Registry DetectionRule for '$([string]$rule.ValueName)' has no comparable Operator - cannot auto-generate an update requirement rule." -Level Warning -SyncHash $SyncHash
+                        continue
+                    }
+
+                    $negated = & $negateOperator ([string]$rule.Operator)
+                    if ($null -eq $negated) {
+                        Write-UILog -Message "Intune update: unsupported Operator '$($rule.Operator)' on Registry DetectionRule for '$([string]$rule.ValueName)' - skipped." -Level Warning -SyncHash $SyncHash
+                        continue
+                    }
+
+                    # DetectionRule Registry entries may store the comparison value as DetectionValue or Value.
+                    $sourceValue = if ($rule.PSObject.Properties.Name -contains 'DetectionValue') { [string]$rule.DetectionValue } else { [string]$rule.Value }
+                    $requirementMethod = switch -Regex ([string]$rule.DetectionMethod) {
+                        'Version' { 'VersionComparison'; break }
+                        'String'  { 'StringComparison'; break }
+                        'Integer' { 'IntegerComparison'; break }
+                        default   { 'VersionComparison' }
+                    }
+
+                    $generated.Add([PSCustomObject]@{
+                            Type                 = 'Registry'
+                            DetectionMethod      = $requirementMethod
+                            KeyPath              = [string]$rule.KeyPath
+                            ValueName            = [string]$rule.ValueName
+                            Operator             = $negated
+                            Value                = $sourceValue
+                            Check32BitOn64System = [string]$rule.Check32BitOn64System
+                        })
+                }
+                'MSI' {
+                    Write-UILog -Message 'Intune update: MSI DetectionRule cannot be auto-converted to an update requirement rule - skipped.' -Level Warning -SyncHash $SyncHash
+                }
+                default {
+                    Write-UILog -Message "Intune update: DetectionRule type '$ruleType' cannot be auto-converted to an update requirement rule - skipped." -Level Warning -SyncHash $SyncHash
+                }
+            }
+        }
+
+        return $generated.ToArray()
+    }
+
+    $hasExplicitCustomRequirementRule = ($null -ne $DefinitionObject.CustomRequirementRule) -and (@($DefinitionObject.CustomRequirementRule).Count -gt 0)
+    $effectiveCustomRequirementRule = if ($hasExplicitCustomRequirementRule) {
+        $DefinitionObject.CustomRequirementRule
+    }
+    elseif ($ImportAsUpdate) {
+        Write-UILog -Message 'Intune update: no CustomRequirementRule defined in App.json - auto-generating from DetectionRule.' -Level Info -SyncHash $SyncHash
+        & $buildAutoCustomRequirementRule -SourceDetectionRules $DefinitionObject.DetectionRule
+    }
+    else {
+        $null
+    }
+
+    if ($null -ne $effectiveCustomRequirementRule) {
+        foreach ($rule in $effectiveCustomRequirementRule) {
             switch ([string]$rule.Type) {
                 'File' {
                     $requirementType = switch ([string]$rule.DetectionMethod) {
@@ -462,9 +573,10 @@ function Invoke-IntuneGraphWin32Import {
     # -- Build Notes JSON (PSPackageFactory format) ----------------------------
     $importDate = (Get-Date).ToUniversalTime().ToString('o')
     $notesObject = [ordered]@{
-        CreatedBy = 'PSPackageFactory'
-        Guid      = $PSPackageFactoryGuid
-        Date      = $importDate
+        CreatedBy   = 'PSPackageFactory'
+        Guid        = $PSPackageFactoryGuid
+        Date        = $importDate
+        IsUpdateApp = [bool]$ImportAsUpdate
     }
     $notesJson = $notesObject | ConvertTo-Json -Compress
 
@@ -816,8 +928,16 @@ function Invoke-IntuneGraphWin32Import {
         return (& $fail "Failed to set committedContentVersion on app '$appId': $($_.Exception.Message)")
     }
 
-    if ($null -ne $DefinitionObject.Assignments) {
-        foreach ($assignment in $DefinitionObject.Assignments) {
+    # Update apps are always assigned to All Devices (required); App.json Assignments are ignored.
+    $effectiveAssignments = if ($ImportAsUpdate) {
+        @([PSCustomObject]@{ Type = 'AllDevices'; Intent = 'required'; Notification = 'showAll' })
+    }
+    else {
+        $DefinitionObject.Assignments
+    }
+
+    if ($null -ne $effectiveAssignments) {
+        foreach ($assignment in $effectiveAssignments) {
             $assignmentType = [string]$assignment.Type
             $intent = [string]$assignment.Intent
             $notification = [string]$assignment.Notification

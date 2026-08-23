@@ -502,6 +502,7 @@ function Start-EvergreenWorkbench {
     $nerdioAzureSignInButton = $window.FindName('NerdioAzureSignInButton')
     $nerdioAzureSignOutButton = $window.FindName('NerdioAzureSignOutButton')
     $intuneApplyImportButton = $window.FindName('IntuneApplyImportButton')
+    $intuneApplyUpdateImportButton = $window.FindName('IntuneApplyUpdateImportButton')
     # Microsoft 365 Apps controls
     $m365ConfigPathBox = $window.FindName('M365ConfigPathBox')
     $browseM365ConfigButton = $window.FindName('BrowseM365ConfigButton')
@@ -636,10 +637,13 @@ function Start-EvergreenWorkbench {
                 [string]$_.ImportAction -eq 'Import new app' -or [string]$_.ImportAction -eq 'Import new version and supersede'
             })
 
+        $hasCustomRequirementRuleInSelection = @($actionableItems | Where-Object { [bool]$_.HasCustomRequirementRule }).Count -gt 0
+
         $canImport = ($actionableItems.Count -gt 0) `
             -and (-not $syncHash.IsIntuneImportLoading) `
             -and ([bool]$syncHash.IntuneWin32AppLoaded) `
-            -and ([bool]$syncHash.MgGraphModuleLoaded)
+            -and ([bool]$syncHash.MgGraphModuleLoaded) `
+            -and (-not $hasCustomRequirementRuleInSelection)
 
         if ($null -ne $intuneApplyImportButton) {
             $intuneApplyImportButton.IsEnabled = $canImport
@@ -648,6 +652,21 @@ function Start-EvergreenWorkbench {
             }
             else {
                 'Import Win32 app'
+            }
+        }
+
+        $canImportUpdate = ($actionableItems.Count -gt 0) `
+            -and (-not $syncHash.IsIntuneImportLoading) `
+            -and ([bool]$syncHash.IntuneWin32AppLoaded) `
+            -and ([bool]$syncHash.MgGraphModuleLoaded)
+
+        if ($null -ne $intuneApplyUpdateImportButton) {
+            $intuneApplyUpdateImportButton.IsEnabled = $canImportUpdate
+            $intuneApplyUpdateImportButton.Content = if ($actionableItems.Count -gt 1) {
+                "Import $($actionableItems.Count) Win32 updates"
+            }
+            else {
+                'Import Win32 update'
             }
         }
     }
@@ -923,7 +942,7 @@ function Start-EvergreenWorkbench {
 
         $syncHash.IsIntuneImportLoading = $IsLoading
 
-        foreach ($button in @($intuneRefreshCatalogButton, $intuneApplyImportButton, $intuneUpdateDefinitionsButton)) {
+        foreach ($button in @($intuneRefreshCatalogButton, $intuneApplyImportButton, $intuneApplyUpdateImportButton, $intuneUpdateDefinitionsButton)) {
             if ($null -eq $button) {
                 continue
             }
@@ -1788,6 +1807,10 @@ function Start-EvergreenWorkbench {
     }
 
     $startIntuneImportOperation = {
+        param(
+            [bool]$ImportAsUpdate = $false
+        )
+
         if ($syncHash.IsIntuneImportLoading) {
             Write-UILog -SyncHash $syncHash -Message 'Intune: another import action is already in progress.' -Level Warning
             return
@@ -1840,6 +1863,7 @@ function Start-EvergreenWorkbench {
                     PreviousAppId    = [string]$row.IntuneAppId
                     IsUpdate         = ([string]$row.IsMatched -eq 'Yes' -and [string]$row.UpdateRequired -eq 'Yes')
                     PSPackageFactory = [string]$row.PSPackageFactoryGuid
+                    AsUpdateApp      = $ImportAsUpdate
                 })
         }
 
@@ -1959,6 +1983,7 @@ function Start-EvergreenWorkbench {
                             -DownloadedVersion $buildResult.DownloadedVersion `
                             -PSPackageFactoryGuid $action.PSPackageFactory `
                             -DefinitionPath    $action.DefinitionPath `
+                            -ImportAsUpdate:$action.AsUpdateApp `
                             -SyncHash          $syncHash
 
                         if (-not $importResult.Succeeded) {
@@ -1967,8 +1992,8 @@ function Start-EvergreenWorkbench {
                             break
                         }
 
-                        # Stage 3: configure supersedence for updates
-                        if ($action.IsUpdate -and -not [string]::IsNullOrWhiteSpace($action.PreviousAppId)) {
+                        # Stage 3: configure supersedence for updates (base install apps only; update apps are independent)
+                        if (-not $action.AsUpdateApp -and $action.IsUpdate -and -not [string]::IsNullOrWhiteSpace($action.PreviousAppId)) {
                             $superResult = Set-IntuneGraphWin32Supersedence `
                                 -NewAppId      $importResult.IntuneAppId `
                                 -PreviousAppId $action.PreviousAppId `
@@ -3777,6 +3802,15 @@ function Start-EvergreenWorkbench {
                 ImportAction          = '-'
                 DefinitionPath        = ''
                 DefinitionObject      = $null
+                HasCustomRequirementRule = $false
+            }
+
+            if ([bool]$intuneRow.IsUpdateApp) {
+                $baseRow.MatchStatus = 'Update app (managed)'
+                $baseRow.ImportAction = '-'
+                $comparisonRows.Add($baseRow)
+                $intuneOnlyCount++
+                continue
             }
 
             if ([string]$intuneRow.NotesValid -ne 'Yes') {
@@ -3823,6 +3857,7 @@ function Start-EvergreenWorkbench {
             $baseRow.DefinitionVersion = [string]$definitionRow.Version
             $baseRow.DefinitionPath = [string]$definitionRow.DefinitionPath
             $baseRow.DefinitionObject = $definitionRow.DefinitionObject
+            $baseRow.HasCustomRequirementRule = ($null -ne $definitionRow.DefinitionObject.CustomRequirementRule -and @($definitionRow.DefinitionObject.CustomRequirementRule).Count -gt 0)
             $archValue = [string]$definitionRow.DefinitionObject.Application.Architecture
             $baseRow.Architecture = if ([string]::IsNullOrWhiteSpace($archValue)) { '-' } else { $archValue }
             if ([string]::IsNullOrWhiteSpace($baseRow.DisplayPublisher) -or $baseRow.DisplayPublisher -eq '-') {
@@ -3891,6 +3926,7 @@ function Start-EvergreenWorkbench {
             }
 
             $defArchValue = [string]$definitionRow.DefinitionObject.Application.Architecture
+            $defHasCustomRequirementRule = ($null -ne $definitionRow.DefinitionObject.CustomRequirementRule -and @($definitionRow.DefinitionObject.CustomRequirementRule).Count -gt 0)
             $comparisonRows.Add([PSCustomObject]@{
                     RowType               = 'Definition'
                     IntuneAppId           = ''
@@ -3908,6 +3944,7 @@ function Start-EvergreenWorkbench {
                     ImportAction          = $importAction
                     DefinitionPath        = [string]$definitionRow.DefinitionPath
                     DefinitionObject      = $definitionRow.DefinitionObject
+                    HasCustomRequirementRule = $defHasCustomRequirementRule
                 })
 
             if ($isValid -and -not $isDuplicateGuid) {
@@ -4244,6 +4281,7 @@ function Start-EvergreenWorkbench {
 
                         $createdBy = if ($null -ne $notesJson -and $notesJson.PSObject.Properties.Name -contains 'CreatedBy') { [string]$notesJson.CreatedBy } else { '' }
                         $guidText = if ($null -ne $notesJson -and $notesJson.PSObject.Properties.Name -contains 'Guid') { [string]$notesJson.Guid }      else { '' }
+                        $isUpdateApp = ($null -ne $notesJson -and $notesJson.PSObject.Properties.Name -contains 'IsUpdateApp') -and ([bool]$notesJson.IsUpdateApp)
                         $isPsPackageFactory = ($notesText -match 'PSPackageFactory') -or ($createdBy -ieq 'PSPackageFactory')
 
                         if (-not $isPsPackageFactory) {
@@ -4257,6 +4295,7 @@ function Start-EvergreenWorkbench {
                                 DisplayVersion = [string]$application.displayVersion
                                 NotesGuid      = $guidText
                                 NotesValid     = $notesValid
+                                IsUpdateApp    = $isUpdateApp
                             })
                     }
 
@@ -8127,7 +8166,12 @@ function Start-EvergreenWorkbench {
 
     $intuneApplyImportButton.add_Click({
             if (-not (& $requireImportAuth -ActionName 'Intune apply import')) { return }
-            & $startIntuneImportOperation
+            & $startIntuneImportOperation -ImportAsUpdate $false
+        })
+
+    $intuneApplyUpdateImportButton.add_Click({
+            if (-not (& $requireImportAuth -ActionName 'Intune apply update import')) { return }
+            & $startIntuneImportOperation -ImportAsUpdate $true
         })
 
     $installLoadDefinitionsButton.add_Click({
