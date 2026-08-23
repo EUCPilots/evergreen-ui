@@ -268,7 +268,7 @@ function Start-EvergreenWorkbench {
             PendingM365EvergreenAsync                       = $null
             M365ConfigRows                                  = @()
             M365EvergreenRows                               = @()
-            ImportCurrentProvider                           = 'Nerdio'
+            ImportCurrentProvider                           = [string]$config.ImportSettings.CurrentProvider
             AzureAuthState                                  = [PSCustomObject]@{
                 IsAuthenticated    = $false
                 IsAuthInProgress   = $false

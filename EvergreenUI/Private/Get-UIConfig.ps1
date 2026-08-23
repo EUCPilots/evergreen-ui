@@ -93,9 +93,12 @@ function Get-UIConfig {
         $json = Get-Content -Path $configPath -Raw -ErrorAction Stop |
         ConvertFrom-Json -ErrorAction Stop
 
+        $showInstallTabWasMissing = 'ShowInstallTab' -notin $json.PSObject.Properties.Name
+
         # Merge with defaults so new keys added in future versions are populated
         foreach ($prop in $default.PSObject.Properties.Name) {
-            if ($null -eq $json.$prop) {
+            $loadedProperty = $json.PSObject.Properties[$prop]
+            if ($null -eq $loadedProperty -or [object]::ReferenceEquals($null, $loadedProperty.Value)) {
                 $json | Add-Member -NotePropertyName $prop -NotePropertyValue $default.$prop -Force
             }
         }
@@ -120,11 +123,12 @@ function Get-UIConfig {
             $json.OutputPath = [string]$default.OutputPath
         }
 
-        if ($null -eq $json.ShowImportTab) {
+        $showImportTabProperty = $json.PSObject.Properties['ShowImportTab']
+        if ($null -eq $showImportTabProperty -or [object]::ReferenceEquals($null, $showImportTabProperty.Value)) {
             $json.ShowImportTab = [bool]$default.ShowImportTab
         }
 
-        if ($null -eq $json.ShowInstallTab) {
+        if ($showInstallTabWasMissing) {
             # Backward compatibility: before this setting existed, Install visibility followed ShowImportTab.
             $json.ShowInstallTab = [bool]$json.ShowImportTab
         }

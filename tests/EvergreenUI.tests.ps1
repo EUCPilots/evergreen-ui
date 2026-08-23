@@ -105,19 +105,116 @@ Describe 'Get-UIConfig' {
     It 'Returns a default config object when no config file exists' {
         InModuleScope EvergreenUI {
             # Temporarily redirect APPDATA to a temp path with no config file
+            $tempAppData = Join-Path $env:TEMP "EvergreenUI_TestNoConfig_$(Get-Random)"
             $originalAppData = $env:APPDATA
-            $env:APPDATA = Join-Path $env:TEMP 'EvergreenUI_TestNoConfig'
+            $env:APPDATA = $tempAppData
             try {
                 $config = Get-UIConfig
                 $config.Theme        | Should -Be 'Light'
                 $config.LogHeight    | Should -Be 150
-                $config.ImportSettings.CurrentProvider | Should -Be 'Nerdio'
+                $config.ImportSettings.CurrentProvider | Should -Be 'Authentication'
                 $config.NerdioSettings.NmeResourceGroup | Should -Be ''
                 $config.NerdioSettings.NmeStorageAccount | Should -Be ''
                 $config.NerdioSettings.NmeContainer | Should -Be ''
             }
             finally {
                 $env:APPDATA = $originalAppData
+                Remove-Item -Path $tempAppData -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    It 'Returns defaults when the config file contains malformed JSON' {
+        InModuleScope EvergreenUI {
+            $tempAppData = Join-Path $env:TEMP "EvergreenUI_TestMalformedConfig_$(Get-Random)"
+            $configDirectory = Join-Path -Path $tempAppData -ChildPath 'EvergreenUI'
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = $tempAppData
+            try {
+                New-Item -Path $configDirectory -ItemType Directory -Force | Out-Null
+                Set-Content -Path (Join-Path -Path $configDirectory -ChildPath 'settings.json') -Value '{invalid' -Encoding UTF8
+
+                $config = Get-UIConfig
+
+                $config.Theme | Should -Be 'Light'
+                $config.ImportSettings.CurrentProvider | Should -Be 'Authentication'
+            }
+            finally {
+                $env:APPDATA = $originalAppData
+                Remove-Item -Path $tempAppData -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    It 'Restores missing nested settings sections' {
+        InModuleScope EvergreenUI {
+            $tempAppData = Join-Path $env:TEMP "EvergreenUI_TestMissingSections_$(Get-Random)"
+            $configDirectory = Join-Path -Path $tempAppData -ChildPath 'EvergreenUI'
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = $tempAppData
+            try {
+                New-Item -Path $configDirectory -ItemType Directory -Force | Out-Null
+                $persistedConfig = [PSCustomObject]@{ Theme = 'Dark' } | ConvertTo-Json -Compress
+                Set-Content -Path (Join-Path -Path $configDirectory -ChildPath 'settings.json') -Value $persistedConfig -Encoding UTF8
+
+                $config = Get-UIConfig
+
+                $config.ImportSettings.CurrentProvider | Should -Be 'Authentication'
+                $config.NerdioSettings.NmeResourceGroup | Should -Be ''
+                $config.IntuneSettings.PackageOutputPath | Should -Be ''
+                $config.M365Settings.Channel | Should -Be 'MonthlyEnterprise'
+                $config.InstallSettings.HideIncompatibleArchitecture | Should -BeFalse
+                $config.AzureAuthSettings.TenantId | Should -Be ''
+            }
+            finally {
+                $env:APPDATA = $originalAppData
+                Remove-Item -Path $tempAppData -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    It 'Uses ShowImportTab for ShowInstallTab when the install setting is absent' {
+        InModuleScope EvergreenUI {
+            $tempAppData = Join-Path $env:TEMP "EvergreenUI_TestLegacyInstallTab_$(Get-Random)"
+            $configDirectory = Join-Path -Path $tempAppData -ChildPath 'EvergreenUI'
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = $tempAppData
+            try {
+                New-Item -Path $configDirectory -ItemType Directory -Force | Out-Null
+                $persistedConfig = [PSCustomObject]@{ ShowImportTab = $false } | ConvertTo-Json -Compress
+                Set-Content -Path (Join-Path -Path $configDirectory -ChildPath 'settings.json') -Value $persistedConfig -Encoding UTF8
+
+                $config = Get-UIConfig
+
+                $config.ShowInstallTab | Should -BeFalse
+            }
+            finally {
+                $env:APPDATA = $originalAppData
+                Remove-Item -Path $tempAppData -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    It 'Restores Authentication when the persisted provider is blank' {
+        InModuleScope EvergreenUI {
+            $tempAppData = Join-Path $env:TEMP "EvergreenUI_TestBlankProvider_$(Get-Random)"
+            $configDirectory = Join-Path -Path $tempAppData -ChildPath 'EvergreenUI'
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = $tempAppData
+            try {
+                New-Item -Path $configDirectory -ItemType Directory -Force | Out-Null
+                $persistedConfig = [PSCustomObject]@{
+                    ImportSettings = [PSCustomObject]@{ CurrentProvider = '   ' }
+                } | ConvertTo-Json -Compress
+                Set-Content -Path (Join-Path -Path $configDirectory -ChildPath 'settings.json') -Value $persistedConfig -Encoding UTF8
+
+                $config = Get-UIConfig
+
+                $config.ImportSettings.CurrentProvider | Should -Be 'Authentication'
+            }
+            finally {
+                $env:APPDATA = $originalAppData
+                Remove-Item -Path $tempAppData -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
     }
