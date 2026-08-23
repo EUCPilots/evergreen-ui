@@ -1,27 +1,50 @@
 name: 'Publish to PowerShell Gallery'
 
 on:
-  workflow_run:
-    workflows: ['Tag on version bump']
-    types:
-      - completed
   push:
     tags:
       - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish'
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish (for example, v1.2.0)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  validate:
+    uses: ./.github/workflows/validate.yml
+    with:
+      checkout_ref: ${{ inputs.tag || github.ref }}
+
   publish:
+    needs: validate
     runs-on: windows-latest
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref }}
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Verify release tag
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          $manifest = Import-PowerShellDataFile -Path '.\EvergreenUI\EvergreenUI.psd1'
+          $expectedTag = "v$($manifest.ModuleVersion)"
+          if ($env:RELEASE_TAG -ne $expectedTag) {
+              throw "Release tag '$env:RELEASE_TAG' does not match manifest version '$expectedTag'."
+          }
 
       - name: Install required modules
         shell: pwsh

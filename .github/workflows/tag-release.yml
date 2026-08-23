@@ -12,8 +12,15 @@ permissions:
   contents: write
 
 jobs:
+  validate:
+    uses: ./.github/workflows/validate.yml
+
   tag:
+    needs: validate
     runs-on: ubuntu-latest
+    outputs:
+      should_tag: ${{ steps.check.outputs.should_tag }}
+      tag_name: ${{ steps.check.outputs.tag_name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,11 +29,11 @@ jobs:
 
       - name: Extract version from manifest
         id: version
+        shell: pwsh
         run: |
-          FULL_VERSION=$(sed -n "4p" EvergreenUI/EvergreenUI.psd1 | grep -oP "'\K[^']+" | tr -d '\r')
-
-          echo "full_version=$FULL_VERSION" >> "$GITHUB_OUTPUT"
-          echo "Detected version: $FULL_VERSION"
+          $manifest = Import-PowerShellDataFile -Path './EvergreenUI/EvergreenUI.psd1'
+          "full_version=$($manifest.ModuleVersion)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Output "Detected version: $($manifest.ModuleVersion)"
 
       - name: Determine if tagging is required
         id: check
@@ -74,3 +81,11 @@ jobs:
           git tag "${{ steps.check.outputs.tag_name }}"
           git push origin "${{ steps.check.outputs.tag_name }}"
           echo "Created tag ${{ steps.check.outputs.tag_name }}"
+
+  publish:
+    needs: tag
+    if: needs.tag.outputs.should_tag == 'true'
+    uses: ./.github/workflows/publish-psgallery.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag_name }}
+    secrets: inherit

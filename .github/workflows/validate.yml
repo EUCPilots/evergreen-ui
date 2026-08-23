@@ -1,0 +1,96 @@
+name: 'Validate'
+
+on:
+  pull_request:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: 'Git ref to validate'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  windows-powershell:
+    name: 'Windows PowerShell 5.1'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+
+      - name: Install validation modules
+        shell: powershell
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Evergreen -MinimumVersion 2603.2832.0 -Force -Scope CurrentUser
+          Install-Module -Name Pester -MinimumVersion 5.5.0 -Force -SkipPublisherCheck -Scope CurrentUser
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Validate module manifest
+        shell: powershell
+        run: |
+          Test-ModuleManifest -Path '.\EvergreenUI\EvergreenUI.psd1' -ErrorAction Stop
+
+      - name: Run PSScriptAnalyzer
+        shell: powershell
+        run: |
+          $results = @(Invoke-ScriptAnalyzer -Path '.\EvergreenUI' -Recurse)
+          $results | Format-Table -AutoSize | Out-String | Write-Output
+          $errors = @($results | Where-Object -Property Severity -EQ -Value Error)
+          if ($errors.Count -gt 0) {
+              throw "PSScriptAnalyzer reported $($errors.Count) error(s)."
+          }
+
+      - name: Run unit tests
+        shell: powershell
+        run: |
+          $configuration = Import-PowerShellDataFile -Path '.\PesterConfiguration.psd1'
+          $result = Invoke-Pester -Configuration $configuration
+          if ($result.FailedCount -gt 0) {
+              throw "$($result.FailedCount) Pester test(s) failed."
+          }
+
+  powershell:
+    name: 'PowerShell 7'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+
+      - name: Install validation modules
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Evergreen -MinimumVersion 2603.2832.0 -Force -Scope CurrentUser
+          Install-Module -Name Pester -MinimumVersion 5.5.0 -Force -SkipPublisherCheck -Scope CurrentUser
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Validate module manifest
+        shell: pwsh
+        run: |
+          Test-ModuleManifest -Path '.\EvergreenUI\EvergreenUI.psd1' -ErrorAction Stop
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $results = @(Invoke-ScriptAnalyzer -Path '.\EvergreenUI' -Recurse)
+          $results | Format-Table -AutoSize | Out-String | Write-Output
+          $errors = @($results | Where-Object -Property Severity -EQ -Value Error)
+          if ($errors.Count -gt 0) {
+              throw "PSScriptAnalyzer reported $($errors.Count) error(s)."
+          }
+
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          $configuration = Import-PowerShellDataFile -Path '.\PesterConfiguration.psd1'
+          $result = Invoke-Pester -Configuration $configuration
+          if ($result.FailedCount -gt 0) {
+              throw "$($result.FailedCount) Pester test(s) failed."
+          }
