@@ -12,7 +12,8 @@ AfterAll {
 Describe 'Get-IntunePackageLatestVersion' -Tag 'Unit' {
     It 'Rejects an unsupported filter expression without executing it' {
         InModuleScope EvergreenUI {
-            Mock -CommandName Invoke-Expression
+            Mock -CommandName Get-EvergreenApp
+            Mock -CommandName Get-VcList
             $definition = [PSCustomObject]@{
                 Application = [PSCustomObject]@{ Filter = 'Get-Process' }
             }
@@ -20,8 +21,9 @@ Describe 'Get-IntunePackageLatestVersion' -Tag 'Unit' {
             $result = Get-IntunePackageLatestVersion -DefinitionObject $definition
 
             $result.Succeeded | Should -BeFalse
-            $result.Error | Should -Match 'Unsupported filter expression'
-            Should -Invoke -CommandName Invoke-Expression -Times 0 -Exactly
+            $result.Error | Should -Match 'Unsupported source command'
+            Should -Invoke -CommandName Get-EvergreenApp -Times 0 -Exactly
+            Should -Invoke -CommandName Get-VcList -Times 0 -Exactly
         }
     }
 
@@ -40,7 +42,7 @@ Describe 'Get-IntunePackageLatestVersion' -Tag 'Unit' {
 
     It 'Returns a structured failure when filter execution fails' {
         InModuleScope EvergreenUI {
-            Mock -CommandName Invoke-Expression { throw 'catalog unavailable' }
+            Mock -CommandName Get-EvergreenApp { throw 'catalog unavailable' }
             $definition = [PSCustomObject]@{
                 Application = [PSCustomObject]@{ Filter = 'Get-EvergreenApp -Name Test' }
             }
@@ -54,7 +56,7 @@ Describe 'Get-IntunePackageLatestVersion' -Tag 'Unit' {
 
     It 'Selects the highest version matching architecture and language preferences' {
         InModuleScope EvergreenUI {
-            Mock -CommandName Invoke-Expression {
+            Mock -CommandName Get-EvergreenApp {
                 @(
                     [PSCustomObject]@{ Version = '1.0.0'; Architecture = 'x64'; Language = 'en-US'; URI = 'https://example.com/1.exe' }
                     [PSCustomObject]@{ Version = '3.0.0'; Architecture = 'x86'; Language = 'en-US'; URI = 'https://example.com/3.exe' }
@@ -80,7 +82,7 @@ Describe 'Get-IntunePackageLatestVersion' -Tag 'Unit' {
 
     It 'Resolves supported alternate URI property names' {
         InModuleScope EvergreenUI {
-            Mock -CommandName Invoke-Expression {
+            Mock -CommandName Get-VcList {
                 [PSCustomObject]@{ Version = '1.0.0'; DownloadUrl = 'https://example.com/app.exe' }
             }
             $definition = [PSCustomObject]@{

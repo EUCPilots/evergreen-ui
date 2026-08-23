@@ -89,4 +89,36 @@ Describe 'Invoke-PackageFilter' -Tag 'Unit' {
             Should -Invoke -CommandName Get-VcList -Times 0 -Exactly
         }
     }
+
+    It 'Rejects <SideEffect> side effects without executing any command' -ForEach @(
+        @{
+            SideEffect = 'process'
+            Expression = 'Get-EvergreenApp -Name Test; Start-Process -FilePath calc.exe'
+        }
+        @{
+            SideEffect = 'file'
+            Expression = 'Get-EvergreenApp -Name Test | ForEach-Object { Set-Content -LiteralPath "owned.txt" -Value $_.URI }'
+        }
+        @{
+            SideEffect = 'network'
+            Expression = 'Get-EvergreenApp -Name Test | ForEach-Object { Invoke-WebRequest -Uri $_.URI }'
+        }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ FilterExpression = $Expression } {
+            Mock -CommandName Get-EvergreenApp
+            Mock -CommandName Get-VcList
+            Mock -CommandName Start-Process
+            Mock -CommandName Set-Content
+            Mock -CommandName Invoke-WebRequest
+
+            $result = Invoke-PackageFilter -FilterExpression $FilterExpression
+
+            $result.Succeeded | Should -BeFalse
+            Should -Invoke -CommandName Get-EvergreenApp -Times 0 -Exactly
+            Should -Invoke -CommandName Get-VcList -Times 0 -Exactly
+            Should -Invoke -CommandName Start-Process -Times 0 -Exactly
+            Should -Invoke -CommandName Set-Content -Times 0 -Exactly
+            Should -Invoke -CommandName Invoke-WebRequest -Times 0 -Exactly
+        }
+    }
 }

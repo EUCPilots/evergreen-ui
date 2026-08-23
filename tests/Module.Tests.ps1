@@ -13,4 +13,17 @@ Describe 'Module manifest' -Tag 'Unit' {
         $manifest = Import-PowerShellDataFile -Path $script:manifestPath
         $manifest.FunctionsToExport | Should -Be @('Start-EvergreenWorkbench')
     }
+
+    It 'Loads the package-filter dependency before the latest-version resolver in isolated runspaces' {
+        $workbenchPath = Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\Public\Start-EvergreenWorkbench.ps1'
+        $workbenchContent = Get-Content -LiteralPath $workbenchPath -Raw -ErrorAction Stop
+        $resolverCount = ([regex]::Matches($workbenchContent, "'Get-IntunePackageLatestVersion\.ps1'")).Count
+        $orderedDependencyCount = ([regex]::Matches(
+                $workbenchContent,
+                "'Invoke-PackageFilter\.ps1'\s*\r?\n\s*'Get-IntunePackageLatestVersion\.ps1'"
+            )).Count
+
+        $resolverCount | Should -BeGreaterThan 0
+        $orderedDependencyCount | Should -Be $resolverCount
+    }
 }

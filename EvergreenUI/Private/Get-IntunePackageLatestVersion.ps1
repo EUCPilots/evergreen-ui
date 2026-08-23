@@ -58,18 +58,12 @@ function Get-IntunePackageLatestVersion {
         return (& $fail 'Application.Filter is empty or missing.')
     }
 
-    # Safety gate: only Evergreen and VcRedist commands are permitted
-    if ($filterExpr -notmatch 'Get-EvergreenApp|Get-VcList') {
-        return (& $fail "Unsupported filter expression. Only Get-EvergreenApp and Get-VcList are supported. Got: $filterExpr")
+    $filterResult = Invoke-PackageFilter -FilterExpression $filterExpr
+    if (-not $filterResult.Succeeded) {
+        return (& $fail $filterResult.Error)
     }
 
-    $results = $null
-    try {
-        $results = @(Invoke-Expression -Command $filterExpr -ErrorAction Stop)
-    }
-    catch {
-        return (& $fail "Filter execution failed: $($_.Exception.Message)")
-    }
+    $results = @($filterResult.Results)
 
     if ($null -eq $results -or $results.Count -eq 0) {
         return (& $fail "Filter returned no results for expression: $filterExpr")
@@ -123,6 +117,7 @@ function Get-IntunePackageLatestVersion {
         }
         catch {
             # Keep existing best if version parse fails
+            Write-Verbose -Message "EvergreenUI: Failed to compare artifact versions '$candidateRaw' and '$bestRaw': $($_.Exception.Message)"
         }
     }
 

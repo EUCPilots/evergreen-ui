@@ -1418,6 +1418,7 @@ function Start-EvergreenWorkbench {
         $helperScripts = @(
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Invoke-PackageFilter.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
         ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
@@ -1636,6 +1637,7 @@ function Start-EvergreenWorkbench {
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Get-SafeFolderName.ps1'
+            'Invoke-PackageFilter.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Get-InstallPackageLatestVersion.ps1'
             'Invoke-LocalPackageInstall.ps1'
@@ -1891,6 +1893,7 @@ function Start-EvergreenWorkbench {
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
             'Get-SafeFolderName.ps1'
+            'Invoke-PackageFilter.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Invoke-IntunePackageBuild.ps1'
             'Invoke-IntuneGraphWin32Import.ps1'
@@ -4138,6 +4141,7 @@ function Start-EvergreenWorkbench {
         $helperScripts = @(
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Invoke-PackageFilter.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Invoke-IntuneDefinitionUpdate.ps1'
         ) | ForEach-Object { Join-Path -Path $privateRootPath -ChildPath $_ }
