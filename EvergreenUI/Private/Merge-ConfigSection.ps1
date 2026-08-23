@@ -41,7 +41,8 @@ function Merge-ConfigSection {
     }
 
     foreach ($prop in $Default.PSObject.Properties.Name) {
-        if ($null -eq $Loaded.$prop) {
+        $loadedProperty = $Loaded.PSObject.Properties[$prop]
+        if ($null -eq $loadedProperty -or [object]::ReferenceEquals($null, $loadedProperty.Value)) {
             $Loaded | Add-Member -NotePropertyName $prop -NotePropertyValue $Default.$prop -Force
         }
     }
