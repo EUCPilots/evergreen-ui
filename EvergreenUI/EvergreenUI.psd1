@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 @{
     # Module identity
-    ModuleVersion     = '1.1.27'
+    ModuleVersion     = '1.2.0'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
