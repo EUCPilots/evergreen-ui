@@ -3,7 +3,7 @@
 .EXTERNALHELP EvergreenUI-help.xml
 #>
 function Start-EvergreenWorkbench {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $false, ConfirmImpact = 'Low')]
     param()
 
     Set-StrictMode -Version Latest
@@ -6197,7 +6197,7 @@ function Start-EvergreenWorkbench {
                         . $scriptPath
                     }
 
-                    $r = Invoke-AzureSignIn -TenantId $TenantId
+                    $r = Invoke-AzureSignIn -TenantId $TenantId -SyncHash $syncHash
                     if ($null -ne $r) {
                         $result.Succeeded = [bool]$r.Succeeded
                         $result.AccountId = [string]$r.AccountId
@@ -6612,7 +6612,7 @@ function Start-EvergreenWorkbench {
                     $result.SubscriptionName = [string]$r.SubscriptionName
 
                     Write-UILog -SyncHash $syncHash -Message 'Azure sign-in succeeded. Loading resource groups...' -Level Info
-                    $result.ResourceGroups = @(Get-NerdioAzureResourceGroups)
+                    $result.ResourceGroups = @(Get-NerdioAzureResourceGroup)
                 }
                 catch {
                     $result.ErrorMessage = $_.Exception.Message
@@ -7836,7 +7836,7 @@ function Start-EvergreenWorkbench {
             Set-UIConfig -Config $syncHash.Config
 
             Write-UILog -SyncHash $syncHash -Message "Loading storage accounts for '$rg'..." -Level Info
-            $accounts = Get-NerdioAzureStorageAccounts -ResourceGroupName $rg
+            $accounts = Get-NerdioAzureStorageAccount -ResourceGroupName $rg
             foreach ($sa in $accounts) { [void]$nmeStorageAccountCombo.Items.Add($sa) }
             $nmeStorageAccountCombo.IsEnabled = ($nmeStorageAccountCombo.Items.Count -gt 0)
             Write-UILog -SyncHash $syncHash -Message "$($nmeStorageAccountCombo.Items.Count) storage account(s) loaded." -Level Info
@@ -7859,7 +7859,7 @@ function Start-EvergreenWorkbench {
             Set-UIConfig -Config $syncHash.Config
 
             Write-UILog -SyncHash $syncHash -Message "Loading containers for '$sa'..." -Level Info
-            $containers = Get-NerdioAzureStorageContainers -ResourceGroupName $rg -StorageAccountName $sa
+            $containers = Get-NerdioAzureStorageContainer -ResourceGroupName $rg -StorageAccountName $sa
             foreach ($c in $containers) { [void]$nmeContainerCombo.Items.Add($c) }
             $nmeContainerCombo.IsEnabled = ($nmeContainerCombo.Items.Count -gt 0)
             Write-UILog -SyncHash $syncHash -Message "$($nmeContainerCombo.Items.Count) container(s) loaded." -Level Info

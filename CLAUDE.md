@@ -94,9 +94,9 @@ WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures
 | `Invoke-AzureSignOut` | Disconnect Microsoft Graph and Az contexts |
 | `Invoke-NerdioAzureSignIn` | Interactive Azure sign-in for Nerdio Manager via Connect-AzAccount |
 | `Invoke-NerdioAzureSignOut` | Disconnect Az contexts for Nerdio |
-| `Get-NerdioAzureResourceGroups` | Query Azure resource groups for Nerdio configuration |
-| `Get-NerdioAzureStorageAccounts` | Query storage accounts in a resource group |
-| `Get-NerdioAzureStorageContainers` | Query blob containers in a storage account |
+| `Get-NerdioAzureResourceGroup` | Query Azure resource groups for Nerdio configuration |
+| `Get-NerdioAzureStorageAccount` | Query storage accounts in a resource group |
+| `Get-NerdioAzureStorageContainer` | Query blob containers in a storage account |
 | `New-WpfRunspace` | Factory for background STA runspaces |
 | `Write-UILog` | Thread-safe log output to the UI log panel |
 | `Write-UpdateOutput` | Thread-safe log output to the Update tab panel |

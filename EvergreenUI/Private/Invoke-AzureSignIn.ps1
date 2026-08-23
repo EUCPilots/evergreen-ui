@@ -12,28 +12,96 @@ function Invoke-AzureSignIn {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [string]$TenantId
+        [string]$TenantId,
+
+        [Parameter(Mandatory = $false)]
+        [System.Collections.Hashtable]$SyncHash
     )
+
+    $authSyncHash = $SyncHash
+
+    $protectLogValue = {
+        param([AllowNull()][string]$Value)
+
+        if ([string]::IsNullOrEmpty($Value)) {
+            return $Value
+        }
+
+        $safeValue = [regex]::Replace(
+            $Value,
+            '(?i)\b(access_token|refresh_token|id_token|client_secret)\b\s*[:=]\s*[^\s,;]+',
+            '$1=[REDACTED]'
+        )
+        $safeValue = [regex]::Replace($safeValue, '(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+', 'Bearer [REDACTED]')
+        $safeValue = [regex]::Replace($safeValue, '\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b', '[REDACTED JWT]')
+        return $safeValue
+    }
+
+    $writeAuthLog = {
+        param(
+            [Parameter(Mandatory)]
+            [string]$Message,
+
+            [ValidateSet('Info', 'Warning', 'Error')]
+            [string]$Level = 'Info'
+        )
+
+        $safeMessage = & $protectLogValue -Value $Message
+        Write-Verbose -Message "EvergreenUI: Entra authentication: $safeMessage"
+
+        if ($null -ne $authSyncHash -and $null -ne (Get-Command -Name Write-UILog -ErrorAction SilentlyContinue)) {
+            try {
+            Write-UILog -SyncHash $authSyncHash -Message "Entra authentication: $safeMessage" -Level $Level
+            }
+            catch {
+                # best-effort - authentication must continue if UI logging is unavailable during shutdown
+                Write-Verbose -Message "EvergreenUI: Entra authentication UI logging failed (ignored): $($_.Exception.Message)"
+            }
+        }
+    }
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
     try {
         $tenant = if ([string]::IsNullOrWhiteSpace($TenantId)) { $null } else { $TenantId.Trim() }
         $accountId = ''
         $tenantId = if ($null -eq $tenant) { '' } else { [string]$tenant }
         $authMethod = 'Connect-MgGraph'
+        $powerShellEdition = if ($PSVersionTable.ContainsKey('PSEdition')) { [string]$PSVersionTable.PSEdition } else { 'Desktop' }
+        $apartmentState = [System.Threading.Thread]::CurrentThread.ApartmentState
+        $processArchitecture = if ([System.Environment]::Is64BitProcess) { 'x64' } else { 'x86' }
+
+        & $writeAuthLog -Message "Starting interactive sign-in. PowerShell=$($PSVersionTable.PSVersion) ($powerShellEdition); process=$processArchitecture; apartment=$apartmentState; tenant=$(if ($null -eq $tenant) { '<organization default>' } else { $tenant })."
 
         # Intune workflows should use Microsoft Graph interactive auth so the
         # sign-in button opens the browser flow instead of prompting for a client ID.
         # Module is pre-loaded by $loadImportTabModules; guard ensures resilience if
         # called before tab initialization.
-        if (-not (Get-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue)) {
-            Write-Verbose 'EvergreenUI: Importing Microsoft.Graph.Authentication (fallback)...'
-            Import-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue | Out-Null
+        $graphModule = Get-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -eq $graphModule) {
+            $availableModule = Get-Module -Name Microsoft.Graph.Authentication -ListAvailable -ErrorAction SilentlyContinue |
+                Sort-Object -Property Version -Descending |
+                Select-Object -First 1
+            $availableDescription = if ($null -eq $availableModule) {
+                'not found in PSModulePath'
+            }
+            else {
+                "version $($availableModule.Version) at '$($availableModule.Path)'"
+            }
+            & $writeAuthLog -Message "Microsoft.Graph.Authentication is not loaded; discovered $availableDescription. Importing module."
+            Import-Module -Name Microsoft.Graph.Authentication -ErrorAction Stop | Out-Null
+            $graphModule = Get-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue | Select-Object -First 1
         }
-        Write-Verbose -Message "EvergreenUI: Connect-MgGraph available: $(($null -ne (Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue)))"
 
-        if (-not (Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue)) {
+        if ($null -ne $graphModule) {
+            & $writeAuthLog -Message "Microsoft.Graph.Authentication loaded: version $($graphModule.Version) from '$($graphModule.Path)'."
+        }
+
+        $connectCommand = Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue
+        if ($null -eq $connectCommand) {
             throw 'Connect-MgGraph is not available. Install Microsoft.Graph.Authentication.'
         }
+        & $writeAuthLog -Message "Connect-MgGraph resolved as $($connectCommand.CommandType) from module '$($connectCommand.Source)' version $($connectCommand.Version)."
 
         $mgParams = @{
             Scopes       = @('DeviceManagementApps.ReadWrite.All')
@@ -45,7 +113,9 @@ function Invoke-AzureSignIn {
             $mgParams['TenantId'] = $tenant
         }
 
+        & $writeAuthLog -Message "Invoking Connect-MgGraph with scopes '$($mgParams.Scopes -join ', ')', ContextScope=Process, NoWelcome=True, and explicit tenant=$($mgParams.ContainsKey('TenantId'))."
         Connect-MgGraph @mgParams | Out-Null
+        & $writeAuthLog -Message "Connect-MgGraph completed after $($stopwatch.ElapsedMilliseconds) ms; reading non-secret Graph context metadata."
 
         if (Get-Command -Name Get-MgContext -ErrorAction SilentlyContinue) {
             $mgContext = Get-MgContext -ErrorAction SilentlyContinue
@@ -56,8 +126,21 @@ function Invoke-AzureSignIn {
                 if ($mgContext.PSObject.Properties.Name -contains 'TenantId' -and -not [string]::IsNullOrWhiteSpace([string]$mgContext.TenantId)) {
                     $tenantId = [string]$mgContext.TenantId
                 }
+
+                $contextScope = if ($mgContext.PSObject.Properties.Name -contains 'ContextScope') { [string]$mgContext.ContextScope } else { '<not reported>' }
+                $authType = if ($mgContext.PSObject.Properties.Name -contains 'AuthType') { [string]$mgContext.AuthType } else { '<not reported>' }
+                $grantedScopes = if ($mgContext.PSObject.Properties.Name -contains 'Scopes') { @($mgContext.Scopes) -join ', ' } else { '<not reported>' }
+                & $writeAuthLog -Message "Graph context confirmed: tenant='$tenantId'; account='$accountId'; ContextScope=$contextScope; AuthType=$authType; granted scopes='$grantedScopes'."
+            }
+            else {
+                & $writeAuthLog -Message 'Connect-MgGraph returned successfully, but Get-MgContext returned no context.' -Level Warning
             }
         }
+        else {
+            & $writeAuthLog -Message 'Get-MgContext is unavailable; account and tenant metadata could not be confirmed.' -Level Warning
+        }
+
+        & $writeAuthLog -Message "Interactive sign-in completed successfully in $($stopwatch.ElapsedMilliseconds) ms."
 
         return [PSCustomObject]@{
             Succeeded          = $true
@@ -71,16 +154,29 @@ function Invoke-AzureSignIn {
         }
     }
     catch {
+        $safeErrorMessage = & $protectLogValue -Value $_.Exception.Message
+        $errorType = $_.Exception.GetType().FullName
+        $errorId = & $protectLogValue -Value $_.FullyQualifiedErrorId
+        $errorCategory = [string]$_.CategoryInfo.Category
+        & $writeAuthLog -Message "Interactive sign-in failed after $($stopwatch.ElapsedMilliseconds) ms. Exception=$errorType; ErrorId='$errorId'; Category=$errorCategory; Message='$safeErrorMessage'." -Level Error
+        if (-not [string]::IsNullOrWhiteSpace([string]$_.ScriptStackTrace)) {
+            $safeStackTrace = & $protectLogValue -Value $_.ScriptStackTrace
+            & $writeAuthLog -Message "Failure script stack: $safeStackTrace" -Level Error
+        }
+
         return [PSCustomObject]@{
             Succeeded          = $false
             AccountId          = ''
             TenantId           = ''
             SubscriptionName   = ''
             AuthMethod         = ''
-            ErrorMessage       = $_.Exception.Message
+            ErrorMessage       = $safeErrorMessage
             IntuneConnected    = $false
-            IntuneConnectError = $_.Exception.Message
+            IntuneConnectError = $safeErrorMessage
         }
+    }
+    finally {
+        $stopwatch.Stop()
     }
 }
 
@@ -221,7 +317,7 @@ function Invoke-NerdioAzureSignOut {
     }
 }
 
-function Get-NerdioAzureResourceGroups {
+function Get-NerdioAzureResourceGroup {
     [CmdletBinding()]
     param()
     try {
@@ -233,12 +329,12 @@ function Get-NerdioAzureResourceGroups {
         return @($groups | Sort-Object ResourceGroupName | Select-Object -ExpandProperty ResourceGroupName)
     }
     catch {
-        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureResourceGroups failed (returning empty list): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureResourceGroup failed (returning empty list): $($_.Exception.Message)"
         return @()
     }
 }
 
-function Get-NerdioAzureStorageAccounts {
+function Get-NerdioAzureStorageAccount {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -253,12 +349,12 @@ function Get-NerdioAzureStorageAccounts {
         return @($accounts | Sort-Object StorageAccountName | Select-Object -ExpandProperty StorageAccountName)
     }
     catch {
-        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureStorageAccounts failed (returning empty list): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureStorageAccount failed (returning empty list): $($_.Exception.Message)"
         return @()
     }
 }
 
-function Get-NerdioAzureStorageContainers {
+function Get-NerdioAzureStorageContainer {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -277,7 +373,7 @@ function Get-NerdioAzureStorageContainers {
         return @($containers | Sort-Object Name | Select-Object -ExpandProperty Name)
     }
     catch {
-        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureStorageContainers failed (returning empty list): $($_.Exception.Message)"
+        Write-Verbose -Message "EvergreenUI: Get-NerdioAzureStorageContainer failed (returning empty list): $($_.Exception.Message)"
         return @()
     }
 }
