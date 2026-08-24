@@ -186,14 +186,6 @@ function Start-EvergreenWorkbench {
             PendingNerdioAzureAuthPS                        = $null
             PendingNerdioAzureAuthRunspace                  = $null
             PendingNerdioAzureAuthAsync                     = $null
-            PendingImportSignInTimer                        = $null
-            PendingImportSignInPS                           = $null
-            PendingImportSignInRunspace                     = $null
-            PendingImportSignInAsync                        = $null
-            PendingNerdioApiSignInTimer                     = $null
-            PendingNerdioApiSignInPS                        = $null
-            PendingNerdioApiSignInRunspace                  = $null
-            PendingNerdioApiSignInAsync                     = $null
             PendingIntuneImportTimer                        = $null
             PendingIntuneImportPS                           = $null
             PendingIntuneImportRunspace                     = $null
@@ -1487,84 +1479,64 @@ function Start-EvergreenWorkbench {
                 return $result
             }).AddArgument(@($helperScripts)).AddArgument(@($definitionRows)).AddArgument($installCacheRootPath)
 
-        $syncHash.PendingInstallPS = $ps
-        $syncHash.PendingInstallRunspace = $rs
-        $syncHash.PendingInstallAsync = $ps.BeginInvoke()
-
-        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
-        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(350)
-        $syncHash.PendingInstallTimer = $pollTimer
-
-        $pollTimer.add_Tick({
-                if ($null -eq $syncHash.PendingInstallAsync -or -not $syncHash.PendingInstallAsync.IsCompleted) {
-                    return
-                }
-
-                if ($null -ne $syncHash.PendingInstallTimer) {
-                    $syncHash.PendingInstallTimer.Stop()
-                    $syncHash.PendingInstallTimer = $null
-                }
-
+        $completionAction_InstallLatestVersion = {
+            param($Operation, $Result, $State)
+            
+            $result = $null
+            if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
+                $result = $Result.Output[0]
+            }
+            elseif ($Result.Error) {
+                $result = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $Result.Error.Exception.Message }
+            }
+            else {
                 $result = $null
-                try {
-                    $output = $syncHash.PendingInstallPS.EndInvoke($syncHash.PendingInstallAsync)
-                    $result = if ($null -ne $output -and $output.Count -gt 0) { $output[$output.Count - 1] } else { $null }
+            }
+
+            try {
+                if ($null -eq $result -or -not $result.Success) {
+                    $err = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown latest version error.' } else { [string]$result.Error }
+                    Write-UILog -SyncHash $syncHash -Message "Install: latest version resolution failed: $err" -Level Error
                 }
-                catch {
-                    $result = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $_.Exception.Message }
-                }
-                finally {
-                    try { $syncHash.PendingInstallPS.Dispose() } catch {}
-                    try { $syncHash.PendingInstallRunspace.Dispose() } catch {}
-                    $syncHash.PendingInstallPS = $null
-                    $syncHash.PendingInstallRunspace = $null
-                    $syncHash.PendingInstallAsync = $null
-                }
-
-                try {
-                    if ($null -eq $result -or -not $result.Success) {
-                        $err = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown latest version error.' } else { [string]$result.Error }
-                        Write-UILog -SyncHash $syncHash -Message "Install: latest version resolution failed: $err" -Level Error
-                    }
-                    else {
-                        $latestMap = @{}
-                        foreach ($row in @($result.Rows)) {
-                            $latestMap[[string]$row.DefinitionPath] = $row
-                        }
-
-                        foreach ($definitionRow in @($syncHash.InstallDefinitionRows)) {
-                            $key = [string]$definitionRow.DefinitionPath
-                            if (-not $latestMap.ContainsKey($key)) {
-                                continue
-                            }
-
-                            $latestRow = $latestMap[$key]
-                            if ([bool]$latestRow.Succeeded) {
-                                $definitionRow.LatestVersion = [string]$latestRow.LatestVersion
-                            }
-                            else {
-                                $definitionRow.LatestVersion = ''
-                                Write-UILog -SyncHash $syncHash -Message "Install: latest lookup failed for '$([string]$definitionRow.Name)': $([string]$latestRow.LatestError)" -Level Warning
-                            }
-                        }
-
-                        $cacheCount = @($result.Rows | Where-Object { [bool]$_.Succeeded -and [bool]$_.IsFromCache }).Count
-                        $freshCount = @($result.Rows | Where-Object { [bool]$_.Succeeded -and -not [bool]$_.IsFromCache }).Count
-                        Write-UILog -SyncHash $syncHash -Message "Install: latest version resolution complete ($freshCount live, $cacheCount cache)." -Level Info
+                else {
+                    $latestMap = @{}
+                    foreach ($row in @($result.Rows)) {
+                        $latestMap[[string]$row.DefinitionPath] = $row
                     }
 
-                    # After latest lookup finishes, show highest-priority statuses first.
-                    $syncHash.InstallSortProperty = 'InstallStatus'
-                    $syncHash.InstallSortDirection = 'Ascending'
+                    foreach ($definitionRow in @($syncHash.InstallDefinitionRows)) {
+                        $key = [string]$definitionRow.DefinitionPath
+                        if (-not $latestMap.ContainsKey($key)) {
+                            continue
+                        }
 
-                    & $refreshInstallRows
-                }
-                finally {
-                    & $setInstallLoadingState -IsLoading $false
-                }
-            })
+                        $latestRow = $latestMap[$key]
+                        if ([bool]$latestRow.Succeeded) {
+                            $definitionRow.LatestVersion = [string]$latestRow.LatestVersion
+                        }
+                        else {
+                            $definitionRow.LatestVersion = ''
+                            Write-UILog -SyncHash $syncHash -Message "Install: latest lookup failed for '$([string]$definitionRow.Name)': $([string]$latestRow.LatestError)" -Level Warning
+                        }
+                    }
 
-        $pollTimer.Start()
+                    $cacheCount = @($result.Rows | Where-Object { [bool]$_.Succeeded -and [bool]$_.IsFromCache }).Count
+                    $freshCount = @($result.Rows | Where-Object { [bool]$_.Succeeded -and -not [bool]$_.IsFromCache }).Count
+                    Write-UILog -SyncHash $syncHash -Message "Install: latest version resolution complete ($freshCount live, $cacheCount cache)." -Level Info
+                }
+
+                # After latest lookup finishes, show highest-priority statuses first.
+                $syncHash.InstallSortProperty = 'InstallStatus'
+                $syncHash.InstallSortDirection = 'Ascending'
+
+                & $refreshInstallRows
+            }
+            finally {
+                & $setInstallLoadingState -IsLoading $false
+            }
+        }
+
+        & $registerBackgroundOperation -Feature 'Install' -OperationId 'LatestVersion' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_InstallLatestVersion
     }
 
     $startInstallSelectedOperation = {
@@ -1740,70 +1712,50 @@ function Start-EvergreenWorkbench {
                 return $result
             }).AddArgument(@($helperScripts)).AddArgument(@($installActions)).AddArgument($outputPath).AddArgument($installCacheRootPath)
 
-        $syncHash.PendingInstallPS = $ps
-        $syncHash.PendingInstallRunspace = $rs
-        $syncHash.PendingInstallAsync = $ps.BeginInvoke()
-
-        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
-        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(400)
-        $syncHash.PendingInstallTimer = $pollTimer
-
-        $pollTimer.add_Tick({
-                if ($null -eq $syncHash.PendingInstallAsync -or -not $syncHash.PendingInstallAsync.IsCompleted) {
-                    return
-                }
-
-                if ($null -ne $syncHash.PendingInstallTimer) {
-                    $syncHash.PendingInstallTimer.Stop()
-                    $syncHash.PendingInstallTimer = $null
-                }
-
+        $completionAction_InstallExecute = {
+            param($Operation, $Result, $State)
+            
+            $result = $null
+            if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
+                $result = $Result.Output[0]
+            }
+            elseif ($Result.Error) {
+                $result = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $Result.Error.Exception.Message }
+            }
+            else {
                 $result = $null
-                try {
-                    $output = $syncHash.PendingInstallPS.EndInvoke($syncHash.PendingInstallAsync)
-                    $result = if ($null -ne $output -and $output.Count -gt 0) { $output[$output.Count - 1] } else { $null }
-                }
-                catch {
-                    $result = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $_.Exception.Message }
-                }
-                finally {
-                    try { $syncHash.PendingInstallPS.Dispose() } catch {}
-                    try { $syncHash.PendingInstallRunspace.Dispose() } catch {}
-                    $syncHash.PendingInstallPS = $null
-                    $syncHash.PendingInstallRunspace = $null
-                    $syncHash.PendingInstallAsync = $null
-                }
+            }
 
-                try {
-                    if ($null -eq $result -or -not $result.Success) {
-                        $err = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown install error.' } else { [string]$result.Error }
-                        Write-UILog -SyncHash $syncHash -Message "Install: operation failed: $err" -Level Error
-                    }
-                    else {
-                        foreach ($item in @($result.Completed)) {
-                            Write-UILog -SyncHash $syncHash -Message "Install: completed '$([string]$item.Name)' (exit code $([int]$item.ExitCode))." -Level Info
-                            foreach ($definitionRow in @($syncHash.InstallDefinitionRows)) {
-                                if ([string]$definitionRow.DefinitionPath -eq [string]$item.DefinitionPath) {
-                                    $definitionRow.LatestVersion = [string]$item.LatestVersion
-                                    break
-                                }
+            try {
+                if ($null -eq $result -or -not $result.Success) {
+                    $err = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown install error.' } else { [string]$result.Error }
+                    Write-UILog -SyncHash $syncHash -Message "Install: operation failed: $err" -Level Error
+                }
+                else {
+                    foreach ($item in @($result.Completed)) {
+                        Write-UILog -SyncHash $syncHash -Message "Install: completed '$([string]$item.Name)' (exit code $([int]$item.ExitCode))." -Level Info
+                        foreach ($definitionRow in @($syncHash.InstallDefinitionRows)) {
+                            if ([string]$definitionRow.DefinitionPath -eq [string]$item.DefinitionPath) {
+                                $definitionRow.LatestVersion = [string]$item.LatestVersion
+                                break
                             }
                         }
-
-                        foreach ($item in @($result.Failed)) {
-                            Write-UILog -SyncHash $syncHash -Message "Install: failed '$([string]$item.Name)': $([string]$item.Error)" -Level Error
-                        }
                     }
 
-                    & $setInstallElevationState
-                    & $refreshInstallRows
+                    foreach ($item in @($result.Failed)) {
+                        Write-UILog -SyncHash $syncHash -Message "Install: failed '$([string]$item.Name)': $([string]$item.Error)" -Level Error
+                    }
                 }
-                finally {
-                    & $setInstallLoadingState -IsLoading $false
-                }
-            })
 
-        $pollTimer.Start()
+                & $setInstallElevationState
+                & $refreshInstallRows
+            }
+            finally {
+                & $setInstallLoadingState -IsLoading $false
+            }
+        }
+
+        & $registerBackgroundOperation -Feature 'Install' -OperationId 'Execute' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_InstallExecute
     }
 
     $startIntuneImportOperation = {
@@ -2021,75 +1973,56 @@ function Start-EvergreenWorkbench {
 
             }).AddArgument(@($helperScripts)).AddArgument(@($importActions)).AddArgument($packageOutputPath)
 
-        $syncHash.PendingIntuneImportPS = $ps
-        $syncHash.PendingIntuneImportRunspace = $rs
-        $syncHash.PendingIntuneImportAsync = $ps.BeginInvoke()
-
-        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
-        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(500)
-        $syncHash.PendingIntuneImportTimer = $pollTimer
-
-        $pollTimer.add_Tick({
-                if ($null -eq $syncHash.PendingIntuneImportAsync -or -not $syncHash.PendingIntuneImportAsync.IsCompleted) {
-                    return
-                }
-
-                if ($null -ne $syncHash.PendingIntuneImportTimer) {
-                    $syncHash.PendingIntuneImportTimer.Stop()
-                    $syncHash.PendingIntuneImportTimer = $null
-                }
-
+        $completionAction_IntuneImport = {
+            param($Operation, $Result, $State)
+            
+            $result = $null
+            if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
+                $result = $Result.Output[0]
+            }
+            elseif ($Result.Error) {
+                $result = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $Result.Error.Exception.Message }
+            }
+            else {
                 $result = $null
-                try {
-                    $output = $syncHash.PendingIntuneImportPS.EndInvoke($syncHash.PendingIntuneImportAsync)
-                    $result = if ($null -ne $output -and $output.Count -gt 0) { $output[$output.Count - 1] } else { $null }
-                }
-                catch {
-                    $result = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $_.Exception.Message }
-                }
-                finally {
-                    try { $syncHash.PendingIntuneImportPS.Dispose() } catch {}
-                    try { $syncHash.PendingIntuneImportRunspace.Dispose() } catch {}
-                    $syncHash.PendingIntuneImportPS = $null
-                    $syncHash.PendingIntuneImportRunspace = $null
-                    $syncHash.PendingIntuneImportAsync = $null
-                }
+            }
 
-                try {
-                    if ($null -eq $result -or -not $result.Success) {
-                        $errMsg = if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Error)) { 'Unknown error during import.' } else { $result.Error }
-                        Write-UILog -SyncHash $syncHash -Message "Intune: import run failed: $errMsg" -Level Error
+            try {
+                if ($null -eq $result -or -not $result.Success) {
+                    $errMsg = if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Error)) { 'Unknown error during import.' } else { $result.Error }
+                    Write-UILog -SyncHash $syncHash -Message "Intune: import run failed: $errMsg" -Level Error
+                }
+                else {
+                    $completedCount = @($result.Completed).Count
+                    $failedCount = @($result.Failed).Count
+                    if ($result.StoppedEarly) {
+                        $skippedCount = $State.ImportActions.Count - $completedCount - $failedCount
+                        Write-UILog -SyncHash $syncHash -Message "Intune: import stopped after failure - $completedCount succeeded, $failedCount failed, $skippedCount not attempted." -Level Warning
                     }
                     else {
-                        $completedCount = @($result.Completed).Count
-                        $failedCount = @($result.Failed).Count
-                        if ($result.StoppedEarly) {
-                            $skippedCount = $importActions.Count - $completedCount - $failedCount
-                            Write-UILog -SyncHash $syncHash -Message "Intune: import stopped after failure - $completedCount succeeded, $failedCount failed, $skippedCount not attempted." -Level Warning
-                        }
-                        else {
-                            Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
-                        }
-                        foreach ($item in @($result.Completed)) {
-                            Write-UILog -SyncHash $syncHash -Message "  + Imported '$($item.DisplayName)' v$($item.Version) (id: $($item.AppId))" -Level Info
-                        }
-                        foreach ($item in @($result.Failed)) {
-                            Write-UILog -SyncHash $syncHash -Message "  - Failed '$($item.AppName)': $($item.Error)" -Level Error
-                        }
+                        Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
                     }
-
-                    # Clear loading state before refresh, otherwise loadIntuneWin32Apps exits early.
-                    & $setIntuneLoadingState -IsLoading $false
-
-                    # Refresh the comparison table against the updated Intune catalog
-                    & $loadIntuneWin32Apps
+                    foreach ($item in @($result.Completed)) {
+                        Write-UILog -SyncHash $syncHash -Message "  + Imported '$($item.DisplayName)' v$($item.Version) (id: $($item.AppId))" -Level Info
+                    }
+                    foreach ($item in @($result.Failed)) {
+                        Write-UILog -SyncHash $syncHash -Message "  - Failed '$($item.AppName)': $($item.Error)" -Level Error
+                    }
                 }
-                finally {
-                    & $setIntuneLoadingState -IsLoading $false
-                }
-            })
 
-        $pollTimer.Start()
+                # Clear loading state before refresh, otherwise loadIntuneWin32Apps exits early.
+                & $setIntuneLoadingState -IsLoading $false
+
+                # Refresh the comparison table against the updated Intune catalog
+                & $loadIntuneWin32Apps
+            }
+            finally {
+                & $setIntuneLoadingState -IsLoading $false
+            }
+        }
+
+        $state_IntuneImport = @{ ImportActions = $importActions }
+        & $registerBackgroundOperation -Feature 'IntuneImport' -OperationId 'Win32' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_IntuneImport -CallbackState $state_IntuneImport
     }
 
     # ── Microsoft 365 Apps tab scriptblocks ──────────────────────────────────
@@ -3785,22 +3718,22 @@ function Start-EvergreenWorkbench {
 
             $intuneDisplayName = [string]$intuneRow.DisplayName
             $baseRow = [PSCustomObject]@{
-                RowType               = 'Intune'
-                IntuneAppId           = [string]$intuneRow.IntuneAppId
-                IntuneDisplayName     = $intuneDisplayName
-                DisplayName           = $intuneDisplayName
-                DefinitionDisplayName = '-'
-                DisplayPublisher      = [string]$intuneRow.Publisher
-                IntuneVersion         = [string]$intuneRow.DisplayVersion
-                DefinitionVersion     = '-'
-                Architecture          = '-'
-                PSPackageFactoryGuid  = if ([string]::IsNullOrWhiteSpace($guidText)) { '-' } else { $guidText }
-                IsMatched             = 'No'
-                UpdateRequired        = 'Unknown'
-                MatchStatus           = 'No local definition'
-                ImportAction          = '-'
-                DefinitionPath        = ''
-                DefinitionObject      = $null
+                RowType                  = 'Intune'
+                IntuneAppId              = [string]$intuneRow.IntuneAppId
+                IntuneDisplayName        = $intuneDisplayName
+                DisplayName              = $intuneDisplayName
+                DefinitionDisplayName    = '-'
+                DisplayPublisher         = [string]$intuneRow.Publisher
+                IntuneVersion            = [string]$intuneRow.DisplayVersion
+                DefinitionVersion        = '-'
+                Architecture             = '-'
+                PSPackageFactoryGuid     = if ([string]::IsNullOrWhiteSpace($guidText)) { '-' } else { $guidText }
+                IsMatched                = 'No'
+                UpdateRequired           = 'Unknown'
+                MatchStatus              = 'No local definition'
+                ImportAction             = '-'
+                DefinitionPath           = ''
+                DefinitionObject         = $null
                 HasCustomRequirementRule = $false
             }
 
@@ -3927,22 +3860,22 @@ function Start-EvergreenWorkbench {
             $defArchValue = [string]$definitionRow.DefinitionObject.Application.Architecture
             $defHasCustomRequirementRule = ($null -ne $definitionRow.DefinitionObject.CustomRequirementRule -and @($definitionRow.DefinitionObject.CustomRequirementRule).Count -gt 0)
             $comparisonRows.Add([PSCustomObject]@{
-                    RowType               = 'Definition'
-                    IntuneAppId           = ''
-                    IntuneDisplayName     = '-'
-                    DisplayName           = $defDisplayName
-                    DefinitionDisplayName = $defDisplayName
-                    DisplayPublisher      = [string]$definitionRow.Publisher
-                    IntuneVersion         = '-'
-                    DefinitionVersion     = [string]$definitionRow.Version
-                    Architecture          = if ([string]::IsNullOrWhiteSpace($defArchValue)) { '-' } else { $defArchValue }
-                    PSPackageFactoryGuid  = [string]$definitionRow.PSPackageFactoryGuid
-                    IsMatched             = 'No'
-                    UpdateRequired        = $updateRequired
-                    MatchStatus           = $matchStatus
-                    ImportAction          = $importAction
-                    DefinitionPath        = [string]$definitionRow.DefinitionPath
-                    DefinitionObject      = $definitionRow.DefinitionObject
+                    RowType                  = 'Definition'
+                    IntuneAppId              = ''
+                    IntuneDisplayName        = '-'
+                    DisplayName              = $defDisplayName
+                    DefinitionDisplayName    = $defDisplayName
+                    DisplayPublisher         = [string]$definitionRow.Publisher
+                    IntuneVersion            = '-'
+                    DefinitionVersion        = [string]$definitionRow.Version
+                    Architecture             = if ([string]::IsNullOrWhiteSpace($defArchValue)) { '-' } else { $defArchValue }
+                    PSPackageFactoryGuid     = [string]$definitionRow.PSPackageFactoryGuid
+                    IsMatched                = 'No'
+                    UpdateRequired           = $updateRequired
+                    MatchStatus              = $matchStatus
+                    ImportAction             = $importAction
+                    DefinitionPath           = [string]$definitionRow.DefinitionPath
+                    DefinitionObject         = $definitionRow.DefinitionObject
                     HasCustomRequirementRule = $defHasCustomRequirementRule
                 })
 
@@ -5340,9 +5273,9 @@ function Start-EvergreenWorkbench {
             }
 
             $captionColorRef =
-                ([int]$backgroundBrush.Color.B -shl 16) -bor
-                ([int]$backgroundBrush.Color.G -shl 8) -bor
-                [int]$backgroundBrush.Color.R
+            ([int]$backgroundBrush.Color.B -shl 16) -bor
+            ([int]$backgroundBrush.Color.G -shl 8) -bor
+            [int]$backgroundBrush.Color.R
             $isDarkBackground = (([int]$backgroundBrush.Color.R + [int]$backgroundBrush.Color.G + [int]$backgroundBrush.Color.B) / 3) -lt 128
 
             Set-DwmTitleBarColor -Window $DialogWindow -CaptionColorRef $captionColorRef -UseDarkMode $isDarkBackground
@@ -6219,92 +6152,74 @@ function Start-EvergreenWorkbench {
                 return $result
             }).AddArgument($signInHelperScripts).AddArgument($tenant)
 
-        $syncHash.PendingImportSignInPS = $ps
-        $syncHash.PendingImportSignInRunspace = $rs
-        $syncHash.PendingImportSignInAsync = $ps.BeginInvoke()
+        $completionAction_ImportSignIn = {
+            param($Operation, $Result, $State)
+            
+            $r = $null
+            if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
+                $r = $Result.Output[0]
+            }
+            elseif ($Result.Error) {
+                $r = [PSCustomObject]@{
+                    Succeeded = $false; AccountId = ''; TenantId = ''; SubscriptionName = ''
+                    AuthMethod = ''; ErrorMessage = $Result.Error.Exception.Message
+                    IntuneConnected = $false; IntuneConnectError = ''
+                }
+            }
+            else {
+                $r = [PSCustomObject]@{
+                    Succeeded = $false; AccountId = ''; TenantId = ''; SubscriptionName = ''
+                    AuthMethod = ''; ErrorMessage = 'Unknown sign-in error.'
+                    IntuneConnected = $false; IntuneConnectError = ''
+                }
+            }
 
-        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
-        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
-        $syncHash.PendingImportSignInTimer = $pollTimer
+            if ($null -ne $r -and $r.Succeeded) {
+                $syncHash.AzureAuthState.IsAuthenticated = $true
+                $syncHash.AzureAuthState.AccountId = [string]$r.AccountId
+                $syncHash.AzureAuthState.TenantId = [string]$r.TenantId
+                $syncHash.AzureAuthState.SubscriptionName = [string]$r.SubscriptionName
+                $syncHash.AzureAuthState.ErrorMessage = ''
+                $syncHash.AzureAuthState.IntuneConnected = [bool]$r.IntuneConnected
+                $syncHash.AzureAuthState.IntuneConnectError = [string]$r.IntuneConnectError
 
-        $pollTimer.add_Tick({
-                if ($null -eq $syncHash.PendingImportSignInAsync -or -not $syncHash.PendingImportSignInAsync.IsCompleted) {
-                    return
+                if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
+                    $syncHash.ImportTenantIdBox.Text = [string]$r.TenantId
                 }
 
-                if ($null -ne $syncHash.PendingImportSignInTimer) {
-                    $syncHash.PendingImportSignInTimer.Stop()
-                    $syncHash.PendingImportSignInTimer = $null
+                $syncHash.Config.AzureAuthSettings.TenantId = [string]$syncHash.ImportTenantIdBox.Text
+                $syncHash.Config.AzureAuthSettings.LastAccountId = [string]$r.AccountId
+                $syncHash.Config.AzureAuthSettings.LastTenantId = [string]$r.TenantId
+                $syncHash.Config.AzureAuthSettings.LastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
+                Set-UIConfig -Config $syncHash.Config
+
+                Write-UILog -SyncHash $syncHash -Message "Signed in as $($r.AccountId) to tenant $($r.TenantId)." -Level Info
+                if (-not [string]::IsNullOrWhiteSpace([string]$r.AuthMethod)) {
+                    Write-UILog -SyncHash $syncHash -Message "Sign-in method: $([string]$r.AuthMethod)." -Level Info
                 }
-
-                $r = $null
-                try {
-                    $output = $syncHash.PendingImportSignInPS.EndInvoke($syncHash.PendingImportSignInAsync)
-                    if ($null -ne $output -and $output.Count -gt 0) {
-                        $r = $output[$output.Count - 1]
-                    }
+                if ($syncHash.AzureAuthState.IntuneConnected) {
+                    Write-UILog -SyncHash $syncHash -Message 'Intune Graph token acquisition succeeded.' -Level Info
                 }
-                catch {
-                    $r = [PSCustomObject]@{
-                        Succeeded = $false; AccountId = ''; TenantId = ''; SubscriptionName = ''
-                        AuthMethod = ''; ErrorMessage = $_.Exception.Message
-                        IntuneConnected = $false; IntuneConnectError = ''
-                    }
+                elseif (-not [string]::IsNullOrWhiteSpace($syncHash.AzureAuthState.IntuneConnectError)) {
+                    Write-UILog -SyncHash $syncHash -Message "Intune Graph token acquisition failed: $($syncHash.AzureAuthState.IntuneConnectError)" -Level Warning
                 }
-                finally {
-                    try { $syncHash.PendingImportSignInPS.Dispose() } catch {}
-                    try { $syncHash.PendingImportSignInRunspace.Dispose() } catch {}
-                    $syncHash.PendingImportSignInPS = $null
-                    $syncHash.PendingImportSignInRunspace = $null
-                    $syncHash.PendingImportSignInAsync = $null
-                }
+            }
+            else {
+                $syncHash.AzureAuthState.IsAuthenticated = $false
+                $syncHash.AzureAuthState.AccountId = ''
+                $syncHash.AzureAuthState.TenantId = ''
+                $syncHash.AzureAuthState.SubscriptionName = ''
+                $syncHash.AzureAuthState.IntuneConnected = $false
+                $syncHash.AzureAuthState.IntuneConnectError = ''
+                $syncHash.AzureAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                Write-UILog -SyncHash $syncHash -Message "Sign-in failed: $($syncHash.AzureAuthState.ErrorMessage)" -Level Error
+            }
 
-                if ($null -ne $r -and $r.Succeeded) {
-                    $syncHash.AzureAuthState.IsAuthenticated = $true
-                    $syncHash.AzureAuthState.AccountId = [string]$r.AccountId
-                    $syncHash.AzureAuthState.TenantId = [string]$r.TenantId
-                    $syncHash.AzureAuthState.SubscriptionName = [string]$r.SubscriptionName
-                    $syncHash.AzureAuthState.ErrorMessage = ''
-                    $syncHash.AzureAuthState.IntuneConnected = [bool]$r.IntuneConnected
-                    $syncHash.AzureAuthState.IntuneConnectError = [string]$r.IntuneConnectError
+            $syncHash.AzureAuthState.IsAuthInProgress = $false
+            & $syncHash.RefreshImportAuthUi
+        }
 
-                    if (-not [string]::IsNullOrWhiteSpace([string]$r.TenantId)) {
-                        $syncHash.ImportTenantIdBox.Text = [string]$r.TenantId
-                    }
-
-                    $syncHash.Config.AzureAuthSettings.TenantId = [string]$syncHash.ImportTenantIdBox.Text
-                    $syncHash.Config.AzureAuthSettings.LastAccountId = [string]$r.AccountId
-                    $syncHash.Config.AzureAuthSettings.LastTenantId = [string]$r.TenantId
-                    $syncHash.Config.AzureAuthSettings.LastSignedInUtc = (Get-Date).ToUniversalTime().ToString('o')
-                    Set-UIConfig -Config $syncHash.Config
-
-                    Write-UILog -SyncHash $syncHash -Message "Signed in as $($r.AccountId) to tenant $($r.TenantId)." -Level Info
-                    if (-not [string]::IsNullOrWhiteSpace([string]$r.AuthMethod)) {
-                        Write-UILog -SyncHash $syncHash -Message "Sign-in method: $([string]$r.AuthMethod)." -Level Info
-                    }
-                    if ($syncHash.AzureAuthState.IntuneConnected) {
-                        Write-UILog -SyncHash $syncHash -Message 'Intune Graph token acquisition succeeded.' -Level Info
-                    }
-                    elseif (-not [string]::IsNullOrWhiteSpace($syncHash.AzureAuthState.IntuneConnectError)) {
-                        Write-UILog -SyncHash $syncHash -Message "Intune Graph token acquisition failed: $($syncHash.AzureAuthState.IntuneConnectError)" -Level Warning
-                    }
-                }
-                else {
-                    $syncHash.AzureAuthState.IsAuthenticated = $false
-                    $syncHash.AzureAuthState.AccountId = ''
-                    $syncHash.AzureAuthState.TenantId = ''
-                    $syncHash.AzureAuthState.SubscriptionName = ''
-                    $syncHash.AzureAuthState.IntuneConnected = $false
-                    $syncHash.AzureAuthState.IntuneConnectError = ''
-                    $syncHash.AzureAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
-                    Write-UILog -SyncHash $syncHash -Message "Sign-in failed: $($syncHash.AzureAuthState.ErrorMessage)" -Level Error
-                }
-
-                $syncHash.AzureAuthState.IsAuthInProgress = $false
-                & $syncHash.RefreshImportAuthUi
-            })
-
-        $pollTimer.Start()
+        & $registerBackgroundOperation -Feature 'ImportSignIn' -OperationId 'Entra' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_ImportSignIn
     }
 
     $startImportSignOut = {
@@ -6447,71 +6362,52 @@ function Start-EvergreenWorkbench {
                 return $result
             }).AddArgument($nerdioApiHelperScripts).AddArgument($nmeModulePath).AddArgument($tenant).AddArgument($nmeHost).AddArgument($clientId).AddArgument($clientSecret).AddArgument($apiScope).AddArgument($oAuthTokenUrl).AddArgument($subscriptionId).AddArgument($resourceGroup).AddArgument($storageAccount).AddArgument($container)
 
-        $syncHash.PendingNerdioApiSignInPS = $ps
-        $syncHash.PendingNerdioApiSignInRunspace = $rs
-        $syncHash.PendingNerdioApiSignInAsync = $ps.BeginInvoke()
-
-        $pollTimer = [System.Windows.Threading.DispatcherTimer]::new()
-        $pollTimer.Interval = [TimeSpan]::FromMilliseconds(250)
-        $syncHash.PendingNerdioApiSignInTimer = $pollTimer
-
-        $pollTimer.add_Tick({
-                if ($null -eq $syncHash.PendingNerdioApiSignInAsync -or -not $syncHash.PendingNerdioApiSignInAsync.IsCompleted) {
-                    return
+        $completionAction_NerdioApiSignIn = {
+            param($Operation, $Result, $State)
+            
+            $r = $null
+            if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
+                $r = $Result.Output[0]
+            }
+            elseif ($Result.Error) {
+                $r = [PSCustomObject]@{
+                    Succeeded = $false; AccountId = ''; TenantId = ''
+                    ContextName = ''; ErrorMessage = $Result.Error.Exception.Message
                 }
-
-                if ($null -ne $syncHash.PendingNerdioApiSignInTimer) {
-                    $syncHash.PendingNerdioApiSignInTimer.Stop()
-                    $syncHash.PendingNerdioApiSignInTimer = $null
+            }
+            else {
+                $r = [PSCustomObject]@{
+                    Succeeded = $false; AccountId = ''; TenantId = ''
+                    ContextName = ''; ErrorMessage = 'Unknown sign-in error.'
                 }
+            }
 
-                $r = $null
-                try {
-                    $output = $syncHash.PendingNerdioApiSignInPS.EndInvoke($syncHash.PendingNerdioApiSignInAsync)
-                    if ($null -ne $output -and $output.Count -gt 0) {
-                        $r = $output[$output.Count - 1]
-                    }
-                }
-                catch {
-                    $r = [PSCustomObject]@{
-                        Succeeded = $false; AccountId = ''; TenantId = ''
-                        ContextName = ''; ErrorMessage = $_.Exception.Message
-                    }
-                }
-                finally {
-                    try { $syncHash.PendingNerdioApiSignInPS.Dispose() } catch {}
-                    try { $syncHash.PendingNerdioApiSignInRunspace.Dispose() } catch {}
-                    $syncHash.PendingNerdioApiSignInPS = $null
-                    $syncHash.PendingNerdioApiSignInRunspace = $null
-                    $syncHash.PendingNerdioApiSignInAsync = $null
-                }
+            if ($null -ne $r -and $r.Succeeded) {
+                $syncHash.NerdioApiAuthState.IsAuthenticated = $true
+                $syncHash.NerdioApiAuthState.AccountId = [string]$r.AccountId
+                $syncHash.NerdioApiAuthState.TenantId = [string]$r.TenantId
+                $syncHash.NerdioApiAuthState.ContextName = [string]$r.ContextName
+                $syncHash.NerdioApiAuthState.ErrorMessage = ''
 
-                if ($null -ne $r -and $r.Succeeded) {
-                    $syncHash.NerdioApiAuthState.IsAuthenticated = $true
-                    $syncHash.NerdioApiAuthState.AccountId = [string]$r.AccountId
-                    $syncHash.NerdioApiAuthState.TenantId = [string]$r.TenantId
-                    $syncHash.NerdioApiAuthState.ContextName = [string]$r.ContextName
-                    $syncHash.NerdioApiAuthState.ErrorMessage = ''
+                $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$r.TenantId
+                Set-UIConfig -Config $syncHash.Config
 
-                    $syncHash.Config.AzureAuthSettings.NerdioTenantId = [string]$r.TenantId
-                    Set-UIConfig -Config $syncHash.Config
+                Write-UILog -SyncHash $syncHash -Message "Nerdio Manager API sign-in succeeded for host $([string]$r.ContextName)." -Level Info
+            }
+            else {
+                $syncHash.NerdioApiAuthState.IsAuthenticated = $false
+                $syncHash.NerdioApiAuthState.AccountId = ''
+                $syncHash.NerdioApiAuthState.TenantId = ''
+                $syncHash.NerdioApiAuthState.ContextName = ''
+                $syncHash.NerdioApiAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
+                Write-UILog -SyncHash $syncHash -Message "Nerdio API sign-in failed: $($syncHash.NerdioApiAuthState.ErrorMessage)" -Level Error
+            }
 
-                    Write-UILog -SyncHash $syncHash -Message "Nerdio Manager API sign-in succeeded for host $([string]$r.ContextName)." -Level Info
-                }
-                else {
-                    $syncHash.NerdioApiAuthState.IsAuthenticated = $false
-                    $syncHash.NerdioApiAuthState.AccountId = ''
-                    $syncHash.NerdioApiAuthState.TenantId = ''
-                    $syncHash.NerdioApiAuthState.ContextName = ''
-                    $syncHash.NerdioApiAuthState.ErrorMessage = if ($null -eq $r) { 'Unknown sign-in error.' } else { [string]$r.ErrorMessage }
-                    Write-UILog -SyncHash $syncHash -Message "Nerdio API sign-in failed: $($syncHash.NerdioApiAuthState.ErrorMessage)" -Level Error
-                }
+            $syncHash.NerdioApiAuthState.IsAuthInProgress = $false
+            & $refreshNerdioApiAuthUi
+        }
 
-                $syncHash.NerdioApiAuthState.IsAuthInProgress = $false
-                & $refreshNerdioApiAuthUi
-            })
-
-        $pollTimer.Start()
+        & $registerBackgroundOperation -Feature 'NerdioApiSignIn' -OperationId 'API' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_NerdioApiSignIn
     }
 
     $startNerdioApiSignOut = {
@@ -7419,67 +7315,6 @@ function Start-EvergreenWorkbench {
                 }
 
                 Clear-BackgroundOperation -Operations $syncHash.ActiveBackgroundOperations
-
-                if ($null -ne $syncHash.PendingImportSignInTimer -and $syncHash.PendingImportSignInTimer.IsEnabled) {
-                    $syncHash.PendingImportSignInTimer.Stop()
-                }
-                if ($null -ne $syncHash.PendingImportSignInPS) {
-                    try { $syncHash.PendingImportSignInPS.Stop() } catch {}
-                    try { $syncHash.PendingImportSignInPS.Dispose() } catch {}
-                }
-                if ($null -ne $syncHash.PendingImportSignInRunspace) {
-                    try { $syncHash.PendingImportSignInRunspace.Dispose() } catch {}
-                }
-                $syncHash.PendingImportSignInTimer = $null
-                $syncHash.PendingImportSignInPS = $null
-                $syncHash.PendingImportSignInRunspace = $null
-                $syncHash.PendingImportSignInAsync = $null
-
-                if ($null -ne $syncHash.PendingNerdioApiSignInTimer -and $syncHash.PendingNerdioApiSignInTimer.IsEnabled) {
-                    $syncHash.PendingNerdioApiSignInTimer.Stop()
-                }
-                if ($null -ne $syncHash.PendingNerdioApiSignInPS) {
-                    try { $syncHash.PendingNerdioApiSignInPS.Stop() } catch {}
-                    try { $syncHash.PendingNerdioApiSignInPS.Dispose() } catch {}
-                }
-                if ($null -ne $syncHash.PendingNerdioApiSignInRunspace) {
-                    try { $syncHash.PendingNerdioApiSignInRunspace.Dispose() } catch {}
-                }
-                $syncHash.PendingNerdioApiSignInTimer = $null
-                $syncHash.PendingNerdioApiSignInPS = $null
-                $syncHash.PendingNerdioApiSignInRunspace = $null
-                $syncHash.PendingNerdioApiSignInAsync = $null
-
-                if ($null -ne $syncHash.PendingNerdioAzureAuthTimer -and $syncHash.PendingNerdioAzureAuthTimer.IsEnabled) {
-                    $syncHash.PendingNerdioAzureAuthTimer.Stop()
-                }
-                if ($null -ne $syncHash.PendingNerdioAzureAuthPS) {
-                    try { $syncHash.PendingNerdioAzureAuthPS.Stop() } catch {}
-                    try { $syncHash.PendingNerdioAzureAuthPS.Dispose() } catch {}
-                }
-                if ($null -ne $syncHash.PendingNerdioAzureAuthRunspace) {
-                    try { $syncHash.PendingNerdioAzureAuthRunspace.Dispose() } catch {}
-                }
-                $syncHash.PendingNerdioAzureAuthTimer = $null
-                $syncHash.PendingNerdioAzureAuthPS = $null
-                $syncHash.PendingNerdioAzureAuthRunspace = $null
-                $syncHash.PendingNerdioAzureAuthAsync = $null
-
-                if ($null -ne $syncHash.PendingIntuneImportTimer -and $syncHash.PendingIntuneImportTimer.IsEnabled) {
-                    $syncHash.PendingIntuneImportTimer.Stop()
-                }
-                if ($null -ne $syncHash.PendingIntuneImportPS) {
-                    try { $syncHash.PendingIntuneImportPS.Stop() } catch {}
-                    try { $syncHash.PendingIntuneImportPS.Dispose() } catch {}
-                }
-                if ($null -ne $syncHash.PendingIntuneImportRunspace) {
-                    try { $syncHash.PendingIntuneImportRunspace.Dispose() } catch {}
-                }
-
-                $syncHash.PendingIntuneImportTimer = $null
-                $syncHash.PendingIntuneImportPS = $null
-                $syncHash.PendingIntuneImportRunspace = $null
-                $syncHash.PendingIntuneImportAsync = $null
             }
             catch {
                 # Never block window close for a config-save failure
