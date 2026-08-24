@@ -140,8 +140,11 @@ function Invoke-IntuneDefinitionUpdate {
 
         # Update App.json
         try {
-            $appJson = Get-Content -LiteralPath $definitionPath -Raw -ErrorAction Stop |
-                ConvertFrom-Json -ErrorAction Stop
+            $readResult = Read-PackageDefinition -Path $definitionPath
+            if (-not $readResult.Succeeded) {
+                throw $readResult.Error
+            }
+            $appJson = $readResult.Definition
 
             $appJson.PackageInformation.Version   = $newVersion
             $appJson.PackageInformation.SetupFile = $newSetupFile

@@ -45,10 +45,12 @@ Describe 'Get-InstallPackageDefinitions' -Tag 'Unit' {
                 New-Item -Path $zetaPath -ItemType Directory -Force | Out-Null
                 New-Item -Path $alphaPath -ItemType Directory -Force | Out-Null
                 @{
+                    Application        = @{ Name = 'ZetaApp' }
                     Information        = @{ DisplayName = 'Zeta App'; Publisher = 'Zeta Co'; PSPackageFactoryGuid = '84e9f119-ff50-4c99-9d07-3504ee2dcbfa' }
                     PackageInformation = @{ Version = '2.0.0' }
                 } | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path -Path $zetaPath -ChildPath 'App.json') -Encoding UTF8
                 @{
+                    Application        = @{ Name = 'AlphaApp' }
                     Information        = @{ DisplayName = 'Alpha App'; Publisher = 'Alpha Co'; PSPackageFactoryGuid = 'd46685ae-df20-46ee-8a3b-c753029ae29f' }
                     PackageInformation = @{ Version = '1.0.0' }
                 } | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path -Path $alphaPath -ChildPath 'App.json') -Encoding UTF8
@@ -76,6 +78,7 @@ Describe 'Get-InstallPackageDefinitions' -Tag 'Unit' {
                 New-Item -Path $missingGuidPath -ItemType Directory -Force | Out-Null
                 Set-Content -Path (Join-Path -Path $malformedPath -ChildPath 'App.json') -Value '{invalid' -Encoding UTF8
                 @{
+                    Application        = @{ Name = 'NoGuid' }
                     Information        = @{ DisplayName = 'No Guid'; Publisher = 'Contoso'; PSPackageFactoryGuid = '' }
                     PackageInformation = @{ Version = '' }
                 } |

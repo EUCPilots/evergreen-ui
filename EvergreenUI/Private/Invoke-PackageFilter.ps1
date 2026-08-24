@@ -261,14 +261,33 @@ function Invoke-PackageFilter {
         }
 
         $allowedSourceParameter = if ($sourceName -eq 'Get-EvergreenApp') {
-            @('Name')
+            @('Name', 'ErrorAction', 'WarningAction')
         }
         else {
-            @('Release', 'Architecture')
+            @('Release', 'Architecture', 'ErrorAction', 'WarningAction')
         }
         $sourceParameters = ConvertTo-PackageFilterParameter `
             -Command $sourceCommand `
             -AllowedParameter $allowedSourceParameter
+
+        if ($sourceParameters.ContainsKey('ErrorAction')) {
+            $errorAction = [string]$sourceParameters.ErrorAction
+            if ($errorAction -notin @('Stop', 'Continue', 'SilentlyContinue', 'Ignore')) {
+                throw "ErrorAction '$errorAction' is not supported. Use Stop, Continue, SilentlyContinue, or Ignore."
+            }
+            $sourceParameters.ErrorAction = $errorAction
+        }
+        else {
+            $sourceParameters.ErrorAction = 'Stop'
+        }
+
+        if ($sourceParameters.ContainsKey('WarningAction')) {
+            $warningAction = [string]$sourceParameters.WarningAction
+            if ($warningAction -notin @('Stop', 'Continue', 'SilentlyContinue', 'Ignore')) {
+                throw "WarningAction '$warningAction' is not supported. Use Stop, Continue, SilentlyContinue, or Ignore."
+            }
+            $sourceParameters.WarningAction = $warningAction
+        }
 
         $operations = [System.Collections.Generic.List[object]]::new()
         foreach ($command in @($commands | Select-Object -Skip 1)) {
@@ -322,10 +341,10 @@ function Invoke-PackageFilter {
         }
 
         if ($sourceName -eq 'Get-EvergreenApp') {
-            $results = @(Get-EvergreenApp @sourceParameters -ErrorAction Stop)
+            $results = @(Get-EvergreenApp @sourceParameters)
         }
         else {
-            $results = @(Get-VcList @sourceParameters -ErrorAction Stop)
+            $results = @(Get-VcList @sourceParameters)
         }
 
         foreach ($operation in $operations) {

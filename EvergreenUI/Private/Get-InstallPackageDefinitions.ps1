@@ -60,9 +60,9 @@ function Get-InstallPackageDefinitions {
         $guidText = ''
         $status = 'Invalid JSON'
 
-        try {
-            $definitionObject = Get-Content -LiteralPath $definitionFile.FullName -Raw -ErrorAction Stop |
-                ConvertFrom-Json -ErrorAction Stop
+        $readResult = Read-PackageDefinition -Path $definitionFile.FullName
+        if ($readResult.Succeeded) {
+            $definitionObject = $readResult.Definition
 
             if ($null -ne $definitionObject.Information) {
                 if (-not [string]::IsNullOrWhiteSpace([string]$definitionObject.Information.DisplayName)) {
@@ -92,9 +92,9 @@ function Get-InstallPackageDefinitions {
                 }
             }
         }
-        catch {
-            $status = 'Invalid JSON'
-            Write-Verbose -Message "EvergreenUI: Failed to parse '$($definitionFile.FullName)': $($_.Exception.Message)"
+        else {
+            $status = if ($readResult.Error -like 'Failed to parse*') { 'Invalid JSON' } else { 'Invalid definition' }
+            Write-Verbose -Message "EvergreenUI: Failed to load '$($definitionFile.FullName)': $($readResult.Error)"
         }
 
         $rows.Add([PSCustomObject]@{

@@ -1636,6 +1636,7 @@ function Start-EvergreenWorkbench {
         $helperScripts = @(
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Read-PackageDefinition.ps1'
             'Get-SafeFolderName.ps1'
             'Invoke-PackageFilter.ps1'
             'Get-IntunePackageLatestVersion.ps1'
@@ -1679,19 +1680,16 @@ function Start-EvergreenWorkbench {
                     $failed = [System.Collections.Generic.List[object]]::new()
 
                     foreach ($action in $InstallActions) {
-                        $definitionObject = $null
-                        try {
-                            $definitionObject = Get-Content -LiteralPath $action.DefinitionPath -Raw -ErrorAction Stop |
-                            ConvertFrom-Json -ErrorAction Stop
-                        }
-                        catch {
+                        $readResult = Read-PackageDefinition -Path ([string]$action.DefinitionPath)
+                        if (-not $readResult.Succeeded) {
                             $failed.Add([PSCustomObject]@{
                                     Name           = [string]$action.Name
                                     DefinitionPath = [string]$action.DefinitionPath
-                                    Error          = "Failed to load App.json: $($_.Exception.Message)"
+                                    Error          = $readResult.Error
                                 })
                             continue
                         }
+                        $definitionObject = $readResult.Definition
 
                         $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$action.DefinitionPath) -DefinitionObject $definitionObject -CacheRootPath $CacheRootPath
                         if (-not [string]::IsNullOrWhiteSpace([string]$latestResult.CacheFile)) {
@@ -1892,6 +1890,7 @@ function Start-EvergreenWorkbench {
         $helperScripts = @(
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Read-PackageDefinition.ps1'
             'Get-SafeFolderName.ps1'
             'Invoke-PackageFilter.ps1'
             'Get-IntunePackageLatestVersion.ps1'
@@ -1954,16 +1953,13 @@ function Start-EvergreenWorkbench {
                             }, 'Normal')
 
                         # Load definition object from disk
-                        $definitionObject = $null
-                        try {
-                            $definitionObject = Get-Content -LiteralPath $action.DefinitionPath -Raw -ErrorAction Stop |
-                            ConvertFrom-Json -ErrorAction Stop
-                        }
-                        catch {
-                            $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = "Failed to load App.json: $($_.Exception.Message)" })
+                        $readResult = Read-PackageDefinition -Path ([string]$action.DefinitionPath)
+                        if (-not $readResult.Succeeded) {
+                            $result.Failed.Add([PSCustomObject]@{ AppName = $action.AppName; Error = $readResult.Error })
                             $result.StoppedEarly = ($itemIndex -lt $totalCount)
                             break
                         }
+                        $definitionObject = $readResult.Definition
 
                         # Stage 1: resolve latest version, download, and package
                         $buildResult = Invoke-IntunePackageBuild -ComparisonRow ([PSCustomObject]@{
@@ -4048,8 +4044,9 @@ function Start-EvergreenWorkbench {
             $guidText = ''
             $status = 'Invalid JSON'
 
-            try {
-                $definitionObject = Get-Content -LiteralPath $definitionFile.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $readResult = Read-PackageDefinition -Path $definitionFile.FullName
+            if ($readResult.Succeeded) {
+                $definitionObject = $readResult.Definition
 
                 if ($null -ne $definitionObject.Information) {
                     if (-not [string]::IsNullOrWhiteSpace([string]$definitionObject.Information.DisplayName)) {
@@ -4078,8 +4075,9 @@ function Start-EvergreenWorkbench {
                     }
                 }
             }
-            catch {
-                $status = 'Invalid JSON'
+            else {
+                $status = if ($readResult.Error -like 'Failed to parse*') { 'Invalid JSON' } else { 'Invalid definition' }
+                Write-Verbose -Message "EvergreenUI: Failed to load '$($definitionFile.FullName)': $($readResult.Error)"
             }
 
             $rows.Add([PSCustomObject]@{
@@ -4141,6 +4139,7 @@ function Start-EvergreenWorkbench {
         $helperScripts = @(
             'Format-LogEntry.ps1'
             'Write-UILog.ps1'
+            'Read-PackageDefinition.ps1'
             'Invoke-PackageFilter.ps1'
             'Get-IntunePackageLatestVersion.ps1'
             'Invoke-IntuneDefinitionUpdate.ps1'

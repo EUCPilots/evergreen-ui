@@ -66,6 +66,60 @@ Describe 'Invoke-PackageFilter' -Tag 'Unit' {
         }
     }
 
+    It 'Passes a safe literal ErrorAction to Get-EvergreenApp' {
+        InModuleScope EvergreenUI {
+            Mock -CommandName Get-EvergreenApp {
+                [PSCustomObject]@{ Version = '1.0' }
+            }
+
+            $result = Invoke-PackageFilter -FilterExpression 'Get-EvergreenApp -Name "FoxitReader" -ErrorAction "SilentlyContinue"'
+
+            $result.Succeeded | Should -BeTrue
+            Should -Invoke -CommandName Get-EvergreenApp -Times 1 -Exactly -ParameterFilter {
+                $Name -eq 'FoxitReader' -and $ErrorAction -eq 'SilentlyContinue'
+            }
+        }
+    }
+
+    It 'Rejects interactive ErrorAction values without invoking the source' {
+        InModuleScope EvergreenUI {
+            Mock -CommandName Get-EvergreenApp
+
+            $result = Invoke-PackageFilter -FilterExpression 'Get-EvergreenApp -Name Test -ErrorAction Inquire'
+
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match "ErrorAction 'Inquire' is not supported"
+            Should -Invoke -CommandName Get-EvergreenApp -Times 0 -Exactly
+        }
+    }
+
+    It 'Passes a safe literal WarningAction to Get-EvergreenApp' {
+        InModuleScope EvergreenUI {
+            Mock -CommandName Get-EvergreenApp {
+                [PSCustomObject]@{ Version = '1.0' }
+            }
+
+            $result = Invoke-PackageFilter -FilterExpression 'Get-EvergreenApp -Name "NotepadPlusPlus" -WarningAction "SilentlyContinue"'
+
+            $result.Succeeded | Should -BeTrue
+            Should -Invoke -CommandName Get-EvergreenApp -Times 1 -Exactly -ParameterFilter {
+                $Name -eq 'NotepadPlusPlus' -and $WarningAction -eq 'SilentlyContinue'
+            }
+        }
+    }
+
+    It 'Rejects interactive WarningAction values without invoking the source' {
+        InModuleScope EvergreenUI {
+            Mock -CommandName Get-EvergreenApp
+
+            $result = Invoke-PackageFilter -FilterExpression 'Get-EvergreenApp -Name Test -WarningAction Inquire'
+
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match "WarningAction 'Inquire' is not supported"
+            Should -Invoke -CommandName Get-EvergreenApp -Times 0 -Exactly
+        }
+    }
+
     It 'Rejects unsafe expressions without invoking an approved source' -ForEach @(
         @{ Expression = 'Get-EvergreenApp -Name Test; Get-Process' }
         @{ Expression = '& Get-EvergreenApp -Name Test' }

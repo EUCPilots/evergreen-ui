@@ -77,13 +77,11 @@ function Invoke-IntunePackageBuild {
 
     if ($null -eq $definitionObject -and -not [string]::IsNullOrWhiteSpace($definitionPath) -and
         (Test-Path -LiteralPath $definitionPath -PathType Leaf)) {
-        try {
-            $definitionObject = Get-Content -LiteralPath $definitionPath -Raw -ErrorAction Stop |
-            ConvertFrom-Json -ErrorAction Stop
+        $readResult = Read-PackageDefinition -Path $definitionPath
+        if (-not $readResult.Succeeded) {
+            return (& $fail $readResult.Error)
         }
-        catch {
-            return (& $fail "Failed to load definition from '$definitionPath': $($_.Exception.Message)")
-        }
+        $definitionObject = $readResult.Definition
     }
 
     if ($null -eq $definitionObject) {
@@ -186,8 +184,11 @@ function Invoke-IntunePackageBuild {
     if (-not [string]::IsNullOrWhiteSpace($definitionPath) -and (Test-Path -LiteralPath $definitionPath -PathType Leaf)) {
         $appJsonTarget = Join-Path -Path $sourcePath -ChildPath 'App.json'
         try {
-            $appJson = Get-Content -LiteralPath $definitionPath -Raw -ErrorAction Stop |
-            ConvertFrom-Json -ErrorAction Stop
+            $readResult = Read-PackageDefinition -Path $definitionPath
+            if (-not $readResult.Succeeded) {
+                throw $readResult.Error
+            }
+            $appJson = $readResult.Definition
             $appJson.PackageInformation.Version = [string]$latestResult.Version
             if ($downloadResults.Count -gt 0) {
                 $installerName = [System.IO.Path]::GetFileName($downloadResults[0].FullName)
