@@ -170,7 +170,7 @@ function Start-EvergreenWorkbench {
             RunUpdateEvergreenButton                        = $null
             UpdateStatusLabel                               = $null
             LibraryData                                     = @()
-            ActiveBackgroundOperations                      = [System.Collections.Generic.List[object]]::new()
+            ActiveBackgroundOperations                      = [hashtable]::Synchronized(@{})
             BackgroundOperationsTimer                       = $null
             SettingsAutoSaveTimer                           = $null
             SettingsLastSavedJson                           = ''
@@ -6754,37 +6754,32 @@ function Start-EvergreenWorkbench {
 
     $registerBackgroundOperation = {
         param(
-            [Parameter(Mandatory)][string]$Name,
+            [Parameter(Mandatory)][string]$Feature,
+            [Parameter(Mandatory)][string]$OperationId,
             [Parameter(Mandatory)][System.Management.Automation.PowerShell]$PowerShellInstance,
             [Parameter(Mandatory)][System.Management.Automation.Runspaces.Runspace]$RunspaceInstance,
-            [Parameter(Mandatory)]$AsyncResult
+            [Parameter()][scriptblock]$CompletionAction,
+            [Parameter()][object]$CallbackState
         )
 
-        $operation = [PSCustomObject]@{
-            Name       = $Name
-            PowerShell = $PowerShellInstance
-            Runspace   = $RunspaceInstance
-            Async      = $AsyncResult
-        }
-
-        $syncHash.ActiveBackgroundOperations.Add($operation)
+        $operation = Start-BackgroundOperation `
+            -Operations $syncHash.ActiveBackgroundOperations `
+            -Feature $Feature `
+            -OperationId $OperationId `
+            -PowerShell $PowerShellInstance `
+            -Runspace $RunspaceInstance `
+            -CompletionAction $CompletionAction `
+            -CallbackState $CallbackState
 
         if ($null -eq $syncHash.BackgroundOperationsTimer) {
             $timer = [System.Windows.Threading.DispatcherTimer]::new()
             $timer.Interval = [TimeSpan]::FromMilliseconds(500)
             $timer.add_Tick({
-                    $completed = @($syncHash.ActiveBackgroundOperations | Where-Object { $_.Async.IsCompleted })
-                    foreach ($op in $completed) {
-                        try {
-                            [void]$op.PowerShell.EndInvoke($op.Async)
-                        }
-                        catch {
-                            Write-UILog -SyncHash $syncHash -Message "Background operation '$($op.Name)' completed with error: $_" -Level Error
-                        }
-                        finally {
-                            try { $op.PowerShell.Dispose() } catch {}
-                            try { $op.Runspace.Dispose() } catch {}
-                            [void]$syncHash.ActiveBackgroundOperations.Remove($op)
+                    $completedResults = @(Invoke-BackgroundOperationPoll -Operations $syncHash.ActiveBackgroundOperations)
+                    foreach ($result in $completedResults) {
+                        if ($null -ne $result.Error) {
+                            $key = "$($result.Feature)::$($result.OperationId)"
+                            Write-UILog -SyncHash $syncHash -Message "Background operation '$key' completed with error: $($result.Error)" -Level Error
                         }
                     }
 
@@ -6798,6 +6793,8 @@ function Start-EvergreenWorkbench {
         if (-not $syncHash.BackgroundOperationsTimer.IsEnabled) {
             $syncHash.BackgroundOperationsTimer.Start()
         }
+
+        return $operation
     }
 
     $startQueueDownload = {
@@ -6903,8 +6900,7 @@ function Start-EvergreenWorkbench {
                 }
             }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($invokeDownloadPath)
 
-        $async = $ps.BeginInvoke()
-        & $registerBackgroundOperation -Name 'QueueDownload' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
+        [void](& $registerBackgroundOperation -Feature 'Download' -OperationId 'Queue' -PowerShellInstance $ps -RunspaceInstance $rs)
     }
 
     $getLibraryItemName = {
@@ -7098,17 +7094,18 @@ function Start-EvergreenWorkbench {
                 }
             }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($invokeLibraryUpdatePath)
 
-        $async = $ps.BeginInvoke()
-        & $registerBackgroundOperation -Name 'LibraryUpdate' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
+        [void](& $registerBackgroundOperation -Feature 'Library' -OperationId 'Update' -PowerShellInstance $ps -RunspaceInstance $rs)
     }
 
     $startUpdateEvergreen = {
-        if ($syncHash.IsRunning) {
-            Write-UILog -SyncHash $syncHash -Message 'Another operation is currently running.' -Level Warning
+        $activeUpdate = @($syncHash.ActiveBackgroundOperations.Values | Where-Object {
+                $_.Feature -eq 'Update' -and $_.Status -in @('Starting', 'Running', 'Cancelling')
+            }) | Select-Object -First 1
+        if ($null -ne $activeUpdate) {
+            Write-UILog -SyncHash $syncHash -Message 'An Evergreen update is already running.' -Level Warning
             return
         }
 
-        $syncHash.IsRunning = $true
         if ($null -ne $syncHash.RunUpdateEvergreenButton) {
             $syncHash.RunUpdateEvergreenButton.IsEnabled = $false
         }
@@ -7184,21 +7181,31 @@ function Start-EvergreenWorkbench {
                     Write-UpdateOutput -SyncHash $syncHash -Message "Update-Evergreen failed: $_" -Level Error
                     Write-UILog -SyncHash $syncHash -Message "Update-Evergreen failed: $_" -Level Error
                 }
-                finally {
-                    $syncHash.Window.Dispatcher.Invoke([action] {
-                            $syncHash.IsRunning = $false
-                            if ($null -ne $syncHash.RunUpdateEvergreenButton) {
-                                $syncHash.RunUpdateEvergreenButton.IsEnabled = $true
-                            }
-                            if ($null -ne $syncHash.UpdateStatusLabel) {
-                                $syncHash.UpdateStatusLabel.Text = 'Ready to run Update-Evergreen.'
-                            }
-                        }, 'Normal')
-                }
             }).AddArgument($formatLogEntryPath).AddArgument($writeUILogPath).AddArgument($writeUpdateOutputPath)
 
-        $async = $ps.BeginInvoke()
-        & $registerBackgroundOperation -Name 'UpdateEvergreen' -PowerShellInstance $ps -RunspaceInstance $rs -AsyncResult $async
+        $completionAction = {
+            param($Operation, $Result, $State)
+
+            if ($null -ne $syncHash.RunUpdateEvergreenButton) {
+                $syncHash.RunUpdateEvergreenButton.IsEnabled = $true
+            }
+            if ($null -ne $syncHash.UpdateStatusLabel) {
+                $syncHash.UpdateStatusLabel.Text = 'Ready to run Update-Evergreen.'
+            }
+        }
+
+        try {
+            [void](& $registerBackgroundOperation -Feature 'Update' -OperationId 'Evergreen' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction)
+        }
+        catch {
+            if ($null -ne $syncHash.RunUpdateEvergreenButton) {
+                $syncHash.RunUpdateEvergreenButton.IsEnabled = $true
+            }
+            if ($null -ne $syncHash.UpdateStatusLabel) {
+                $syncHash.UpdateStatusLabel.Text = 'Ready to run Update-Evergreen.'
+            }
+            Write-UILog -SyncHash $syncHash -Message "Could not start Update-Evergreen: $_" -Level Error
+        }
     }
 
     # Apply initial log state from config
@@ -7411,12 +7418,7 @@ function Start-EvergreenWorkbench {
                     $syncHash.BackgroundOperationsTimer.Stop()
                 }
 
-                foreach ($op in @($syncHash.ActiveBackgroundOperations)) {
-                    try { $op.PowerShell.Stop() } catch {}
-                    try { $op.PowerShell.Dispose() } catch {}
-                    try { $op.Runspace.Dispose() } catch {}
-                }
-                $syncHash.ActiveBackgroundOperations.Clear()
+                Clear-BackgroundOperation -Operations $syncHash.ActiveBackgroundOperations
 
                 if ($null -ne $syncHash.PendingImportSignInTimer -and $syncHash.PendingImportSignInTimer.IsEnabled) {
                     $syncHash.PendingImportSignInTimer.Stop()
