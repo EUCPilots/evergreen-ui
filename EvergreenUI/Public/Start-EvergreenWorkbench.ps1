@@ -150,6 +150,7 @@ function Start-EvergreenWorkbench {
             LogTextBox                                      = $null
             LogScrollViewer                                 = $null
             LogFilePath                                     = ''
+            IsClosing                                       = $false
             IsRunning                                       = $false
             AppList                                         = $null
             CurrentAppResults                               = $null
@@ -297,9 +298,16 @@ function Start-EvergreenWorkbench {
 
     # Load XAML layout
     $xamlPath = Join-Path -Path (Join-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath "..") -ChildPath "Resources") -ChildPath "EvergreenUI.xaml"
-    $stream = [System.IO.File]::OpenRead((Resolve-Path -Path $xamlPath).Path)
-    $window = [System.Windows.Markup.XamlReader]::Load($stream)
-    $stream.Dispose()
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead((Resolve-Path -Path $xamlPath).Path)
+        $window = [System.Windows.Markup.XamlReader]::Load($stream)
+    }
+    finally {
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+    }
 
     # Set window/taskbar icon from bundled resource when available.
     $iconPath = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Resources\evergreenbulb.png'
@@ -318,6 +326,19 @@ function Start-EvergreenWorkbench {
     $syncHash.Window = $window
     $syncHash.LogTextBox = $window.FindName('LogTextBox')
     $syncHash.LogScrollViewer = $window.FindName('LogScrollViewer')
+
+    $criticalControlNames = @(
+        'RootGrid', 'ThemeComboBox', 'NavToggleButton', 'NavApps', 'NavDownload',
+        'NavLibrary', 'NavPackages', 'NavImport', 'NavInstall', 'NavSettings',
+        'NavUpdate', 'NavAbout', 'AppsPanel', 'DownloadPanel', 'LibraryPanel',
+        'PackagesPanel', 'ImportPanel', 'InstallPanel', 'SettingsPanel',
+        'UpdatePanel', 'AboutPanel', 'LogTextBox', 'LogScrollViewer'
+    )
+    $missingControls = @($criticalControlNames | Where-Object { $null -eq $window.FindName($_) })
+    if ($missingControls.Count -gt 0) {
+        $missingNames = $missingControls -join ', '
+        throw "EvergreenUI XAML is missing required named control(s): $missingNames"
+    }
 
     $rootGrid = $window.FindName('RootGrid')
     $evergreenVersionText = $window.FindName('EvergreenVersionText')
@@ -1482,25 +1503,25 @@ function Start-EvergreenWorkbench {
         $completionAction_InstallLatestVersion = {
             param($Operation, $Result, $State)
             
-            $result = $null
+            $completionResult = $null
             if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
-                $result = $Result.Output[0]
+                $completionResult = $Result.Output[0]
             }
             elseif ($Result.Error) {
-                $result = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $Result.Error.Exception.Message }
+                $completionResult = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $Result.Error.Exception.Message }
             }
             else {
-                $result = $null
+                $completionResult = $null
             }
 
             try {
-                if ($null -eq $result -or -not $result.Success) {
-                    $err = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown latest version error.' } else { [string]$result.Error }
+                if ($null -eq $completionResult -or -not $completionResult.Success) {
+                    $err = if ($null -eq $completionResult -or [string]::IsNullOrWhiteSpace([string]$completionResult.Error)) { 'Unknown latest version error.' } else { [string]$completionResult.Error }
                     Write-UILog -SyncHash $syncHash -Message "Install: latest version resolution failed: $err" -Level Error
                 }
                 else {
                     $latestMap = @{}
-                    foreach ($row in @($result.Rows)) {
+                    foreach ($row in @($completionResult.Rows)) {
                         $latestMap[[string]$row.DefinitionPath] = $row
                     }
 
@@ -1520,8 +1541,8 @@ function Start-EvergreenWorkbench {
                         }
                     }
 
-                    $cacheCount = @($result.Rows | Where-Object { [bool]$_.Succeeded -and [bool]$_.IsFromCache }).Count
-                    $freshCount = @($result.Rows | Where-Object { [bool]$_.Succeeded -and -not [bool]$_.IsFromCache }).Count
+                    $cacheCount = @($completionResult.Rows | Where-Object { [bool]$_.Succeeded -and [bool]$_.IsFromCache }).Count
+                    $freshCount = @($completionResult.Rows | Where-Object { [bool]$_.Succeeded -and -not [bool]$_.IsFromCache }).Count
                     Write-UILog -SyncHash $syncHash -Message "Install: latest version resolution complete ($freshCount live, $cacheCount cache)." -Level Info
                 }
 
@@ -1715,24 +1736,24 @@ function Start-EvergreenWorkbench {
         $completionAction_InstallExecute = {
             param($Operation, $Result, $State)
             
-            $result = $null
+            $completionResult = $null
             if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
-                $result = $Result.Output[0]
+                $completionResult = $Result.Output[0]
             }
             elseif ($Result.Error) {
-                $result = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $Result.Error.Exception.Message }
+                $completionResult = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $Result.Error.Exception.Message }
             }
             else {
-                $result = $null
+                $completionResult = $null
             }
 
             try {
-                if ($null -eq $result -or -not $result.Success) {
-                    $err = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown install error.' } else { [string]$result.Error }
+                if ($null -eq $completionResult -or -not $completionResult.Success) {
+                    $err = if ($null -eq $completionResult -or [string]::IsNullOrWhiteSpace([string]$completionResult.Error)) { 'Unknown install error.' } else { [string]$completionResult.Error }
                     Write-UILog -SyncHash $syncHash -Message "Install: operation failed: $err" -Level Error
                 }
                 else {
-                    foreach ($item in @($result.Completed)) {
+                    foreach ($item in @($completionResult.Completed)) {
                         Write-UILog -SyncHash $syncHash -Message "Install: completed '$([string]$item.Name)' (exit code $([int]$item.ExitCode))." -Level Info
                         foreach ($definitionRow in @($syncHash.InstallDefinitionRows)) {
                             if ([string]$definitionRow.DefinitionPath -eq [string]$item.DefinitionPath) {
@@ -1742,7 +1763,7 @@ function Start-EvergreenWorkbench {
                         }
                     }
 
-                    foreach ($item in @($result.Failed)) {
+                    foreach ($item in @($completionResult.Failed)) {
                         Write-UILog -SyncHash $syncHash -Message "Install: failed '$([string]$item.Name)': $([string]$item.Error)" -Level Error
                     }
                 }
@@ -2887,6 +2908,7 @@ function Start-EvergreenWorkbench {
             Invoke-FilterUpdate -SyncHash $syncHash
         }
         Invoke-FilterUpdate -SyncHash $syncHash
+        $appDetailEmpty.Visibility = [System.Windows.Visibility]::Collapsed
         $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed
         $appDetailContent.Visibility = [System.Windows.Visibility]::Visible
         & $updateAddToLibraryButtonState
@@ -2931,8 +2953,6 @@ function Start-EvergreenWorkbench {
             param($Operation, $Result, $State)
 
             $currentAppName = $State.AppName
-            $currentPS = $Result.PowerShellInstance
-            $currentRunspace = $Result.RunspaceInstance
 
             try {
                 $results = @()
@@ -2960,9 +2980,6 @@ function Start-EvergreenWorkbench {
                 Write-UILog -SyncHash $syncHash -Message "Loaded $($syncHash.CurrentAppResults.Count) versions for $currentAppName." -Level Info
             }
             catch {
-                try { $currentPS.Dispose() } catch {}
-                try { $currentRunspace.Dispose() } catch {}
-
                 $syncHash.CurrentAppResults = @()
                 $syncHash.VersionsListView.ItemsSource = @()
                 $syncHash.ResultsCountLabel.Text = 'Showing 0 of 0'
@@ -2975,8 +2992,6 @@ function Start-EvergreenWorkbench {
             }
             finally {
                 $loadAppVersionsButton.IsEnabled = $true
-                try { $currentPS.Dispose() } catch {}
-                try { $currentRunspace.Dispose() } catch {}
             }
         }
 
@@ -7127,6 +7142,7 @@ function Start-EvergreenWorkbench {
     # Event: Window.Closing - persist config
     $window.add_Closing({
             try {
+                $syncHash.IsClosing = $true
                 & $persistUiSettingsSnapshot -ForceWrite
 
                 if ($null -ne $syncHash.SettingsAutoSaveTimer -and $syncHash.SettingsAutoSaveTimer.IsEnabled) {
@@ -7140,7 +7156,8 @@ function Start-EvergreenWorkbench {
                 Clear-BackgroundOperation -Operations $syncHash.ActiveBackgroundOperations
             }
             catch {
-                # Never block window close for a config-save failure
+                # best-effort - shutdown cleanup must not block window close
+                Write-Verbose -Message "EvergreenUI: window close cleanup failed: $($_.Exception.Message)"
             }
         })
 

@@ -42,6 +42,16 @@ function Write-UILog {
 
     if ([string]::IsNullOrWhiteSpace($Message)) { return }
 
+    if ($null -eq $SyncHash -or ($SyncHash.ContainsKey('IsClosing') -and [bool]$SyncHash.IsClosing)) { return }
+
+    $window = $SyncHash.Window
+    $textBox = $SyncHash.LogTextBox
+    $scrollViewer = $SyncHash.LogScrollViewer
+    if ($null -eq $window -or $null -eq $textBox -or $null -eq $scrollViewer) { return }
+
+    $dispatcher = $window.Dispatcher
+    if ($null -eq $dispatcher -or $dispatcher.HasShutdownStarted -or $dispatcher.HasShutdownFinished) { return }
+
     $logEntry = Format-LogEntry -Message $Message -Level $Level
 
     if (-not [string]::IsNullOrEmpty($SyncHash.LogFilePath)) {
@@ -58,8 +68,15 @@ function Write-UILog {
         }
     }
 
-    $SyncHash.Window.Dispatcher.Invoke([action] {
-            $SyncHash.LogTextBox.AppendText("$logEntry`r`n")
-            $SyncHash.LogScrollViewer.ScrollToEnd()
-        }, 'Normal')
+    try {
+        $dispatcher.Invoke([action] {
+            if ($SyncHash.ContainsKey('IsClosing') -and [bool]$SyncHash.IsClosing) { return }
+                $SyncHash.LogTextBox.AppendText("$logEntry`r`n")
+                $SyncHash.LogScrollViewer.ScrollToEnd()
+            }, 'Normal')
+    }
+    catch {
+        # best-effort - dispatcher shutdown must not abort background work
+        Write-Verbose -Message "EvergreenUI: UI log dispatch failed during shutdown: $($_.Exception.Message)"
+    }
 }

@@ -33,12 +33,27 @@ function Write-UpdateOutput {
     )
 
     if ([string]::IsNullOrWhiteSpace($Message)) { return }
-    if ($null -eq $SyncHash.UpdateOutputTextBox -or $null -eq $SyncHash.UpdateOutputScrollViewer) { return }
+    if ($null -eq $SyncHash -or ($SyncHash.ContainsKey('IsClosing') -and [bool]$SyncHash.IsClosing)) { return }
+
+    $window = $SyncHash.Window
+    $textBox = $SyncHash.UpdateOutputTextBox
+    $scrollViewer = $SyncHash.UpdateOutputScrollViewer
+    if ($null -eq $window -or $null -eq $textBox -or $null -eq $scrollViewer) { return }
+
+    $dispatcher = $window.Dispatcher
+    if ($null -eq $dispatcher -or $dispatcher.HasShutdownStarted -or $dispatcher.HasShutdownFinished) { return }
 
     $line = Format-LogEntry -Message $Message -Level $Level
 
-    $SyncHash.Window.Dispatcher.Invoke([action]{
-            $SyncHash.UpdateOutputTextBox.AppendText("$line`r`n")
-            $SyncHash.UpdateOutputScrollViewer.ScrollToEnd()
-        }, 'Normal')
+    try {
+        $dispatcher.Invoke([action]{
+            if ($SyncHash.ContainsKey('IsClosing') -and [bool]$SyncHash.IsClosing) { return }
+                $SyncHash.UpdateOutputTextBox.AppendText("$line`r`n")
+                $SyncHash.UpdateOutputScrollViewer.ScrollToEnd()
+            }, 'Normal')
+    }
+    catch {
+        # best-effort - dispatcher shutdown must not abort background work
+        Write-Verbose -Message "EvergreenUI: update output dispatch failed during shutdown: $($_.Exception.Message)"
+    }
 }
