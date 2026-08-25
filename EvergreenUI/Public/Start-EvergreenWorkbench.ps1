@@ -1177,10 +1177,11 @@ function Start-EvergreenWorkbench {
                     else {
                         Write-UILog -SyncHash $syncHash -Message "Install: no cache found at '$cacheFilePath', all versions will be fetched live." -Level Info
                     }
+                    $cacheState = Initialize-InstallLatestCache -CacheFile $cacheFilePath
 
                     $rows = [System.Collections.Generic.List[object]]::new()
                     foreach ($definitionRow in $DefinitionRows) {
-                        $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$definitionRow.DefinitionPath) -DefinitionObject $definitionRow.DefinitionObject -CacheRootPath $CacheRootPath
+                        $latestResult = Get-InstallPackageLatestVersion -DefinitionPath ([string]$definitionRow.DefinitionPath) -DefinitionObject $definitionRow.DefinitionObject -CacheRootPath $CacheRootPath -CacheState $cacheState
                         $rows.Add([PSCustomObject]@{
                                 DefinitionPath = [string]$definitionRow.DefinitionPath
                                 Succeeded      = [bool]$latestResult.Succeeded
@@ -1191,7 +1192,8 @@ function Start-EvergreenWorkbench {
                     }
 
                     $writeCount = @($rows | Where-Object { -not [bool]$_.IsFromCache }).Count
-                    if ($writeCount -gt 0) {
+                    $cacheWasWritten = Save-InstallLatestCache -CacheState $cacheState
+                    if ($cacheWasWritten -and $writeCount -gt 0) {
                         Write-UILog -SyncHash $syncHash -Message "Install: wrote $writeCount $(if ($writeCount -eq 1) { 'entry' } else { 'entries' }) to cache at '$cacheFilePath'." -Level Info
                     }
 

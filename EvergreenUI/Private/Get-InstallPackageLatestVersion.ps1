@@ -19,6 +19,10 @@
 .PARAMETER CacheMaxAgeHours
     Maximum cache age before refresh. Default: 24.
 
+.PARAMETER CacheState
+    Optional mutable batch cache state. When supplied, cache entries are loaded
+    and updated in memory; the caller is responsible for saving the state.
+
 .OUTPUTS
     PSCustomObject with:
         Succeeded    : bool
@@ -43,7 +47,9 @@ function Get-InstallPackageLatestVersion {
         [Parameter(Mandatory)]
         [string]$CacheRootPath,
 
-        [int]$CacheMaxAgeHours = 24
+        [int]$CacheMaxAgeHours = 24,
+
+        [hashtable]$CacheState
     )
 
     $fail = {
@@ -83,26 +89,14 @@ function Get-InstallPackageLatestVersion {
     }
 
     $cacheFile = Join-Path -Path $CacheRootPath -ChildPath 'install-latest-cache.json'
-    $cacheEntries = @()
-
-    if (Test-Path -LiteralPath $cacheFile -PathType Leaf) {
-        try {
-            $raw = Get-Content -LiteralPath $cacheFile -Raw -ErrorAction Stop
-            if (-not [string]::IsNullOrWhiteSpace($raw)) {
-                $parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
-                if ($parsed -is [System.Array]) {
-                    $cacheEntries = @($parsed)
-                }
-                elseif ($null -ne $parsed) {
-                    $cacheEntries = @($parsed)
-                }
-            }
-        }
-        catch {
-            $cacheEntries = @()
-            Write-Verbose -Message "EvergreenUI: Failed to read/parse cache file '$cacheFile' (will query live): $($_.Exception.Message)"
-        }
+    $ownsCacheState = $null -eq $CacheState
+    if ($ownsCacheState) {
+        $CacheState = Initialize-InstallLatestCache -CacheFile $cacheFile
     }
+    elseif (-not $CacheState.ContainsKey('Entries')) {
+        $CacheState.Entries = @()
+    }
+    $cacheEntries = @($CacheState.Entries)
 
     $nowUtc = [DateTime]::UtcNow
     $definitionKey = $DefinitionPath.Trim().ToLowerInvariant()
@@ -183,15 +177,11 @@ function Get-InstallPackageLatestVersion {
         $newEntries.Add($entry)
     }
     $newEntries.Add($cacheRecord)
+    $CacheState.Entries = @($newEntries)
+    $CacheState.Dirty = $true
 
-    try {
-        $json = @($newEntries) | ConvertTo-Json -Depth 8
-        [System.IO.File]::WriteAllText($cacheFile, $json, [System.Text.Encoding]::UTF8)
-        Write-Verbose -Message "EvergreenUI: Cache updated: '$cacheFile'."
-    }
-    catch {
-        # best-effort - cache write failure must not fail version resolution
-        Write-Verbose -Message "EvergreenUI: Cache write failed for '$cacheFile' (ignored): $($_.Exception.Message)"
+    if ($ownsCacheState) {
+        $null = Save-InstallLatestCache -CacheState $CacheState
     }
 
     return [PSCustomObject]@{
@@ -203,5 +193,63 @@ function Get-InstallPackageLatestVersion {
         Error            = [string]$liveResult.Error
         IsFromCache      = $false
         CacheFile        = $cacheFile
+    }
+}
+
+function Initialize-InstallLatestCache {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$CacheFile
+    )
+
+    $entries = @()
+    if (Test-Path -LiteralPath $CacheFile -PathType Leaf) {
+        try {
+            $raw = Get-Content -LiteralPath $CacheFile -Raw -ErrorAction Stop
+            if (-not [string]::IsNullOrWhiteSpace($raw)) {
+                $parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
+                if ($parsed -is [System.Array]) { $entries = @($parsed) }
+                elseif ($null -ne $parsed) { $entries = @($parsed) }
+            }
+        }
+        catch {
+            Write-Verbose -Message "EvergreenUI: Failed to read/parse cache file '$CacheFile' (will query live): $($_.Exception.Message)"
+        }
+    }
+
+    return @{
+        CacheFile = $CacheFile
+        Entries   = $entries
+        Dirty     = $false
+    }
+}
+
+function Save-InstallLatestCache {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$CacheState
+    )
+
+    if (-not [bool]$CacheState.Dirty) { return $false }
+
+    $cacheFile = [string]$CacheState.CacheFile
+    $tempFile = "$cacheFile.$([guid]::NewGuid().ToString('N')).tmp"
+    try {
+        $json = @($CacheState.Entries) | ConvertTo-Json -Depth 8
+        [System.IO.File]::WriteAllText($tempFile, $json, [System.Text.UTF8Encoding]::new($false))
+        Move-Item -LiteralPath $tempFile -Destination $cacheFile -Force -ErrorAction Stop
+        $CacheState.Dirty = $false
+        Write-Verbose -Message "EvergreenUI: Cache updated: '$cacheFile'."
+        return $true
+    }
+    catch {
+        # best-effort - cache write failure must not fail version resolution
+        Write-Verbose -Message "EvergreenUI: Cache write failed for '$cacheFile' (ignored): $($_.Exception.Message)"
+        if (Test-Path -LiteralPath $tempFile -PathType Leaf) {
+            Remove-Item -LiteralPath $tempFile -Force -ErrorAction SilentlyContinue
+        }
+        return $false
     }
 }
