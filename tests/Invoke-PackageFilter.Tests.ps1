@@ -29,6 +29,27 @@ Describe 'Invoke-PackageFilter' -Tag 'Unit' {
         }
     }
 
+    It 'Executes the VLC media player filter with quoted literal arguments' {
+        InModuleScope EvergreenUI {
+            Mock -CommandName Get-EvergreenApp {
+                @(
+                    [PSCustomObject]@{ Architecture = 'x64'; Type = 'MSI' }
+                    [PSCustomObject]@{ Architecture = 'x86'; Type = 'MSI' }
+                )
+            }
+
+            $expression = 'Get-EvergreenApp -Name "VideoLanVlcPlayer" -ErrorAction "SilentlyContinue" | Where-Object { $_.Architecture -eq "x64" -and $_.Type -eq "MSI" } | Select-Object -First 1'
+            $result = Invoke-PackageFilter -FilterExpression $expression
+
+            $result.Succeeded | Should -BeTrue
+            $result.Results | Should -HaveCount 1
+            $result.Results[0].Architecture | Should -Be 'x64'
+            Should -Invoke -CommandName Get-EvergreenApp -Times 1 -Exactly -ParameterFilter {
+                $Name -eq 'VideoLanVlcPlayer' -and $ErrorAction -eq 'SilentlyContinue'
+            }
+        }
+    }
+
     It 'Executes supported VcRedist predicates and sorting' {
         InModuleScope EvergreenUI {
             Mock -CommandName Get-VcList {

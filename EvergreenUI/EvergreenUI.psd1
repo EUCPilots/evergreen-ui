@@ -60,6 +60,7 @@
         'Private\New-WpfRunspace.ps1'
         'Private\Set-DwmTitleBarColor.ps1'
         'Private\Set-IntuneGraphWin32Supersedence.ps1'
+        'Private\Set-ListViewSort.ps1'
         'Private\Set-UIConfig.ps1'
         'Private\Test-EvergreenModule.ps1'
         'Private\Test-LocalPackageDetection.ps1'

@@ -57,7 +57,11 @@ function ConvertTo-PackageFilterParameter {
         }
 
         if ($null -ne $element.Argument) {
-            $parameters[$parameterName] = ConvertFrom-PackageFilterLiteral -Expression $element.Argument
+            $literalValue = ConvertFrom-PackageFilterLiteral -Expression $element.Argument
+            if ($parameterName -in @('Name', 'ErrorAction', 'WarningAction')) {
+                $literalValue = [string]$literalValue
+            }
+            $parameters[$parameterName] = $literalValue
             continue
         }
 
@@ -74,7 +78,11 @@ function ConvertTo-PackageFilterParameter {
             throw "Parameter '-$parameterName' requires a literal value."
         }
 
-        $parameters[$parameterName] = ConvertFrom-PackageFilterLiteral -Expression $elements[$index]
+        $literalValue = ConvertFrom-PackageFilterLiteral -Expression $elements[$index]
+        if ($parameterName -in @('Name', 'ErrorAction', 'WarningAction')) {
+            $literalValue = [string]$literalValue
+        }
+        $parameters[$parameterName] = $literalValue
     }
 
     return $parameters

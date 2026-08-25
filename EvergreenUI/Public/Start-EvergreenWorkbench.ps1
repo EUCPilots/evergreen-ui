@@ -722,227 +722,35 @@ function Start-EvergreenWorkbench {
     }
 
     $applyIntuneListSort = {
-        if ($null -eq $intuneWin32AppsListView -or $null -eq $intuneWin32AppsListView.ItemsSource) {
-            return
-        }
-
-        $sortProperty = [string]$syncHash.IntuneSortProperty
-        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
-            return
-        }
-
-        $sortDirectionText = [string]$syncHash.IntuneSortDirection
-        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
-            [System.ComponentModel.ListSortDirection]::Descending
-        }
-        else {
-            [System.ComponentModel.ListSortDirection]::Ascending
-        }
-
-        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($intuneWin32AppsListView.ItemsSource)
-        if ($null -eq $view) {
-            return
-        }
-
-        $view.SortDescriptions.Clear()
-        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
-        $view.Refresh()
+        [void](Set-ListViewSort -ListView $intuneWin32AppsListView -Property ([string]$syncHash.IntuneSortProperty) -Direction ([string]$syncHash.IntuneSortDirection))
     }
 
     $applyInstallListSort = {
-        if ($null -eq $installPackagesListView -or $null -eq $installPackagesListView.ItemsSource) {
-            return
-        }
-
-        $sortProperty = [string]$syncHash.InstallSortProperty
-        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
-            return
-        }
-
-        $sortDirectionText = [string]$syncHash.InstallSortDirection
-        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
-            [System.ComponentModel.ListSortDirection]::Descending
-        }
-        else {
-            [System.ComponentModel.ListSortDirection]::Ascending
-        }
-
-        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($installPackagesListView.ItemsSource)
-        if ($null -eq $view) {
-            return
-        }
-
-        $view.SortDescriptions.Clear()
-        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
-        $view.Refresh()
+        [void](Set-ListViewSort -ListView $installPackagesListView -Property ([string]$syncHash.InstallSortProperty) -Direction ([string]$syncHash.InstallSortDirection))
     }
 
     $applyVersionsListSort = {
-        if ($null -eq $syncHash.VersionsListView -or $null -eq $syncHash.VersionsListView.ItemsSource) {
-            return
-        }
-
-        $sortProperty = [string]$syncHash.VersionsSortProperty
-        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
-            return
-        }
-
-        $sortDirectionText = [string]$syncHash.VersionsSortDirection
-        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
-            [System.ComponentModel.ListSortDirection]::Descending
-        }
-        else {
-            [System.ComponentModel.ListSortDirection]::Ascending
-        }
-
-        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($syncHash.VersionsListView.ItemsSource)
-        if ($null -eq $view) {
-            return
-        }
-
-        $view.SortDescriptions.Clear()
-        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
-        $view.Refresh()
+        [void](Set-ListViewSort -ListView $syncHash.VersionsListView -Property ([string]$syncHash.VersionsSortProperty) -Direction ([string]$syncHash.VersionsSortDirection))
     }
 
     $applyDownloadQueueSort = {
-        if ($null -eq $syncHash.DownloadQueueListView -or $null -eq $syncHash.DownloadQueueListView.ItemsSource) {
-            return
-        }
-
-        $sortProperty = [string]$syncHash.DownloadQueueSortProperty
-        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
-            return
-        }
-
-        $sortDirectionText = [string]$syncHash.DownloadQueueSortDirection
-        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
-            [System.ComponentModel.ListSortDirection]::Descending
-        }
-        else {
-            [System.ComponentModel.ListSortDirection]::Ascending
-        }
-
-        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($syncHash.DownloadQueueListView.ItemsSource)
-        if ($null -eq $view) {
-            return
-        }
-
-        $view.SortDescriptions.Clear()
-        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
-        $view.Refresh()
+        [void](Set-ListViewSort -ListView $syncHash.DownloadQueueListView -Property ([string]$syncHash.DownloadQueueSortProperty) -Direction ([string]$syncHash.DownloadQueueSortDirection))
     }
 
     $applyLibraryContentsSort = {
-        if ($null -eq $syncHash.LibraryContentsListView -or $null -eq $syncHash.LibraryContentsListView.ItemsSource) {
-            return
-        }
-
-        $sortProperty = [string]$syncHash.LibraryContentsSortProperty
-        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
-            return
-        }
-
-        $sortDirectionText = [string]$syncHash.LibraryContentsSortDirection
-        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
-            [System.ComponentModel.ListSortDirection]::Descending
-        }
-        else {
-            [System.ComponentModel.ListSortDirection]::Ascending
-        }
-
-        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($syncHash.LibraryContentsListView.ItemsSource)
-        if ($null -eq $view) {
-            return
-        }
-
-        $view.SortDescriptions.Clear()
-        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
-        $view.Refresh()
+        [void](Set-ListViewSort -ListView $syncHash.LibraryContentsListView -Property ([string]$syncHash.LibraryContentsSortProperty) -Direction ([string]$syncHash.LibraryContentsSortDirection))
     }
 
     $applyLibraryDetailsSort = {
-        if ($null -eq $syncHash.LibraryDetailsListView -or $null -eq $syncHash.LibraryDetailsListView.ItemsSource) {
-            return
-        }
-
-        $sortProperty = [string]$syncHash.LibraryDetailsSortProperty
-        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
-            return
-        }
-
-        $sortDirectionText = [string]$syncHash.LibraryDetailsSortDirection
-        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
-            [System.ComponentModel.ListSortDirection]::Descending
-        }
-        else {
-            [System.ComponentModel.ListSortDirection]::Ascending
-        }
-
-        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($syncHash.LibraryDetailsListView.ItemsSource)
-        if ($null -eq $view) {
-            return
-        }
-
-        $view.SortDescriptions.Clear()
-        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
-        $view.Refresh()
+        [void](Set-ListViewSort -ListView $syncHash.LibraryDetailsListView -Property ([string]$syncHash.LibraryDetailsSortProperty) -Direction ([string]$syncHash.LibraryDetailsSortDirection))
     }
 
     $applyNerdioSort = {
-        if ($null -eq $nerdioDefinitionsListView -or $null -eq $nerdioDefinitionsListView.ItemsSource) {
-            return
-        }
-
-        $sortProperty = [string]$syncHash.NerdioSortProperty
-        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
-            return
-        }
-
-        $sortDirectionText = [string]$syncHash.NerdioSortDirection
-        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
-            [System.ComponentModel.ListSortDirection]::Descending
-        }
-        else {
-            [System.ComponentModel.ListSortDirection]::Ascending
-        }
-
-        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($nerdioDefinitionsListView.ItemsSource)
-        if ($null -eq $view) {
-            return
-        }
-
-        $view.SortDescriptions.Clear()
-        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
-        $view.Refresh()
+        [void](Set-ListViewSort -ListView $nerdioDefinitionsListView -Property ([string]$syncHash.NerdioSortProperty) -Direction ([string]$syncHash.NerdioSortDirection))
     }
 
     $applyM365Sort = {
-        if ($null -eq $m365ConfigsListView -or $null -eq $m365ConfigsListView.ItemsSource) {
-            return
-        }
-
-        $sortProperty = [string]$syncHash.M365SortProperty
-        if ([string]::IsNullOrWhiteSpace($sortProperty)) {
-            return
-        }
-
-        $sortDirectionText = [string]$syncHash.M365SortDirection
-        $sortDirection = if ($sortDirectionText -ieq 'Descending') {
-            [System.ComponentModel.ListSortDirection]::Descending
-        }
-        else {
-            [System.ComponentModel.ListSortDirection]::Ascending
-        }
-
-        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($m365ConfigsListView.ItemsSource)
-        if ($null -eq $view) {
-            return
-        }
-
-        $view.SortDescriptions.Clear()
-        $view.SortDescriptions.Add([System.ComponentModel.SortDescription]::new($sortProperty, $sortDirection))
-        $view.Refresh()
+        [void](Set-ListViewSort -ListView $m365ConfigsListView -Property ([string]$syncHash.M365SortProperty) -Direction ([string]$syncHash.M365SortDirection))
     }
 
     $setIntuneLoadingState = {

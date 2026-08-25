@@ -80,6 +80,34 @@ Describe 'Get-IntunePackageLatestVersion' -Tag 'Unit' {
         }
     }
 
+    It 'Resolves the VLC media player definition filter' {
+        InModuleScope EvergreenUI {
+            Mock -CommandName Get-EvergreenApp {
+                [PSCustomObject]@{
+                    Version      = '3.0.23'
+                    Architecture = 'x64'
+                    Type         = 'msi'
+                    URI          = 'https://example.com/vlc-3.0.23-win64.msi'
+                }
+            }
+
+            $definition = [PSCustomObject]@{
+                Application = [PSCustomObject]@{
+                    Filter       = 'Get-EvergreenApp -Name "VideoLanVlcPlayer" -ErrorAction "SilentlyContinue" | Where-Object { $_.Architecture -eq "x64" -and $_.Type -eq "MSI" } | Select-Object -First 1'
+                    Architecture = 'x64'
+                }
+            }
+
+            $result = Get-IntunePackageLatestVersion -DefinitionObject $definition
+
+            $result.Succeeded | Should -BeTrue
+            $result.Version | Should -Be '3.0.23'
+            Should -Invoke -CommandName Get-EvergreenApp -Times 1 -Exactly -ParameterFilter {
+                $Name -eq 'VideoLanVlcPlayer' -and $ErrorAction -eq 'SilentlyContinue'
+            }
+        }
+    }
+
     It 'Resolves supported alternate URI property names' {
         InModuleScope EvergreenUI {
             Mock -CommandName Get-VcList {

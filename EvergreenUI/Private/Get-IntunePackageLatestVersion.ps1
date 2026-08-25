@@ -70,8 +70,14 @@ function Get-IntunePackageLatestVersion {
     }
 
     # Apply optional architecture and language preference from definition
-    $preferredArch = [string]$DefinitionObject.Application.Architecture
-    $preferredLang = [string]$DefinitionObject.Application.Language
+    $preferredArch = ''
+    $preferredLang = ''
+    if ($DefinitionObject.Application.PSObject.Properties.Name -contains 'Architecture') {
+        $preferredArch = [string]$DefinitionObject.Application.Architecture
+    }
+    if ($DefinitionObject.Application.PSObject.Properties.Name -contains 'Language') {
+        $preferredLang = [string]$DefinitionObject.Application.Language
+    }
 
     $filtered = @($results)
 
