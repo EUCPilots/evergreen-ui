@@ -4,7 +4,7 @@
     Builds WPF filter controls at runtime and injects them into the filter WrapPanel.
 
 .DESCRIPTION
-    Accepts the output of Get-FilterableProperties and a reference to the parent
+    Accepts the output of Get-FilterableProperty and a reference to the parent
     WrapPanel in the UI. For each filterable property it creates the appropriate
     WPF control (CheckBox strip, multi-select ListBox, or TextBox), wires up
     change handlers that call Invoke-FilterUpdate, and appends the group to the
@@ -18,7 +18,7 @@
     with all values selected by default for each property.
 
 .PARAMETER FilterProperties
-    Output from Get-FilterableProperties - array of property metadata objects.
+    Output from Get-FilterableProperty - array of property metadata objects.
 
 .PARAMETER WrapPanel
     The System.Windows.Controls.WrapPanel that hosts the filter groups.

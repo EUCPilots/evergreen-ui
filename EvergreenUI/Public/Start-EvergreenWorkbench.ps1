@@ -1751,7 +1751,7 @@ function Start-EvergreenWorkbench {
         & $registerBackgroundOperation -Feature 'IntuneImport' -OperationId 'Win32' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_IntuneImport -CallbackState $state_IntuneImport
     }
 
-    # ── Microsoft 365 Apps tab scriptblocks ──────────────────────────────────
+    # -- Microsoft 365 Apps tab scriptblocks ----------------------------------
 
     $updateM365ActionButtons = {
         $selected = if ($null -ne $m365ConfigsListView) { $m365ConfigsListView.SelectedItem } else { $null }
@@ -1888,7 +1888,7 @@ function Start-EvergreenWorkbench {
         Write-UILog -SyncHash $syncHash -Message "M365: loading configurations from '$configPath'..." -Level Info
 
         try {
-            $rows = @(Get-M365AppConfigurations -DefinitionsRoot $configPath)
+            $rows = @(Get-M365AppConfiguration -DefinitionsRoot $configPath)
         }
         catch {
             Write-UILog -SyncHash $syncHash -Message "M365: failed to load configurations: $($_.Exception.Message)" -Level Error
@@ -2590,7 +2590,7 @@ function Start-EvergreenWorkbench {
         param([PSObject[]]$AppResults)
         $syncHash.CurrentAppResults = @($AppResults)
         & $rebuildVersionColumns -AppResults $syncHash.CurrentAppResults
-        $filterProps = @(Get-FilterableProperties -AppResults $syncHash.CurrentAppResults)
+        $filterProps = @(Get-FilterableProperty -AppResults $syncHash.CurrentAppResults)
         New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
             Invoke-FilterUpdate -SyncHash $syncHash
         }
@@ -7334,7 +7334,7 @@ function Start-EvergreenWorkbench {
             & $startNerdioImportNew
         })
 
-    # ── Microsoft 365 Apps tab event handlers ────────────────────────────────
+    # -- Microsoft 365 Apps tab event handlers --------------------------------
 
     $browseM365ConfigButton.add_Click({
             $dlg = [System.Windows.Forms.FolderBrowserDialog]::new()
@@ -7854,7 +7854,7 @@ function Start-EvergreenWorkbench {
                 return
             }
 
-            $filterProps = Get-FilterableProperties -AppResults $syncHash.CurrentAppResults
+            $filterProps = Get-FilterableProperty -AppResults $syncHash.CurrentAppResults
             New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $syncHash -OnChangeCallback {
                 Invoke-FilterUpdate -SyncHash $syncHash
             }

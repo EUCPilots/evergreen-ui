@@ -15,7 +15,7 @@
     No IntuneWin32App module dependency.
 
 .PARAMETER ConfigRow
-    A configuration row object returned by Get-M365AppConfigurations, containing
+    A configuration row object returned by Get-M365AppConfiguration, containing
     FileName, FilePath, DisplayName, and ConfigId.
 
 .PARAMETER ConfigDirectoryPath

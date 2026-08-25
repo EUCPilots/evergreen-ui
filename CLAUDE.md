@@ -74,7 +74,7 @@ WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures
 | `Set-UIConfig` | Persist UI state changes |
 | `Merge-ConfigSection` | Merge default property values into a loaded config section (used by Get-UIConfig) |
 | `Get-EvergreenAppList` | Fetch and cache app list from Evergreen module |
-| `Get-FilterableProperties` | Determine which properties get filter controls |
+| `Get-FilterableProperty` | Determine which properties get filter controls |
 | `New-FilterPanel` | Dynamically build filter UI from app result properties |
 | `Invoke-FilterUpdate` | Refresh filter panel when app selection changes |
 | `Invoke-AppDownload` | Queue and execute batch downloads |
@@ -87,7 +87,7 @@ WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures
 | `Invoke-IntuneDefinitionUpdate` | Update App.json and Source\Install.json definition files with the latest version and SetupFile resolved via each definition's Application.Filter expression; updates detection rule version values in place |
 | `Invoke-IntuneGraphWin32Import` | Import Win32 apps to Intune via Graph API; parses RequirementRule.Architecture (single value or comma-separated list) and maps to Graph API `allowedArchitectures` string enum (`x64`, `x86`, `arm64`, or `x86,x64,arm64`) |
 | `Set-IntuneGraphWin32Supersedence` | POST mobileAppSupersedence relationship between two Intune Win32 apps via Graph API |
-| `Get-M365AppConfigurations` | Parse ODT XML configuration files; returns channel, products, architecture, and GUID |
+| `Get-M365AppConfiguration` | Parse ODT XML configuration files; returns channel, products, architecture, and GUID |
 | `Invoke-M365AppPackageBuild` | Download M365 setup.exe, update ODT XML, and build .intunewin for Intune import |
 | `Invoke-M365AppShellAppBuild` | Download M365 setup.exe, update ODT XML, and build .zip for Nerdio Shell App import |
 | `Invoke-AzureSignIn` | Interactive Entra sign-in for Intune workflows via Connect-MgGraph |

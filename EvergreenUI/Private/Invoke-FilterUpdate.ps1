@@ -5,7 +5,7 @@
     the versions ListView on the UI thread.
 
 .DESCRIPTION
-    Reads $syncHash.FilterState (a hashtable of property name → HashSet of
+    Reads $syncHash.FilterState (a hashtable of property name -> HashSet of
     selected values) and filters $syncHash.CurrentAppResults through a chained
     Where-Object. The resulting subset is assigned to the ListView's ItemsSource
     via Dispatcher.Invoke.
@@ -18,7 +18,7 @@
 
 .PARAMETER SyncHash
     Shared synchronised hashtable. Must contain:
-        FilterState        : hashtable - property name → HashSet[string] of selected values
+        FilterState        : hashtable - property name -> HashSet[string] of selected values
         CurrentAppResults  : PSObject[] - the full unfiltered result from Get-EvergreenApp
         VersionsListView   : System.Windows.Controls.ListView - the target list control
         ResultsCountLabel  : System.Windows.Controls.TextBlock - "N of M shown" label
@@ -42,7 +42,7 @@ function Invoke-FilterUpdate {
     foreach ($prop in $SyncHash.FilterState.Keys) {
         $allowedValues = $SyncHash.FilterState[$prop]
 
-        # Empty set → treat as "all allowed" (no filter for this property)
+        # Empty set -> treat as "all allowed" (no filter for this property)
         if ($allowedValues.Count -eq 0) { continue }
 
         $activeFilters.Add("$prop=[$($allowedValues -join ', ')]")

@@ -9,7 +9,7 @@ AfterAll {
     Remove-Module -Name EvergreenUI -ErrorAction SilentlyContinue
 }
 
-Describe 'Get-FilterableProperties' -Tag 'Unit' {
+Describe 'Get-FilterableProperty' -Tag 'Unit' {
     It 'Returns filterable properties excluding display-only columns' {
         InModuleScope EvergreenUI {
             $data = @(
@@ -17,7 +17,7 @@ Describe 'Get-FilterableProperties' -Tag 'Unit' {
                 [PSCustomObject]@{ Version = '145.0.0'; Channel = 'Beta'; Architecture = 'x86'; Type = 'msi'; URI = 'https://example.com/x86.msi'; Date = '2026-03-01'; Sha = 'def'; Sha1 = 'def1'; Sha256 = 'def256'; Hash = 'h2' }
             )
 
-            $result = Get-FilterableProperties -AppResults $data
+            $result = Get-FilterableProperty -AppResults $data
 
             $result.Name | Should -Contain 'Architecture'
             $result.Name | Should -Contain 'Channel'
@@ -35,7 +35,7 @@ Describe 'Get-FilterableProperties' -Tag 'Unit' {
                 [PSCustomObject]@{ Version = '1.0'; Architecture = 'x86'; URI = 'https://example.com/x86.msi' }
             )
 
-            $property = Get-FilterableProperties -AppResults $data |
+            $property = Get-FilterableProperty -AppResults $data |
                 Where-Object { $_.Name -eq 'Architecture' }
 
             $property.ControlType | Should -Be 'CheckBoxStrip'
@@ -44,7 +44,7 @@ Describe 'Get-FilterableProperties' -Tag 'Unit' {
 
     It 'Returns an empty array for empty input' {
         InModuleScope EvergreenUI {
-            Get-FilterableProperties -AppResults @() | Should -HaveCount 0
+            Get-FilterableProperty -AppResults @() | Should -HaveCount 0
         }
     }
 
@@ -55,7 +55,7 @@ Describe 'Get-FilterableProperties' -Tag 'Unit' {
                 [PSCustomObject]@{ Version = '1.0.0'; URI = 'https://example.com/app.msi' }
             )
 
-            $synthetic = Get-FilterableProperties -AppResults $data |
+            $synthetic = Get-FilterableProperty -AppResults $data |
                 Where-Object { $_.IsSynthetic -eq $true }
 
             $synthetic | Should -Not -BeNullOrEmpty

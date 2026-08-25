@@ -70,6 +70,6 @@ function Set-DarkTheme {
     }
 
     # Colour the native OS title bar to match AccentBrush #4DB8AD (R=77 G=184 B=173)
-    # COLORREF byte order is 0x00BBGGRR → 0x00ADB84D
+    # COLORREF byte order is 0x00BBGGRR -> 0x00ADB84D
     Set-DwmTitleBarColor -Window $Window -CaptionColorRef 0x00ADB84D -UseDarkMode $true
 }

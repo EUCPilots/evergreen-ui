@@ -71,6 +71,6 @@ function Set-LightTheme {
     }
 
     # Colour the native OS title bar to match AccentBrush #009485 (R=0 G=148 B=133)
-    # COLORREF byte order is 0x00BBGGRR → 0x00859400
+    # COLORREF byte order is 0x00BBGGRR -> 0x00859400
     Set-DwmTitleBarColor -Window $Window -CaptionColorRef 0x00859400 -UseDarkMode $false
 }

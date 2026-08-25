@@ -82,11 +82,11 @@ evergreen-ui/
 │   │   │   └── Set-DarkTheme.ps1
 │   │   ├── Format-LogEntry.ps1
 │   │   ├── Get-EvergreenAppList.ps1
-│   │   ├── Get-FilterableProperties.ps1
+│   │   ├── Get-FilterableProperty.ps1
 │   │   ├── Get-InstallPackageDefinitions.ps1
 │   │   ├── Get-InstallPackageLatestVersion.ps1
 │   │   ├── Get-IntunePackageLatestVersion.ps1
-│   │   ├── Get-M365AppConfigurations.ps1
+│   │   ├── Get-M365AppConfiguration.ps1
 │   │   ├── Get-SafeFolderName.ps1
 │   │   ├── Get-UIConfig.ps1
 │   │   ├── Invoke-AppDownload.ps1

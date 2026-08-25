@@ -169,7 +169,7 @@
 - XAML: Fluent styles hardened for focus, contrast, and startup reliability -- transparent bootstrap brushes replaced with safe default colours to prevent an unstable first paint; a shared keyboard focus visual style is applied across interactive controls and list items; the toggle switch gains a visible keyboard focus ring in its control template; high-contrast-safe style triggers added using system brushes for key control states; nav icons migrated from inline geometry to Segoe Fluent Icons glyphs with a Segoe MDL2 Assets fallback for Windows 10 compatibility
 - XAML / filter panel: `CheckBox` control template revamped with an explicit focus ring, refined check and indeterminate visuals, correct disabled-state handling, and improved content alignment; `AutomationProperties.Name` is now set on generated filter checkboxes so screen readers announce "DisplayName: Value"; `RenderOptions.ProcessRenderMode` is set to `SoftwareOnly` at startup (best-effort, non-fatal) to avoid render-target quota failures on GPUs that reject hardware acceleration
 - XAML: `FluentContextMenu` and `FluentMenuItem` named styles added to `Window.Resources`; runtime-generated context menus (column toggle, other right-click menus) use these styles via `TryFindResource` with a null guard so the change is backwards-compatible if a style is absent
-- Apps tab / Versions list: `Md5` added to the display-only property set in `Get-FilterableProperties`; MD5 checksums are now treated as display-only columns consistent with `Sha`, `Sha1`, and `Sha256`
+- Apps tab / Versions list: `Md5` added to the display-only property set in `Get-FilterableProperty`; MD5 checksums are now treated as display-only columns consistent with `Sha`, `Sha1`, and `Sha256`
 - Update tab: `ClearUpdateOutputButton` and its `Click` event handler removed; the control was unreferenced and served no function
 
 ## [1.0.16]
@@ -185,7 +185,7 @@
 - Import tab / Microsoft Intune Win32 Apps: `Invoke-IntunePackageBuild` now copies `App.json` to the staging source path and updates `PackageInformation.Version` and `PackageInformation.SetupFile` with the resolved version and actual downloaded filename before packaging; `$setupFile` resolution prefers the actual downloaded filename over the value stored in `App.json`, then falls back to the SetupType default
 - Apps tab / Download Queue: queue items now store the original Evergreen result object in a `SourceProperties` field so all app-specific properties (Sku, Type, Ring, etc.) are passed to `Save-EvergreenApp` intact; duplicate detection changed from a five-property comparison to URI-only matching
 - Settings: `StartupView` ComboBox removed from the Settings page; the active tab is now automatically saved on navigation and restored on launch; defensive validation still coerces a stored disabled-tab value to `Apps`
-- XAML and script: several control names renamed for consistency (`AppsComboBox` → `AppsListBox`, `ShowImportTabCheckBox` → `ShowImportTabToggle`, `ShowInstallTabCheckBox` → `ShowInstallTabToggle`, and various Browse button names); `AutomationProperties.Name` and `ToolTip` attributes added to key controls for accessibility; `TextTrimming` and `ToolTip` display templates added to URI and path columns to handle long values
+- XAML and script: several control names renamed for consistency (`AppsComboBox` -> `AppsListBox`, `ShowImportTabCheckBox` -> `ShowImportTabToggle`, `ShowInstallTabCheckBox` -> `ShowInstallTabToggle`, and various Browse button names); `AutomationProperties.Name` and `ToolTip` attributes added to key controls for accessibility; `TextTrimming` and `ToolTip` display templates added to URI and path columns to handle long values
 
 ### Fixed
 
@@ -248,7 +248,7 @@
 - Import tab / Microsoft 365 Apps: **Import Intune Win32App** and **Import Nerdio Manager Shell App** buttons enabled only when a valid configuration is selected and the respective service is authenticated
 - Import tab / Microsoft 365 Apps: build workflow downloads `setup.exe` via Evergreen, copies and updates the configuration XML with the selected Channel, TenantId, and CompanyName, then packages with `New-IntuneWin32AppPackage`
 - Import tab / Microsoft 365 Apps: `App.json` is copied from the bundled `Resources/m365-app.json` template into the package directory and updated with version, display name, GUID, program commands, architecture, and detection rule values before Intune upload
-- `Get-M365AppConfigurations` private function: parses Office Deployment Tool XML files, extracts products, architecture, and VDI flag, validates Configuration GUIDs, and returns display names in `"Products: Environment, Architecture"` format
+- `Get-M365AppConfiguration` private function: parses Office Deployment Tool XML files, extracts products, architecture, and VDI flag, validates Configuration GUIDs, and returns display names in `"Products: Environment, Architecture"` format
 - `Invoke-M365AppPackageBuild` private function: full package build pipeline for Microsoft 365 Apps including Evergreen download, XML update, and `.intunewin` packaging; produces an updated `App.json` alongside the package
 - `Get-UIConfig`: `M365Settings` block added with `DefinitionsPath`, `PackageOutputPath`, `Channel`, and `CompanyName` defaults
 

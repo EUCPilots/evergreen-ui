@@ -10,12 +10,12 @@
       2. Excludes properties that are display-only (Version, URI, Date, etc.)
       3. For each remaining property, collects unique values and determines the
          appropriate WPF control type based on cardinality:
-           2–6 unique values  → CheckBoxStrip  (horizontal checkbox row)
-           7–20 unique values → MultiListBox   (scrollable multi-select listbox)
-           21+ unique values  → TextBox        (free-text contains-match)
+           2–6 unique values  -> CheckBoxStrip  (horizontal checkbox row)
+           7–20 unique values -> MultiListBox   (scrollable multi-select listbox)
+           21+ unique values  -> TextBox        (free-text contains-match)
 
     Special cases (applied before cardinality check):
-      Language property → always ComboBox (dropdown of available locale values)
+      Language property -> always ComboBox (dropdown of available locale values)
 
     Also performs URI-based Type derivation: if the result set has no Type
     property but all rows have a URI, a synthetic 'Type (derived)' property is
@@ -36,10 +36,10 @@
 
 .EXAMPLE
     $results = Get-EvergreenApp -Name 'MicrosoftEdge'
-    $props   = Get-FilterableProperties -AppResults $results
+    $props   = Get-FilterableProperty -AppResults $results
     # Returns objects for Architecture, Channel, Release, Type
 #>
-function Get-FilterableProperties {
+function Get-FilterableProperty {
     [CmdletBinding()]
     [OutputType([PSCustomObject[]])]
     param(

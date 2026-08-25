@@ -15,7 +15,7 @@
 .OUTPUTS
     PSCustomObject[] - one row per XML file (valid or invalid).
 #>
-function Get-M365AppConfigurations {
+function Get-M365AppConfiguration {
     [CmdletBinding()]
     [OutputType([PSCustomObject[]])]
     param(

@@ -12,7 +12,7 @@
     to produce the .intunewin file.
 
 .PARAMETER ConfigRow
-    A configuration row object returned by Get-M365AppConfigurations, containing FileName,
+    A configuration row object returned by Get-M365AppConfiguration, containing FileName,
     FilePath, DisplayName, and ConfigId.
 
 .PARAMETER ConfigDirectoryPath
