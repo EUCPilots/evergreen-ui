@@ -220,6 +220,7 @@ function Start-EvergreenWorkbench {
             LibraryDetailsSortDirection                     = 'Ascending'
             NerdioSortProperty                              = ''
             NerdioSortDirection                             = 'Ascending'
+            NerdioActionButtonStates                         = @{}
             M365SortProperty                                = ''
             M365SortDirection                               = 'Ascending'
             PendingNerdioShellAppsTimer                     = $null
@@ -578,26 +579,10 @@ function Start-EvergreenWorkbench {
 
         $syncHash.IsNerdioShellAppsLoading = $IsLoading
 
-        if ($null -ne $nerdioListShellAppsButton) {
-            $nerdioListShellAppsButton.IsEnabled = -not $IsLoading
-        }
-
-        if ($null -ne $nerdioShellAppsLoadingPanel) {
-            $nerdioShellAppsLoadingPanel.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
-        }
-
-        if ($null -ne $nerdioShellAppsLoadingLabel) {
-            if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
-                $nerdioShellAppsLoadingLabel.Text = $Message
-            }
-            elseif (-not $IsLoading) {
-                $nerdioShellAppsLoadingLabel.Text = 'Loading Shell Apps from Nerdio Manager...'
-            }
-        }
-
-        if ($null -ne $nerdioShellAppsProgressBar) {
-            $nerdioShellAppsProgressBar.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
-        }
+        Set-LoadingState -ButtonStates $syncHash.NerdioActionButtonStates -IsLoading $IsLoading `
+            -Buttons $nerdioListShellAppsButton -LoadingControls @($nerdioShellAppsLoadingPanel, $nerdioShellAppsProgressBar) `
+            -LoadingLabel $nerdioShellAppsLoadingLabel -LoadingMessage $Message `
+            -IdleLoadingMessage 'Loading Shell Apps from Nerdio Manager...'
 
         if ($IsLoading -and $null -ne $nerdioShellAppsCountLabel) {
             $nerdioShellAppsCountLabel.Text = 'Loading...'
@@ -763,68 +748,20 @@ function Start-EvergreenWorkbench {
 
         $syncHash.IsIntuneImportLoading = $IsLoading
 
-        foreach ($button in @($intuneRefreshCatalogButton, $intuneApplyImportButton, $intuneApplyUpdateImportButton, $intuneUpdateDefinitionsButton)) {
-            if ($null -eq $button) {
-                continue
-            }
-
-            if ($IsLoading) {
-                $syncHash.IntuneActionButtonStates[$button.Name] = [bool]$button.IsEnabled
-                $button.IsEnabled = $false
-            }
-            else {
-                if ($syncHash.IntuneActionButtonStates.ContainsKey($button.Name)) {
-                    $button.IsEnabled = [bool]$syncHash.IntuneActionButtonStates[$button.Name]
-                }
-            }
+        $isDefinitionPanel = $Panel -eq 'Definitions'
+        $loadingControls = if ($isDefinitionPanel) {
+            @($intuneDefinitionsLoadingPanel, $intuneDefinitionsProgressBar)
         }
-
-        if (-not $IsLoading) {
-            $syncHash.IntuneActionButtonStates.Clear()
+        else {
+            @($intuneImportLoadingPanel, $intuneImportProgressBar)
         }
+        $loadingLabel = if ($isDefinitionPanel) { $intuneDefinitionsLoadingLabel } else { $intuneImportLoadingLabel }
+        $idleLoadingMessage = if ($isDefinitionPanel) { 'Updating definitions...' } else { 'Importing Win32 apps...' }
 
-        if ($null -ne $intuneDefinitionsLoadingPanel) {
-            $intuneDefinitionsLoadingPanel.Visibility = if ($IsLoading -and $Panel -eq 'Definitions') { 'Visible' } else { 'Collapsed' }
-        }
-
-        if ($null -ne $intuneDefinitionsLoadingLabel) {
-            if ($IsLoading -and $Panel -eq 'Definitions' -and -not [string]::IsNullOrWhiteSpace($Message)) {
-                $intuneDefinitionsLoadingLabel.Text = $Message
-            }
-            elseif (-not $IsLoading) {
-                $intuneDefinitionsLoadingLabel.Text = 'Updating definitions...'
-            }
-        }
-
-        if ($null -ne $intuneDefinitionsProgressBar) {
-            $intuneDefinitionsProgressBar.Visibility = if ($IsLoading -and $Panel -eq 'Definitions') { 'Visible' } else { 'Collapsed' }
-        }
-
-        if ($null -ne $intuneImportLoadingPanel) {
-            $intuneImportLoadingPanel.Visibility = if ($IsLoading -and $Panel -eq 'Import') { 'Visible' } else { 'Collapsed' }
-        }
-
-        if ($null -ne $intuneImportLoadingLabel) {
-            if ($IsLoading -and $Panel -eq 'Import' -and -not [string]::IsNullOrWhiteSpace($Message)) {
-                $intuneImportLoadingLabel.Text = $Message
-            }
-            elseif (-not $IsLoading) {
-                $intuneImportLoadingLabel.Text = 'Importing Win32 apps...'
-            }
-        }
-
-        if ($null -ne $intuneImportProgressBar) {
-            $intuneImportProgressBar.Visibility = if ($IsLoading -and $Panel -eq 'Import') { 'Visible' } else { 'Collapsed' }
-        }
-
-        if ($null -ne $intuneActionStatusLabel) {
-            if ($IsLoading) {
-                $intuneActionStatusLabel.Text = if ([string]::IsNullOrWhiteSpace($Message)) { 'Working...' } else { $Message }
-            }
-            else {
-                $intuneActionStatusLabel.Text = ''
-            }
-        }
+        Set-LoadingState -ButtonStates $syncHash.IntuneActionButtonStates -IsLoading $IsLoading `
+            -Buttons @($intuneRefreshCatalogButton, $intuneApplyImportButton, $intuneApplyUpdateImportButton, $intuneUpdateDefinitionsButton) `
+            -LoadingControls $loadingControls -LoadingLabel $loadingLabel -LoadingMessage $(if ($isDefinitionPanel -or $IsLoading) { $Message } else { '' }) `
+            -IdleLoadingMessage $idleLoadingMessage -StatusLabel $intuneActionStatusLabel
 
         & $updateIntuneRowActionButtons
     }
@@ -837,51 +774,11 @@ function Start-EvergreenWorkbench {
 
         $syncHash.IsInstallLoading = $IsLoading
 
-        foreach ($button in @($installLoadDefinitionsButton, $installResolveLatestButton, $installApplyButton)) {
-            if ($null -eq $button) {
-                continue
-            }
-
-            if ($IsLoading) {
-                $syncHash.InstallActionButtonStates[$button.Name] = [bool]$button.IsEnabled
-                $button.IsEnabled = $false
-            }
-            else {
-                if ($syncHash.InstallActionButtonStates.ContainsKey($button.Name)) {
-                    $button.IsEnabled = [bool]$syncHash.InstallActionButtonStates[$button.Name]
-                }
-            }
-        }
-
-        if (-not $IsLoading) {
-            $syncHash.InstallActionButtonStates.Clear()
-        }
-
-        if ($null -ne $installLoadingPanel) {
-            $installLoadingPanel.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
-        }
-
-        if ($null -ne $installLoadingLabel) {
-            if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
-                $installLoadingLabel.Text = $Message
-            }
-            elseif (-not $IsLoading) {
-                $installLoadingLabel.Text = 'Working...'
-            }
-        }
-
-        if ($null -ne $installProgressBar) {
-            $installProgressBar.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
-        }
-
-        if ($null -ne $installActionStatusLabel) {
-            if ($IsLoading) {
-                $installActionStatusLabel.Text = if ([string]::IsNullOrWhiteSpace($Message)) { 'Working...' } else { $Message }
-            }
-            elseif ([string]::IsNullOrWhiteSpace([string]$installActionStatusLabel.Text)) {
-                $installActionStatusLabel.Text = ''
-            }
-        }
+        Set-LoadingState -ButtonStates $syncHash.InstallActionButtonStates -IsLoading $IsLoading `
+            -Buttons @($installLoadDefinitionsButton, $installResolveLatestButton, $installApplyButton) `
+            -LoadingControls @($installLoadingPanel, $installProgressBar) -LoadingLabel $installLoadingLabel `
+            -LoadingMessage $Message -IdleLoadingMessage 'Working...' -StatusLabel $installActionStatusLabel `
+            -ClearStatusOnIdle $false
 
         & $updateInstallRowActionButtons
     }
@@ -1882,27 +1779,9 @@ function Start-EvergreenWorkbench {
 
         & $updateM365ActionButtons
 
-        if ($null -ne $m365ConfigsLoadingPanel) {
-            $m365ConfigsLoadingPanel.Visibility = if ($IsLoading) { 'Visible' } else { 'Collapsed' }
-        }
-
-        if ($null -ne $m365ConfigsLoadingLabel) {
-            if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
-                $m365ConfigsLoadingLabel.Text = $Message
-            }
-            elseif (-not $IsLoading) {
-                $m365ConfigsLoadingLabel.Text = 'Loading...'
-            }
-        }
-
-        if ($null -ne $m365ActionStatusLabel) {
-            if ($IsLoading -and -not [string]::IsNullOrWhiteSpace($Message)) {
-                $m365ActionStatusLabel.Text = $Message
-            }
-            elseif (-not $IsLoading) {
-                $m365ActionStatusLabel.Text = ''
-            }
-        }
+        Set-LoadingState -ButtonStates @{} -IsLoading $IsLoading `
+            -LoadingControls $m365ConfigsLoadingPanel -LoadingLabel $m365ConfigsLoadingLabel `
+            -LoadingMessage $Message -IdleLoadingMessage 'Loading...' -StatusLabel $m365ActionStatusLabel
     }
 
     $loadM365EvergreenVersions = {
