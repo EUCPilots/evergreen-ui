@@ -179,10 +179,10 @@ function Register-LibraryFeature {
     }
 
     # Store helper scriptblocks in SyncHash for access by other features
-    $SyncHash.RefreshLibraryView = $refreshLibraryView
-    $SyncHash.LoadLibraryAppDetails = $loadLibraryAppDetails
-    $SyncHash.ApplyLibraryContentsSort = $applyLibraryContentsSort
-    $SyncHash.ApplyLibraryDetailsSort = $applyLibraryDetailsSort
+    $SyncHash['RefreshLibraryView'] = $refreshLibraryView.GetNewClosure()
+    $SyncHash['LoadLibraryAppDetails'] = $loadLibraryAppDetails.GetNewClosure()
+    $SyncHash['ApplyLibraryContentsSort'] = $applyLibraryContentsSort.GetNewClosure()
+    $SyncHash['ApplyLibraryDetailsSort'] = $applyLibraryDetailsSort.GetNewClosure()
 
     # Event handler: Browse and select library path
     if ($null -ne $browseLibraryButton) {

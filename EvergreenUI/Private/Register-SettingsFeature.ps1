@@ -113,13 +113,14 @@ function Register-SettingsFeature {
     }
 
     # Store helper scriptblocks in SyncHash for cross-feature access
-    $SyncHash.NormalizeDirectoryPath = $normalizeDirectoryPath
-    $SyncHash.SetImportTabVisibility = $setImportTabVisibility
+    $SyncHash['NormalizeDirectoryPath'] = $normalizeDirectoryPath.GetNewClosure()
+    $SyncHash['SetImportTabVisibility'] = $setImportTabVisibility.GetNewClosure()
 
     # =========================================================================
     # Theme Selection: Dark/Light mode with immediate UI update
     # =========================================================================
     $themeComboBox.add_SelectionChanged({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             $item = $themeComboBox.SelectedItem
             if ($null -eq $item) { return }
 

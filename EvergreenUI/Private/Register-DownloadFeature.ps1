@@ -90,10 +90,10 @@ function Register-DownloadFeature {
     }
 
     # Store helper scriptblocks in SyncHash for access by other features
-    $SyncHash.RefreshQueueView = $refreshQueueView
-    $SyncHash.UpdateDownloadAllButtonState = $updateDownloadAllButtonState
-    $SyncHash.NormalizeDirectoryPath = $normalizeDirectoryPath
-    $SyncHash.ApplyDownloadQueueSort = $applyDownloadQueueSort
+    $SyncHash['RefreshQueueView'] = $refreshQueueView.GetNewClosure()
+    $SyncHash['UpdateDownloadAllButtonState'] = $updateDownloadAllButtonState.GetNewClosure()
+    $SyncHash['NormalizeDirectoryPath'] = $normalizeDirectoryPath.GetNewClosure()
+    $SyncHash['ApplyDownloadQueueSort'] = $applyDownloadQueueSort.GetNewClosure()
 
     # Event handler: Remove selected queue item
     if ($null -ne $removeQueueItemButton) {

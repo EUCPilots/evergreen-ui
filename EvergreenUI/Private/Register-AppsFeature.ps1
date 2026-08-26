@@ -48,6 +48,7 @@ function Register-AppsFeature {
     $addToLibraryButton = $Controls.AddToLibraryButton
     $addToQueueButton = $Controls.AddToQueueButton
     $appsActionStatusLabel = $Controls.AppsActionStatusLabel
+    $getEvergreenAppList = ${function:Get-EvergreenAppList}.GetNewClosure()
 
     # Verify required controls exist
     if ($null -eq $SyncHash.VersionsListView) {
@@ -102,7 +103,7 @@ function Register-AppsFeature {
 
         if ($null -ne $appsListBox) { $appsListBox.ItemsSource = $sorted }
         if ($null -ne $appCountLabel) { $appCountLabel.Text = " $($sorted.Count) of $($allApps.Count)" }
-    }
+    }.GetNewClosure()
 
     # Helper scriptblock: Load app catalog (with optional force refresh)
     $loadAppCatalog = {
@@ -110,7 +111,7 @@ function Register-AppsFeature {
 
         if ($null -ne $refreshAppsButton) { $refreshAppsButton.IsEnabled = $false }
         try {
-            [void](Get-EvergreenAppList -SyncHash $SyncHash -Force:$Force)
+            [void](& $getEvergreenAppList -SyncHash $SyncHash -Force:$Force)
             & $updateAppsComboSource -SearchText $(if ($null -ne $appSearchBox) { $appSearchBox.Text } else { '' })
         }
         finally {
@@ -302,14 +303,14 @@ function Register-AppsFeature {
     }
 
     # Store helper scriptblocks in SyncHash for access by other features
-    $SyncHash.UpdateAppsComboSource = $updateAppsComboSource
-    $SyncHash.LoadAppCatalog = $loadAppCatalog
-    $SyncHash.RebuildVersionColumns = $rebuildVersionColumns
-    $SyncHash.GetAppCacheFile = $getAppCacheFile
-    $SyncHash.DisplayAppResults = $displayAppResults
-    $SyncHash.UpdateAddToLibraryButtonState = $updateAddToLibraryButtonState
-    $SyncHash.LoadAppVersions = $loadAppVersions
-    $SyncHash.ApplyVersionsListSort = $applyVersionsListSort
+    $SyncHash['UpdateAppsComboSource'] = $updateAppsComboSource.GetNewClosure()
+    $SyncHash['LoadAppCatalog'] = $loadAppCatalog.GetNewClosure()
+    $SyncHash['RebuildVersionColumns'] = $rebuildVersionColumns.GetNewClosure()
+    $SyncHash['GetAppCacheFile'] = $getAppCacheFile.GetNewClosure()
+    $SyncHash['DisplayAppResults'] = $displayAppResults.GetNewClosure()
+    $SyncHash['UpdateAddToLibraryButtonState'] = $updateAddToLibraryButtonState.GetNewClosure()
+    $SyncHash['LoadAppVersions'] = $loadAppVersions.GetNewClosure()
+    $SyncHash['ApplyVersionsListSort'] = $applyVersionsListSort.GetNewClosure()
 
     # Event handler: RefreshAppsButton - Force refresh app catalog
     if ($null -ne $refreshAppsButton) {

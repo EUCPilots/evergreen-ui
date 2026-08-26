@@ -79,14 +79,15 @@ function Register-WindowLifetime {
             Write-Verbose -Message "EvergreenUI: Startup helper '$Name' is not registered."
             return
         }
-        try { & $SyncHash[$Name] @Arguments }
+        try { & ($SyncHash[$Name]) @Arguments }
         catch {
             & $writeStartupLog -Message "Startup helper '$Name' failed: $($_.Exception.Message)" -Level Error
             Write-Verbose -Message "EvergreenUI: Startup helper '$Name' failed: $($_.Exception.Message)"
         }
     }.GetNewClosure()
 
-    $Window.add_Loaded({
+        $Window.add_Loaded({
+            $SyncHash['IsInitializing'] = $true
             try {
                 if ([string]$SyncHash.Config.Theme -eq 'Dark') {
                     if ($null -ne $themeComboBox) { $themeComboBox.SelectedIndex = 1 }
@@ -177,6 +178,9 @@ function Register-WindowLifetime {
                 default    { $navApps }
             }
             if ($null -ne $startupButton) { $startupButton.IsChecked = $true }
+            [void]$Window.Dispatcher.BeginInvoke([action] {
+                    $SyncHash['IsInitializing'] = $false
+                }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
         }.GetNewClosure())
 
     $Window.add_Closed({

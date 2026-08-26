@@ -130,6 +130,7 @@ function Register-ImportFeature {
         $importProviderTabControl.add_SelectionChanged({
                 param($s, $e)
                 [void]$e
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
                 if ($s -ne $importProviderTabControl) { return }
                 $provider = switch ($importProviderTabControl.SelectedIndex) {
                     0 { 'Authentication' }
@@ -138,7 +139,9 @@ function Register-ImportFeature {
                     3 { 'M365' }
                     default { 'Authentication' }
                 }
-                & ($SyncHash['SetImportProvider']) -Provider $provider -Persist
+                if ($SyncHash.ContainsKey('SetImportProvider') -and $null -ne $SyncHash['SetImportProvider']) {
+                    & ($SyncHash['SetImportProvider']) -Provider $provider -Persist
+                }
             }.GetNewClosure())
     }
 
@@ -388,6 +391,7 @@ function Register-ImportFeature {
 
     if ($null -ne $m365ChannelCombo) {
         $m365ChannelCombo.add_SelectionChanged({
+                if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
                 $selectedChannel = if ($null -ne $m365ChannelCombo.SelectedItem) { [string]$m365ChannelCombo.SelectedItem.Content } else { '' }
                 $SyncHash.Config.M365Settings.Channel = $selectedChannel
                 & ($SyncHash['SetUIConfig']) -Config $SyncHash.Config
@@ -403,6 +407,7 @@ function Register-ImportFeature {
 
     if ($null -ne $m365ImportForCombo) {
         $m365ImportForCombo.add_SelectionChanged({
+                if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
                 $selectedImportFor = if ($null -ne $m365ImportForCombo.SelectedItem) { [string]$m365ImportForCombo.SelectedItem.Content } else { '' }
                 if (-not [string]::IsNullOrWhiteSpace($selectedImportFor)) {
                     $SyncHash.Config.M365Settings.ImportFor = $selectedImportFor

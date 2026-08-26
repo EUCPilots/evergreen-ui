@@ -117,6 +117,7 @@ function Register-NavigationFeature {
 
     # NavApps: Lazy-load app catalog on first visit
     $navApps.add_Checked({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             if ($null -eq $SyncHash.AppList -or $SyncHash.AppList.Count -eq 0) {
                 & ($SyncHash['LoadAppCatalog'])
             }
@@ -124,11 +125,13 @@ function Register-NavigationFeature {
 
     # NavDownload: Refresh queue view when shown
     $navDownload.add_Checked({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             & ($SyncHash['RefreshQueueView'])
         }.GetNewClosure())
 
     # NavLibrary: Restore path and refresh view
     $navLibrary.add_Checked({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             if ([string]::IsNullOrWhiteSpace($libraryPathViewBox.Text)) {
                 $libraryPathViewBox.Text = $SyncHash.Config.LibraryPath
             }
@@ -139,6 +142,7 @@ function Register-NavigationFeature {
 
     # NavPackages: Initialize Import tab modules and load saved definitions
     $navPackages.add_Checked({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             if (-not $SyncHash.ImportModulesInitialized) {
                 & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message 'Packages tab: initializing required modules...' -Level Info
                 & ($SyncHash['LoadImportTabModules'])
@@ -181,6 +185,7 @@ function Register-NavigationFeature {
 
     # NavImport: Similar to NavPackages but also sets the import provider
     $navImport.add_Checked({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             if (-not $SyncHash.ImportModulesInitialized) {
                 & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message 'Import tab: initializing required modules...' -Level Info
                 & ($SyncHash['LoadImportTabModules'])
@@ -224,6 +229,7 @@ function Register-NavigationFeature {
 
     # NavInstall: Update elevation state and load definitions
     $navInstall.add_Checked({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             & ($SyncHash['SetInstallElevationState'])
             $savedInstallPath = if ($null -ne $SyncHash.Config.IntuneSettings) {
                 [string]$SyncHash.Config.IntuneSettings.DefinitionsPath
@@ -239,6 +245,7 @@ function Register-NavigationFeature {
 
     # NavUpdate: Set status message
     $navUpdate.add_Checked({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             if ($null -ne $SyncHash.UpdateStatusLabel -and -not $SyncHash.IsRunning) {
                 $SyncHash.UpdateStatusLabel.Text = 'Ready to run Update-Evergreen.'
             }
@@ -246,6 +253,7 @@ function Register-NavigationFeature {
 
     # NavSettings: Populate settings form with current config values
     $navSettings.add_Checked({
+            if ($SyncHash.ContainsKey('IsInitializing') -and [bool]$SyncHash['IsInitializing']) { return }
             $outputPathBox.Text = $SyncHash.Config.OutputPath
             $evergreenAppsPathBox.Text = (& ($SyncHash['GetEvergreenAppsPath']))
 

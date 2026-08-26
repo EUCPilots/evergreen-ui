@@ -924,13 +924,13 @@ function Register-InstallFeature {
     }
 
     # Store helper scriptblocks in SyncHash for access by other features
-    $SyncHash.SetInstallElevationState = $setInstallElevationState
-    $SyncHash.SetInstallLoadingState = $setInstallLoadingState
-    $SyncHash.RefreshInstallRows = $refreshInstallRows
-    $SyncHash.LoadInstallDefinitions = $loadInstallDefinitions
-    $SyncHash.ResolveInstallLatestVersions = $resolveInstallLatestVersions
-    $SyncHash.StartInstallSelectedOperation = $startInstallSelectedOperation
-    $SyncHash.UpdateInstallRowActionButtons = $updateInstallRowActionButtons
+    $SyncHash['SetInstallElevationState'] = $setInstallElevationState.GetNewClosure()
+    $SyncHash['SetInstallLoadingState'] = $setInstallLoadingState.GetNewClosure()
+    $SyncHash['RefreshInstallRows'] = $refreshInstallRows.GetNewClosure()
+    $SyncHash['LoadInstallDefinitions'] = $loadInstallDefinitions.GetNewClosure()
+    $SyncHash['ResolveInstallLatestVersions'] = $resolveInstallLatestVersions.GetNewClosure()
+    $SyncHash['StartInstallSelectedOperation'] = $startInstallSelectedOperation.GetNewClosure()
+    $SyncHash['UpdateInstallRowActionButtons'] = $updateInstallRowActionButtons.GetNewClosure()
 
     # Event handler: InstallLoadDefinitionsButton - Load package definitions
     if ($null -ne $installLoadDefinitionsButton) {

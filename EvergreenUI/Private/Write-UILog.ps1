@@ -52,7 +52,20 @@ function Write-UILog {
     $dispatcher = $window.Dispatcher
     if ($null -eq $dispatcher -or $dispatcher.HasShutdownStarted -or $dispatcher.HasShutdownFinished) { return }
 
-    $logEntry = Format-LogEntry -Message $Message -Level $Level
+    try {
+        $formatLogEntryCommand = Get-Command -Name Format-LogEntry -CommandType Function -ErrorAction Stop
+        $logEntry = & $formatLogEntryCommand -Message $Message -Level $Level
+    }
+    catch {
+        $timestamp = Get-Date -Format 'HH:mm:ss'
+        $prefix = switch ($Level) {
+            'Warning' { 'WARN' }
+            'Error'   { 'ERROR' }
+            'Cmd'     { 'CMD' }
+            default   { 'INFO' }
+        }
+        $logEntry = "[$timestamp] [$prefix] $Message"
+    }
 
     if (-not [string]::IsNullOrEmpty($SyncHash.LogFilePath)) {
         try {
