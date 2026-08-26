@@ -55,6 +55,7 @@
         'Private\Invoke-LocalPackageInstall.ps1'
         'Private\Invoke-M365AppPackageBuild.ps1'
         'Private\Invoke-M365AppShellAppBuild.ps1'
+        'Private\Initialize-FeatureScopedState.ps1'
         'Private\Merge-ConfigSection.ps1'
         'Private\New-FilterPanel.ps1'
         'Private\New-WpfRunspace.ps1'

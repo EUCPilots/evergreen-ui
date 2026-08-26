@@ -297,6 +297,9 @@ function Start-EvergreenWorkbench {
             ImportModulesInitialized                        = $false
         })
 
+    # Initialize feature-scoped state containers for gradual refactoring
+    Initialize-FeatureScopedState -SyncHash $syncHash
+
     # Load XAML layout
     $xamlPath = Join-Path -Path (Join-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath "..") -ChildPath "Resources") -ChildPath "EvergreenUI.xaml"
     $stream = $null
