@@ -65,7 +65,8 @@ function Invoke-AzureSignIn {
     try {
         $tenant = if ([string]::IsNullOrWhiteSpace($TenantId)) { $null } else { $TenantId.Trim() }
         $accountId = ''
-        $tenantId = if ($null -eq $tenant) { '' } else { [string]$tenant }
+        # Local name must differ from $TenantId: PowerShell variable names are case-insensitive.
+        $resolvedTenantId = if ($null -eq $tenant) { '' } else { [string]$tenant }
         $authMethod = 'Connect-MgGraph'
         $powerShellEdition = if ($PSVersionTable.ContainsKey('PSEdition')) { [string]$PSVersionTable.PSEdition } else { 'Desktop' }
         $apartmentState = [System.Threading.Thread]::CurrentThread.ApartmentState
@@ -124,13 +125,13 @@ function Invoke-AzureSignIn {
                     $accountId = [string]$mgContext.Account
                 }
                 if ($mgContext.PSObject.Properties.Name -contains 'TenantId' -and -not [string]::IsNullOrWhiteSpace([string]$mgContext.TenantId)) {
-                    $tenantId = [string]$mgContext.TenantId
+                    $resolvedTenantId = [string]$mgContext.TenantId
                 }
 
                 $contextScope = if ($mgContext.PSObject.Properties.Name -contains 'ContextScope') { [string]$mgContext.ContextScope } else { '<not reported>' }
                 $authType = if ($mgContext.PSObject.Properties.Name -contains 'AuthType') { [string]$mgContext.AuthType } else { '<not reported>' }
                 $grantedScopes = if ($mgContext.PSObject.Properties.Name -contains 'Scopes') { @($mgContext.Scopes) -join ', ' } else { '<not reported>' }
-                & $writeAuthLog -Message "Graph context confirmed: tenant='$tenantId'; account='$accountId'; ContextScope=$contextScope; AuthType=$authType; granted scopes='$grantedScopes'."
+                & $writeAuthLog -Message "Graph context confirmed: tenant='$resolvedTenantId'; account='$accountId'; ContextScope=$contextScope; AuthType=$authType; granted scopes='$grantedScopes'."
             }
             else {
                 & $writeAuthLog -Message 'Connect-MgGraph returned successfully, but Get-MgContext returned no context.' -Level Warning
@@ -145,7 +146,7 @@ function Invoke-AzureSignIn {
         return [PSCustomObject]@{
             Succeeded          = $true
             AccountId          = $accountId
-            TenantId           = $tenantId
+            TenantId           = $resolvedTenantId
             SubscriptionName   = ''
             AuthMethod         = $authMethod
             ErrorMessage       = ''

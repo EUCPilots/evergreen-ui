@@ -1706,37 +1706,35 @@ function Start-EvergreenWorkbench {
 
         $completionAction_IntuneImport = {
             param($Operation, $Result, $State)
-            
-            $result = $null
+
+            # Do not name this $result: PowerShell variable names are case-insensitive and would overwrite $Result.
+            $payload = $null
             if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
-                $result = $Result.Output[0]
+                $payload = $Result.Output[0]
             }
             elseif ($Result.Error) {
-                $result = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $Result.Error.Exception.Message }
-            }
-            else {
-                $result = $null
+                $payload = [PSCustomObject]@{ Success = $false; Completed = @(); Failed = @(); Error = $Result.Error.Exception.Message }
             }
 
             try {
-                if ($null -eq $result -or -not $result.Success) {
-                    $errMsg = if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Error)) { 'Unknown error during import.' } else { $result.Error }
+                if ($null -eq $payload -or -not $payload.Success) {
+                    $errMsg = if ($null -eq $payload -or [string]::IsNullOrWhiteSpace($payload.Error)) { 'Unknown error during import.' } else { $payload.Error }
                     Write-UILog -SyncHash $syncHash -Message "Intune: import run failed: $errMsg" -Level Error
                 }
                 else {
-                    $completedCount = @($result.Completed).Count
-                    $failedCount = @($result.Failed).Count
-                    if ($result.StoppedEarly) {
+                    $completedCount = @($payload.Completed).Count
+                    $failedCount = @($payload.Failed).Count
+                    if ($payload.StoppedEarly) {
                         $skippedCount = $State.ImportActions.Count - $completedCount - $failedCount
                         Write-UILog -SyncHash $syncHash -Message "Intune: import stopped after failure - $completedCount succeeded, $failedCount failed, $skippedCount not attempted." -Level Warning
                     }
                     else {
                         Write-UILog -SyncHash $syncHash -Message "Intune: import complete - $completedCount succeeded, $failedCount failed." -Level Info
                     }
-                    foreach ($item in @($result.Completed)) {
+                    foreach ($item in @($payload.Completed)) {
                         Write-UILog -SyncHash $syncHash -Message "  + Imported '$($item.DisplayName)' v$($item.Version) (id: $($item.AppId))" -Level Info
                     }
-                    foreach ($item in @($result.Failed)) {
+                    foreach ($item in @($payload.Failed)) {
                         Write-UILog -SyncHash $syncHash -Message "  - Failed '$($item.AppName)': $($item.Error)" -Level Error
                     }
                 }
@@ -2133,21 +2131,22 @@ function Start-EvergreenWorkbench {
         $completionAction_M365ImportIntune = {
             param($Operation, $Result, $State)
 
-            $result = $null
+            # Do not name this $result: PowerShell variable names are case-insensitive and would overwrite $Result.
+            $payload = $null
             if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
-                $result = $Result.Output[$Result.Output.Count - 1]
+                $payload = $Result.Output[$Result.Output.Count - 1]
             }
             elseif ($Result.Error) {
-                $result = [PSCustomObject]@{ Success = $false; DisplayName = ''; AppId = ''; Version = ''; Error = $Result.Error.Exception.Message }
+                $payload = [PSCustomObject]@{ Success = $false; DisplayName = ''; AppId = ''; Version = ''; Error = $Result.Error.Exception.Message }
             }
 
             try {
-                if ($null -eq $result -or -not $result.Success) {
-                    $errMsg = if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Error)) { 'Unknown error during M365 Intune import.' } else { $result.Error }
+                if ($null -eq $payload -or -not $payload.Success) {
+                    $errMsg = if ($null -eq $payload -or [string]::IsNullOrWhiteSpace($payload.Error)) { 'Unknown error during M365 Intune import.' } else { $payload.Error }
                     Write-UILog -SyncHash $syncHash -Message "M365: Intune import failed: $errMsg" -Level Error
                 }
                 else {
-                    Write-UILog -SyncHash $syncHash -Message "M365: Intune import succeeded - '$([string]$result.DisplayName)' v$([string]$result.Version) (id: $([string]$result.AppId))" -Level Info
+                    Write-UILog -SyncHash $syncHash -Message "M365: Intune import succeeded - '$([string]$payload.DisplayName)' v$([string]$payload.Version) (id: $([string]$payload.AppId))" -Level Info
                 }
             }
             finally {
@@ -2439,21 +2438,22 @@ function Start-EvergreenWorkbench {
         $completionAction_M365ImportNerdio = {
             param($Operation, $Result, $State)
 
-            $result = $null
+            # Do not name this $result: PowerShell variable names are case-insensitive and would overwrite $Result.
+            $payload = $null
             if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
-                $result = $Result.Output[$Result.Output.Count - 1]
+                $payload = $Result.Output[$Result.Output.Count - 1]
             }
             elseif ($Result.Error) {
-                $result = [PSCustomObject]@{ Success = $false; DisplayName = ''; Version = ''; Error = $Result.Error.Exception.Message }
+                $payload = [PSCustomObject]@{ Success = $false; DisplayName = ''; Version = ''; Error = $Result.Error.Exception.Message }
             }
 
             try {
-                if ($null -eq $result -or -not $result.Success) {
-                    $errMsg = if ($null -eq $result -or [string]::IsNullOrWhiteSpace($result.Error)) { 'Unknown error during M365 Nerdio import.' } else { $result.Error }
+                if ($null -eq $payload -or -not $payload.Success) {
+                    $errMsg = if ($null -eq $payload -or [string]::IsNullOrWhiteSpace($payload.Error)) { 'Unknown error during M365 Nerdio import.' } else { $payload.Error }
                     Write-UILog -SyncHash $syncHash -Message "M365: Nerdio import failed: $errMsg" -Level Error
                 }
                 else {
-                    Write-UILog -SyncHash $syncHash -Message "M365: Nerdio Shell App created for '$([string]$result.DisplayName)' v$([string]$result.Version)." -Level Info
+                    Write-UILog -SyncHash $syncHash -Message "M365: Nerdio Shell App created for '$([string]$payload.DisplayName)' v$([string]$payload.Version)." -Level Info
                 }
             }
             finally {
@@ -4579,23 +4579,24 @@ function Start-EvergreenWorkbench {
         $completionAction_NerdioShellApps = {
             param($Operation, $Result, $State)
 
-            $result = $null
+            # Do not name this $result: PowerShell variable names are case-insensitive and would overwrite $Result.
+            $payload = $null
             if ($Result.WasCompleted -and $Result.Output.Count -gt 0) {
-                $result = $Result.Output[$Result.Output.Count - 1]
+                $payload = $Result.Output[$Result.Output.Count - 1]
             }
             elseif ($Result.Error) {
-                $result = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $Result.Error.Exception.Message }
+                $payload = [PSCustomObject]@{ Success = $false; Rows = @(); Error = $Result.Error.Exception.Message }
             }
 
             try {
-                if ($null -eq $result -or -not $result.Success) {
+                if ($null -eq $payload -or -not $payload.Success) {
                     $syncHash.NerdioShellAppRows = @()
                     $nerdioShellAppsCountLabel.Text = '0 apps'
-                    $errorMessage = if ($null -eq $result -or [string]::IsNullOrWhiteSpace([string]$result.Error)) { 'Unknown error occurred while listing Shell Apps.' } else { [string]$result.Error }
+                    $errorMessage = if ($null -eq $payload -or [string]::IsNullOrWhiteSpace([string]$payload.Error)) { 'Unknown error occurred while listing Shell Apps.' } else { [string]$payload.Error }
                     Write-UILog -SyncHash $syncHash -Message "Nerdio: failed to list Shell Apps: $errorMessage" -Level Error
                 }
                 else {
-                    $rows = @($result.Rows)
+                    $rows = @($payload.Rows)
                     $syncHash.NerdioShellAppRows = $rows
                     $syncHash.NerdioCompareHasRun = $true
                     $nerdioShellAppsCountLabel.Text = "$($rows.Count) apps"

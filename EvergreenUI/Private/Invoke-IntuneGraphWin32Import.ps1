@@ -599,16 +599,17 @@ function Invoke-IntuneGraphWin32Import {
     }
 
     # -- Build app body --------------------------------------------------------
-    $setupFilePath = ''
+    # Local name must differ from $SetupFilePath: PowerShell variable names are case-insensitive.
+    $resolvedSetupFile = ''
     if (-not [string]::IsNullOrWhiteSpace($SetupFilePath)) {
-        $setupFilePath = [System.IO.Path]::GetFileName($SetupFilePath)
+        $resolvedSetupFile = [System.IO.Path]::GetFileName($SetupFilePath)
     }
     else {
-        $setupFilePath = [System.IO.Path]::GetFileName([string]$DefinitionObject.PackageInformation.SetupFile)
+        $resolvedSetupFile = [System.IO.Path]::GetFileName([string]$DefinitionObject.PackageInformation.SetupFile)
     }
 
-    if ([string]::IsNullOrWhiteSpace($setupFilePath)) {
-        $setupFilePath = [System.IO.Path]::GetFileName($IntuneWinPath)
+    if ([string]::IsNullOrWhiteSpace($resolvedSetupFile)) {
+        $resolvedSetupFile = [System.IO.Path]::GetFileName($IntuneWinPath)
     }
 
     $appBodyJson = ''
@@ -629,7 +630,7 @@ function Invoke-IntuneGraphWin32Import {
         }
         'deviceRestartBehavior'      = $deviceRestart
         'allowAvailableUninstall'    = [bool]$DefinitionObject.Program.AllowAvailableUninstall
-        'setupFilePath'              = $setupFilePath
+        'setupFilePath'              = $resolvedSetupFile
         'allowedArchitectures'        = $allowedArchitectures
         'minimumSupportedOperatingSystem' = $minimumOsObject
         'detectionRules'             = @($detectionRules)
@@ -645,7 +646,7 @@ function Invoke-IntuneGraphWin32Import {
 
     # Log an equivalent Add-IntuneWin32App command line for troubleshooting parity.
     $logDisplayName = ([string]$displayName).Replace('"', "''")
-    $logSetupFilePath = ([string]$setupFilePath).Replace('"', "''")
+    $logSetupFilePath = ([string]$resolvedSetupFile).Replace('"', "''")
     $logInstallCommand = ([string]$DefinitionObject.Program.InstallCommand).Replace('"', "''")
     $logUninstallCommand = ([string]$DefinitionObject.Program.UninstallCommand).Replace('"', "''")
     $logInfoUrl = ([string]$DefinitionObject.Information.InformationURL).Replace('"', "''")
