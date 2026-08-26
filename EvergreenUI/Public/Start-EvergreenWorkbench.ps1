@@ -4589,6 +4589,8 @@ function Start-EvergreenWorkbench {
             }
 
             try {
+                & $setNerdioShellAppsLoadingState -IsLoading $false
+
                 if ($null -eq $payload -or -not $payload.Success) {
                     $syncHash.NerdioShellAppRows = @()
                     $nerdioShellAppsCountLabel.Text = '0 apps'
@@ -4651,6 +4653,11 @@ function Start-EvergreenWorkbench {
             }
             catch {
                 Write-UILog -SyncHash $syncHash -Message "Nerdio: error in post-import verification: $_" -Level Error
+            }
+            finally {
+                if ($syncHash.IsNerdioShellAppsLoading) {
+                    & $setNerdioShellAppsLoadingState -IsLoading $false
+                }
             }
         }
 
