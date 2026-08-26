@@ -62,6 +62,8 @@ function Register-UIFeatures {
     $controls.RootGrid = $Window.FindName('RootGrid')
 
     # Log/output controls
+    $controls.LogTextBox = $Window.FindName('LogTextBox')
+    $controls.LogScrollViewer = $Window.FindName('LogScrollViewer')
     $controls.CopyLogButton = $Window.FindName('CopyLogButton')
     $controls.SaveLogButton = $Window.FindName('SaveLogButton')
     $controls.LogToggleButton = $Window.FindName('LogToggleButton')
@@ -222,6 +224,11 @@ function Register-UIFeatures {
 
     # Store controls in SyncHash for access throughout the application
     $SyncHash.Controls = $controls
+    $SyncHash['SetUIConfig'] = ${function:Set-UIConfig}.GetNewClosure()
+    $SyncHash['WriteUILog'] = ${function:Write-UILog}.GetNewClosure()
+    $SyncHash['SetDarkTheme'] = ${function:Set-DarkTheme}.GetNewClosure()
+    $SyncHash['SetLightTheme'] = ${function:Set-LightTheme}.GetNewClosure()
+    $SyncHash['GetEvergreenAppsPath'] = ${function:Get-EvergreenAppsPath}.GetNewClosure()
 
     # Delegate to feature-specific registration functions in order
     # Each registration function accepts $SyncHash and $controls as parameters
