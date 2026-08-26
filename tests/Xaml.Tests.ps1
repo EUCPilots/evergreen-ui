@@ -58,4 +58,31 @@ Describe 'EvergreenUI XAML' -Tag 'Unit' {
             $runspace.Dispose()
         }
     }
+
+    It 'Exposes accessible names for status dots and progress indicators' {
+        $xamlContent = Get-Content -LiteralPath $script:xamlPath -Raw -ErrorAction Stop
+
+        $requiredControls = @(
+            'DownloadProgressBar',
+            'LibraryUpdateProgressBar',
+            'IntuneDefinitionsProgressBar',
+            'IntuneImportProgressBar',
+            'NerdioShellAppsProgressBar',
+            'M365ConfigsProgressBar',
+            'InstallProgressBar',
+            'NerdioImportAuthStatusDot',
+            'NerdioAzureAuthStatusDot',
+            'M365IntuneAuthStatusDot',
+            'M365NerdioAuthStatusDot',
+            'InstallElevationStatusDot'
+        )
+
+        foreach ($controlName in $requiredControls) {
+            $namedPattern = [regex]::Escape("x:Name=`"$controlName`"")
+            ($xamlContent -match $namedPattern) | Should -BeTrue -Because "the control $controlName should exist in the XAML resource"
+
+            $accessibilityPattern = [regex]::Escape("x:Name=`"$controlName`"") + '(?s).*?AutomationProperties.Name="[^"]+"'
+            ($xamlContent -match $accessibilityPattern) | Should -BeTrue -Because "the control $controlName should have an accessible name"
+        }
+    }
 }

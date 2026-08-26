@@ -5062,6 +5062,8 @@ function Start-EvergreenWorkbench {
         $keepBox.MinHeight = 30
         $keepBox.Text = '1'
         $keepBox.Margin = [System.Windows.Thickness]::new(0, 0, 0, 6)
+        $keepBox.ToolTip = 'Number of latest versions to keep'
+        [System.Windows.Automation.AutomationProperties]::SetName($keepBox, 'Keep latest versions count')
         if ($null -ne $fluentTextBoxStyle) {
             $keepBox.Style = $fluentTextBoxStyle
         }
@@ -5083,6 +5085,7 @@ function Start-EvergreenWorkbench {
         $cancelButton.Content = 'Cancel'
         $cancelButton.MinWidth = 88
         $cancelButton.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
+        [System.Windows.Automation.AutomationProperties]::SetName($cancelButton, 'Cancel Shell App version prune dialog')
         if ($null -ne $fluentSecondaryButtonStyle) {
             $cancelButton.Style = $fluentSecondaryButtonStyle
         }
@@ -5090,6 +5093,7 @@ function Start-EvergreenWorkbench {
         $okButton = [System.Windows.Controls.Button]::new()
         $okButton.Content = 'Continue'
         $okButton.MinWidth = 88
+        [System.Windows.Automation.AutomationProperties]::SetName($okButton, 'Continue Shell App version prune dialog')
         if ($null -ne $fluentPrimaryButtonStyle) {
             $okButton.Style = $fluentPrimaryButtonStyle
         }
@@ -5134,6 +5138,9 @@ function Start-EvergreenWorkbench {
         $dialogWindow.Add_SourceInitialized({
                 & $syncDialogTitleBarToBackground -DialogWindow $dialogWindow
             })
+        $dialogWindow.Loaded += {
+                $keepBox.Focus() | Out-Null
+            }
         $dialogWindow.ShowDialog() | Out-Null
 
         return $result

@@ -1627,6 +1627,7 @@
 
                     <StackPanel Grid.Row="2" Margin="0,10,0,0">
                         <ProgressBar x:Name="DownloadProgressBar"
+                                     AutomationProperties.Name="Download progress"
                                      Visibility="Collapsed"
                                      IsIndeterminate="False"
                                      Height="3"
@@ -1725,6 +1726,7 @@
                     </Grid>
 
                     <ProgressBar x:Name="LibraryUpdateProgressBar"
+                                 AutomationProperties.Name="Library update progress"
                                  Grid.Row="2"
                                  Visibility="Collapsed"
                                  IsIndeterminate="True"
@@ -1931,6 +1933,7 @@
                                                    FontSize="12"
                                                    Margin="0,0,0,6"/>
                                     <ProgressBar x:Name="IntuneDefinitionsProgressBar"
+                                                     AutomationProperties.Name="Intune definitions progress"
                                                      IsIndeterminate="True"
                                                      Height="3"
                                                      Foreground="{DynamicResource AccentBrush}"
@@ -2664,6 +2667,7 @@
                                                            FontSize="12"
                                                            Margin="0,0,0,6"/>
                                                 <ProgressBar x:Name="IntuneImportProgressBar"
+                                                             AutomationProperties.Name="Intune import progress"
                                                              IsIndeterminate="True"
                                                              Height="3"
                                                              Foreground="{DynamicResource AccentBrush}"
@@ -2792,6 +2796,7 @@
                                                            FontSize="12"
                                                            Margin="0,0,0,6"/>
                                                 <ProgressBar x:Name="NerdioShellAppsProgressBar"
+                                                             AutomationProperties.Name="Nerdio Shell Apps progress"
                                                              IsIndeterminate="True"
                                                              Height="3"
                                                              Foreground="{DynamicResource AccentBrush}"
@@ -3088,6 +3093,7 @@
                                                            FontSize="12"
                                                            Margin="0,0,0,6"/>
                                                 <ProgressBar x:Name="M365ConfigsProgressBar"
+                                                             AutomationProperties.Name="Microsoft 365 configuration progress"
                                                              IsIndeterminate="True"
                                                              Height="3"
                                                              Foreground="{DynamicResource AccentBrush}"
@@ -3386,6 +3392,7 @@
                                                FontSize="12"
                                                Margin="0,0,0,6"/>
                                     <ProgressBar x:Name="InstallProgressBar"
+                                                 AutomationProperties.Name="Install progress"
                                                  IsIndeterminate="True"
                                                  Height="3"
                                                  Foreground="{DynamicResource AccentBrush}"
