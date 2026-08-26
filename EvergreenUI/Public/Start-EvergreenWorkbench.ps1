@@ -2451,6 +2451,18 @@ function Start-EvergreenWorkbench {
     $window.Width = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
     $window.Height = [Math]::Max(600, [double]$syncHash.Config.WindowHeight)
 
+    # Register all UI features via modular registration handlers (item 17, phase 5)
+    # This orchestrates event handler setup for all eight navigation views and their
+    # associated workflows (Apps, Download, Library, Install, Import, Settings, Update, About).
+    # Each feature registration function sets up its own event handlers and helper scriptblocks,
+    # keeping the public function focused on orchestration rather than implementation detail.
+    Register-UIFeatures -SyncHash $syncHash -Window $window
+
+    # PHASE-5-TODO: After implementing all feature registration functions above,
+    # remove the following event handler registration code (lines 2454-8450) which is
+    # the legacy inline implementation. For now, this remains as a fallback to ensure
+    # the application continues to work while the modular feature registration is being built.
+
     # Apps view helpers
     $updateAppsComboSource = {
         param([string]$SearchText = '')
