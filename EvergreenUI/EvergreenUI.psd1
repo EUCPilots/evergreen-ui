@@ -16,7 +16,7 @@
     RootModule        = 'EvergreenUI.psm1'
 
     # Exports - only Start-EvergreenWorkbench is public
-    FunctionsToExport = @('Start-EvergreenWorkbench')
+    FunctionsToExport = @('Start-EvergreenWorkbench', 'Test-EvergreenUIPrerequisite')
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
@@ -36,6 +36,8 @@
         'Resources\m365-app.json'
         'Resources\evergreenbulb.png'
         'Public\Start-EvergreenWorkbench.ps1'
+        'Public\Test-EvergreenUIPrerequisite.ps1'
+        'Private\Get-EvergreenUIPrerequisiteStatus.ps1'
         'Private\Format-LogEntry.ps1'
         'Private\Get-EvergreenAppList.ps1'
         'Private\Get-FilterableProperty.ps1'
@@ -73,6 +75,13 @@
 
     # Module metadata
     PrivateData = @{
+        OptionalModules = @(
+            @{ Name = 'Microsoft.Graph.Authentication'; Feature = 'Intune authentication' }
+            @{ Name = 'IntuneWin32App'; Feature = 'Intune and Microsoft 365 packaging' }
+            @{ Name = 'Az.Accounts'; Feature = 'Nerdio authentication' }
+            @{ Name = 'Az.Resources'; Feature = 'Nerdio resource discovery' }
+            @{ Name = 'Az.Storage'; Feature = 'Nerdio package upload' }
+        )
         PSData = @{
             Tags         = @('Evergreen', 'GUI', 'MSI', 'MSIX', 'Windows', 'Intune', 'Nerdio', 'M365')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'

@@ -9,9 +9,21 @@ Describe 'Module manifest' -Tag 'Unit' {
         { Test-ModuleManifest -Path $script:manifestPath -ErrorAction Stop } | Should -Not -Throw
     }
 
-    It 'Exports only Start-EvergreenWorkbench' {
+    It 'Exports the public workbench and prerequisite commands' {
         $manifest = Import-PowerShellDataFile -Path $script:manifestPath
-        $manifest.FunctionsToExport | Should -Be @('Start-EvergreenWorkbench')
+        $manifest.FunctionsToExport | Should -Be @('Start-EvergreenWorkbench', 'Test-EvergreenUIPrerequisite')
+    }
+
+    It 'Declares only Evergreen as a required module' {
+        $manifest = Import-PowerShellDataFile -Path $script:manifestPath
+        @($manifest.RequiredModules).ModuleName | Should -Be @('Evergreen')
+    }
+
+    It 'Lists optional feature dependencies in manifest metadata' {
+        $manifest = Import-PowerShellDataFile -Path $script:manifestPath
+        @($manifest.PrivateData.OptionalModules).Name | Should -Be @(
+            'Microsoft.Graph.Authentication', 'IntuneWin32App', 'Az.Accounts', 'Az.Resources', 'Az.Storage'
+        )
     }
 
     It 'Loads the package-filter dependency before the latest-version resolver in isolated runspaces' {

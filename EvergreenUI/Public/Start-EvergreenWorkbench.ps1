@@ -107,37 +107,15 @@ function Start-EvergreenWorkbench {
             $moduleMetadata.License = [string]$moduleMetadata.Copyright
         }
 
-        $modulesToCheck = [System.Collections.Generic.List[string]]::new()
-        foreach ($reqMod in $moduleManifest.RequiredModules) {
-            $modulesToCheck.Add([string]$reqMod.Name)
-        }
-        foreach ($extraMod in @('Az.Accounts', 'Az.Resources', 'Az.Storage', 'IntuneWin32App', 'Microsoft.Graph.Authentication')) {
-            if (-not $modulesToCheck.Contains($extraMod)) {
-                $modulesToCheck.Add($extraMod)
-            }
-        }
-
-        $requiredModulesList = [System.Collections.Generic.List[PSCustomObject]]::new()
-        foreach ($modName in $modulesToCheck) {
-            $installedVersion = 'Not installed'
-            try {
-                $installed = Get-Module -Name $modName -ListAvailable -ErrorAction Stop |
-                Sort-Object -Property Version -Descending |
-                Select-Object -First 1
-                if ($null -ne $installed) {
-                    $installedVersion = [string]$installed.Version
+        $prerequisiteStatus = Get-EvergreenUIPrerequisiteStatus -ManifestPath $moduleManifestPath
+        $moduleMetadata.RequiredModules = @($prerequisiteStatus.Required + $prerequisiteStatus.Optional | ForEach-Object {
+                [PSCustomObject]@{
+                    Name             = $_.Name
+                    InstalledVersion = if ($null -eq $_.InstalledVersion) { 'Not installed' } else { $_.InstalledVersion }
+                    Feature          = $_.Feature
+                    Satisfied        = $_.Satisfied
                 }
-            }
-            catch {
-                # best-effort - failure here must not abort the caller
-                Write-Verbose -Message "EvergreenUI: Could not resolve installed version for '$modName': $_"
-            }
-            $requiredModulesList.Add([PSCustomObject]@{
-                    Name             = $modName
-                    InstalledVersion = $installedVersion
-                })
-        }
-        $moduleMetadata.RequiredModules = $requiredModulesList
+            })
     }
     catch {
         # About panel metadata is best-effort only.
