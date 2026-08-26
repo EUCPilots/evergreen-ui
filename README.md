@@ -33,6 +33,28 @@ Evergreen Workbench ships as a separate PowerShell module so it never modifies t
 
 No additional DLLs are required. The UI is built entirely using WPF assemblies that ship with Windows.
 
+### Optional feature dependencies
+
+The core Apps, Download, Library, Install, Settings, Update, and About views only
+require Evergreen. Optional modules are loaded only when their feature is used:
+
+| Feature | Optional modules |
+|---|---|
+| Intune authentication | `Microsoft.Graph.Authentication` |
+| Intune and Microsoft 365 packaging | `IntuneWin32App` |
+| Nerdio authentication and resource discovery | `Az.Accounts`, `Az.Resources` |
+| Nerdio package upload | `Az.Storage` |
+
+Check the current installation with:
+
+```powershell
+Test-EvergreenUIPrerequisite
+```
+
+The command reports installed versions and provides an `Install-Module` command
+for each missing dependency. Missing optional modules do not prevent the core UI
+from starting.
+
 ## Installation
 
 To install from the PowerShell Gallery:
@@ -114,7 +136,7 @@ evergreen-ui/
 │       ├── EvergreenUI.xaml            # WPF UI definition (~3,900 lines)
 │       ├── NerdioShellApps.psm1        # Bundled Nerdio Shell Apps helper module
 │       ├── m365-app.json               # Microsoft 365 Apps App.json template
-│       └── evergreenbulk.png
+│       └── evergreenbulb.png
 │
 └── tests/                              # Pester tests
     └── EvergreenUI.tests.ps1
