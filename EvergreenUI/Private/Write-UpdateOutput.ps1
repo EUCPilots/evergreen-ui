@@ -43,7 +43,20 @@ function Write-UpdateOutput {
     $dispatcher = $window.Dispatcher
     if ($null -eq $dispatcher -or $dispatcher.HasShutdownStarted -or $dispatcher.HasShutdownFinished) { return }
 
-    $line = Format-LogEntry -Message $Message -Level $Level
+    try {
+        $formatLogEntryCommand = Get-Command -Name Format-LogEntry -CommandType Function -ErrorAction Stop
+        $line = & $formatLogEntryCommand -Message $Message -Level $Level
+    }
+    catch {
+        $timestamp = Get-Date -Format 'HH:mm:ss'
+        $prefix = switch ($Level) {
+            'Warning' { 'WARN' }
+            'Error'   { 'ERROR' }
+            'Cmd'     { 'CMD' }
+            default   { 'INFO' }
+        }
+        $line = "[$timestamp] [$prefix] $Message"
+    }
 
     try {
         $dispatcher.Invoke([action]{

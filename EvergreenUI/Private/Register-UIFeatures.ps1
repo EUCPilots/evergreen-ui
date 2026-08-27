@@ -210,6 +210,12 @@ function Register-UIFeatures {
     $controls.OpenLogsFolderButton = $Window.FindName('OpenLogsFolderButton')
     $controls.ClearLogsButton = $Window.FindName('ClearLogsButton')
 
+    # Update controls
+    $controls.RunUpdateEvergreenButton = $Window.FindName('RunUpdateEvergreenButton')
+    $controls.UpdateOutputTextBox = $Window.FindName('UpdateOutputTextBox')
+    $controls.UpdateOutputScrollViewer = $Window.FindName('UpdateOutputScrollViewer')
+    $controls.UpdateStatusLabel = $Window.FindName('UpdateStatusLabel')
+
     # About controls
     $controls.AboutNameValue = $Window.FindName('AboutNameValue')
     $controls.AboutVersionValue = $Window.FindName('AboutVersionValue')
@@ -226,6 +232,7 @@ function Register-UIFeatures {
     $SyncHash.Controls = $controls
     $SyncHash['SetUIConfig'] = ${function:Set-UIConfig}.GetNewClosure()
     $SyncHash['WriteUILog'] = ${function:Write-UILog}.GetNewClosure()
+    $SyncHash['WriteUpdateOutput'] = ${function:Write-UpdateOutput}.GetNewClosure()
     $SyncHash['SetDarkTheme'] = ${function:Set-DarkTheme}.GetNewClosure()
     $SyncHash['SetLightTheme'] = ${function:Set-LightTheme}.GetNewClosure()
     $SyncHash['GetEvergreenAppsPath'] = ${function:Get-EvergreenAppsPath}.GetNewClosure()
@@ -326,6 +333,9 @@ function Register-UIFeatures {
 
     Write-Verbose 'EvergreenUI: Registering Settings feature...'
     Register-SettingsFeature -SyncHash $SyncHash -Controls $controls
+
+    Write-Verbose 'EvergreenUI: Registering Update feature...'
+    Register-UpdateFeature -SyncHash $SyncHash -Controls $controls -RegisterBackgroundOperation $registerBackgroundOperation
 
     Write-Verbose 'EvergreenUI: Registering Navigation feature...'
     Register-NavigationFeature -SyncHash $SyncHash -Controls $controls
