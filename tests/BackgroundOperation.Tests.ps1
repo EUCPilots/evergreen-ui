@@ -26,6 +26,7 @@ Describe 'Background operation lifecycle' -Tag 'Unit' {
             $callbackState = [PSCustomObject]@{ Called = $false; Value = '' }
             $completionAction = {
                 param($Operation, $Result, $State)
+                [void]$Operation
                 $State.Called = $true
                 $State.Value = $Result.Output[0]
             }
@@ -96,6 +97,49 @@ Describe 'Background operation lifecycle' -Tag 'Unit' {
             $results[0].OperationId | Should -Be 'Completed'
             $script:operations.ContainsKey($completedOperation.Key) | Should -BeFalse
             $script:operations.ContainsKey($runningOperation.Key) | Should -BeTrue
+        }
+    }
+
+    It 'Allows captured polling callbacks to run outside module scope' {
+        if ($null -eq (Get-Module -Name EvergreenUI)) {
+            $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1'
+            Import-Module -Name $modulePath -Force -ErrorAction Stop
+        }
+
+        $operations = InModuleScope EvergreenUI {
+            $operations = [hashtable]::Synchronized(@{})
+            $completedRunspace = [runspacefactory]::CreateRunspace()
+            $completedRunspace.Open()
+            $completedPowerShell = [powershell]::Create()
+            $completedPowerShell.Runspace = $completedRunspace
+            [void]$completedPowerShell.AddScript({ 'done' })
+            $operation = Start-BackgroundOperation -Operations $operations -Feature 'Load' -OperationId 'Evergreen' -PowerShell $completedPowerShell -Runspace $completedRunspace
+            [void]$operation.AsyncResult.AsyncWaitHandle.WaitOne(5000)
+
+            [PSCustomObject]@{
+                Operations = $operations
+                Poll       = ${function:Invoke-BackgroundOperationPoll}.GetNewClosure()
+            }
+        }
+
+        try {
+            $results = @(& $operations.Poll -Operations $operations.Operations)
+
+            $results | Should -HaveCount 1
+            $results[0].OperationId | Should -Be 'Evergreen'
+            $operations.Operations.Count | Should -Be 0
+        }
+        finally {
+            foreach ($key in @($operations.Operations.Keys)) {
+                $operation = $operations.Operations[$key]
+                try { if ($null -ne $operation.PowerShell) { $operation.PowerShell.Stop() } }
+                catch { Write-Verbose -Message "EvergreenUI test cleanup: PowerShell stop failed for '$key': $($_.Exception.Message)" }
+                try { if ($null -ne $operation.PowerShell) { $operation.PowerShell.Dispose() } }
+                catch { Write-Verbose -Message "EvergreenUI test cleanup: PowerShell dispose failed for '$key': $($_.Exception.Message)" }
+                try { if ($null -ne $operation.Runspace) { $operation.Runspace.Dispose() } }
+                catch { Write-Verbose -Message "EvergreenUI test cleanup: runspace dispose failed for '$key': $($_.Exception.Message)" }
+                [void]$operations.Operations.Remove($key)
+            }
         }
     }
 }
