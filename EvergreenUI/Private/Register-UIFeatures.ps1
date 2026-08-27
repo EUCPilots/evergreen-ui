@@ -33,7 +33,7 @@ function Register-UIFeatures {
     # Resolve all required control references from XAML
     # (This was previously done inline in Start-EvergreenWorkbench)
     $controls = @{}
-    
+
     # Navigation controls
     $controls.NavToggleButton = $Window.FindName('NavToggleButton')
     $controls.NavApps = $Window.FindName('NavApps')
@@ -229,13 +229,88 @@ function Register-UIFeatures {
     $SyncHash['SetDarkTheme'] = ${function:Set-DarkTheme}.GetNewClosure()
     $SyncHash['SetLightTheme'] = ${function:Set-LightTheme}.GetNewClosure()
     $SyncHash['GetEvergreenAppsPath'] = ${function:Get-EvergreenAppsPath}.GetNewClosure()
+    $SyncHash['InitializeFeatureScopedState'] = ${function:Initialize-FeatureScopedState}.GetNewClosure()
+    $SyncHash['StartBackgroundOperation'] = ${function:Start-BackgroundOperation}.GetNewClosure()
+    $SyncHash['InvokeBackgroundOperationPoll'] = ${function:Invoke-BackgroundOperationPoll}.GetNewClosure()
+    $SyncHash['EnsureBackgroundOperationPolling'] = {
+        $operationState = $SyncHash
+
+        if (-not $operationState.ContainsKey('Operations')) {
+            & ($operationState['InitializeFeatureScopedState']) -SyncHash $operationState
+        }
+
+        if ($null -eq $operationState.Operations.PollingTimer) {
+            $pollState = $operationState
+            $timer = [System.Windows.Threading.DispatcherTimer]::new()
+            $timer.Interval = [TimeSpan]::FromMilliseconds(250)
+            $timer.add_Tick({
+                    try {
+                        if ($pollState.ContainsKey('IsClosing') -and [bool]$pollState.IsClosing) {
+                            $pollState.Operations.PollingTimer.Stop()
+                            return
+                        }
+
+                        [void](& ($pollState['InvokeBackgroundOperationPoll']) -Operations $pollState.Operations.Registry)
+                        $pollState.Operations.ActiveCount = $pollState.Operations.Registry.Count
+                        $pollState.Operations.LastPolledAt = Get-Date
+
+                        if ($pollState.Operations.Registry.Count -eq 0) {
+                            $pollState.Operations.PollingTimer.Stop()
+                        }
+                    }
+                    catch {
+                        if ($null -ne $pollState -and $pollState.ContainsKey('WriteUILog') -and $null -ne $pollState['WriteUILog']) {
+                            & ($pollState['WriteUILog']) -SyncHash $pollState -Message "Background operation polling failed: $($_.Exception.Message)" -Level Error
+                        }
+                        else {
+                            Write-Verbose -Message "EvergreenUI: Background operation polling failed: $($_.Exception.Message)"
+                        }
+                    }
+                }.GetNewClosure())
+            $operationState.Operations.PollingTimer = $timer
+        }
+
+        if (-not $operationState.Operations.PollingTimer.IsEnabled) {
+            $operationState.Operations.PollingTimer.Start()
+        }
+    }.GetNewClosure()
+
+    $registerBackgroundOperation = {
+        param(
+            [Parameter(Mandatory)]
+            [string]$Feature,
+
+            [Parameter(Mandatory)]
+            [string]$OperationId,
+
+            [Parameter(Mandatory)]
+            [System.Management.Automation.PowerShell]$PowerShellInstance,
+
+            [Parameter(Mandatory)]
+            [System.Management.Automation.Runspaces.Runspace]$RunspaceInstance,
+
+            [scriptblock]$CompletionAction,
+
+            [object]$CallbackState
+        )
+
+        if (-not $SyncHash.ContainsKey('Operations')) {
+            & ($SyncHash['InitializeFeatureScopedState']) -SyncHash $SyncHash
+        }
+
+        & ($SyncHash['StartBackgroundOperation']) -Operations $SyncHash.Operations.Registry -Feature $Feature `
+            -OperationId $OperationId -PowerShell $PowerShellInstance -Runspace $RunspaceInstance `
+            -CompletionAction $CompletionAction -CallbackState $CallbackState
+        & ($SyncHash['EnsureBackgroundOperationPolling'])
+    }.GetNewClosure()
+    $SyncHash['RegisterBackgroundOperation'] = $registerBackgroundOperation
 
     # Delegate to feature-specific registration functions in order
     # Each registration function accepts $SyncHash and $controls as parameters
     # and sets up event handlers for its domain
 
     Write-Verbose 'EvergreenUI: Registering Apps feature...'
-    Register-AppsFeature -SyncHash $SyncHash -Controls $controls
+    Register-AppsFeature -SyncHash $SyncHash -Controls $controls -RegisterBackgroundOperation $registerBackgroundOperation
 
     Write-Verbose 'EvergreenUI: Registering Download feature...'
     Register-DownloadFeature -SyncHash $SyncHash -Controls $controls
@@ -244,7 +319,7 @@ function Register-UIFeatures {
     Register-LibraryFeature -SyncHash $SyncHash -Controls $controls
 
     Write-Verbose 'EvergreenUI: Registering Install feature...'
-    Register-InstallFeature -SyncHash $SyncHash -Controls $controls
+    Register-InstallFeature -SyncHash $SyncHash -Controls $controls -RegisterBackgroundOperation $registerBackgroundOperation
 
     Write-Verbose 'EvergreenUI: Registering Import feature...'
     Register-ImportFeature -SyncHash $SyncHash -Controls $controls

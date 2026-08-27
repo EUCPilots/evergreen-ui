@@ -163,11 +163,76 @@ function Invoke-BackgroundOperationPoll {
         [System.Collections.Hashtable]$Operations
     )
 
+    $completeBackgroundOperation = {
+        param(
+            [System.Collections.Hashtable]$Operations,
+            [string]$Key
+        )
+
+        if (-not $Operations.ContainsKey($Key)) {
+            return $null
+        }
+
+        $operation = $Operations[$Key]
+        if ($null -eq $operation.AsyncResult -or -not $operation.AsyncResult.IsCompleted) {
+            return [PSCustomObject]@{
+                WasCompleted = $false
+                Feature      = $operation.Feature
+                OperationId  = $operation.OperationId
+                Status       = $operation.Status
+                Output       = @()
+                Error        = $null
+            }
+        }
+
+        $output = @()
+        $operationError = $null
+        try {
+            $output = @($operation.PowerShell.EndInvoke($operation.AsyncResult))
+            $operation.Status = 'Completed'
+        }
+        catch {
+            $operation.Status = 'Failed'
+            $operationError = $_
+        }
+
+        $result = [PSCustomObject]@{
+            WasCompleted = $true
+            Feature      = $operation.Feature
+            OperationId  = $operation.OperationId
+            Status       = $operation.Status
+            Output       = $output
+            Error        = $operationError
+        }
+
+        try {
+            if ($null -ne $operation.CompletionAction) {
+                & $operation.CompletionAction -Operation $operation -Result $result -State $operation.CallbackState
+            }
+        }
+        finally {
+            try {
+                $operation.PowerShell.Dispose()
+            }
+            catch {
+                Write-Verbose -Message "EvergreenUI: Failed to dispose PowerShell for '$Key': $($_.Exception.Message)"
+            }
+            try {
+                $operation.Runspace.Dispose()
+            }
+            catch {
+                Write-Verbose -Message "EvergreenUI: Failed to dispose runspace for '$Key': $($_.Exception.Message)"
+            }
+            [void]$Operations.Remove($Key)
+        }
+
+        return $result
+    }
     $results = @()
     foreach ($key in @($Operations.Keys)) {
         $operation = $Operations[$key]
         if ($null -ne $operation.AsyncResult -and $operation.AsyncResult.IsCompleted) {
-            $results += Complete-BackgroundOperation -Operations $Operations -Key $key
+            $results += & $completeBackgroundOperation -Operations $Operations -Key $key
         }
     }
 
@@ -251,9 +316,10 @@ function Clear-BackgroundOperation {
         [System.Collections.Hashtable]$Operations
     )
 
+    $stopBackgroundOperation = ${function:Stop-BackgroundOperation}.GetNewClosure()
     foreach ($key in @($Operations.Keys)) {
         if ($PSCmdlet.ShouldProcess($key, 'Clear background operation')) {
-            [void](Stop-BackgroundOperation -Operations $Operations -Key $key -Confirm:$false)
+            [void](& $stopBackgroundOperation -Operations $Operations -Key $key -Confirm:$false)
         }
     }
 }

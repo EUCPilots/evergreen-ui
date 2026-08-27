@@ -30,6 +30,7 @@ function Register-InstallFeature {
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
+    $SyncHash['RegisterBackgroundOperation'] = $RegisterBackgroundOperation.GetNewClosure()
 
     # Extract feature-specific controls
     $installLoadDefinitionsButton = $Controls.InstallLoadDefinitionsButton
@@ -700,7 +701,7 @@ function Register-InstallFeature {
             }
         }
 
-        & $RegisterBackgroundOperation -Feature 'Install' -OperationId 'LatestVersion' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_InstallLatestVersion
+        & ($SyncHash['RegisterBackgroundOperation']) -Feature 'Install' -OperationId 'LatestVersion' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_InstallLatestVersion
     }
 
     # Helper scriptblock: Start installation operation for selected packages (background async)
@@ -920,7 +921,7 @@ function Register-InstallFeature {
             }
         }
 
-        & $RegisterBackgroundOperation -Feature 'Install' -OperationId 'Execute' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_InstallExecute
+        & ($SyncHash['RegisterBackgroundOperation']) -Feature 'Install' -OperationId 'Execute' -PowerShellInstance $ps -RunspaceInstance $rs -CompletionAction $completionAction_InstallExecute
     }
 
     # Store helper scriptblocks in SyncHash for access by other features

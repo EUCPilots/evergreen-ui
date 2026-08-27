@@ -152,7 +152,7 @@ function Register-SettingsFeature {
                 $showInstallTabToggle.IsChecked = [bool]$SyncHash.Config.ShowInstallTab
             }
 
-            & $setImportTabVisibility -ShowImport ([bool]$SyncHash.Config.ShowImportTab) -ShowInstall ([bool]$SyncHash.Config.ShowInstallTab)
+            & ($SyncHash['SetImportTabVisibility']) -ShowImport ([bool]$SyncHash.Config.ShowImportTab) -ShowInstall ([bool]$SyncHash.Config.ShowInstallTab)
         }.GetNewClosure())
 
     # =========================================================================
@@ -162,7 +162,7 @@ function Register-SettingsFeature {
         $showImportTabToggle.add_Click({
                 $showImport = [bool]$showImportTabToggle.IsChecked
                 $SyncHash.Config.ShowImportTab = $showImport
-                & $setImportTabVisibility -ShowImport $showImport -ShowInstall ([bool]$SyncHash.Config.ShowInstallTab)
+            & ($SyncHash['SetImportTabVisibility']) -ShowImport $showImport -ShowInstall ([bool]$SyncHash.Config.ShowInstallTab)
                 & ($SyncHash['SetUIConfig']) -Config $SyncHash.Config
             }.GetNewClosure())
     }
@@ -171,7 +171,7 @@ function Register-SettingsFeature {
         $showInstallTabToggle.add_Click({
                 $showInstall = [bool]$showInstallTabToggle.IsChecked
                 $SyncHash.Config.ShowInstallTab = $showInstall
-                & $setImportTabVisibility -ShowImport ([bool]$SyncHash.Config.ShowImportTab) -ShowInstall $showInstall
+            & ($SyncHash['SetImportTabVisibility']) -ShowImport ([bool]$SyncHash.Config.ShowImportTab) -ShowInstall $showInstall
                 & ($SyncHash['SetUIConfig']) -Config $SyncHash.Config
             }.GetNewClosure())
     }
@@ -248,7 +248,7 @@ function Register-SettingsFeature {
             $dlg.Description = 'Select download output folder'
             $dlg.SelectedPath = $outputPathBox.Text
             if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-                $normalised = & $normalizeDirectoryPath -PathValue $dlg.SelectedPath
+                $normalised = & ($SyncHash['NormalizeDirectoryPath']) -PathValue $dlg.SelectedPath
                 $outputPathBox.Text = $normalised
                 $SyncHash.Config.OutputPath = $normalised
                 & ($SyncHash['SetUIConfig']) -Config $SyncHash.Config
@@ -258,7 +258,7 @@ function Register-SettingsFeature {
 
     # Normalize path when focus leaves the output path box
     $outputPathBox.add_LostFocus({
-            $normalised = & $normalizeDirectoryPath -PathValue $outputPathBox.Text
+        $normalised = & ($SyncHash['NormalizeDirectoryPath']) -PathValue $outputPathBox.Text
             $outputPathBox.Text = $normalised
             $SyncHash.Config.OutputPath = $normalised
             & ($SyncHash['SetUIConfig']) -Config $SyncHash.Config

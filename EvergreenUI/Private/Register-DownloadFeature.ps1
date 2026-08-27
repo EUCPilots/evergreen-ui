@@ -30,6 +30,19 @@ function Register-DownloadFeature {
     $clearQueueButton = $Controls.ClearQueueButton
     $openDownloadFolderButton = $Controls.OpenDownloadFolderButton
     $outputPathBox = $Controls.OutputPathBox
+    $SyncHash['NewWpfRunspace'] = ${function:New-WpfRunspace}.GetNewClosure()
+    $SyncHash['SetListViewSort'] = ${function:Set-ListViewSort}.GetNewClosure()
+
+    $downloadFeatureScriptPath = (Get-Command -Name Register-DownloadFeature -CommandType Function).ScriptBlock.File
+    $privateRoot = if (-not [string]::IsNullOrWhiteSpace($downloadFeatureScriptPath)) {
+        Split-Path -Path $downloadFeatureScriptPath -Parent
+    }
+    else {
+        Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath 'Private'
+    }
+    $formatLogEntryPath = Join-Path -Path $privateRoot -ChildPath 'Format-LogEntry.ps1'
+    $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
+    $invokeAppDownloadPath = Join-Path -Path $privateRoot -ChildPath 'Invoke-AppDownload.ps1'
 
     # Verify required controls exist
     if ($null -eq $SyncHash.DownloadQueueListView) {
@@ -84,7 +97,7 @@ function Register-DownloadFeature {
 
     # Helper scriptblock: Apply sort to download queue list
     $applyDownloadQueueSort = {
-        [void](Set-ListViewSort -ListView $SyncHash.DownloadQueueListView `
+        [void](& ($SyncHash['SetListViewSort']) -ListView $SyncHash.DownloadQueueListView `
             -Property ([string]$SyncHash.DownloadQueueSortProperty) `
             -Direction ([string]$SyncHash.DownloadQueueSortDirection))
     }
@@ -111,7 +124,7 @@ function Register-DownloadFeature {
 
                 [void]$SyncHash.DownloadQueue.Remove($selectedQueueItem)
                 & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message 'Removed selected item from queue.' -Level Info
-                & $refreshQueueView
+                & ($SyncHash['RefreshQueueView'])
             }.GetNewClosure())
     }
 
@@ -125,7 +138,7 @@ function Register-DownloadFeature {
 
                 $SyncHash.DownloadQueue.Clear()
                 & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message 'Queue cleared.' -Level Info
-                & $refreshQueueView
+                & ($SyncHash['RefreshQueueView'])
             }.GetNewClosure())
     }
 
@@ -157,7 +170,7 @@ function Register-DownloadFeature {
                     return
                 }
 
-                $outputPath = & $normalizeDirectoryPath -PathValue $SyncHash.Config.OutputPath
+                $outputPath = & ($SyncHash['NormalizeDirectoryPath']) -PathValue $SyncHash.Config.OutputPath
                 if ([string]::IsNullOrWhiteSpace($outputPath)) {
                     & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message 'Set a download output path in Settings before starting queue downloads.' -Level Warning
                     return
@@ -186,12 +199,7 @@ function Register-DownloadFeature {
                     $SyncHash.DownloadProgressBar.IsIndeterminate = $true
                 }
 
-                $privateRoot = Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'Private'
-                $formatLogEntryPath = Join-Path -Path $privateRoot -ChildPath 'Format-LogEntry.ps1'
-                $writeUILogPath = Join-Path -Path $privateRoot -ChildPath 'Write-UILog.ps1'
-                $invokeAppDownloadPath = Join-Path -Path $privateRoot -ChildPath 'Invoke-AppDownload.ps1'
-
-                $rs = New-WpfRunspace -SyncHash $SyncHash
+                $rs = & ($SyncHash['NewWpfRunspace']) -SyncHash $SyncHash
                 $ps = [powershell]::Create()
                 $ps.Runspace = $rs
 
@@ -208,7 +216,10 @@ function Register-DownloadFeature {
                         . $InvokeAppDownloadPath
 
                         try {
-                            Invoke-AppDownload -SyncHash $syncHash -OutputPath $OutputPath
+                            $syncHash.Config.OutputPath = $OutputPath
+                            foreach ($queueItem in @($syncHash.DownloadQueue | Where-Object { $_.Status -eq 'Pending' })) {
+                                Invoke-AppDownload -SyncHash $syncHash -QueueItem $queueItem
+                            }
                         }
                         catch {
                             & ($SyncHash['WriteUILog']) -SyncHash $syncHash -Message "Queue download run failed: $_" -Level Error
@@ -238,6 +249,7 @@ function Register-DownloadFeature {
             [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
             [System.Windows.RoutedEventHandler]({
                 param($eventSender, $routedEventArgs)
+                [void]$eventSender
 
                 $header = $routedEventArgs.OriginalSource -as [System.Windows.Controls.GridViewColumnHeader]
                 if ($null -eq $header -or $null -eq $header.Column) {
@@ -261,7 +273,7 @@ function Register-DownloadFeature {
                 $SyncHash.DownloadQueueSortProperty = $property
                 $SyncHash.DownloadQueueSortDirection = $newDirection
 
-                & $applyDownloadQueueSort
+                & ($SyncHash['ApplyDownloadQueueSort'])
             }.GetNewClosure())
         )
     }

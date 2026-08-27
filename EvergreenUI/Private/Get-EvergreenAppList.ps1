@@ -40,13 +40,19 @@ function Get-EvergreenAppList {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
+    $writeLog = {
+        param([string]$Message, [string]$Level = 'Info')
+
+        & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message $Message -Level $Level
+    }
+
     # Return cached list unless Force is specified
     if (-not $Force -and $null -ne $SyncHash.AppList -and $SyncHash.AppList.Count -gt 0) {
         return $SyncHash.AppList
     }
 
-    Write-UILog -SyncHash $SyncHash -Message 'Retrieving application list with Evergreen...' -Level Info
-    Write-UILog -SyncHash $SyncHash -Message 'Find-EvergreenApp' -Level Cmd
+    & $writeLog -Message 'Retrieving application list with Evergreen...' -Level Info
+    & $writeLog -Message 'Find-EvergreenApp' -Level Cmd
 
     try {
         $raw = Find-EvergreenApp -ErrorAction Stop
@@ -67,11 +73,11 @@ function Get-EvergreenAppList {
         }
 
         $SyncHash.AppList = $list
-        Write-UILog -SyncHash $SyncHash -Message "Application list loaded - $($list.Count) apps available." -Level Info
+        & $writeLog -Message "Application list loaded - $($list.Count) apps available." -Level Info
         return $list
     }
     catch {
-        Write-UILog -SyncHash $SyncHash -Message "Failed to retrieve application list: $_" -Level Error
+        & $writeLog -Message "Failed to retrieve application list: $_" -Level Error
         $SyncHash.AppList = @()
         return @()
     }

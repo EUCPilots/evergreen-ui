@@ -48,7 +48,13 @@ function Register-AppsFeature {
     $addToLibraryButton = $Controls.AddToLibraryButton
     $addToQueueButton = $Controls.AddToQueueButton
     $appsActionStatusLabel = $Controls.AppsActionStatusLabel
-    $getEvergreenAppList = ${function:Get-EvergreenAppList}.GetNewClosure()
+    $SyncHash['GetEvergreenAppList'] = ${function:Get-EvergreenAppList}.GetNewClosure()
+    $SyncHash['GetFilterableProperty'] = ${function:Get-FilterableProperty}.GetNewClosure()
+    $SyncHash['NewFilterPanel'] = ${function:New-FilterPanel}.GetNewClosure()
+    $SyncHash['InvokeFilterUpdate'] = ${function:Invoke-FilterUpdate}.GetNewClosure()
+    $SyncHash['NewWpfRunspace'] = ${function:New-WpfRunspace}.GetNewClosure()
+    $SyncHash['SetListViewSort'] = ${function:Set-ListViewSort}.GetNewClosure()
+    $SyncHash['RegisterBackgroundOperation'] = $RegisterBackgroundOperation.GetNewClosure()
 
     # Verify required controls exist
     if ($null -eq $SyncHash.VersionsListView) {
@@ -111,8 +117,8 @@ function Register-AppsFeature {
 
         if ($null -ne $refreshAppsButton) { $refreshAppsButton.IsEnabled = $false }
         try {
-            [void](& $getEvergreenAppList -SyncHash $SyncHash -Force:$Force)
-            & $updateAppsComboSource -SearchText $(if ($null -ne $appSearchBox) { $appSearchBox.Text } else { '' })
+            [void](& ($SyncHash['GetEvergreenAppList']) -SyncHash $SyncHash -Force:$Force)
+            & ($SyncHash['UpdateAppsComboSource']) -SearchText $(if ($null -ne $appSearchBox) { $appSearchBox.Text } else { '' })
         }
         finally {
             if ($null -ne $refreshAppsButton) { $refreshAppsButton.IsEnabled = $true }
@@ -172,7 +178,7 @@ function Register-AppsFeature {
         $SyncHash.VersionsListView.View = $gv
         # Clear saved column widths so stale hide/show state from a previous app does not carry over.
         $SyncHash.VersionsColSavedWidths = @{}
-    }
+    }.GetNewClosure()
 
     # Helper scriptblock: Get cache file path for an app (creates cache directory if needed)
     $getAppCacheFile = {
@@ -184,22 +190,6 @@ function Register-AppsFeature {
         Join-Path -Path $cacheDir -ChildPath "$AppName.json"
     }
 
-    # Helper scriptblock: Display app results (updates version list, filter panel, visibility)
-    $displayAppResults = {
-        param([PSObject[]]$AppResults)
-        $SyncHash.CurrentAppResults = @($AppResults)
-        & $rebuildVersionColumns -AppResults $SyncHash.CurrentAppResults
-        $filterProps = @(Get-FilterableProperty -AppResults $SyncHash.CurrentAppResults)
-        New-FilterPanel -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $SyncHash -OnChangeCallback {
-            Invoke-FilterUpdate -SyncHash $SyncHash
-        }
-        Invoke-FilterUpdate -SyncHash $SyncHash
-        if ($null -ne $appDetailEmpty) { $appDetailEmpty.Visibility = [System.Windows.Visibility]::Collapsed }
-        if ($null -ne $appDetailLoading) { $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed }
-        if ($null -ne $appDetailContent) { $appDetailContent.Visibility = [System.Windows.Visibility]::Visible }
-        & $updateAddToLibraryButtonState
-    }
-
     # Helper scriptblock: Enable AddToLibraryButton only when app is loaded AND valid EvergreenLibrary.json exists
     $updateAddToLibraryButtonState = {
         if ($null -eq $addToLibraryButton) { return }
@@ -209,11 +199,27 @@ function Register-AppsFeature {
         $jsonExists = (-not [string]::IsNullOrWhiteSpace($libraryPath)) -and
         (Test-Path -LiteralPath (Join-Path -Path $libraryPath -ChildPath 'EvergreenLibrary.json'))
         $addToLibraryButton.IsEnabled = $appSelected -and $jsonExists
-    }
+    }.GetNewClosure()
+
+    # Helper scriptblock: Display app results (updates version list, filter panel, visibility)
+    $displayAppResults = {
+        param([PSObject[]]$AppResults)
+        $SyncHash.CurrentAppResults = @($AppResults)
+        & ($SyncHash['RebuildVersionColumns']) -AppResults $SyncHash.CurrentAppResults
+        $filterProps = @(& ($SyncHash['GetFilterableProperty']) -AppResults $SyncHash.CurrentAppResults)
+        & ($SyncHash['NewFilterPanel']) -FilterProperties $filterProps -WrapPanel $filterWrapPanel -SyncHash $SyncHash -OnChangeCallback {
+            & ($SyncHash['InvokeFilterUpdate']) -SyncHash $SyncHash
+        }
+        & ($SyncHash['InvokeFilterUpdate']) -SyncHash $SyncHash
+        if ($null -ne $appDetailEmpty) { $appDetailEmpty.Visibility = [System.Windows.Visibility]::Collapsed }
+        if ($null -ne $appDetailLoading) { $appDetailLoading.Visibility = [System.Windows.Visibility]::Collapsed }
+        if ($null -ne $appDetailContent) { $appDetailContent.Visibility = [System.Windows.Visibility]::Visible }
+        & ($SyncHash['UpdateAddToLibraryButtonState'])
+    }.GetNewClosure()
 
     # Helper scriptblock: Apply sort to versions list
     $applyVersionsListSort = {
-        [void](Set-ListViewSort -ListView $SyncHash.VersionsListView `
+        [void](& ($SyncHash['SetListViewSort']) -ListView $SyncHash.VersionsListView `
             -Property ([string]$SyncHash.VersionsSortProperty) `
             -Direction ([string]$SyncHash.VersionsSortDirection))
     }
@@ -237,7 +243,7 @@ function Register-AppsFeature {
         & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message "Loading versions for $appName..." -Level Info
         & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message "Get-EvergreenApp -Name '$appName'" -Level Cmd
 
-        $runspace = New-WpfRunspace -SyncHash $SyncHash
+        $runspace = & ($SyncHash['NewWpfRunspace']) -SyncHash $SyncHash
         $ps = [powershell]::Create()
         $ps.Runspace = $runspace
         [void]$ps.AddScript({
@@ -260,7 +266,7 @@ function Register-AppsFeature {
                 }
 
                 # Save results to cache
-                $cachePath = & $getAppCacheFile -AppName $currentAppName
+                $cachePath = & ($SyncHash['GetAppCacheFile']) -AppName $currentAppName
                 try {
                     $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $cachePath -Encoding UTF8 -Force
                     $lastWrite = (Get-Item -LiteralPath $cachePath).LastWriteTime.ToString('g')
@@ -272,7 +278,7 @@ function Register-AppsFeature {
                     & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message "Failed to write cache for ${currentAppName}: $_" -Level Warning
                 }
 
-                & $displayAppResults -AppResults $results
+                & ($SyncHash['DisplayAppResults']) -AppResults $results
 
                 & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message "Loaded $($SyncHash.CurrentAppResults.Count) versions for $currentAppName." -Level Info
             }
@@ -297,7 +303,7 @@ function Register-AppsFeature {
         $SyncHash.PendingLoadRunspace = $runspace
         $SyncHash.PendingLoadAppName = $appName
 
-        & $RegisterBackgroundOperation -Feature 'Load' -OperationId 'Evergreen' `
+        & ($SyncHash['RegisterBackgroundOperation']) -Feature 'Load' -OperationId 'Evergreen' `
             -PowerShellInstance $ps -RunspaceInstance $runspace `
             -CompletionAction $completionAction_Load -CallbackState @{ AppName = $appName }
     }
@@ -316,14 +322,14 @@ function Register-AppsFeature {
     if ($null -ne $refreshAppsButton) {
         $refreshAppsButton.add_Click({
                 & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message 'Refreshing Evergreen app catalog...' -Level Info
-                & $loadAppCatalog -Force
+                & ($SyncHash['LoadAppCatalog']) -Force
             }.GetNewClosure())
     }
 
     # Event handler: AppSearchBox.TextChanged - Update list as user types
     if ($null -ne $appSearchBox) {
         $appSearchBox.add_TextChanged({
-                & $updateAppsComboSource -SearchText $appSearchBox.Text
+                & ($SyncHash['UpdateAppsComboSource']) -SearchText $appSearchBox.Text
             }.GetNewClosure())
     }
 
@@ -369,7 +375,7 @@ function Register-AppsFeature {
                 & ($SyncHash['SetUIConfig']) -Config $SyncHash.Config
 
                 # Refresh list: re-stamps IsFavourite on all items and re-sorts
-                & $updateAppsComboSource -SearchText $appSearchBox.Text
+                & ($SyncHash['UpdateAppsComboSource']) -SearchText $appSearchBox.Text
             }.GetNewClosure())
         )
     }
@@ -377,7 +383,7 @@ function Register-AppsFeature {
     # Event handler: LoadAppVersionsButton - Load selected app's versions
     if ($null -ne $loadAppVersionsButton) {
         $loadAppVersionsButton.add_Click({
-                & $loadAppVersions
+                & ($SyncHash['LoadAppVersions'])
             }.GetNewClosure())
     }
 
@@ -414,7 +420,7 @@ function Register-AppsFeature {
                     if ($null -ne $appDetailTitle) { $appDetailTitle.Text = "$($selectedApp.Name)" }
 
                     # Load from cache if available; otherwise show the panel empty (user clicks Refresh)
-                    $cachePath = & $getAppCacheFile -AppName $selectedApp.Name
+                    $cachePath = & ($SyncHash['GetAppCacheFile']) -AppName $selectedApp.Name
                     if (Test-Path -LiteralPath $cachePath) {
                         $lastWrite = (Get-Item -LiteralPath $cachePath).LastWriteTime.ToString('g')
                         if ($null -ne $SyncHash.AppLastRefreshedLabel) { $SyncHash.AppLastRefreshedLabel.Text = "Last refresh: $lastWrite" }
@@ -435,7 +441,7 @@ function Register-AppsFeature {
                                 @($parsed)
                             }
                             & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message "Loaded $($cachedResults.Count) cached versions for $($selectedApp.Name)." -Level Info
-                            & $displayAppResults -AppResults $cachedResults
+                            & ($SyncHash['DisplayAppResults']) -AppResults $cachedResults
                         }
                         catch {
                             & ($SyncHash['WriteUILog']) -SyncHash $SyncHash -Message "Cache read failed for $($selectedApp.Name), click Refresh to load: $_" -Level Warning
@@ -495,7 +501,7 @@ function Register-AppsFeature {
             $SyncHash.VersionsSortProperty = $sortProperty
             $SyncHash.VersionsSortDirection = $newDirection
 
-            & $applyVersionsListSort
+            & ($SyncHash['ApplyVersionsListSort'])
         }.GetNewClosure())
     )
 
