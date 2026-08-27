@@ -27,7 +27,7 @@ function Invoke-AzureSignIn {
         # called before tab initialization.
         if (-not (Get-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue)) {
             Write-Verbose 'EvergreenUI: Importing Microsoft.Graph.Authentication (fallback)...'
-            Import-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue | Out-Null
+            [void](Import-Module -Name Microsoft.Graph.Authentication -ErrorAction SilentlyContinue)
         }
         Write-Verbose -Message "EvergreenUI: Connect-MgGraph available: $(($null -ne (Get-Command -Name Connect-MgGraph -ErrorAction SilentlyContinue)))"
 
@@ -45,7 +45,7 @@ function Invoke-AzureSignIn {
             $mgParams['TenantId'] = $tenant
         }
 
-        Connect-MgGraph @mgParams | Out-Null
+        [void](Connect-MgGraph @mgParams)
 
         if (Get-Command -Name Get-MgContext -ErrorAction SilentlyContinue) {
             $mgContext = Get-MgContext -ErrorAction SilentlyContinue
@@ -90,7 +90,7 @@ function Invoke-AzureSignOut {
 
     try {
         if (Get-Command -Name Disconnect-MgGraph -ErrorAction SilentlyContinue) {
-            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+           [void](Disconnect-MgGraph -ErrorAction SilentlyContinue)
         }
     }
     catch {
@@ -104,8 +104,8 @@ function Invoke-AzureSignOut {
         if (-not (Get-Module -Name Az.Accounts -ErrorAction SilentlyContinue)) {
             Import-Module -Name Az.Accounts -ErrorAction SilentlyContinue | Out-Null
         }
-        Disconnect-AzAccount -Scope Process -ErrorAction SilentlyContinue | Out-Null
-        Clear-AzContext -Scope Process -Force -ErrorAction SilentlyContinue | Out-Null
+        [void](Disconnect-AzAccount -Scope Process -ErrorAction SilentlyContinue)
+        [void](Clear-AzContext -Scope Process -Force -ErrorAction SilentlyContinue)
     }
     catch {
         # best-effort - sign-out must never block UI flow
@@ -129,7 +129,7 @@ function Invoke-NerdioAzureSignIn {
         Write-Verbose 'EvergreenUI: Ensuring Az.Accounts, Az.Resources, Az.Storage are loaded...'
         foreach ($mod in @('Az.Accounts', 'Az.Resources', 'Az.Storage')) {
             if (-not (Get-Module -Name $mod -ErrorAction SilentlyContinue)) {
-                Import-Module -Name $mod -ErrorAction SilentlyContinue | Out-Null
+                [void](Import-Module -Name $mod -ErrorAction SilentlyContinue)
             }
         }
         Write-Verbose -Message "EvergreenUI: Connect-AzAccount available: $(($null -ne (Get-Command -Name Connect-AzAccount -ErrorAction SilentlyContinue)))"
@@ -143,9 +143,9 @@ function Invoke-NerdioAzureSignIn {
 
         if (Get-Command -Name Update-AzConfig -ErrorAction SilentlyContinue) {
             try {
-                Update-AzConfig -EnableLoginByWam $false -Scope Process -AppliesTo Az -ErrorAction Stop | Out-Null
-                Update-AzConfig -LoginExperienceV2 Off -Scope Process -AppliesTo Az -ErrorAction Stop | Out-Null
-                Update-AzConfig -DefaultSubscriptionForLogin $sub -Scope Process -AppliesTo Az -ErrorAction Stop | Out-Null
+                [void](Update-AzConfig -EnableLoginByWam $false -Scope Process -AppliesTo Az -ErrorAction Stop)
+                [void](Update-AzConfig -LoginExperienceV2 Off -Scope Process -AppliesTo Az -ErrorAction Stop)
+                [void](Update-AzConfig -DefaultSubscriptionForLogin $sub -Scope Process -AppliesTo Az -ErrorAction Stop)
             }
             catch {
                 # best-effort - older Az.Accounts builds may not support all process-scoped settings
@@ -158,7 +158,7 @@ function Invoke-NerdioAzureSignIn {
         # can load it when they import Az.Accounts.
         if (Get-Command -Name Enable-AzContextAutosave -ErrorAction SilentlyContinue) {
             try {
-                Enable-AzContextAutosave -Scope CurrentUser -ErrorAction SilentlyContinue | Out-Null
+                [void](Enable-AzContextAutosave -Scope CurrentUser -ErrorAction SilentlyContinue)
             }
             catch {
                 # best-effort - default is already enabled; failure here is non-blocking
@@ -176,7 +176,7 @@ function Invoke-NerdioAzureSignIn {
             $connectParams['Tenant'] = $tenant
         }
 
-        Connect-AzAccount @connectParams | Out-Null
+        [void](Connect-AzAccount @connectParams)
 
         $ctx = Get-AzContext -ErrorAction SilentlyContinue
 
@@ -210,10 +210,10 @@ function Invoke-NerdioAzureSignOut {
     try {
         # Module is pre-loaded by $loadImportTabModules; guard ensures resilience.
         if (-not (Get-Module -Name Az.Accounts -ErrorAction SilentlyContinue)) {
-            Import-Module -Name Az.Accounts -ErrorAction SilentlyContinue | Out-Null
+            [void](Import-Module -Name Az.Accounts -ErrorAction SilentlyContinue)
         }
-        Disconnect-AzAccount -Scope Process -ErrorAction SilentlyContinue | Out-Null
-        Clear-AzContext     -Scope Process -Force -ErrorAction SilentlyContinue | Out-Null
+        [void](Disconnect-AzAccount -Scope Process -ErrorAction SilentlyContinue)
+        [void](Clear-AzContext -Scope Process -Force -ErrorAction SilentlyContinue)
     }
     catch {
         # best-effort - sign-out must never block UI flow
@@ -227,7 +227,7 @@ function Get-NerdioAzureResourceGroups {
     try {
         # Module is pre-loaded by $loadImportTabModules; guard ensures resilience.
         if (-not (Get-Module -Name Az.Resources -ErrorAction SilentlyContinue)) {
-            Import-Module -Name Az.Resources -ErrorAction SilentlyContinue | Out-Null
+            [void](Import-Module -Name Az.Resources -ErrorAction SilentlyContinue)
         }
         $groups = Get-AzResourceGroup -ErrorAction Stop
         return @($groups | Sort-Object ResourceGroupName | Select-Object -ExpandProperty ResourceGroupName)
@@ -270,7 +270,7 @@ function Get-NerdioAzureStorageContainers {
     try {
         # Module is pre-loaded by $loadImportTabModules; guard ensures resilience.
         if (-not (Get-Module -Name Az.Storage -ErrorAction SilentlyContinue)) {
-            Import-Module -Name Az.Storage -ErrorAction SilentlyContinue | Out-Null
+            [void](Import-Module -Name Az.Storage -ErrorAction SilentlyContinue)
         }
         $sa = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -ErrorAction Stop
         $containers = Get-AzStorageContainer -Context $sa.Context -ErrorAction Stop
