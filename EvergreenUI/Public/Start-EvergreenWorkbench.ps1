@@ -2447,6 +2447,66 @@ function Start-EvergreenWorkbench {
             -CompletionAction $completionAction_M365ImportNerdio
     }
 
+    # Import feature helper scriptblocks
+    $startImportSignIn = {
+        if ([bool]$syncHash.AzureAuthState.IsAuthInProgress) {
+            return
+        }
+        $syncHash.AzureAuthState.IsAuthInProgress = $true
+        try {
+            $tenantId = if ($null -ne $importTenantIdBox) { [string]$importTenantIdBox.Text } else { '' }
+            $result = Invoke-AzureSignIn -TenantId $tenantId
+            $syncHash.AzureAuthState.IsAuthenticated = [bool]$result.Succeeded
+            $syncHash.AzureAuthState.AccountId = [string]$result.AccountId
+            $syncHash.AzureAuthState.TenantId = [string]$result.TenantId
+            $syncHash.AzureAuthState.ErrorMessage = [string]$result.ErrorMessage
+            $syncHash.AzureAuthState.IntuneConnected = [bool]$result.IntuneConnected
+            $syncHash.AzureAuthState.IntuneConnectError = [string]$result.IntuneConnectError
+            if (-not $result.Succeeded) {
+                Write-UILog -SyncHash $syncHash -Message "Entra sign-in failed: $($result.ErrorMessage)" -Level Error
+            }
+        }
+        finally {
+            $syncHash.AzureAuthState.IsAuthInProgress = $false
+            if ($null -ne $syncHash.RefreshImportAuthUi) {
+                & $syncHash.RefreshImportAuthUi
+            }
+        }
+    }
+
+    $startImportSignOut = {
+        try {
+            Invoke-AzureSignOut
+            $syncHash.AzureAuthState.IsAuthenticated = $false
+            $syncHash.AzureAuthState.AccountId = ''
+            $syncHash.AzureAuthState.TenantId = ''
+            $syncHash.AzureAuthState.ErrorMessage = ''
+            $syncHash.AzureAuthState.IntuneConnected = $false
+            $syncHash.AzureAuthState.IntuneConnectError = ''
+        }
+        finally {
+            if ($null -ne $syncHash.RefreshImportAuthUi) {
+                & $syncHash.RefreshImportAuthUi
+            }
+        }
+    }
+
+    $refreshImportAuthUi = {
+        if ($null -ne $importAuthStatusDot -and $null -ne $importAuthStatusLabel) {
+            $isAuth = [bool]$syncHash.AzureAuthState.IsAuthenticated
+            $importAuthStatusDot.Fill = if ($isAuth) { [System.Windows.Media.Brushes]::LightGreen } else { [System.Windows.Media.Brushes]::Gold }
+            $importAuthStatusLabel.Text = if ($isAuth) {
+                "Authenticated as: $($syncHash.AzureAuthState.AccountId)"
+            } else {
+                'Not authenticated'
+            }
+        }
+        if ($null -ne $importSignInButton -and $null -ne $importSignOutButton) {
+            $importSignInButton.IsEnabled = -not [bool]$syncHash.AzureAuthState.IsAuthenticated
+            $importSignOutButton.IsEnabled = [bool]$syncHash.AzureAuthState.IsAuthenticated
+        }
+    }
+
     # Apply persisted window size with safe minimums
     $window.Width = [Math]::Max(900, [double]$syncHash.Config.WindowWidth)
     $window.Height = [Math]::Max(600, [double]$syncHash.Config.WindowHeight)
