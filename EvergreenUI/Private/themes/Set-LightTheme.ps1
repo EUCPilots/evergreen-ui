@@ -42,6 +42,54 @@ function Set-LightTheme {
         )
     }
 
+    $setDwmTitleBarColor = {
+        param(
+            [System.Windows.Window]$ThemeWindow,
+            [int]$CaptionColorRef,
+            [bool]$UseDarkMode
+        )
+
+        if (-not ('EvergreenUI.DwmHelper' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace EvergreenUI {
+    public static class DwmHelper {
+        [DllImport("dwmapi.dll")]
+        public static extern int DwmSetWindowAttribute(
+            IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        public const int DWMWA_CAPTION_COLOR           = 35;
+    }
+}
+'@
+        }
+
+        try {
+            $hwnd = [System.Windows.Interop.WindowInteropHelper]::new($ThemeWindow).Handle
+            if ($hwnd -eq [System.IntPtr]::Zero) { return }
+
+            $darkInt = [int]$UseDarkMode
+            [EvergreenUI.DwmHelper]::DwmSetWindowAttribute(
+                $hwnd,
+                [EvergreenUI.DwmHelper]::DWMWA_USE_IMMERSIVE_DARK_MODE,
+                [ref]$darkInt,
+                4
+            ) | Out-Null
+
+            [EvergreenUI.DwmHelper]::DwmSetWindowAttribute(
+                $hwnd,
+                [EvergreenUI.DwmHelper]::DWMWA_CAPTION_COLOR,
+                [ref]$CaptionColorRef,
+                4
+            ) | Out-Null
+        }
+        catch {
+            Write-Verbose -Message "EvergreenUI: DWM title bar colouring failed: $($_.Exception.Message)"
+        }
+    }
+
     $res = $Window.Resources
 
     # Evergreen brand light palette - primary: #009485, dark: #01786c, light: #67b9c9
@@ -72,5 +120,5 @@ function Set-LightTheme {
 
     # Colour the native OS title bar to match AccentBrush #009485 (R=0 G=148 B=133)
     # COLORREF byte order is 0x00BBGGRR -> 0x00859400
-    Set-DwmTitleBarColor -Window $Window -CaptionColorRef 0x00859400 -UseDarkMode $false
+    & $setDwmTitleBarColor -ThemeWindow $Window -CaptionColorRef 0x00859400 -UseDarkMode $false
 }

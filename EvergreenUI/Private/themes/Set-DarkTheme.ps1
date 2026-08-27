@@ -41,6 +41,54 @@ function Set-DarkTheme {
         )
     }
 
+    $setDwmTitleBarColor = {
+        param(
+            [System.Windows.Window]$ThemeWindow,
+            [int]$CaptionColorRef,
+            [bool]$UseDarkMode
+        )
+
+        if (-not ('EvergreenUI.DwmHelper' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace EvergreenUI {
+    public static class DwmHelper {
+        [DllImport("dwmapi.dll")]
+        public static extern int DwmSetWindowAttribute(
+            IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        public const int DWMWA_CAPTION_COLOR           = 35;
+    }
+}
+'@
+        }
+
+        try {
+            $hwnd = [System.Windows.Interop.WindowInteropHelper]::new($ThemeWindow).Handle
+            if ($hwnd -eq [System.IntPtr]::Zero) { return }
+
+            $darkInt = [int]$UseDarkMode
+            [EvergreenUI.DwmHelper]::DwmSetWindowAttribute(
+                $hwnd,
+                [EvergreenUI.DwmHelper]::DWMWA_USE_IMMERSIVE_DARK_MODE,
+                [ref]$darkInt,
+                4
+            ) | Out-Null
+
+            [EvergreenUI.DwmHelper]::DwmSetWindowAttribute(
+                $hwnd,
+                [EvergreenUI.DwmHelper]::DWMWA_CAPTION_COLOR,
+                [ref]$CaptionColorRef,
+                4
+            ) | Out-Null
+        }
+        catch {
+            Write-Verbose -Message "EvergreenUI: DWM title bar colouring failed: $($_.Exception.Message)"
+        }
+    }
+
     $res = $Window.Resources
 
     # Windows 11 dark background standard (#202020)
@@ -71,5 +119,5 @@ function Set-DarkTheme {
 
     # Colour the native OS title bar to match AccentBrush #4DB8AD (R=77 G=184 B=173)
     # COLORREF byte order is 0x00BBGGRR -> 0x00ADB84D
-    Set-DwmTitleBarColor -Window $Window -CaptionColorRef 0x00ADB84D -UseDarkMode $true
+    & $setDwmTitleBarColor -ThemeWindow $Window -CaptionColorRef 0x00ADB84D -UseDarkMode $true
 }
