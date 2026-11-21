@@ -14,6 +14,8 @@ V2 definition workflows use `Get-EwDefinition`, `Resolve-EwArtifact`, and `Updat
 
 `New-EwPackage` builds Intune Win32 packages from App.json definitions or creates Microsoft 365 Apps packages for Intune or Nerdio from ODT XML. Intune package building uses the optional `IntuneWin32App` module. `Connect-EwIntune` and `Connect-EwNerdio` establish provider sessions; publishing commands require their corresponding Microsoft Graph or Azure modules and live provider access. Authentication tokens and secrets are kept in process memory, not settings.
 
+Additional headless commands cover the remaining v1 workflows: `Add-EwFavouriteApp` and `Remove-EwFavouriteApp`; `Get-EwDependency` and `Update-EwEvergreen`; `Get-EwM365Configuration`; `Get-EwIntuneApp` and `Compare-EwIntuneApp`; `Connect-EwAzure`, `Disconnect-EwAzure`, and the `Get-EwAzure*` resource listing commands; and `Get-EwNerdioDefinition`, `Get-EwNerdioShellApp`, `Get-EwNerdioShellAppVersion`, `Compare-EwNerdioShellApp`, and `Remove-EwNerdioShellAppVersion`. `Publish-EwNerdioApp -ShellAppId` adds a version to an existing Shell App.
+
 ```powershell
 Import-Module .\EvergreenUI\EvergreenUI.psd1
 $artifacts = Get-EwApp -Name MicrosoftEdge

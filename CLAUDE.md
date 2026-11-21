@@ -58,9 +58,15 @@ Start-EvergreenWorkbench
 | Local install | `Test-EwDetection`, `Install-EwPackage` | Evaluates File, Registry, and MSI rules; installation supports `ShouldProcess`. |
 | Packages | `New-EwPackage` | Builds Intune Win32 or Microsoft 365 Intune/Nerdio packages. Intune packaging requires optional `IntuneWin32App`. |
 | Authentication | `Connect-EwIntune`, `Disconnect-EwIntune`, `Connect-EwNerdio`, `Disconnect-EwNerdio` | Loads Graph and Azure modules only for the requested provider. |
-| Publishing | `Publish-EwIntuneApp`, `Publish-EwNerdioApp`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio and supports Intune supersedence. |
+| Publishing | `Publish-EwIntuneApp`, `Publish-EwNerdioApp`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio and supports Intune supersedence. `Publish-EwNerdioApp -ShellAppId` adds a version to an existing Shell App. |
+| Favourites | `Add-EwFavouriteApp`, `Remove-EwFavouriteApp` | Stores favourites in settings; `Get-EwApp` lists favourites first. |
+| Dependencies | `Get-EwDependency`, `Update-EwEvergreen` | Reports required and optional module status; refreshes Evergreen manifests and caches. |
+| Microsoft 365 | `Get-EwM365Configuration` | Discovers ODT XML configurations with channel, products, and architecture. |
+| Intune compare | `Get-EwIntuneApp`, `Compare-EwIntuneApp` | Lists Win32 apps via Graph and compares them with App.json definitions. |
+| Azure discovery | `Connect-EwAzure`, `Disconnect-EwAzure`, `Get-EwAzureResourceGroup`, `Get-EwAzureStorageAccount`, `Get-EwAzureStorageContainer` | Lists resources for Nerdio storage configuration. |
+| Nerdio | `Get-EwNerdioDefinition`, `Get-EwNerdioShellApp`, `Get-EwNerdioShellAppVersion`, `Compare-EwNerdioShellApp`, `Remove-EwNerdioShellAppVersion` | Reads Definition.json files, lists and compares Shell Apps, and prunes old versions. Compare supports Evergreen sources only. |
 
-`Evergreen` is required. `IntuneWin32App`, `Microsoft.Graph.Authentication`, `Az.Accounts`, and `Az.Storage` are optional provider dependencies.
+`Evergreen` is required. `IntuneWin32App`, `Microsoft.Graph.Authentication`, `Az.Accounts`, `Az.Resources`, and `Az.Storage` are optional provider dependencies.
 
 ## Architecture
 

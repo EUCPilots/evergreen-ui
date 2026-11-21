@@ -7,6 +7,8 @@
 - Add App.json discovery, constrained filter evaluation, artifact resolution and definition updates, local detection and installation, and Intune/Microsoft 365 package building.
 - Add Intune and Nerdio authentication and publishing APIs, including Intune supersedence and Nerdio Shell App uploads.
 - Keep `IntuneWin32App`, Microsoft Graph Authentication, and Az modules optional; require them only for the matching package or provider workflow.
+- Add headless parity commands: favourite apps, dependency status and Evergreen updates, Microsoft 365 configuration discovery, Intune app listing and comparison, Azure resource discovery, and Nerdio definition, Shell App, comparison, and version cleanup commands.
+- `Publish-EwNerdioApp` can now add a version to an existing Shell App and download the package from the definition source when `-PackagePath` is omitted.
 
 ## [1.1.27]
 
