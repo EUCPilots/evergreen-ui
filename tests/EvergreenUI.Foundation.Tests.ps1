@@ -28,6 +28,15 @@ Describe 'EvergreenUI v2 foundation' {
         Get-Command -Name Get-EwSetting -Module EvergreenUI | Should -Not -BeNullOrEmpty
         Get-Command -Name Set-EwSetting -Module EvergreenUI | Should -Not -BeNullOrEmpty
         Get-Command -Name Reset-EwSetting -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Get-EwApp -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Get-EwFilterableProperty -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Save-EwArtifact -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Get-EwLibrary -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Update-EwLibrary -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Start-EwJob -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Get-EwJob -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Stop-EwJob -Module EvergreenUI | Should -Not -BeNullOrEmpty
+        Get-Command -Name Remove-EwJob -Module EvergreenUI | Should -Not -BeNullOrEmpty
     }
 
     It 'uses fresh defaults without reading v1 settings or writing a file' {
