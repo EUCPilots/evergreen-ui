@@ -2,6 +2,64 @@
 
 BeforeAll {
     Import-Module (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1') -Force
+
+    # Captures the window into memory and samples a blank caption pixel and a blank form pixel.
+    $getCaptionSample = {
+        param([System.Windows.Window]$Window)
+        Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+        if (-not ('EvergreenUI.ThemeProbe' -as [type])) {
+            Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+namespace EvergreenUI {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct WindowRectangle {
+        public int Left, Top, Right, Bottom;
+    }
+    public static class ThemeProbe {
+        [DllImport("user32.dll")]
+        public static extern bool GetWindowRect(IntPtr hwnd, out WindowRectangle rectangle);
+        [DllImport("user32.dll")]
+        public static extern bool PrintWindow(IntPtr hwnd, IntPtr deviceContext, uint flags);
+        [DllImport("dwmapi.dll")]
+        public static extern int DwmFlush();
+    }
+}
+"@ -ErrorAction Stop
+        }
+        $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        $handle = [System.Windows.Interop.WindowInteropHelper]::new($Window).Handle
+        $rectangle = [EvergreenUI.WindowRectangle]::new()
+        if (-not [EvergreenUI.ThemeProbe]::GetWindowRect($handle, [ref]$rectangle)) { throw 'GetWindowRect failed.' }
+        $bitmap = [System.Drawing.Bitmap]::new($rectangle.Right - $rectangle.Left, $rectangle.Bottom - $rectangle.Top)
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        try {
+            $scale = [System.Windows.Media.VisualTreeHelper]::GetDpi($Window).DpiScaleX
+            # Native colour transitions are asynchronous, so poll briefly for a settled frame.
+            $deadline = [DateTime]::UtcNow.AddSeconds(2)
+            do {
+                $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $null = [EvergreenUI.ThemeProbe]::DwmFlush()
+                $deviceContext = $graphics.GetHdc()
+                try {
+                    if (-not [EvergreenUI.ThemeProbe]::PrintWindow($handle, $deviceContext, 2)) { throw 'PrintWindow failed.' }
+                }
+                finally {
+                    $graphics.ReleaseHdc($deviceContext)
+                }
+                $caption = $bitmap.GetPixel([int]($bitmap.Width - 170 * $scale), [int](20 * $scale))
+                $form = $bitmap.GetPixel([int]($bitmap.Width - 20 * $scale), [int](150 * $scale))
+                if ($caption.ToArgb() -eq $form.ToArgb()) { break }
+                Start-Sleep -Milliseconds 20
+            }
+            while ([DateTime]::UtcNow -lt $deadline)
+            [PSCustomObject]@{ Caption = $caption; Form = $form }
+        }
+        finally {
+            $graphics.Dispose()
+            $bitmap.Dispose()
+        }
+    }
 }
 
 AfterAll {
@@ -91,6 +149,80 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'uses the theme foreground for unselected sidebar items across light and dark modes' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Show()
+                foreach ($mode in 'Light', 'Dark', 'Light') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    foreach ($name in 'NavDownload', 'NavLibrary', 'NavPackages', 'NavPublish', 'NavInstall') {
+                        $window.FindName($name).Foreground.Color |
+                            Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
+                    }
+                    $window.FindName('NavApps').Foreground.Color |
+                        Should -Be ([System.Windows.Media.Colors]::White)
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'matches the native caption to the form when the window first loads' {
+        if ([Environment]::OSVersion.Version.Build -lt 22000) {
+            Set-ItResult -Skipped -Because 'Native caption colour overrides require Windows 11.'
+            return
+        }
+        InModuleScope EvergreenUI -Parameters @{ Sample = $getCaptionSample } {
+            param($Sample)
+            # Light exposes a missed override because the native light caption differs from the form.
+            $window = Get-EwWorkbenchWindow
+            $window.ThemeMode = [System.Windows.ThemeMode]::Light
+            try {
+                $window.Show()
+                $result = & $Sample -Window $window
+                $result.Caption.ToArgb() | Should -Be $result.Form.ToArgb() -Because 'the caption should match the form on load'
+                $color = $window.TryFindResource('ApplicationBackgroundBrush').Color
+                $result.Form.R | Should -Be $color.R
+                $result.Form.G | Should -Be $color.G
+                $result.Form.B | Should -Be $color.B
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'matches the native caption to the form across light and dark theme changes' {
+        if ([Environment]::OSVersion.Version.Build -lt 22000) {
+            Set-ItResult -Skipped -Because 'Native caption colour overrides require Windows 11.'
+            return
+        }
+        InModuleScope EvergreenUI -Parameters @{ Sample = $getCaptionSample } {
+            param($Sample)
+            $window = Get-EwWorkbenchWindow
+            $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+            Mock Set-EwSetting {}
+            try {
+                $window.Show()
+                foreach ($mode in 'Light', 'Dark', 'Light', 'System') {
+                    $state.ThemeCombo.SelectedItem = $mode
+                    $result = & $Sample -Window $window
+                    $result.Caption.ToArgb() | Should -Be $result.Form.ToArgb() -Because "the $mode caption should match the form"
+                    $color = $window.TryFindResource('ApplicationBackgroundBrush').Color
+                    $result.Form.R | Should -Be $color.R
+                    $result.Form.G | Should -Be $color.G
+                    $result.Form.B | Should -Be $color.B
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
     It 'starts loading package definitions through the shared job API' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
