@@ -4,9 +4,23 @@ A WPF-based graphical frontend for the [Evergreen](https://eucpilots.com/evergre
 
 Evergreen Workbench ships as a separate PowerShell module so it never modifies the core Evergreen module. It targets Windows only, requires no external DLLs, and supports both **PowerShell 5.1** (Desktop) and **PowerShell 7+**.
 
-The features and requirements below describe v1, available as the reference implementation in `EvergreenUI-v1\`. The in-progress v2 module in `EvergreenUI\` requires PowerShell 7.6 or later and currently provides headless settings and job commands; its WPF UI is not yet implemented.
+The features and requirements below describe v1, available as the reference implementation in `EvergreenUI-v1\`. The in-progress v2 module in `EvergreenUI\` requires PowerShell 7.6 or later and provides headless settings, job, Apps, download, and Library commands; its WPF UI is not yet implemented.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
+
+V2 app workflows use `Get-EwApp` to list the Evergreen catalog or resolve an application's artifacts. `Get-EwFilterableProperty` describes available filters, and `Save-EwArtifact` downloads a resolved artifact. `Get-EwLibrary` reads a local library inventory; `Update-EwLibrary` refreshes an initialized library. Evergreen calls are isolated behind private functions for Pester mocking.
+
+```powershell
+Import-Module .\EvergreenUI\EvergreenUI.psd1
+$artifacts = Get-EwApp -Name MicrosoftEdge
+Get-EwFilterableProperty -Artifact $artifacts
+$artifacts |
+    Where-Object Architecture -eq 'x64' |
+    Select-Object -First 1 |
+    Save-EwArtifact -AppName MicrosoftEdge
+Get-EwLibrary
+Update-EwLibrary -WhatIf
+```
 
 ## Features
 

@@ -7,13 +7,16 @@ See `CLAUDE.md` for the full function table, settings keys and control naming sc
 ## Commands
 
 ```powershell
-# v2 foundation and job tests (Pester 5)
-Invoke-Pester -Path .\tests\EvergreenUI.Foundation.Tests.ps1, .\tests\EvergreenUI.Jobs.Tests.ps1 -Output Detailed
+# v2 test suites (Pester 5)
+Invoke-Pester -Path .\tests\EvergreenUI.Foundation.Tests.ps1, .\tests\EvergreenUI.Jobs.Tests.ps1, .\tests\EvergreenUI.AppsLibrary.Tests.ps1 -Output Detailed
 
 # v1 reference tests (Pester 5)
 Invoke-Pester -Path .\tests\EvergreenUI.tests.ps1 -Output Detailed
 
-# Single Describe/test by name
+# Single v2 Describe/test by name
+Invoke-Pester -Path .\tests\EvergreenUI.AppsLibrary.Tests.ps1 -Output Detailed -FullNameFilter '*application catalog*'
+
+# Single v1 Describe/test by name
 Invoke-Pester -Path .\tests\EvergreenUI.tests.ps1 -Output Detailed -FullNameFilter '*Get-UIConfig*'
 
 # Lint (default PSScriptAnalyzer ruleset must pass)
@@ -26,7 +29,7 @@ Start-EvergreenWorkbench
 
 ## Architecture
 
-- v2 loads feature-grouped private and public scripts recursively, with private scripts first. Its settings commands use `%APPDATA%\EvergreenWorkbench\settings.json` without migrating v1 settings. `Start-EwJob` uses a bounded runspace pool; `Get-EwJob` exposes progress, information and state-change events. Remove completed jobs with `Remove-EwJob`. The v2 UI is not yet implemented.
+- v2 loads feature-grouped private and public scripts recursively, with private scripts first. Its settings commands use `%APPDATA%\EvergreenWorkbench\settings.json` without migrating v1 settings. `Get-EwApp` lists the catalog or resolves artifacts; `Get-EwFilterableProperty` derives filter metadata; `Save-EwArtifact` downloads an artifact. `Get-EwLibrary` reads inventory and `Update-EwLibrary` refreshes it. Keep Evergreen calls behind the private wrapper functions so tests can mock them. `Start-EwJob` uses a bounded runspace pool; `Get-EwJob` exposes progress, information and state-change events. Remove completed jobs with `Remove-EwJob`. The v2 UI is not yet implemented.
 - `EvergreenUI.psm1` dot-sources `Private\themes\*.ps1` first, then `Private\*.ps1`, then `Public\`. The only exported function is `Start-EvergreenWorkbench` (listed in `FunctionsToExport` in the manifest). New helpers go in `Private\`, one function per file named after the function (exception: `Invoke-AzureSignIn.ps1` holds all seven Azure/Nerdio auth helpers).
 - The whole UI is one XAML file, `Resources\EvergreenUI.xaml`. `Start-EvergreenWorkbench` loads it, binds named controls and wires event handlers. Navigation is RadioButtons (`Nav{View}`) toggling `{View}Panel` content, not a TabControl. Import is a nested TabControl (`ImportProviderTabControl`).
 - WPF needs STA. Long-running work (downloads, library updates, Intune/Nerdio/M365 builds and imports) runs in background STA runspaces created by `New-WpfRunspace`. Runspaces talk to the UI only through the shared `$syncHash` and `Dispatcher.Invoke`. Never touch controls directly from a runspace.

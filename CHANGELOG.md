@@ -2,7 +2,7 @@
 
 ## [2.0.0-preview]
 
-- Begin the PowerShell 7.6 v2 rewrite with headless settings and bounded background jobs.
+- Begin the PowerShell 7.6 v2 rewrite with headless settings, bounded background jobs, Apps, downloads, and Library commands.
 - Keep v2 settings separate from v1 and load optional integration modules only when required.
 
 ## [1.1.27]
