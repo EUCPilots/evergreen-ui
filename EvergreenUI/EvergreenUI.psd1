@@ -16,7 +16,12 @@
     RootModule        = 'EvergreenUI.psm1'
 
     # Export only implemented commands
-    FunctionsToExport = @('Get-EwSetting', 'Set-EwSetting', 'Reset-EwSetting', 'Start-EwJob', 'Get-EwJob', 'Stop-EwJob', 'Remove-EwJob')
+    FunctionsToExport = @(
+        'Get-EwSetting', 'Set-EwSetting', 'Reset-EwSetting',
+        'Start-EwJob', 'Get-EwJob', 'Stop-EwJob', 'Remove-EwJob',
+        'Get-EwApp', 'Get-EwFilterableProperty', 'Save-EwArtifact',
+        'Get-EwLibrary', 'Update-EwLibrary'
+    )
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()

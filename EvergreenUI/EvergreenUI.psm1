@@ -22,6 +22,10 @@ foreach ($directory in @('Private', 'Public')) {
     }
 
     $script:ewJobs = @{}
+    $script:ewAppCatalogCache = @{
+        RetrievedAt = $null
+        Items = @()
+    }
     $script:ewRunspacePool = $null
     $script:ewModulePath = Join-Path -Path $PSScriptRoot -ChildPath 'EvergreenUI.psd1'
 
