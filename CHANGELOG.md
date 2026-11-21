@@ -14,6 +14,7 @@
 - Restore metadata-driven artifact filters, show Library version details and queued architecture/URI, and improve path-row sizing and theme contrast.
 - Add the Intune Publish view with connection, comparison, confirmed sequential build-and-publish batches, optional update apps, and supersedence retry.
 - Preserve partial Intune app IDs and Definition update failures, and distinguish linked supersedence chains from ambiguous Intune matches.
+- Match the v2 title bar to the form background on Windows 11 and correct sidebar text and hover colours in light and dark modes.
 
 ## [1.1.27]
 
