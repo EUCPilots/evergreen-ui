@@ -36,6 +36,7 @@ jobs:
         shell: pwsh
         run: |
           Import-Module -Name Pester -RequiredVersion '5.7.1' -Force
+          Import-Module -Name Microsoft.Graph.Authentication, Evergreen -Force
           $config = New-PesterConfiguration
           $config.Run.Path = '.\tests'
           $config.Run.PassThru = $true
