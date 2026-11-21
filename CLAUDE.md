@@ -200,3 +200,17 @@ Releases are automated via two GitHub Actions workflows:
 2. **publish-psgallery.yml** - Triggered by tag creation; publishes to PowerShell Gallery using `$env:NUGET_API_KEY`
 
 Version format is `Major.Minor.Patch` (e.g., `1.0.9`). Bump the version in `EvergreenUI.psd1` (`ModuleVersion`) to trigger a release.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for EUCPilots/evergreen-ui (`gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
