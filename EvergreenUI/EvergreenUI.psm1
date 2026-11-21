@@ -12,6 +12,7 @@
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:ewNerdioContext = $null
 
 foreach ($directory in @('Private', 'Public')) {
     $path = Join-Path -Path $PSScriptRoot -ChildPath $directory

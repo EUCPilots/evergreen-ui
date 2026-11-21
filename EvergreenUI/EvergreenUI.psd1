@@ -20,7 +20,11 @@
         'Get-EwSetting', 'Set-EwSetting', 'Reset-EwSetting',
         'Start-EwJob', 'Get-EwJob', 'Stop-EwJob', 'Remove-EwJob',
         'Get-EwApp', 'Get-EwFilterableProperty', 'Save-EwArtifact',
-        'Get-EwLibrary', 'Update-EwLibrary'
+        'Get-EwLibrary', 'Update-EwLibrary',
+        'Get-EwDefinition', 'Resolve-EwArtifact', 'Update-EwDefinition',
+        'Test-EwDetection', 'Install-EwPackage', 'New-EwPackage',
+        'Connect-EwIntune', 'Disconnect-EwIntune', 'Connect-EwNerdio', 'Disconnect-EwNerdio',
+        'Publish-EwIntuneApp', 'Publish-EwNerdioApp', 'Set-EwIntuneSupersedence'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()
