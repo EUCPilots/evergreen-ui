@@ -20,8 +20,8 @@ function Compare-EwIntuneApp {
     .NOTES
         MatchStatus values: Matched (current), Matched (update required),
         Matched (needs review), No matching Win32 app, No local definition,
-        Duplicate definition GUID, Invalid notes JSON, Missing GUID in notes,
-        Update app (managed), or the definition validation status.
+        Duplicate definition GUID, Duplicate Intune app GUID, Invalid notes JSON, Missing GUID in notes,
+        Update app (managed), Superseded app (managed), or the definition validation status.
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
@@ -51,6 +51,63 @@ function Compare-EwIntuneApp {
             $lookup[$key] = [System.Collections.Generic.List[object]]::new()
         }
         $lookup[$key].Add($definition)
+    }
+    $groups = @{}
+    foreach ($app in @($IntuneApp)) {
+        if ($null -eq $app -or [bool]$app.IsUpdateApp -or [string]$app.NotesValid -ne 'Yes') {
+            continue
+        }
+        $key = ([string]$app.NotesGuid).Trim().ToLowerInvariant()
+        if (-not [string]::IsNullOrWhiteSpace($key)) {
+            if (-not $groups.ContainsKey($key)) { $groups[$key] = [System.Collections.Generic.List[object]]::new() }
+            $groups[$key].Add($app)
+        }
+    }
+    $supersededIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($group in $groups.Values) {
+        if ($group.Count -lt 2) { continue }
+        $byId = @{}
+        $targets = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $edges = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($app in $group) { $byId[[string]$app.IntuneAppId] = $app }
+        foreach ($app in $group) {
+            $property = $app.PSObject.Properties['SupersededAppIds']
+            if ($null -eq $property) { continue }
+            foreach ($target in @($property.Value)) {
+                if ($byId.ContainsKey([string]$target)) {
+                    $null = $targets.Add([string]$target)
+                    $null = $edges.Add("$($app.IntuneAppId)|$target")
+                }
+            }
+        }
+        $roots = @($group | Where-Object { -not $targets.Contains([string]$_.IntuneAppId) })
+        if ($roots.Count -ne 1 -or $edges.Count -ne ($group.Count - 1)) { continue }
+        $visited = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $pending = [System.Collections.Generic.Stack[string]]::new()
+        $pending.Push([string]$roots[0].IntuneAppId)
+        while ($pending.Count -gt 0) {
+            $id = $pending.Pop()
+            if (-not $visited.Add($id)) { continue }
+            $property = $byId[$id].PSObject.Properties['SupersededAppIds']
+            if ($null -ne $property) {
+                foreach ($target in @($property.Value)) {
+                    if ($byId.ContainsKey([string]$target)) { $pending.Push([string]$target) }
+                }
+            }
+        }
+        if ($visited.Count -eq $group.Count) {
+            foreach ($app in $group) {
+                if ([string]$app.IntuneAppId -ne [string]$roots[0].IntuneAppId) {
+                    $null = $supersededIds.Add([string]$app.IntuneAppId)
+                }
+            }
+        }
+    }
+    $appCounts = @{}
+    foreach ($key in $groups.Keys) {
+        $appCounts[$key] = @($groups[$key] | Where-Object {
+                -not $supersededIds.Contains([string]$_.IntuneAppId)
+            }).Count
     }
 
     $architectureOf = {
@@ -90,6 +147,10 @@ function Compare-EwIntuneApp {
             $rows.Add((& $newRow -RowType 'Intune' -App $app -Status 'Update app (managed)'))
             continue
         }
+        if ($supersededIds.Contains([string]$app.IntuneAppId)) {
+            $rows.Add((& $newRow -RowType 'Intune' -App $app -Status 'Superseded app (managed)'))
+            continue
+        }
         if ([string]$app.NotesValid -ne 'Yes') {
             $rows.Add((& $newRow -RowType 'Intune' -App $app -Status 'Invalid notes JSON'))
             continue
@@ -110,6 +171,10 @@ function Compare-EwIntuneApp {
 
         $definition = $candidates[0]
         $null = $matchedPaths.Add([string]$definition.DefinitionPath)
+        if ($appCounts[$key] -gt 1) {
+            $rows.Add((& $newRow -RowType 'Matched' -App $app -Definition $definition -Status 'Duplicate Intune app GUID' -Action 'Review Intune apps'))
+            continue
+        }
         $intuneVersion = ConvertTo-EwComparableVersion -Version ([string]$app.DisplayVersion)
         $definitionVersion = ConvertTo-EwComparableVersion -Version ([string]$definition.Version)
         if (-not $intuneVersion.Success -or -not $definitionVersion.Success) {

@@ -87,12 +87,14 @@ function Invoke-EwIntuneGraphWin32Import {
         [System.Collections.Hashtable]$SyncHash
     )
 
+    $appId = ''
+    $displayName = ''
     $fail = {
         param([string]$Msg)
         return [PSCustomObject]@{
             Succeeded   = $false
-            IntuneAppId = ''
-            DisplayName = ''
+            IntuneAppId = $appId
+            DisplayName = $displayName
             Error       = $Msg
         }
     }
@@ -131,6 +133,7 @@ function Invoke-EwIntuneGraphWin32Import {
     $zipEntry_detection = $null
 
     try {
+    try {
         $zip = [System.IO.Compression.ZipFile]::OpenRead($IntuneWinPath)
         try {
             foreach ($entry in $zip.Entries) {
@@ -164,8 +167,8 @@ function Invoke-EwIntuneGraphWin32Import {
 
             # Extract the encrypted inner package to a temp file
             $tempUploadFile  = Join-Path -Path $env:TEMP -ChildPath "IntuneUpload_$([System.Guid]::NewGuid().ToString('N')).intunewin"
-            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($zipEntry_package, $tempUploadFile, $true)
             $encryptedFilePath = $tempUploadFile
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($zipEntry_package, $tempUploadFile, $true)
             $encryptedSize = ([System.IO.FileInfo]::new($encryptedFilePath)).Length
         }
         finally {
@@ -486,9 +489,12 @@ function Invoke-EwIntuneGraphWin32Import {
                 'Registry' {
                     $detType = switch ([string]$rule.DetectionMethod) {
                         'Version'   { 'version' }
+                        'VersionComparison' { 'version' }
                         'Existence' { 'exists' }
                         'String'    { 'string' }
+                        'StringComparison' { 'string' }
                         'Integer'   { 'integer' }
+                        'IntegerComparison' { 'integer' }
                         'Boolean'   { 'boolean' }
                         default     { 'string' }
                     }
@@ -501,7 +507,15 @@ function Invoke-EwIntuneGraphWin32Import {
                     }
                     if ($detType -ne 'exists') {
                         $graphRule['operator']       = [string]$rule.Operator
-                        $graphRule['detectionValue'] = [string]$rule.DetectionValue
+                        if ($rule.PSObject.Properties.Name -contains 'DetectionValue') {
+                            $graphRule['detectionValue'] = [string]$rule.DetectionValue
+                        }
+                        elseif ($rule.PSObject.Properties.Name -contains 'Value') {
+                            $graphRule['detectionValue'] = [string]$rule.Value
+                        }
+                        else {
+                            return (& $fail 'Registry detection rule is missing its comparison value.')
+                        }
                     }
                     $detectionRules += $graphRule
                 }
@@ -705,15 +719,16 @@ function Invoke-EwIntuneGraphWin32Import {
         }
 
         Write-UILog -Message ("Graph create-app request payload: {0}" -f $appBodyJson) -Level Cmd -SyncHash $SyncHash
-        return (& $fail "Failed to create Win32 app: $errorMessage")
+        return (& $fail "Failed to create Win32 app: $errorMessage. The request outcome may be unknown; check Intune before retrying.")
     }
 
     $appId = [string]$appResponse.id
     if ([string]::IsNullOrWhiteSpace($appId)) {
-        return (& $fail 'App creation response did not contain an ID.')
+        return (& $fail 'App creation response did not contain an ID. Check Intune before retrying.')
     }
     Write-UILog -Message "Win32 app created: id=$appId" -Level Info -SyncHash $SyncHash
 
+    try {
     $baseAppUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId/microsoft.graph.win32LobApp"
 
     # -- Step 2: Create a content version -------------------------------------
@@ -843,14 +858,6 @@ function Invoke-EwIntuneGraphWin32Import {
     catch {
         return (& $fail "Azure Blob upload failed: $($_.Exception.Message)")
     }
-    finally {
-        # Clean up temp file regardless of success/failure
-        if (-not [string]::IsNullOrWhiteSpace($encryptedFilePath) -and
-            (Test-Path -LiteralPath $encryptedFilePath)) {
-            Remove-Item -LiteralPath $encryptedFilePath -Force -ErrorAction SilentlyContinue
-        }
-    }
-
     # -- Step 5: Commit the file ------------------------------------------------
     Write-UILog -Message 'Committing file to Intune...' -Level Info -SyncHash $SyncHash
     $commitBody = [ordered]@{
@@ -940,27 +947,31 @@ function Invoke-EwIntuneGraphWin32Import {
         foreach ($assignment in $effectiveAssignments) {
             $assignmentType = [string]$assignment.Type
             $intent = [string]$assignment.Intent
-            $notification = [string]$assignment.Notification
+            $notification = [string](Get-EwObjectPropertyValue -Object $assignment -Name Notification -Default '')
             if ([string]::IsNullOrWhiteSpace($notification)) {
                 $notification = 'showAll'
             }
+            $deliveryPriority = [string](Get-EwObjectPropertyValue -Object $assignment -Name DeliveryOptimizationPriority -Default '')
+            if ([string]::IsNullOrWhiteSpace($deliveryPriority)) { $deliveryPriority = 'notConfigured' }
 
             $settingsBody = [ordered]@{
                 '@odata.type' = '#microsoft.graph.win32LobAppAssignmentSettings'
                 'notifications' = $notification
-                'deliveryOptimizationPriority' = if ([string]::IsNullOrWhiteSpace([string]$assignment.DeliveryOptimizationPriority)) { 'notConfigured' } else { [string]$assignment.DeliveryOptimizationPriority }
+                'deliveryOptimizationPriority' = $deliveryPriority
                 'restartSettings' = $null
                 'installTimeSettings' = $null
             }
 
             if ($intent -ieq 'available') {
+                $autoUpdate = [string](Get-EwObjectPropertyValue -Object $assignment -Name AutoUpdateSupersededApps -Default '')
+                if ([string]::IsNullOrWhiteSpace($autoUpdate)) { $autoUpdate = 'notConfigured' }
                 $settingsBody['autoUpdateSettings'] = @{
-                    'autoUpdateSupersededAppsState' = if ([string]::IsNullOrWhiteSpace([string]$assignment.AutoUpdateSupersededApps)) { 'notConfigured' } else { [string]$assignment.AutoUpdateSupersededApps }
+                    'autoUpdateSupersededAppsState' = $autoUpdate
                 }
             }
 
             if ($assignment.PSObject.Properties.Name -contains 'AvailableTime' -or $assignment.PSObject.Properties.Name -contains 'DeadlineTime') {
-                $useLocalTime = ([string]$assignment.UseLocalTime -ieq 'true')
+                $useLocalTime = ([string](Get-EwObjectPropertyValue -Object $assignment -Name UseLocalTime -Default '') -ieq 'true')
                 $installTimeSettings = [ordered]@{
                     'useLocalTime' = $useLocalTime
                     'startDateTime' = $null
@@ -977,7 +988,7 @@ function Invoke-EwIntuneGraphWin32Import {
                 $settingsBody['installTimeSettings'] = $installTimeSettings
             }
 
-            if ([string]$assignment.EnableRestartGracePeriod -ieq 'true') {
+            if ([string](Get-EwObjectPropertyValue -Object $assignment -Name EnableRestartGracePeriod -Default '') -ieq 'true') {
                 if ($deviceRestart -ieq 'basedOnReturnCode') {
                     $settingsBody['restartSettings'] = @{
                         'gracePeriodInMinutes' = if ($assignment.PSObject.Properties.Name -contains 'RestartGracePeriod' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.RestartGracePeriod)) { [int]$assignment.RestartGracePeriod } else { 1440 }
@@ -1044,6 +1055,22 @@ function Invoke-EwIntuneGraphWin32Import {
         IntuneAppId = $appId
         DisplayName = $displayName
         Error       = ''
+    }
+    }
+    catch {
+        return (& $fail "Intune app '$appId' was created, but publishing failed: $($_.Exception.Message)")
+    }
+    }
+    finally {
+        if (-not [string]::IsNullOrWhiteSpace($encryptedFilePath) -and
+            (Test-Path -LiteralPath $encryptedFilePath -PathType Leaf)) {
+            try {
+                Remove-Item -LiteralPath $encryptedFilePath -Force -ErrorAction Stop
+            }
+            catch {
+                Write-Verbose -Message "EvergreenUI: Could not remove temporary Intune upload file: $($_.Exception.Message)"
+            }
+        }
     }
 }
 

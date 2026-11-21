@@ -8,7 +8,8 @@
         MinWidth="960"
         MinHeight="660"
         WindowStartupLocation="CenterScreen"
-        ThemeMode="System">
+        ThemeMode="System"
+        Background="{DynamicResource ApplicationBackgroundBrush}">
     <Window.Resources>
         <SolidColorBrush x:Key="WorkbenchAccentBrush" Color="#008A82" />
         <Style x:Key="NavigationButtonStyle" TargetType="{x:Type RadioButton}">
@@ -17,6 +18,7 @@
             <Setter Property="Padding" Value="14,10" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Template">
@@ -33,7 +35,7 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="NavigationBorder"
                                         Property="Background"
-                                        Value="{DynamicResource {x:Static SystemColors.ControlBrushKey}}" />
+                                        Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="NavigationBorder"
@@ -89,6 +91,10 @@
                                  Style="{StaticResource NavigationButtonStyle}"
                                  Content="Packages"
                                  AutomationProperties.Name="Packages view" />
+                    <RadioButton x:Name="NavPublish"
+                                 Style="{StaticResource NavigationButtonStyle}"
+                                 Content="Publish"
+                                 AutomationProperties.Name="Publish view" />
                     <RadioButton x:Name="NavInstall"
                                  Style="{StaticResource NavigationButtonStyle}"
                                  Content="Install"
@@ -254,7 +260,7 @@
                                     <DataGridTextColumn Header="Channel" Binding="{Binding Channel}" Width="120" />
                                     <DataGridTextColumn Header="Language" Binding="{Binding Language}" Width="120" />
                                     <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="120" />
-                                    <DataGridTextColumn Header="Download URI" Binding="{Binding URI}" Width="*" />
+                                    <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="*" />
                                 </DataGrid.Columns>
                             </DataGrid>
                             <DockPanel Grid.Row="3" Margin="0,10,0,0">
@@ -311,7 +317,7 @@
                             <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" />
                             <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="110" />
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
-                            <DataGridTextColumn Header="Download URI" Binding="{Binding URI}" Width="3*" />
+                            <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="3*" />
                             <DataGridTextColumn Header="Saved file" Binding="{Binding SavedPath}" Width="3*" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -406,7 +412,7 @@
                             <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="120" />
                             <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="130" />
                             <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" />
-                            <DataGridTextColumn Header="Download URI" Binding="{Binding URI}" Width="*" />
+                            <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="*" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -503,6 +509,75 @@
                             </Grid>
                         </StackPanel>
                     </ScrollViewer>
+                </Grid>
+
+                <Grid x:Name="PublishPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <WrapPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock Text="Tenant ID (optional)" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox x:Name="IntuneTenantIdBox" Width="220" Height="32"
+                                 VerticalContentAlignment="Center" AutomationProperties.Name="Intune tenant ID" />
+                        <CheckBox x:Name="UseIntuneDeviceCodeToggle" Content="Device code"
+                                  VerticalAlignment="Center" Margin="12,0,0,0" />
+                        <Button x:Name="ConnectIntuneButton" Content="Connect" Margin="12,0,0,0" Padding="12,4" />
+                        <Button x:Name="DisconnectIntuneButton" Content="Disconnect" Margin="8,0,0,0" Padding="12,4" />
+                    </WrapPanel>
+                    <DockPanel Grid.Row="1" Margin="0,0,0,8">
+                        <TextBlock x:Name="IntuneConnectionStatusLabel" Text="Not connected"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <Button x:Name="CompareIntuneButton" DockPanel.Dock="Right" Content="Compare definitions"
+                                Padding="12,4" />
+                    </DockPanel>
+                    <DataGrid x:Name="IntuneComparisonListView" Grid.Row="2"
+                              AutoGenerateColumns="False" SelectionMode="Extended" SelectionUnit="FullRow"
+                              HeadersVisibility="Column" CanUserAddRows="False" EnableRowVirtualization="True"
+                              AutomationProperties.Name="Intune comparison">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Definition" Binding="{Binding DefinitionName}" Width="2*" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Saved" Binding="{Binding DefinitionVersion}" Width="90" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Intune" Binding="{Binding IntuneVersion}" Width="90" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding MatchStatus}" Width="2*" IsReadOnly="True" />
+                            <DataGridCheckBoxColumn Header="Update app" Binding="{Binding ImportAsUpdate, UpdateSourceTrigger=PropertyChanged}" Width="100" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <DockPanel Grid.Row="3" Margin="0,8">
+                        <TextBlock Text="Update app assigns to All Devices." VerticalAlignment="Center"
+                                   TextWrapping="Wrap" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button x:Name="CancelIntuneBatchButton" Content="Cancel batch" Margin="0,0,8,0"
+                                    Padding="12,4" IsEnabled="False" />
+                            <Button x:Name="PublishSelectedIntuneButton" Content="Build and publish selected"
+                                    Padding="12,4" IsEnabled="False" />
+                        </StackPanel>
+                    </DockPanel>
+                    <Grid Grid.Row="4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <DockPanel Margin="0,0,0,4">
+                            <TextBlock Text="Batch results" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Button x:Name="RetryIntuneSupersedenceButton" DockPanel.Dock="Right"
+                                    Content="Retry selected link" Padding="12,4" IsEnabled="False" />
+                        </DockPanel>
+                        <DataGrid x:Name="IntunePublishResultsListView" Grid.Row="1" AutoGenerateColumns="False"
+                                  IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
+                                  CanUserAddRows="False" AutomationProperties.Name="Intune publishing results">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Definition" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="Result" Binding="{Binding Status}" Width="*" />
+                                <DataGridTextColumn Header="New app ID" Binding="{Binding IntuneAppId}" Width="2*" />
+                                <DataGridTextColumn Header="Previous app ID" Binding="{Binding PreviousAppId}" Width="2*" />
+                                <DataGridTextColumn Header="Details" Binding="{Binding Error}" Width="3*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
                 </Grid>
 
                 <Grid x:Name="InstallPanel" Visibility="Collapsed">

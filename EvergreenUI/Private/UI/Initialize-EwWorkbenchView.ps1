@@ -38,10 +38,14 @@ function Initialize-EwWorkbenchView {
     $State.NavPackages.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Packages' }
     }.GetNewClosure())
+    $State.NavPublish.Add_Checked({
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Publish' }
+    }.GetNewClosure())
     $State.NavInstall.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Install' }
     }.GetNewClosure())
     Initialize-EwWorkbenchPackageView -State $State
+    Initialize-EwWorkbenchPublishView -State $State
     Initialize-EwWorkbenchInstallView -State $State
     $State.AppSearchBox.Add_TextChanged({
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchAppList' -Parameters @{ State = $State }
@@ -186,6 +190,7 @@ function Initialize-EwWorkbenchView {
                 'Dark' { [System.Windows.ThemeMode]::Dark }
                 default { [System.Windows.ThemeMode]::System }
             }
+            & $State.ModuleInvoker -Name 'Set-EwWorkbenchTitleBar' -Parameters @{ Window = $State.Window }
             & $State.ModuleInvoker -Name 'Set-EwSetting' -Parameters @{ Name = 'Theme'; Value = $themeName }
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{ State = $State; Message = "Theme set to $themeName." }
         }

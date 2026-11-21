@@ -50,6 +50,7 @@ function Invoke-EwWorkbenchJobMonitor {
 
     $kind = [string]$State.ActiveJobKind
     $output = @($job.Output)
+    $refreshIntune = $kind -in @('IntunePublish', 'IntuneRetry')
     if ($null -ne $job.TerminatingError) {
         if ($kind -eq 'Apps') {
             $State.AppsLoading = $false
@@ -222,6 +223,77 @@ function Invoke-EwWorkbenchJobMonitor {
                 $State.InstallDefinitionsListView.Items.Refresh()
                 $State.InstallActionStatusLabel.Text = 'Selected installation batch completed.'
             }
+            'IntuneConnect' {
+                $result = $output | Select-Object -Last 1
+                if ($null -ne $result -and $result.Succeeded) {
+                    $State.IntuneTenantId = [string]$result.TenantId
+                    $State.IntuneConnectionStatusLabel.Text = "Connected: $($result.AccountId) / $($result.TenantId)"
+                    Write-EwWorkbenchLog -State $State -Message "Connected to Intune tenant $($result.TenantId)."
+                }
+                else {
+                    $State.IntuneTenantId = ''
+                    $State.IntuneConnectionStatusLabel.Text = 'Not connected'
+                    $message = if ($null -ne $result) { [string]$result.Error } else { 'No connection result returned.' }
+                    Write-EwWorkbenchLog -State $State -Message "Intune sign-in failed: $message" -Level Error
+                }
+                $State.IntuneComparisonListView.ItemsSource = @()
+            }
+            'IntuneDisconnect' {
+                $result = $output | Select-Object -Last 1
+                if ($null -ne $result -and $result.Succeeded) {
+                    $State.IntuneTenantId = ''
+                    $State.IntuneConnectionStatusLabel.Text = 'Not connected'
+                    $State.IntuneComparisonListView.ItemsSource = @()
+                    Write-EwWorkbenchLog -State $State -Message 'Disconnected from Intune.'
+                }
+                else {
+                    $message = if ($null -ne $result) { [string]$result.Error } else { 'No disconnect result returned.' }
+                    Write-EwWorkbenchLog -State $State -Message "Intune disconnect failed: $message" -Level Error
+                }
+            }
+            'IntuneCompare' {
+                $result = $output | Select-Object -Last 1
+                if ($null -ne $result) {
+                    $State.IntuneComparisonRoot = [string]$result.DefinitionRoot
+                    $State.IntuneComparison = @($result.Items)
+                    $State.IntuneComparisonListView.ItemsSource = [object[]]$State.IntuneComparison
+                    Write-EwWorkbenchLog -State $State -Message "Compared $($State.IntuneComparison.Count) Intune and Definition rows."
+                }
+            }
+            'IntunePublish' {
+                foreach ($result in $output) {
+                    $result | Add-Member -NotePropertyName TenantId -NotePropertyValue ([string]$State.IntuneTenantId)
+                    $State.IntuneResults.Add($result)
+                    $level = if ($result.Succeeded) { 'Info' } elseif ($result.Status -eq 'Cancelled') { 'Warning' } else { 'Error' }
+                    $details = if ($result.Error) { ": $($result.Error)" } else { '' }
+                    Write-EwWorkbenchLog -State $State -Message "$($result.Name): $($result.Status)$details New app ID: $($result.IntuneAppId)" -Level $level
+                    if (@($result.ChangedPaths).Count -gt 0) {
+                        Write-EwWorkbenchLog -State $State -Message "Updated local files: $($result.ChangedPaths -join ', ')"
+                    }
+                }
+                if ($null -ne $State.IntuneCancellation -and $State.IntuneCancellation.IsCancellationRequested) {
+                    Write-EwWorkbenchLog -State $State -Message 'Intune batch stopped between Definitions.' -Level Warning
+                }
+            }
+            'IntuneRetry' {
+                $result = $output | Select-Object -Last 1
+                if ($null -ne $result -and $result.Succeeded) {
+                    $row = $State.IntuneResults | Where-Object {
+                        $_.IntuneAppId -eq $result.NewAppId -and $_.PreviousAppId -eq $result.PreviousAppId
+                    } | Select-Object -First 1
+                    if ($null -ne $row) {
+                        $row.Status = 'Published'
+                        $row.Succeeded = $true
+                        $row.Error = ''
+                        $State.IntunePublishResultsListView.Items.Refresh()
+                    }
+                    Write-EwWorkbenchLog -State $State -Message "Supersedence linked for $($result.NewAppId)."
+                }
+                else {
+                    $message = if ($null -ne $result) { [string]$result.Error } else { 'No retry result returned.' }
+                    Write-EwWorkbenchLog -State $State -Message "Supersedence retry failed: $message" -Level Error
+                }
+            }
         }
     }
     else {
@@ -239,5 +311,17 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     $State.ActiveJobId = $null
     $State.ActiveJobKind = ''
+    if ($kind -eq 'IntunePublish' -and $null -ne $State.IntuneCancellation) {
+        $State.IntuneCancellation.Dispose()
+        $State.IntuneCancellation = $null
+    }
     Invoke-EwWorkbenchBusyState -State $State -IsBusy $false
+    if ($refreshIntune -and -not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)) {
+        try {
+            Invoke-EwWorkbenchIntuneComparison -State $State
+        }
+        catch {
+            Write-EwWorkbenchLog -State $State -Message "Could not refresh the Intune comparison: $($_.Exception.Message)" -Level Error
+        }
+    }
 }

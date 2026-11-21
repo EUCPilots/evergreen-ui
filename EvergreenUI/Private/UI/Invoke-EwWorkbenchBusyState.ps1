@@ -32,7 +32,12 @@ function Invoke-EwWorkbenchBusyState {
             $State.SavePackageOutputPathButton,
             $State.ReloadInstallDefinitionsButton,
             $State.ResolveInstallVersionsButton,
-            $State.InstallSelectedPackagesButton
+            $State.InstallSelectedPackagesButton,
+            $State.ConnectIntuneButton,
+            $State.DisconnectIntuneButton,
+            $State.CompareIntuneButton,
+            $State.PublishSelectedIntuneButton,
+            $State.RetryIntuneSupersedenceButton
         )) {
         if ($null -ne $button) {
             $button.IsEnabled = -not $IsBusy
@@ -41,6 +46,10 @@ function Invoke-EwWorkbenchBusyState {
     $State.AppsListView.IsEnabled = -not $IsBusy
     $State.PackageDefinitionsListView.IsEnabled = -not $IsBusy
     $State.InstallDefinitionsListView.IsEnabled = -not $IsBusy
+    $State.IntuneComparisonListView.IsEnabled = -not $IsBusy
+    $State.IntuneTenantIdBox.IsEnabled = -not $IsBusy
+    $State.UseIntuneDeviceCodeToggle.IsEnabled = -not $IsBusy
+    $State.CancelIntuneBatchButton.IsEnabled = $IsBusy -and $State.ActiveJobKind -eq 'IntunePublish'
     $State.JobProgressBar.Visibility = if ($IsBusy) {
         [System.Windows.Visibility]::Visible
     }
@@ -60,5 +69,12 @@ function Invoke-EwWorkbenchBusyState {
         $selectedInstallDefinitions = @($State.InstallDefinitionsListView.SelectedItems |
             Where-Object DefinitionValid -eq 'Yes')
         $State.InstallSelectedPackagesButton.IsEnabled = $selectedInstallDefinitions.Count -gt 0
+        $connected = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)
+        $State.DisconnectIntuneButton.IsEnabled = $connected
+        $State.CompareIntuneButton.IsEnabled = $connected
+        $State.PublishSelectedIntuneButton.IsEnabled = $connected -and $State.IntuneComparisonListView.SelectedItems.Count -gt 0
+        $selectedResult = $State.IntunePublishResultsListView.SelectedItem
+        $State.RetryIntuneSupersedenceButton.IsEnabled = $connected -and $null -ne $selectedResult -and
+            $selectedResult.Status -eq 'Supersedence failed' -and $selectedResult.TenantId -eq $State.IntuneTenantId
     }
 }

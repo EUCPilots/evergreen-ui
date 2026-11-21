@@ -7,7 +7,7 @@ function Start-EvergreenWorkbench {
         Opens the Evergreen Workbench graphical interface.
     .DESCRIPTION
         Starts the v2 WPF interface for browsing Evergreen applications,
-        queuing downloads, and managing a local Evergreen library. Longer
+        queuing downloads, managing a library, and publishing to Intune. Longer
         operations run through the module's background job pool. On an
         MTA thread, the interface is hosted on a dedicated STA runspace.
     .EXAMPLE
@@ -95,6 +95,17 @@ function Start-EvergreenWorkbench {
     }.GetNewClosure())
     $window.Add_Closed({
         $timer.Stop()
+    }.GetNewClosure())
+    $window.Add_Closing({
+        param($eventSource, $closingArgs)
+        if ($eventSource -eq $state.Window -and $state.ActiveJobKind -in @('IntunePublish', 'IntuneRetry')) {
+            $closingArgs.Cancel = $true
+            & $state.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $state
+                Message = 'Wait for the current Intune write to finish before closing. A batch can be cancelled between Definitions.'
+                Level = 'Warning'
+            }
+        }
     }.GetNewClosure())
     Write-Verbose -Message 'EvergreenUI: Showing Workbench window'
     $null = $window.ShowDialog()

@@ -24,7 +24,7 @@
         'Get-EwDefinition', 'Resolve-EwArtifact', 'Update-EwDefinition',
         'Test-EwDetection', 'Install-EwPackage', 'New-EwPackage',
         'Connect-EwIntune', 'Disconnect-EwIntune', 'Connect-EwNerdio', 'Disconnect-EwNerdio',
-        'Publish-EwIntuneApp', 'Publish-EwNerdioApp', 'Set-EwIntuneSupersedence',
+        'Publish-EwIntuneApp', 'Publish-EwIntuneBatch', 'Publish-EwNerdioApp', 'Set-EwIntuneSupersedence',
         'Add-EwFavouriteApp', 'Remove-EwFavouriteApp',
         'Get-EwDependency', 'Update-EwEvergreen',
         'Get-EwM365Configuration',

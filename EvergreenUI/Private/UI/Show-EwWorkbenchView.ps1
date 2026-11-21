@@ -8,11 +8,11 @@ function Show-EwWorkbenchView {
         [System.Collections.IDictionary]$State,
 
         [Parameter(Mandatory)]
-        [ValidateSet('Apps', 'Download', 'Library', 'Packages', 'Install')]
+        [ValidateSet('Apps', 'Download', 'Library', 'Packages', 'Publish', 'Install')]
         [string]$View
     )
 
-    foreach ($name in @('Apps', 'Download', 'Library', 'Packages', 'Install')) {
+    foreach ($name in @('Apps', 'Download', 'Library', 'Packages', 'Publish', 'Install')) {
         $visibility = if ($name -eq $View) {
             [System.Windows.Visibility]::Visible
         }
@@ -27,6 +27,7 @@ function Show-EwWorkbenchView {
         'Download' { $State.SubtitleTextBlock.Text = 'Review and run queued artifact downloads' }
         'Library' { $State.SubtitleTextBlock.Text = 'Inspect and refresh a local Evergreen library' }
         'Packages' { $State.SubtitleTextBlock.Text = 'Configure and update Intune package definitions' }
+        'Publish' { $State.SubtitleTextBlock.Text = 'Compare and publish applications to Intune' }
         'Install' { $State.SubtitleTextBlock.Text = 'Check and install applications on this device' }
     }
 }

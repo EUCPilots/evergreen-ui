@@ -74,6 +74,32 @@ function Get-EwIntuneApp {
             NotesGuid = [string](& $property -Object $notes -Name 'Guid')
             NotesValid = $notesValid
             IsUpdateApp = ($null -ne $isUpdateApp -and [bool]$isUpdateApp)
+            SupersededAppIds = @()
+        }
+    }
+    $groups = @($rows | Where-Object {
+            $_.NotesValid -eq 'Yes' -and -not $_.IsUpdateApp -and
+            -not [string]::IsNullOrWhiteSpace($_.NotesGuid)
+        } | Group-Object -Property NotesGuid | Where-Object Count -gt 1)
+    foreach ($group in $groups) {
+        foreach ($app in $group.Group) {
+            $relationshipsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.IntuneAppId)/relationships"
+            $targets = [System.Collections.Generic.List[string]]::new()
+            while (-not [string]::IsNullOrWhiteSpace($relationshipsUri)) {
+                Write-Verbose -Message "EvergreenUI: Retrieving supersedence relationships for '$($app.IntuneAppId)'"
+                $response = Invoke-MgGraphRequest -Method GET -Uri $relationshipsUri -OutputType PSObject -ErrorAction Stop
+                foreach ($relationship in @($response.value)) {
+                    if ([string](& $property -Object $relationship -Name '@odata.type') -eq '#microsoft.graph.mobileAppSupersedence') {
+                        $target = [string](& $property -Object $relationship -Name 'targetId')
+                        $targetType = [string](& $property -Object $relationship -Name 'targetType')
+                        if (-not [string]::IsNullOrWhiteSpace($target) -and $targetType -eq 'parent') {
+                            $targets.Add($target)
+                        }
+                    }
+                }
+                $relationshipsUri = [string](& $property -Object $response -Name '@odata.nextLink')
+            }
+            $app.SupersededAppIds = @($targets)
         }
     }
     @($rows) | Sort-Object -Property Publisher, DisplayName, IntuneAppId

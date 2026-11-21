@@ -18,7 +18,12 @@ function Invoke-EwWorkbenchJob {
             'DefinitionUpdate',
             'InstallDefinitions',
             'InstallVersions',
-            'InstallPackages'
+            'InstallPackages',
+            'IntuneConnect',
+            'IntuneDisconnect',
+            'IntuneCompare',
+            'IntunePublish',
+            'IntuneRetry'
         )]
         [string]$Kind,
 

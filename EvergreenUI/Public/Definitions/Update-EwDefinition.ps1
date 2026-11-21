@@ -19,7 +19,9 @@ function Update-EwDefinition {
     .OUTPUTS
         System.Management.Automation.PSCustomObject
     .NOTES
-        Supports WhatIf and Confirm. Definition files are written atomically.
+        Supports WhatIf and Confirm. Individual files are written atomically,
+        but updating App.json and Install.json is not a transaction. ChangedPaths
+        lists files already updated if a later write fails.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([PSCustomObject])]
@@ -45,6 +47,7 @@ function Update-EwDefinition {
             NewSetupFile   = ''
             Succeeded      = $false
             NoUpdateNeeded = $false
+            ChangedPaths   = @()
             Error          = ''
         }
         if ($definition.Status -ne 'Valid') {
@@ -85,6 +88,7 @@ function Update-EwDefinition {
         }
 
         try {
+            Write-Verbose -Message "EvergreenUI: Updating definition '$($definition.DefinitionPath)' to version '$($latest.Version)'"
             $appJson = Get-Content -LiteralPath $definition.DefinitionPath -Raw -ErrorAction Stop |
                 ConvertFrom-Json -ErrorAction Stop
             $appJson.PackageInformation.Version = $latest.Version
@@ -102,27 +106,26 @@ function Update-EwDefinition {
                 }
             }
             Write-EwJsonFile -Path $definition.DefinitionPath -InputObject $appJson
+            $result.ChangedPaths = @($definition.DefinitionPath)
 
             $installJsonPath = Join-Path -Path (Split-Path -Path $definition.DefinitionPath -Parent) -ChildPath 'Source\Install.json'
             if (Test-Path -LiteralPath $installJsonPath -PathType Leaf) {
-                try {
-                    $installJson = Get-Content -LiteralPath $installJsonPath -Raw -ErrorAction Stop |
-                        ConvertFrom-Json -ErrorAction Stop
-                    if ($null -ne $installJson.PackageInformation) {
-                        $installJson.PackageInformation.Version = $latest.Version
-                        $installJson.PackageInformation.SetupFile = $setupFile
-                        Write-EwJsonFile -Path $installJsonPath -InputObject $installJson
-                    }
-                }
-                catch {
-                    Write-Verbose -Message "EvergreenUI: Source\Install.json update failed for '$($definition.Name)': $($_.Exception.Message)"
+                $installJson = Get-Content -LiteralPath $installJsonPath -Raw -ErrorAction Stop |
+                    ConvertFrom-Json -ErrorAction Stop
+                if ($null -ne $installJson.PackageInformation) {
+                    $installJson.PackageInformation.Version = $latest.Version
+                    $installJson.PackageInformation.SetupFile = $setupFile
+                    Write-EwJsonFile -Path $installJsonPath -InputObject $installJson
+                    $result.ChangedPaths += $installJsonPath
                 }
             }
 
             $result.Succeeded = $true
+            Write-Verbose -Message "EvergreenUI: Updated definition files: $($result.ChangedPaths -join ', ')"
         }
         catch {
             $result.Error = "Failed to update definition: $($_.Exception.Message)"
+            Write-Verbose -Message "EvergreenUI: $($result.Error)"
         }
         $result
     }
