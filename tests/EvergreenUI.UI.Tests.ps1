@@ -31,14 +31,16 @@ Describe 'Evergreen Workbench WPF shell' {
             try {
                 foreach ($name in @(
                         'NavApps', 'NavDownload', 'NavLibrary',
-                        'NavPackages', 'NavInstall',
-                        'AppsPanel', 'DownloadPanel', 'LibraryPanel', 'PackagesPanel', 'InstallPanel',
+                        'NavPackages', 'NavPublish', 'NavInstall',
+                        'AppsPanel', 'DownloadPanel', 'LibraryPanel', 'PackagesPanel', 'PublishPanel', 'InstallPanel',
                         'AppSearchBox', 'AppCountLabel', 'AppsListView', 'ArtifactsGrid',
                         'DownloadQueueListView', 'LibraryListView', 'LibraryVersionsListView',
                         'PackageDefinitionsListView', 'InstallDefinitionsListView',
                         'LoadPackageDefinitionsButton', 'UpdatePackageDefinitionsButton',
                         'ReloadInstallDefinitionsButton', 'ResolveInstallVersionsButton',
-                        'InstallSelectedPackagesButton', 'ThemeCombo', 'ActivityLog'
+                        'InstallSelectedPackagesButton', 'ConnectIntuneButton', 'CompareIntuneButton',
+                        'IntuneComparisonListView', 'PublishSelectedIntuneButton', 'CancelIntuneBatchButton',
+                        'IntunePublishResultsListView', 'RetryIntuneSupersedenceButton', 'ThemeCombo', 'ActivityLog'
                     )) {
                     $window.FindName($name) | Should -Not -BeNullOrEmpty
                 }
@@ -100,6 +102,7 @@ Describe 'Evergreen Workbench WPF shell' {
                         Id = [guid]::NewGuid()
                         Name = 'Load Intune package definitions'
                     }
+
                 }
                 $eventArgs = [System.Windows.RoutedEventArgs]::new(
                     [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
@@ -107,6 +110,36 @@ Describe 'Evergreen Workbench WPF shell' {
                 $state.LoadPackageDefinitionsButton.RaiseEvent($eventArgs)
                 $state.ActiveJobKind | Should -Be 'PackageDefinitions'
                 Should -Invoke Start-EwJob -Exactly 1 -ParameterFilter { $Name -eq 'Load Intune package definitions' }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'does not publish when Intune batch confirmation is declined' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.IntuneTenantId = 'tenant'
+                $state.IntuneComparisonRoot = 'C:\Definitions'
+                $state.Settings.IntuneDefinitionsPath = 'C:\Definitions'
+                $state.Settings.PackageOutputPath = 'C:\Packages'
+                $item = [PSCustomObject]@{
+                    DefinitionName = 'App'; DefinitionPath = 'C:\Definitions\App\App.json'
+                    MatchStatus = 'Matched (current)'; IntuneAppId = 'old-id'; ImportAsUpdate = $false
+                }
+                $state.IntuneComparisonListView.ItemsSource = @($item)
+                $state.IntuneComparisonListView.SelectedItem = $item
+                Mock Confirm-EwWorkbenchIntuneBatch { $false }
+                Mock Start-EwJob {}
+                $eventArgs = [System.Windows.RoutedEventArgs]::new(
+                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                )
+                $state.PublishSelectedIntuneButton.RaiseEvent($eventArgs)
+                Should -Invoke Confirm-EwWorkbenchIntuneBatch -Exactly 1
+                Should -Invoke Start-EwJob -Exactly 0
             }
             finally {
                 $window.Close()

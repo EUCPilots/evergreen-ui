@@ -114,4 +114,20 @@ Describe 'Evergreen package definitions' {
             $updated.DetectionRule[1].Value | Should -Be '2.0.0'
         }
     }
+
+    It 'reports an Install.json failure and the already updated definition' {
+        $source = Join-Path -Path $definitionDirectory -ChildPath 'Source'
+        New-Item -Path $source -ItemType Directory -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path -Path $source -ChildPath 'Install.json') -Value '{invalid json'
+        InModuleScope EvergreenUI -Parameters @{ Definition = $definitionPath } {
+            Mock Resolve-EwArtifact {
+                [PSCustomObject]@{ Succeeded = $true; Version = '2.0.0'; URI = 'https://example.test/setup.exe'; Error = '' }
+            }
+            $result = Update-EwDefinition -DefinitionPath $Definition -Confirm:$false
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match 'Failed to update definition'
+            $result.ChangedPaths | Should -Contain $Definition
+            (Get-Content -LiteralPath $Definition -Raw | ConvertFrom-Json).PackageInformation.Version | Should -Be '2.0.0'
+        }
+    }
 }

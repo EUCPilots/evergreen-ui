@@ -109,6 +109,73 @@ Describe 'Provider publishing' {
         }
     }
 
+    It 'retains a created app ID when its content version fails' {
+        $template = Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\Resources\m365-app.json'
+        $definition = Get-Content -LiteralPath $template -Raw | ConvertFrom-Json
+        $definition.PackageInformation.IconFile = ''
+        $definition.Program | Add-Member -NotePropertyName AllowAvailableUninstall -NotePropertyValue $false
+        $archivePath = Join-Path -Path $publishRoot -ChildPath 'test.intunewin'
+        $archive = [System.IO.Compression.ZipFile]::Open($archivePath, [System.IO.Compression.ZipArchiveMode]::Create)
+        try {
+            foreach ($entry in @(
+                    @{ Name = 'detection.xml'; Content = '<ApplicationInfo><UnencryptedContentSize>1</UnencryptedContentSize><EncryptionInfo><EncryptionKey>x</EncryptionKey><MacKey>x</MacKey><InitializationVector>x</InitializationVector><Mac>x</Mac><FileDigest>x</FileDigest><FileDigestAlgorithm>SHA256</FileDigestAlgorithm><ProfileIdentifier>EncryptionVersion1</ProfileIdentifier></EncryptionInfo></ApplicationInfo>' }
+                    @{ Name = 'IntunePackage.intunewin'; Content = 'x' }
+                )) {
+                $writer = [System.IO.StreamWriter]::new($archive.CreateEntry($entry.Name).Open())
+                try { $writer.Write($entry.Content) } finally { $writer.Dispose() }
+            }
+        }
+        finally {
+            $archive.Dispose()
+        }
+        InModuleScope EvergreenUI -Parameters @{ Definition = $definition; Archive = $archivePath } {
+            Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant-id' } }
+            Mock Write-UILog {}
+            Mock Invoke-MgGraphRequest {
+                if ($Uri -eq 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps') {
+                    return [PSCustomObject]@{ id = 'created-id' }
+                }
+                throw 'content version failed'
+            }
+            $result = Invoke-EwIntuneGraphWin32Import -DefinitionObject $Definition -IntuneWinPath $Archive `
+                -SetupFilePath 'Setup.exe' -DownloadedVersion '2.0' -PSPackageFactoryGuid 'guid' -SyncHash @{}
+            $result.Succeeded | Should -BeFalse
+            $result.IntuneAppId | Should -Be 'created-id'
+            $result.Error | Should -Match 'content version'
+            Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter {
+                $Uri -eq 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps' -and
+                ($Body | ConvertFrom-Json).detectionRules[0].detectionType -eq 'version' -and
+                ($Body | ConvertFrom-Json).detectionRules[0].detectionValue -eq '16.0.15726.20262'
+            }
+
+            Mock Start-Sleep {}
+            Mock Invoke-RestMethod {}
+            Mock Invoke-MgGraphRequest {
+                if ($Uri -eq 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps') {
+                    return [PSCustomObject]@{ id = 'created-id' }
+                }
+                if ($Method -eq 'POST' -and $Uri -like '*/contentVersions') {
+                    return [PSCustomObject]@{ id = 'version-id' }
+                }
+                if ($Method -eq 'POST' -and $Uri -like '*/files') {
+                    return [PSCustomObject]@{ id = 'file-id'; azureStorageUri = 'https://example.test/blob' }
+                }
+                if ($Method -eq 'GET') {
+                    return [PSCustomObject]@{ uploadState = 'commitFileSuccess' }
+                }
+            }
+            $update = Invoke-EwIntuneGraphWin32Import -DefinitionObject $Definition -IntuneWinPath $Archive `
+                -SetupFilePath 'Setup.exe' -DownloadedVersion '2.0' -PSPackageFactoryGuid 'guid' `
+                -ImportAsUpdate -SyncHash @{}
+            $update.Succeeded | Should -BeTrue -Because $update.Error
+            Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter {
+                $Uri -like '*/assignments' -and
+                ($Body | ConvertFrom-Json).target.'@odata.type' -eq '#microsoft.graph.allDevicesAssignmentTarget' -and
+                ($Body | ConvertFrom-Json).intent -eq 'required'
+            }
+        }
+    }
+
     It 'uploads a Nerdio Shell App payload and removes internal source metadata' {
         InModuleScope EvergreenUI -Parameters @{ DefinitionPath = $shellDefinitionPath; PackagePath = $packagePath } {
             $script:ewNerdioContext = [PSCustomObject]@{

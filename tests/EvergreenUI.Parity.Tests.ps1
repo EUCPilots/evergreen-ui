@@ -161,6 +161,7 @@ Describe 'Intune comparison' {
                     [PSCustomObject]@{ Name = 'New'; Version = '1.0'; Publisher = 'Pub'; PSPackageFactoryGuid = 'g3'; DefinitionPath = 'c:\d\3'; Status = 'Valid'; DefinitionObject = $null }
                 )
             }
+
             $intuneApps = @(
                 [PSCustomObject]@{ IntuneAppId = 'a1'; DisplayName = 'Current'; Publisher = 'Pub'; DisplayVersion = '1.0'; NotesGuid = 'G1'; NotesValid = 'Yes'; IsUpdateApp = $false }
                 [PSCustomObject]@{ IntuneAppId = 'a2'; DisplayName = 'Outdated'; Publisher = 'Pub'; DisplayVersion = '1.0'; NotesGuid = 'g2'; NotesValid = 'Yes'; IsUpdateApp = $false }
@@ -172,6 +173,63 @@ Describe 'Intune comparison' {
             $rows[1].MatchStatus | Should -Be 'Matched (update required)'
             ($rows | Where-Object IntuneAppId -EQ 'a1').MatchStatus | Should -Be 'Matched (current)'
             ($rows | Where-Object IntuneAppId -EQ 'a4').MatchStatus | Should -Be 'No local definition'
+        }
+    }
+
+    It 'retrieves supersedence relationships for duplicate GUIDs' {
+        InModuleScope EvergreenUI {
+            Mock Assert-EwModule {}
+            Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant-id' } }
+            Mock Invoke-MgGraphRequest {
+                if ($Uri -like '*/new/relationships') {
+                    return [PSCustomObject]@{ value = @([PSCustomObject]@{ '@odata.type' = '#microsoft.graph.mobileAppSupersedence'; targetId = 'old'; targetType = 'parent' }) }
+                }
+                if ($Uri -like '*/old/relationships') {
+                    return [PSCustomObject]@{ value = @([PSCustomObject]@{ '@odata.type' = '#microsoft.graph.mobileAppSupersedence'; targetId = 'new'; targetType = 'child' }) }
+                }
+                else {
+                    return [PSCustomObject]@{
+                        value = @(
+                            [PSCustomObject]@{ id = 'old'; displayName = 'App'; publisher = 'Pub'; displayVersion = '1.0'; notes = '{"CreatedBy":"PSPackageFactory","Guid":"g1"}' }
+                            [PSCustomObject]@{ id = 'new'; displayName = 'App'; publisher = 'Pub'; displayVersion = '2.0'; notes = '{"CreatedBy":"PSPackageFactory","Guid":"g1"}' }
+                        )
+                    }
+                }
+            }
+            $apps = @(Get-EwIntuneApp)
+            ($apps | Where-Object IntuneAppId -eq 'new').SupersededAppIds | Should -Contain 'old'
+            Should -Invoke Invoke-MgGraphRequest -Exactly 3
+        }
+    }
+
+    It 'marks multiple Intune apps with the same definition GUID as ambiguous' {
+        InModuleScope EvergreenUI {
+            Mock Get-EwDefinition {
+                [PSCustomObject]@{ Name = 'App'; Version = '2.0'; Publisher = 'Pub'; PSPackageFactoryGuid = 'g1'; DefinitionPath = 'c:\d\1'; Status = 'Valid'; DefinitionObject = $null }
+            }
+            $apps = @(
+                [PSCustomObject]@{ IntuneAppId = 'a1'; DisplayName = 'App'; Publisher = 'Pub'; DisplayVersion = '1.0'; NotesGuid = 'g1'; NotesValid = 'Yes'; IsUpdateApp = $false }
+                [PSCustomObject]@{ IntuneAppId = 'a2'; DisplayName = 'App'; Publisher = 'Pub'; DisplayVersion = '2.0'; NotesGuid = 'g1'; NotesValid = 'Yes'; IsUpdateApp = $false }
+            )
+            $rows = @(Compare-EwIntuneApp -DefinitionPath 'c:\d' -IntuneApp $apps)
+            $rows.Count | Should -Be 2
+            @($rows | Where-Object MatchStatus -eq 'Duplicate Intune app GUID').Count | Should -Be 2
+        }
+    }
+
+    It 'selects the current app when supersedence forms an unambiguous chain' {
+        InModuleScope EvergreenUI {
+            Mock Get-EwDefinition {
+                [PSCustomObject]@{ Name = 'App'; Version = '3.0'; Publisher = 'Pub'; PSPackageFactoryGuid = 'g1'; DefinitionPath = 'c:\d\1'; Status = 'Valid'; DefinitionObject = $null }
+            }
+            $apps = @(
+                [PSCustomObject]@{ IntuneAppId = 'a1'; DisplayName = 'App'; Publisher = 'Pub'; DisplayVersion = '1.0'; NotesGuid = 'g1'; NotesValid = 'Yes'; IsUpdateApp = $false; SupersededAppIds = @() }
+                [PSCustomObject]@{ IntuneAppId = 'a2'; DisplayName = 'App'; Publisher = 'Pub'; DisplayVersion = '2.0'; NotesGuid = 'g1'; NotesValid = 'Yes'; IsUpdateApp = $false; SupersededAppIds = @('a1') }
+                [PSCustomObject]@{ IntuneAppId = 'a3'; DisplayName = 'App'; Publisher = 'Pub'; DisplayVersion = '3.0'; NotesGuid = 'g1'; NotesValid = 'Yes'; IsUpdateApp = $false; SupersededAppIds = @('a2') }
+            )
+            $rows = @(Compare-EwIntuneApp -DefinitionPath 'c:\d' -IntuneApp $apps)
+            ($rows | Where-Object IntuneAppId -eq 'a3').MatchStatus | Should -Be 'Matched (current)'
+            @($rows | Where-Object MatchStatus -eq 'Superseded app (managed)').Count | Should -Be 2
         }
     }
 }
