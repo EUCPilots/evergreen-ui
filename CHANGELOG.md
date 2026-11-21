@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.0.0-preview]
+
+- Begin the PowerShell 7.6 v2 rewrite with headless settings and bounded background jobs.
+- Keep v2 settings separate from v1 and load optional integration modules only when required.
+
 ## [1.1.27]
 
 - Add a second import path that creates a companion "Update {Name}" Win32 app in Intune, assigned to All Devices (required), alongside the existing base install import.

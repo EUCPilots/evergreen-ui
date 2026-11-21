@@ -7,8 +7,8 @@ See `CLAUDE.md` for the full function table, settings keys and control naming sc
 ## Commands
 
 ```powershell
-# v2 foundation tests (Pester 5)
-Invoke-Pester -Path .\tests\EvergreenUI.Foundation.Tests.ps1 -Output Detailed
+# v2 foundation and job tests (Pester 5)
+Invoke-Pester -Path .\tests\EvergreenUI.Foundation.Tests.ps1, .\tests\EvergreenUI.Jobs.Tests.ps1 -Output Detailed
 
 # v1 reference tests (Pester 5)
 Invoke-Pester -Path .\tests\EvergreenUI.tests.ps1 -Output Detailed
@@ -26,18 +26,18 @@ Start-EvergreenWorkbench
 
 ## Architecture
 
-- v2 loads feature-grouped private and public scripts recursively, with private scripts first. Its implemented headless settings commands use `%APPDATA%\EvergreenWorkbench\settings.json` without migrating v1 settings. The v2 UI and job runner are not yet implemented.
+- v2 loads feature-grouped private and public scripts recursively, with private scripts first. Its settings commands use `%APPDATA%\EvergreenWorkbench\settings.json` without migrating v1 settings. `Start-EwJob` uses a bounded runspace pool; `Get-EwJob` exposes progress, information and state-change events. Remove completed jobs with `Remove-EwJob`. The v2 UI is not yet implemented.
 - `EvergreenUI.psm1` dot-sources `Private\themes\*.ps1` first, then `Private\*.ps1`, then `Public\`. The only exported function is `Start-EvergreenWorkbench` (listed in `FunctionsToExport` in the manifest). New helpers go in `Private\`, one function per file named after the function (exception: `Invoke-AzureSignIn.ps1` holds all seven Azure/Nerdio auth helpers).
 - The whole UI is one XAML file, `Resources\EvergreenUI.xaml`. `Start-EvergreenWorkbench` loads it, binds named controls and wires event handlers. Navigation is RadioButtons (`Nav{View}`) toggling `{View}Panel` content, not a TabControl. Import is a nested TabControl (`ImportProviderTabControl`).
 - WPF needs STA. Long-running work (downloads, library updates, Intune/Nerdio/M365 builds and imports) runs in background STA runspaces created by `New-WpfRunspace`. Runspaces talk to the UI only through the shared `$syncHash` and `Dispatcher.Invoke`. Never touch controls directly from a runspace.
 - Install and Import workflows are driven by `App.json` definition files (`Application.Filter` expression resolves the latest version via `Get-EvergreenApp` or `Get-VcList`; `DetectionRule` entries for File, Registry, MSI).
 - Settings persist to `%APPDATA%\EvergreenUI\settings.json`. `Get-UIConfig` creates defaults and forward-merges missing keys; when adding a setting, add a default there and use `Merge-ConfigSection` for nested sections.
-- Tests import `..\EvergreenUI\EvergreenUI.psd1` and test private functions via the module scope.
+- v1 tests import `..\EvergreenUI-v1\EvergreenUI.psd1`; v2 tests import `..\EvergreenUI\EvergreenUI.psd1`. Private functions are tested via module scope.
 
 ## Conventions
 
 - Every script: `Set-StrictMode -Version Latest` and `$ErrorActionPreference = 'Stop'`.
-- Always use named parameters. Keep code compatible with PS 5.1 (for example, `Join-Path` has no `-AdditionalChildPaths`; nest calls instead).
+- Always use named parameters. Keep v1 code compatible with PS 5.1; v2 requires PowerShell 7.6+.
 - CRLF line endings for PowerShell files (`.gitattributes`).
 - No em dashes, emojis or horizontal rules in code or markdown.
 - Logging: functions that receive `$SyncHash` use `Write-UILog`; utility functions without it use `Write-Verbose "EvergreenUI: ..."`. Use `Format-LogEntry` for any new log-output helper rather than formatting inline. Log start and outcome of file/network/API operations, cache hit/miss with age, which branch a complex condition took, and version resolution outcomes.

@@ -4,6 +4,10 @@ A WPF-based graphical frontend for the [Evergreen](https://eucpilots.com/evergre
 
 Evergreen Workbench ships as a separate PowerShell module so it never modifies the core Evergreen module. It targets Windows only, requires no external DLLs, and supports both **PowerShell 5.1** (Desktop) and **PowerShell 7+**.
 
+The features and requirements below describe v1, available as the reference implementation in `EvergreenUI-v1\`. The in-progress v2 module in `EvergreenUI\` requires PowerShell 7.6 or later and currently provides headless settings and job commands; its WPF UI is not yet implemented.
+
+V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
+
 ## Features
 
 - **Apps view** - search and browse all 550+ Evergreen-supported applications; inspect version and download metadata returned by `Get-EvergreenApp`
@@ -49,7 +53,7 @@ Install-Module -Name Evergreen -Scope CurrentUser
 
 # Clone the repository and import the module directly
 git clone https://github.com/EUCPilots/evergreen-ui.git
-Import-Module ./evergreen-ui/EvergreenUI/EvergreenUI.psd1
+Import-Module .\evergreen-ui\EvergreenUI-v1\EvergreenUI.psd1
 ```
 
 ## Usage
@@ -66,7 +70,8 @@ evergreen-ui/
 ├── README.md
 ├── CHANGELOG.md
 │
-├── EvergreenUI/                        # The PowerShell module
+├── EvergreenUI/                        # In-progress v2 module
+├── EvergreenUI-v1/                     # v1 reference module
 │   ├── EvergreenUI.psd1                # Module manifest
 │   ├── EvergreenUI.psm1                # Root module (dot-sources Public + Private)
 │   │
