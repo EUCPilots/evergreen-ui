@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+#Requires -Version 7.6
 @{
     # Module identity
     ModuleVersion     = '2.0.0'
@@ -9,14 +9,14 @@
     Description       = 'EvergreenUI and the Evergreen Workbench is WPF graphical frontend for the Evergreen PowerShell module. Provides a Windows-only GUI for Find-EvergreenApp, Get-EvergreenApp, Save-EvergreenApp, and Evergreen library management cmdlets. The Evergreen Workbench also supports packaging apps for Microsoft Intune and Nerdio Manager Shell Apps, and installing apps locally using Evergreen.'
 
     # Compatibility
-    PowerShellVersion = '5.1'
-    CompatiblePSEditions = @('Desktop', 'Core')
+    PowerShellVersion = '7.6'
+    CompatiblePSEditions = @('Core')
 
     # Root module
     RootModule        = 'EvergreenUI.psm1'
 
-    # Exports - only Start-EvergreenWorkbench is public
-    FunctionsToExport = @('Start-EvergreenWorkbench')
+    # Export only implemented commands
+    FunctionsToExport = @('Get-EwSetting', 'Set-EwSetting', 'Reset-EwSetting', 'Start-EwJob', 'Get-EwJob', 'Stop-EwJob', 'Remove-EwJob')
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
@@ -38,7 +38,8 @@
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
             ReleaseNotes = ''
-            Prerelease   = ''
+            Prerelease   = 'preview'
+            ExternalModuleDependencies = @('IntuneWin32App', 'Microsoft.Graph.Authentication', 'Az.Accounts', 'Az.Storage')
         }
     }
 }
