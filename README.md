@@ -1,14 +1,18 @@
 # Evergreen Workbench
 
-A WPF-based graphical frontend for the [Evergreen](https://eucpilots.com/evergreen/) PowerShell module.
+A WPF-based graphical frontend and headless API for the [Evergreen](https://eucpilots.com/evergreen/) PowerShell module.
 
-Evergreen Workbench ships as a separate PowerShell module so it never modifies the core Evergreen module. It targets Windows only, requires no external DLLs, and supports both **PowerShell 5.1** (Desktop) and **PowerShell 7+**.
+Evergreen Workbench ships as a separate PowerShell module so it never modifies the core Evergreen module. The v1 WPF application supports **Windows PowerShell 5.1** and **PowerShell 7+**. The v2 preview targets Windows and requires **PowerShell 7.6+**.
 
-The features and requirements below describe v1, available as the reference implementation in `EvergreenUI-v1\`. The in-progress v2 module in `EvergreenUI\` requires PowerShell 7.6 or later and provides headless settings, job, Apps, download, and Library commands; its WPF UI is not yet implemented.
+The v1 implementation in `EvergreenUI-v1\` is the reference for the existing WPF experience. The v2 preview in `EvergreenUI\` provides headless settings, job, Apps, download, Library, definitions, local install, packaging, authentication, and publishing commands. Its WPF UI is not yet implemented.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
 
-V2 app workflows use `Get-EwApp` to list the Evergreen catalog or resolve an application's artifacts. `Get-EwFilterableProperty` describes available filters, and `Save-EwArtifact` downloads a resolved artifact. `Get-EwLibrary` reads a local library inventory; `Update-EwLibrary` refreshes an initialized library. Evergreen calls are isolated behind private functions for Pester mocking.
+V2 app workflows use `Get-EwApp` to list the Evergreen catalog or resolve an application's artifacts. `Get-EwFilterableProperty` describes available filters, and `Save-EwArtifact` downloads a resolved artifact. `Get-EwLibrary` reads a local library inventory; `Update-EwLibrary` refreshes an initialized library.
+
+V2 definition workflows use `Get-EwDefinition`, `Resolve-EwArtifact`, and `Update-EwDefinition`. Stored `Application.Filter` expressions are parsed by a constrained evaluator rather than executed as PowerShell; only supported Evergreen queries and `Where-Object` predicates resolve. `Test-EwDetection` evaluates File, Registry, and MSI rules, while `Install-EwPackage` stages and runs a local package with `ShouldProcess` support.
+
+`New-EwPackage` builds Intune Win32 packages from App.json definitions or creates Microsoft 365 Apps packages for Intune or Nerdio from ODT XML. Intune package building uses the optional `IntuneWin32App` module. `Connect-EwIntune` and `Connect-EwNerdio` establish provider sessions; publishing commands require their corresponding Microsoft Graph or Azure modules and live provider access. Authentication tokens and secrets are kept in process memory, not settings.
 
 ```powershell
 Import-Module .\EvergreenUI\EvergreenUI.psd1
@@ -22,7 +26,7 @@ Get-EwLibrary
 Update-EwLibrary -WhatIf
 ```
 
-## Features
+## V1 Features
 
 - **Apps view** - search and browse all 550+ Evergreen-supported applications; inspect version and download metadata returned by `Get-EvergreenApp`
 - **Dynamic filters** - filter panel builds itself at runtime from whatever properties a given app actually returns (Architecture, Channel, Ring, Language, Type, Release, etc.)
@@ -40,7 +44,7 @@ Update-EwLibrary -WhatIf
 - **Real-time log panel** - timestamped progress log with `Info`, `Warning`, and `Error` levels, updated live from background runspaces
 - **Session persistence** - output path, library path, theme, window size, startup view, last-used app, and per-provider settings stored in `$env:APPDATA\EvergreenUI\settings.json`
 
-## Requirements
+## V1 Requirements
 
 | Requirement | Minimum |
 |---|---|
@@ -53,13 +57,13 @@ No additional DLLs are required. The UI is built entirely using WPF assemblies t
 
 ## Installation
 
-To install from the PowerShell Gallery:
+To install the v1 WPF module from the PowerShell Gallery:
 
 ```powershell
 Install-Module -Name EvergreenUI
 ```
 
-To run from source:
+To run v1 from source:
 
 ```powershell
 # Install the Evergreen dependency first
@@ -69,6 +73,15 @@ Install-Module -Name Evergreen -Scope CurrentUser
 git clone https://github.com/EUCPilots/evergreen-ui.git
 Import-Module .\evergreen-ui\EvergreenUI-v1\EvergreenUI.psd1
 ```
+
+To load the v2 preview from a repository checkout:
+
+```powershell
+Import-Module .\EvergreenUI\EvergreenUI.psd1
+Get-EwDefinition -Path .\Definitions
+```
+
+The v2 manifest requires Evergreen. `IntuneWin32App`, `Microsoft.Graph.Authentication`, `Az.Accounts`, and `Az.Storage` are optional and are checked when the corresponding packaging or provider command is used.
 
 ## Usage
 
@@ -131,6 +144,7 @@ evergreen-ui/
 │   │
 │   └── Resources/
 │       ├── EvergreenUI.xaml            # WPF UI definition (~3,900 lines)
+│       ├── Install.ps1                 # Generic Intune package installer
 │       ├── NerdioShellApps.psm1        # Bundled Nerdio Shell Apps helper module
 │       ├── m365-app.json               # Microsoft 365 Apps App.json template
 │       └── evergreenbulk.png

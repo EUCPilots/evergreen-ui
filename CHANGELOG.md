@@ -4,6 +4,9 @@
 
 - Begin the PowerShell 7.6 v2 rewrite with headless settings, bounded background jobs, Apps, downloads, and Library commands.
 - Keep v2 settings separate from v1 and load optional integration modules only when required.
+- Add App.json discovery, constrained filter evaluation, artifact resolution and definition updates, local detection and installation, and Intune/Microsoft 365 package building.
+- Add Intune and Nerdio authentication and publishing APIs, including Intune supersedence and Nerdio Shell App uploads.
+- Keep `IntuneWin32App`, Microsoft Graph Authentication, and Az modules optional; require them only for the matching package or provider workflow.
 
 ## [1.1.27]
 

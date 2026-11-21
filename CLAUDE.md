@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the in-progress v2 rewrite, requiring PowerShell 7.6 or later. Its public settings, job, Apps, download, and Library commands run without WPF; the v2 UI is not implemented. Unless explicitly marked v2, the architecture and conventions below describe v1. Read `docs\adr\` before designing v2 changes.
+`EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the in-progress v2 rewrite, requiring PowerShell 7.6 or later. Its public settings, job, Apps, download, Library, definitions, install, package, authentication, and publishing commands run without WPF; the v2 UI is not implemented. Unless explicitly marked v2, the architecture and conventions below describe v1. Read `docs\adr\` before designing v2 changes.
 
 **Evergreen Workbench** is a WPF-based graphical frontend for the [Evergreen](https://github.com/aaronparker/evergreen) PowerShell module. It provides a GUI for discovering, downloading, and managing 500+ Windows applications. Published to PowerShell Gallery as a pre-release module.
 
@@ -24,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 For v2:
 
 ```powershell
-Invoke-Pester -Path .\tests\EvergreenUI.Foundation.Tests.ps1, .\tests\EvergreenUI.Jobs.Tests.ps1, .\tests\EvergreenUI.AppsLibrary.Tests.ps1 -Output Detailed
+Invoke-Pester -Path .\tests -Output Detailed
 ```
 
 For the v1 reference:
@@ -45,6 +45,22 @@ Invoke-ScriptAnalyzer -Path .\EvergreenUI -Recurse
 Import-Module .\EvergreenUI-v1\EvergreenUI.psd1
 Start-EvergreenWorkbench
 ```
+
+### V2 Public APIs
+
+| Area | Commands | Notes |
+|---|---|---|
+| Settings | `Get-EwSetting`, `Set-EwSetting`, `Reset-EwSetting` | Uses fresh settings at `%APPDATA%\EvergreenWorkbench\settings.json`. |
+| Jobs | `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, `Remove-EwJob` | Runs bounded background work in the module's runspace pool. |
+| Apps and downloads | `Get-EwApp`, `Get-EwFilterableProperty`, `Save-EwArtifact` | Wraps Evergreen catalog, artifact, and download operations. |
+| Library | `Get-EwLibrary`, `Update-EwLibrary` | Reads or updates a local Evergreen library. |
+| Definitions | `Get-EwDefinition`, `Resolve-EwArtifact`, `Update-EwDefinition` | Supports a constrained `Application.Filter` grammar instead of executing stored PowerShell. |
+| Local install | `Test-EwDetection`, `Install-EwPackage` | Evaluates File, Registry, and MSI rules; installation supports `ShouldProcess`. |
+| Packages | `New-EwPackage` | Builds Intune Win32 or Microsoft 365 Intune/Nerdio packages. Intune packaging requires optional `IntuneWin32App`. |
+| Authentication | `Connect-EwIntune`, `Disconnect-EwIntune`, `Connect-EwNerdio`, `Disconnect-EwNerdio` | Loads Graph and Azure modules only for the requested provider. |
+| Publishing | `Publish-EwIntuneApp`, `Publish-EwNerdioApp`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio and supports Intune supersedence. |
+
+`Evergreen` is required. `IntuneWin32App`, `Microsoft.Graph.Authentication`, `Az.Accounts`, and `Az.Storage` are optional provider dependencies.
 
 ## Architecture
 
