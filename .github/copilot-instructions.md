@@ -49,10 +49,9 @@ To run the v2 preview UI, import `.\EvergreenUI\EvergreenUI.psd1` instead.
   them. `Start-EwJob` uses a bounded runspace pool; `Get-EwJob` exposes
   progress, information and state-change events. Remove completed jobs with
   `Remove-EwJob`. The v2 WPF shell provides Apps, Download, Library, Packages,
-  and Install views through `Start-EvergreenWorkbench`. Packages manages the
-  shared Intune definition path and package output path; Install reloads those
-  definitions, checks local detection, looks up latest versions on request,
-  and supports confirmed batch installs.
+  Publish, and Install views through `Start-EvergreenWorkbench`. Packages
+  manages shared Intune paths; Publish compares Definitions and runs
+  confirmed build-and-publish batches; Install checks and installs locally.
 - V1's `EvergreenUI.psm1` dot-sources `Private\themes\*.ps1` first, then
   `Private\*.ps1`, then `Public\`. Its only exported function is
   `Start-EvergreenWorkbench`. V2 loads feature-grouped scripts; its manifest
@@ -64,7 +63,7 @@ To run the v2 preview UI, import `.\EvergreenUI\EvergreenUI.psd1` instead.
   `Start-EvergreenWorkbench` loads it and wires its named controls. Navigation
   uses RadioButtons (`Nav{View}`) to toggle `{View}Panel` content. Import uses
   a nested TabControl (`ImportProviderTabControl`).
-- WPF needs STA. V1 long-running work uses background STA runspaces created by `New-WpfRunspace`. V2 starts Apps, downloads, Library, Packages, and Install operations through `Start-EwJob`; its dispatcher timer polls job state and applies results on the UI thread. Never touch controls directly from a worker runspace.
+- WPF needs STA. V1 long-running work uses background STA runspaces created by `New-WpfRunspace`. V2 runs long operations through `Start-EwJob`; its dispatcher timer polls job state and applies results on the UI thread. Never touch controls directly from a worker runspace.
 - V2's XAML lives in `EvergreenUI\Resources\EvergreenWorkbench.xaml`; private UI helpers and per-view event wiring live in `EvergreenUI\Private\UI\`. WPF assemblies are loaded only when the v2 UI is started, so importing the module remains headless.
 - Install and Import workflows are driven by `App.json` definition files (`Application.Filter` expression resolves the latest version via `Get-EvergreenApp` or `Get-VcList`; `DetectionRule` entries for File, Registry, MSI).
 - V1 settings persist to `%APPDATA%\EvergreenUI\settings.json`.

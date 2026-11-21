@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the v2
 rewrite, requiring PowerShell 7.6 or later. Its public headless commands run
-without WPF; the v2 UI provides Apps, Download, Library, Packages, and Install
+without WPF; the v2 UI provides Apps, Download, Library, Packages, Publish, and Install
 views.
 Unless explicitly marked v2, the architecture and conventions below describe
 v1. Read `docs\adr\` before designing v2 changes.
@@ -65,7 +65,7 @@ Start-EvergreenWorkbench
 | Area | Commands | Notes |
 |---|---|---|
 | Settings | `Get-EwSetting`, `Set-EwSetting`, `Reset-EwSetting` | Uses fresh settings at `%APPDATA%\EvergreenWorkbench\settings.json`. |
-| WPF interface | `Start-EvergreenWorkbench` | Opens the Apps, Download, and Library views; requires Windows and PowerShell 7.6+. |
+| WPF interface | `Start-EvergreenWorkbench` | Opens the v2 Workbench views; requires Windows and PowerShell 7.6+. |
 | Jobs | `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, `Remove-EwJob` | Runs bounded background work in the module's runspace pool. |
 | Apps and downloads | `Get-EwApp`, `Get-EwFilterableProperty`, `Save-EwArtifact` | Wraps Evergreen catalog, artifact, and download operations. |
 | Library | `Get-EwLibrary`, `Update-EwLibrary` | Reads or updates a local Evergreen library. |
@@ -73,7 +73,7 @@ Start-EvergreenWorkbench
 | Local install | `Test-EwDetection`, `Install-EwPackage` | Evaluates File, Registry, and MSI rules; installation supports `ShouldProcess`. |
 | Packages | `New-EwPackage` | Builds Intune Win32 or Microsoft 365 Intune/Nerdio packages. Intune packaging requires optional `IntuneWin32App`. |
 | Authentication | `Connect-EwIntune`, `Disconnect-EwIntune`, `Connect-EwNerdio`, `Disconnect-EwNerdio` | Loads Graph and Azure modules only for the requested provider. |
-| Publishing | `Publish-EwIntuneApp`, `Publish-EwNerdioApp`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio and supports Intune supersedence. `Publish-EwNerdioApp -ShellAppId` adds a version to an existing Shell App. |
+| Publishing | `Publish-EwIntuneApp`, `Publish-EwIntuneBatch`, `Publish-EwNerdioApp`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio and supports Intune supersedence. `Publish-EwNerdioApp -ShellAppId` adds a version to an existing Shell App. |
 | Favourites | `Add-EwFavouriteApp`, `Remove-EwFavouriteApp` | Stores favourites in settings; `Get-EwApp` lists favourites first. |
 | Dependencies | `Get-EwDependency`, `Update-EwEvergreen` | Reports required and optional module status; refreshes Evergreen manifests and caches. |
 | Microsoft 365 | `Get-EwM365Configuration` | Discovers ODT XML configurations with channel, products, and architecture. |
@@ -112,23 +112,23 @@ EvergreenUI/
 
 V1 uses dedicated STA runspaces and communicates through `$syncHash` and
 `Dispatcher.Invoke`. V2 loads WPF only when `Start-EvergreenWorkbench` is
-called, and moves to an STA runspace when necessary. The v2 Apps, Download,
-and Library views start headless operations with `Start-EwJob`; a WPF
+called, and moves to an STA runspace when necessary. V2 views start long-running
+headless operations with `Start-EwJob`; a WPF
 dispatcher timer reads job snapshots and updates controls on the UI thread.
 Worker runspaces never access WPF controls.
 
 ### V2 Navigation Views
 
-The v2 shell includes five RadioButton navigation views: Apps, Download,
-Library, Packages, and Install. Apps uses `Get-EwApp`,
+The v2 shell includes six RadioButton navigation views: Apps, Download,
+Library, Packages, Publish, and Install. Apps uses `Get-EwApp`,
 `Get-EwFilterableProperty`, and the favourite commands; Download queues
 artifacts for `Save-EwArtifact`; Library reads and updates an Evergreen library
 and shows selected application versions; Packages loads and updates shared
 Intune App.json definitions and saves definition and output paths; Install
 reloads definitions, checks local detection, resolves latest versions
 separately, and supports confirmed batch installs through `Install-EwPackage`.
-Long-running work uses the shared job pool, and each install result is reported
-individually.
+Publish compares Definitions and builds and publishes confirmed Intune batches
+through `Publish-EwIntuneBatch`. Long-running work uses the shared job pool.
 
 ### Key Private Functions
 

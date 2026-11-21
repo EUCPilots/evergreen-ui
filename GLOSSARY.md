@@ -28,6 +28,15 @@ _Avoid_: Target, platform, service
 Upload a Package and its metadata to a Provider. Replaces the v1 term "Import".
 _Avoid_: Import, deploy, push
 
+**Intune update app**:
+An Intune app that delivers an update as required to all devices, rather than
+using the Definition's assignments.
+_Avoid_: Supersedence, ordinary app
+
+**Supersedence**:
+An Intune relationship in which a new app replaces a previous app.
+_Avoid_: Update app, assignment
+
 **Job**:
 A cancellable background operation that reports progress and log output, such as a download, library update or publish.
 _Avoid_: Task, worker, operation

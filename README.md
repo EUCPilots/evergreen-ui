@@ -8,7 +8,7 @@ The v1 implementation in `EvergreenUI-v1\` is the reference for the existing
 WPF experience. The v2 preview in `EvergreenUI\` provides headless settings,
 job, Apps, download, Library, definitions, local install, packaging,
 authentication, and publishing commands. Its WPF interface covers
-Apps, Download, Library, Packages, and Install.
+Apps, Download, Library, Packages, Publish, and Install.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
 
@@ -112,6 +112,38 @@ pool. Its Packages view loads and updates shared Intune App.json definitions
 and saves definition and package-output paths. Its Install view reloads those
 definitions, checks local detection, resolves latest versions on request, and
 supports confirmed batch installation with per-application results.
+
+The Publish view connects to Intune and compares saved Definitions. Select
+eligible rows to build and publish them after one confirmation. Existing
+matched apps are superseded; update-app mode is opt-in per row and assigns the
+app as required to All Devices. The batch may update Definition files, stops
+between applications when cancelled, and reports partial local and Intune
+changes. Supersedence can be retried during the current Workbench session.
+
+### Optional Intune connection check
+
+In an authorized tenant, the following read-only check verifies that a
+background Job can access the Graph session. It does not publish an app.
+
+```powershell
+Connect-EwIntune
+$job = Start-EwJob -ScriptBlock {
+    Import-Module -Name Microsoft.Graph.Authentication -ErrorAction Stop
+    $context = Get-MgContext -ErrorAction Stop
+    if ($null -eq $context) { throw 'No Graph context is available in this Job.' }
+    [PSCustomObject]@{
+        TenantId = $context.TenantId
+        AppCount = @(Get-EwIntuneApp).Count
+    }
+}
+do {
+    Start-Sleep -Seconds 1
+    $snapshot = Get-EwJob -Id $job.Id
+} while ($snapshot.State -in @('NotStarted', 'Running', 'Stopping'))
+$snapshot.Output
+$snapshot.Errors
+Remove-EwJob -Id $job.Id -Confirm:$false
+```
 
 ## Repository structure
 
