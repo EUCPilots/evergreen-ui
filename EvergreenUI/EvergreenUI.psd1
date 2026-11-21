@@ -24,7 +24,15 @@
         'Get-EwDefinition', 'Resolve-EwArtifact', 'Update-EwDefinition',
         'Test-EwDetection', 'Install-EwPackage', 'New-EwPackage',
         'Connect-EwIntune', 'Disconnect-EwIntune', 'Connect-EwNerdio', 'Disconnect-EwNerdio',
-        'Publish-EwIntuneApp', 'Publish-EwNerdioApp', 'Set-EwIntuneSupersedence'
+        'Publish-EwIntuneApp', 'Publish-EwNerdioApp', 'Set-EwIntuneSupersedence',
+        'Add-EwFavouriteApp', 'Remove-EwFavouriteApp',
+        'Get-EwDependency', 'Update-EwEvergreen',
+        'Get-EwM365Configuration',
+        'Get-EwIntuneApp', 'Compare-EwIntuneApp',
+        'Connect-EwAzure', 'Disconnect-EwAzure', 'Get-EwAzureResourceGroup',
+        'Get-EwAzureStorageAccount', 'Get-EwAzureStorageContainer',
+        'Get-EwNerdioDefinition', 'Get-EwNerdioShellApp', 'Get-EwNerdioShellAppVersion',
+        'Compare-EwNerdioShellApp', 'Remove-EwNerdioShellAppVersion'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()
@@ -48,7 +56,7 @@
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
             ReleaseNotes = ''
             Prerelease   = 'preview'
-            ExternalModuleDependencies = @('IntuneWin32App', 'Microsoft.Graph.Authentication', 'Az.Accounts', 'Az.Storage')
+            ExternalModuleDependencies = @('IntuneWin32App', 'Microsoft.Graph.Authentication', 'Az.Accounts', 'Az.Resources', 'Az.Storage')
         }
     }
 }
