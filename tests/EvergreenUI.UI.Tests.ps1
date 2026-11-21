@@ -110,7 +110,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'switches views and filters artifacts using generated property controls' {
+    It 'switches views and filters artifacts using dropdowns for all property sizes' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -120,28 +120,50 @@ Describe 'Evergreen Workbench WPF shell' {
                 $state.AppsPanel.Visibility.ToString() | Should -Be 'Collapsed'
 
                 $state.AllArtifacts = @(
-                    foreach ($index in 1..8) {
+                    foreach ($index in 1..24) {
                         [PSCustomObject]@{
                             Version = "$index.0"
                             Architecture = if ($index % 2 -eq 0) { 'x64' } else { 'x86' }
-                            Channel = "channel$index"
-                            URI = "https://example.test/app$index.msi"
+                            Channel = "channel$((($index - 1) % 8) + 1)"
+                            Language = "language$index"
+                            Track = "track$index"
+                            Category = if ($index -eq 1) { 'All' } else { 'Other' }
+                            URI = if ($index % 4 -eq 0) { "https://example.test/app$index.exe" } else { "https://example.test/app$index.msi" }
                         }
                     }
                 )
                 Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
-                $architectureFilter = $state.ArtifactFilterControls['Architecture']
-                $architectureFilter.Type | Should -Be 'CheckBoxStrip'
-                ($architectureFilter.ValueControls | Where-Object Tag -eq 'x86').IsChecked = $false
-                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 4
-                $channelFilter = $state.ArtifactFilterControls['Channel']
-                $channelFilter.Type | Should -Be 'MultiListBox'
-                $null = $channelFilter.Control.SelectedItems.Remove('channel8')
-                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 3
-                foreach ($value in @($channelFilter.Control.SelectedItems)) {
-                    $null = $channelFilter.Control.SelectedItems.Remove($value)
+                foreach ($filter in $state.ArtifactFilterControls.Values) {
+                    $filter.Control | Should -BeOfType ([System.Windows.Controls.ComboBox])
+                    $filter.Control.SelectedIndex | Should -Be 0
+                    $filter.Control.SelectedItem | Should -Be 'All'
                 }
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 24
+                $architectureFilter = $state.ArtifactFilterControls['Architecture']
+                $architectureFilter.Control.SelectedItem = 'x64'
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 12
+                $channelFilter = $state.ArtifactFilterControls['Channel']
+                $channelFilter.Control.SelectedItem = 'channel8'
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 3
+                $typeFilter = $state.ArtifactFilterControls['_DerivedType']
+                $typeFilter.Control.SelectedItem = 'msi'
                 @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 0
+                $typeFilter.Control.SelectedIndex = 0
+                $channelFilter.Control.SelectedIndex = 0
+                $architectureFilter.Control.SelectedIndex = 0
+                $state.ArtifactFilterControls['Track'].Control.SelectedItem = 'track1'
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 1
+                $state.ArtifactFilterControls['Track'].Control.SelectedIndex = 0
+                $categoryFilter = $state.ArtifactFilterControls['Category'].Control
+                $categoryFilter.SelectedIndex = 1
+                $categoryFilter.SelectedItem | Should -Be 'All'
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 1
+                $categoryFilter.SelectedIndex = 0
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 24
+                $architectureFilter.Control.SelectedItem = 'x64'
+                Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 24
+                $state.ArtifactFilterControls['Architecture'].Control.SelectedIndex | Should -Be 0
             }
             finally {
                 $window.Close()
