@@ -8,7 +8,18 @@ function Invoke-EwWorkbenchJob {
         [System.Collections.IDictionary]$State,
 
         [Parameter(Mandatory)]
-        [ValidateSet('Apps', 'Artifacts', 'Downloads', 'Library', 'LibraryUpdate')]
+        [ValidateSet(
+            'Apps',
+            'Artifacts',
+            'Downloads',
+            'Library',
+            'LibraryUpdate',
+            'PackageDefinitions',
+            'DefinitionUpdate',
+            'InstallDefinitions',
+            'InstallVersions',
+            'InstallPackages'
+        )]
         [string]$Kind,
 
         [Parameter(Mandatory)]

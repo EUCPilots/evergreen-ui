@@ -11,6 +11,13 @@ function Initialize-EwWorkbenchView {
     $State.AppSearchBox.Text = ''
     $State.OutputPathBox.Text = [string]$State.Settings.OutputPath
     $State.LibraryPathBox.Text = [string]$State.Settings.LibraryPath
+    $State.IntuneDefinitionsPathBox.Text = [string]$State.Settings.IntuneDefinitionsPath
+    $State.PackageOutputPathBox.Text = if ([string]::IsNullOrWhiteSpace([string]$State.Settings.PackageOutputPath)) {
+        [string]$State.Settings.OutputPath
+    }
+    else {
+        [string]$State.Settings.PackageOutputPath
+    }
     $State.DownloadQueueListView.ItemsSource = $State.Queue
     $State.ArtifactFilterControls = @{}
     $State.AllowFilterEvents = $true
@@ -28,6 +35,14 @@ function Initialize-EwWorkbenchView {
     $State.NavLibrary.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Library' }
     }.GetNewClosure())
+    $State.NavPackages.Add_Checked({
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Packages' }
+    }.GetNewClosure())
+    $State.NavInstall.Add_Checked({
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Install' }
+    }.GetNewClosure())
+    Initialize-EwWorkbenchPackageView -State $State
+    Initialize-EwWorkbenchInstallView -State $State
     $State.AppSearchBox.Add_TextChanged({
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchAppList' -Parameters @{ State = $State }
     }.GetNewClosure())
@@ -131,10 +146,22 @@ function Initialize-EwWorkbenchView {
             return
         }
         foreach ($artifact in @($State.ArtifactsGrid.SelectedItems)) {
+            $architectureProperty = $artifact.PSObject.Properties['Architecture']
+            $uriProperty = $artifact.PSObject.Properties['URI']
+            if ($null -eq $uriProperty -or [string]::IsNullOrWhiteSpace([string]$uriProperty.Value)) {
+                & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                    State = $State
+                    Message = "Skipped $($selectedApp.FriendlyName) artifact $($artifact.Version) because it has no download URI."
+                    Level = 'Warning'
+                }
+                continue
+            }
             $State.Queue.Add([PSCustomObject]@{
                     Id = [guid]::NewGuid().ToString()
                     AppName = [string]$selectedApp.Name
                     Version = [string]$artifact.Version
+                    Architecture = if ($null -ne $architectureProperty) { [string]$architectureProperty.Value } else { '' }
+                    URI = [string]$uriProperty.Value
                     Artifact = $artifact
                     Status = 'Pending'
                     SavedPath = ''
@@ -184,7 +211,12 @@ function Initialize-EwWorkbenchView {
     }.GetNewClosure())
     $State.SetOutputPathButton.Add_Click({
         try {
-            & $State.ModuleInvoker -Name 'Set-EwSetting' -Parameters @{ Name = 'OutputPath'; Value = [string]$State.OutputPathBox.Text }
+            $path = [string]$State.OutputPathBox.Text
+            & $State.ModuleInvoker -Name 'Set-EwSetting' -Parameters @{ Name = 'OutputPath'; Value = $path }
+            $State.Settings.OutputPath = $path
+            if ([string]::IsNullOrWhiteSpace([string]$State.Settings.PackageOutputPath)) {
+                $State.PackageOutputPathBox.Text = $path
+            }
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{ State = $State; Message = 'Download location saved.' }
         }
         catch {
@@ -268,6 +300,50 @@ function Initialize-EwWorkbenchView {
                 Level = 'Error'
             }
         }
+    }.GetNewClosure())
+    $State.LibraryListView.Add_SelectionChanged({
+        $application = $State.LibraryListView.SelectedItem
+        if ($null -eq $application) {
+            $State.LibraryDetailsText.Text = 'Select an application to view its library versions'
+            $State.LibraryVersionsListView.ItemsSource = @()
+            return
+        }
+        $readProperty = {
+            param(
+                [Parameter(Mandatory)]
+                [psobject]$InputObject,
+
+                [Parameter(Mandatory)]
+                [string[]]$Name
+            )
+            foreach ($propertyName in $Name) {
+                $property = $InputObject.PSObject.Properties[$propertyName]
+                if ($null -ne $property) {
+                    return $property.Value
+                }
+            }
+            return ''
+        }.GetNewClosure()
+        $versions = [System.Collections.Generic.List[object]]::new()
+        $sourceItemProperty = $application.PSObject.Properties['SourceItem']
+        if ($null -ne $sourceItemProperty -and $null -ne $sourceItemProperty.Value) {
+            $versionsProperty = $sourceItemProperty.Value.PSObject.Properties['Versions']
+            if ($null -ne $versionsProperty) {
+                foreach ($version in @($versionsProperty.Value)) {
+                    if ($null -eq $version) {
+                        continue
+                    }
+                    $versions.Add([PSCustomObject]@{
+                            Version = [string](& $readProperty -InputObject $version -Name @('Version'))
+                            Architecture = [string](& $readProperty -InputObject $version -Name @('Architecture'))
+                            Type = [string](& $readProperty -InputObject $version -Name @('Type'))
+                            URI = [string](& $readProperty -InputObject $version -Name @('URI', 'Uri', 'URL', 'Url'))
+                        })
+                    }
+                }
+            }
+        $State.LibraryDetailsText.Text = "Versions for $($application.Name): $($versions.Count)"
+        $State.LibraryVersionsListView.ItemsSource = $versions.ToArray()
     }.GetNewClosure())
 
     $State.RemoveQueuedDownloadButton.Add_Click({

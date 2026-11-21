@@ -8,8 +8,7 @@
         MinWidth="960"
         MinHeight="660"
         WindowStartupLocation="CenterScreen"
-        ThemeMode="System"
-        Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
+        ThemeMode="System">
     <Window.Resources>
         <SolidColorBrush x:Key="WorkbenchAccentBrush" Color="#008A82" />
         <Style x:Key="NavigationButtonStyle" TargetType="{x:Type RadioButton}">
@@ -48,10 +47,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style TargetType="{x:Type TextBlock}">
-            <Setter Property="Foreground"
-                    Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" />
-        </Style>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -66,8 +61,6 @@
         <Border Grid.Column="0"
                 Grid.RowSpan="2"
                 Padding="16"
-                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
-                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
                 BorderThickness="0,0,1,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="4,8,4,24">
@@ -92,6 +85,14 @@
                                  Style="{StaticResource NavigationButtonStyle}"
                                  Content="Library"
                                  AutomationProperties.Name="Library view" />
+                    <RadioButton x:Name="NavPackages"
+                                 Style="{StaticResource NavigationButtonStyle}"
+                                 Content="Packages"
+                                 AutomationProperties.Name="Packages view" />
+                    <RadioButton x:Name="NavInstall"
+                                 Style="{StaticResource NavigationButtonStyle}"
+                                 Content="Install"
+                                 AutomationProperties.Name="Install view" />
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom" Margin="4,16,4,4">
                     <TextBlock Text="Appearance" Margin="0,0,0,6" />
@@ -167,23 +168,34 @@
                                 Padding="14,5"
                                 IsEnabled="False" />
                     </DockPanel>
-                    <DockPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Download location"
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="Download location"
                                    VerticalAlignment="Center"
                                    Margin="0,0,10,0" />
                         <TextBox x:Name="OutputPathBox"
+                                 Grid.Column="1"
+                                 MinWidth="100"
                                  Height="32"
                                  VerticalContentAlignment="Center"
                                  ToolTip="Folder used for downloaded Evergreen artifacts" />
                         <Button x:Name="BrowseOutputPathButton"
+                                Grid.Column="2"
                                 Content="Browse"
                                 Margin="8,0,0,0"
                                 Padding="12,4" />
                         <Button x:Name="SetOutputPathButton"
+                                Grid.Column="3"
                                 Content="Save path"
                                 Margin="8,0,0,0"
                                 Padding="12,4" />
-                    </DockPanel>
+                    </Grid>
                     <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="260" />
@@ -236,10 +248,12 @@
                                       AutomationProperties.Name="Available application artifacts">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" />
+                                    <DataGridTextColumn Header="Release" Binding="{Binding Release}" Width="110" />
                                     <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="110" />
                                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" />
                                     <DataGridTextColumn Header="Channel" Binding="{Binding Channel}" Width="120" />
                                     <DataGridTextColumn Header="Language" Binding="{Binding Language}" Width="120" />
+                                    <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="120" />
                                     <DataGridTextColumn Header="Download URI" Binding="{Binding URI}" Width="*" />
                                 </DataGrid.Columns>
                             </DataGrid>
@@ -295,7 +309,9 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Application" Binding="{Binding AppName}" Width="2*" />
                             <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" />
+                            <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="110" />
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
+                            <DataGridTextColumn Header="Download URI" Binding="{Binding URI}" Width="3*" />
                             <DataGridTextColumn Header="Saved file" Binding="{Binding SavedPath}" Width="3*" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -304,6 +320,8 @@
                 <Grid x:Name="LibraryPanel" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
@@ -315,31 +333,46 @@
                                    Margin="0,3,0,0"
                                    Opacity="0.75" />
                     </StackPanel>
-                    <DockPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Library location"
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="Library location"
                                    VerticalAlignment="Center"
                                    Margin="0,0,10,0" />
                         <TextBox x:Name="LibraryPathBox"
+                                 Grid.Column="1"
+                                 MinWidth="80"
                                  Height="32"
                                  VerticalContentAlignment="Center"
                                  ToolTip="Folder containing EvergreenLibrary.json" />
                         <Button x:Name="BrowseLibraryPathButton"
+                                Grid.Column="2"
                                 Content="Browse"
                                 Margin="8,0,0,0"
                                 Padding="12,4" />
                         <Button x:Name="SetLibraryPathButton"
+                                Grid.Column="3"
                                 Content="Save path"
                                 Margin="8,0,0,0"
                                 Padding="12,4" />
                         <Button x:Name="LoadLibraryButton"
+                                Grid.Column="4"
                                 Content="Load"
                                 Margin="8,0,0,0"
                                 Padding="12,4" />
                         <Button x:Name="UpdateLibraryButton"
+                                Grid.Column="5"
                                 Content="Update library"
                                 Margin="8,0,0,0"
                                 Padding="14,4" />
-                    </DockPanel>
+                    </Grid>
                     <DataGrid x:Name="LibraryListView"
                               Grid.Row="2"
                               AutoGenerateColumns="False"
@@ -355,6 +388,178 @@
                             <DataGridTextColumn Header="Location" Binding="{Binding Path}" Width="3*" />
                         </DataGrid.Columns>
                     </DataGrid>
+                    <TextBlock x:Name="LibraryDetailsText"
+                               Grid.Row="3"
+                               Text="Select an application to view its library versions"
+                               FontWeight="SemiBold"
+                               Margin="0,12,0,6" />
+                    <DataGrid x:Name="LibraryVersionsListView"
+                              Grid.Row="4"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False"
+                              EnableRowVirtualization="True"
+                              AutomationProperties.Name="Selected application library versions">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="120" />
+                            <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="130" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" />
+                            <DataGridTextColumn Header="Download URI" Binding="{Binding URI}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+
+                <Grid x:Name="PackagesPanel" Visibility="Collapsed">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="Intune package definitions"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,12" />
+                            <TextBlock Text="These App.json definitions are shared with local Install. Updating definitions writes the latest resolved version and setup file to valid definition files."
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,12"
+                                       Opacity="0.75" />
+                            <TextBlock Text="Definitions folder"
+                                       Margin="0,0,0,5" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="IntuneDefinitionsPathBox"
+                                         MinWidth="100"
+                                         Height="32"
+                                         VerticalContentAlignment="Center"
+                                         ToolTip="Folder containing Intune App.json definitions" />
+                                <Button x:Name="BrowseIntuneDefinitionsButton"
+                                        Grid.Column="1"
+                                        Content="Browse"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4" />
+                                <Button x:Name="SaveIntuneDefinitionsPathButton"
+                                        Grid.Column="2"
+                                        Content="Save path"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4" />
+                            </Grid>
+                            <DockPanel Margin="0,0,0,10">
+                                <TextBlock x:Name="PackageDefinitionsCountLabel"
+                                           Text="0 definitions"
+                                           VerticalAlignment="Center" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button x:Name="LoadPackageDefinitionsButton"
+                                            Content="Load definitions"
+                                            Margin="0,0,8,0"
+                                            Padding="12,5" />
+                                    <Button x:Name="UpdatePackageDefinitionsButton"
+                                            Content="Update definitions"
+                                            Padding="12,5" />
+                                </StackPanel>
+                            </DockPanel>
+                            <DataGrid x:Name="PackageDefinitionsListView"
+                                      Height="260"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single"
+                                      HeadersVisibility="Column"
+                                      CanUserAddRows="False"
+                                      EnableRowVirtualization="True"
+                                      AutomationProperties.Name="Intune package definitions">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" />
+                                    <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" />
+                                    <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" />
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock Text="Package output folder"
+                                       Margin="0,18,0,5" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="PackageOutputPathBox"
+                                         MinWidth="100"
+                                         Height="32"
+                                         VerticalContentAlignment="Center"
+                                         ToolTip="Default output folder for future Intune package builds" />
+                                <Button x:Name="BrowsePackageOutputPathButton"
+                                        Grid.Column="1"
+                                        Content="Browse"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4" />
+                                <Button x:Name="SavePackageOutputPathButton"
+                                        Grid.Column="2"
+                                        Content="Save path"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4" />
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <Grid x:Name="InstallPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock x:Name="InstallDefinitionsCountLabel"
+                                   Text="0 definitions"
+                                   VerticalAlignment="Center" />
+                        <TextBlock x:Name="InstallActionStatusLabel"
+                                   DockPanel.Dock="Right"
+                                   Text="Reload definitions to check local installation status."
+                                   VerticalAlignment="Center"
+                                   Opacity="0.75" />
+                    </DockPanel>
+                    <DataGrid x:Name="InstallDefinitionsListView"
+                              Grid.Row="1"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Extended"
+                              SelectionUnit="FullRow"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False"
+                              EnableRowVirtualization="True"
+                              AutomationProperties.Name="Local install definitions">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" />
+                            <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="120" />
+                            <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" />
+                            <DataGridTextColumn Header="Installed" Binding="{Binding InstalledVersion}" Width="120" />
+                            <DataGridTextColumn Header="Latest" Binding="{Binding LatestVersion}" Width="120" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding InstallStatus}" Width="2*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <DockPanel Grid.Row="2" Margin="0,12,0,0">
+                        <TextBlock Text="Latest-version lookup uses the Evergreen catalog."
+                                   VerticalAlignment="Center"
+                                   Opacity="0.75" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button x:Name="ReloadInstallDefinitionsButton"
+                                    Content="Reload definitions"
+                                    Margin="0,0,8,0"
+                                    Padding="12,5" />
+                            <Button x:Name="ResolveInstallVersionsButton"
+                                    Content="Find latest versions"
+                                    Margin="0,0,8,0"
+                                    Padding="12,5"
+                                    IsEnabled="False" />
+                            <Button x:Name="InstallSelectedPackagesButton"
+                                    Content="Install selected"
+                                    Padding="14,5"
+                                    IsEnabled="False" />
+                        </StackPanel>
+                    </DockPanel>
                 </Grid>
             </Grid>
 
