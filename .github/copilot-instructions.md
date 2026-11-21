@@ -1,13 +1,16 @@
 # Copilot instructions
 
-Evergreen Workbench (`EvergreenUI` module): a Windows-only WPF frontend for the [Evergreen](https://github.com/aaronparker/evergreen) PowerShell module. Must run on PowerShell 5.1 and 7+. Requires the Evergreen module. Active code is in `EvergreenUI\`; `EvergreenUI-v1\` is a legacy copy and `.scripts\` holds standalone packaging helpers. Do not edit either unless asked.
+Evergreen Workbench (`EvergreenUI` module) is a Windows-only WPF frontend for the [Evergreen](https://github.com/aaronparker/evergreen) PowerShell module. `EvergreenUI-v1\` holds the v1 reference implementation, supporting PowerShell 5.1 and 7+. `EvergreenUI\` contains the in-progress v2 rewrite, requiring PowerShell 7.6+. The architecture and conventions below describe v1 unless stated otherwise. See `GLOSSARY.md` and `docs\adr\` for v2 decisions. `.scripts\` holds standalone packaging helpers.
 
 See `CLAUDE.md` for the full function table, settings keys and control naming scheme. Additional rules live in `.github\instructions\` (PowerShell, Pester 5, WPF, Markdown) and custom agents in `.github\agents`.
 
 ## Commands
 
 ```powershell
-# All tests (Pester 5)
+# v2 foundation tests (Pester 5)
+Invoke-Pester -Path .\tests\EvergreenUI.Foundation.Tests.ps1 -Output Detailed
+
+# v1 reference tests (Pester 5)
 Invoke-Pester -Path .\tests\EvergreenUI.tests.ps1 -Output Detailed
 
 # Single Describe/test by name
@@ -16,13 +19,14 @@ Invoke-Pester -Path .\tests\EvergreenUI.tests.ps1 -Output Detailed -FullNameFilt
 # Lint (default PSScriptAnalyzer ruleset must pass)
 Invoke-ScriptAnalyzer -Path .\EvergreenUI -Recurse
 
-# Run the UI
-Import-Module .\EvergreenUI\EvergreenUI.psd1 -Force
+# Run the v1 UI
+Import-Module .\EvergreenUI-v1\EvergreenUI.psd1 -Force
 Start-EvergreenWorkbench
 ```
 
 ## Architecture
 
+- v2 loads feature-grouped private and public scripts recursively, with private scripts first. Its implemented headless settings commands use `%APPDATA%\EvergreenWorkbench\settings.json` without migrating v1 settings. The v2 UI and job runner are not yet implemented.
 - `EvergreenUI.psm1` dot-sources `Private\themes\*.ps1` first, then `Private\*.ps1`, then `Public\`. The only exported function is `Start-EvergreenWorkbench` (listed in `FunctionsToExport` in the manifest). New helpers go in `Private\`, one function per file named after the function (exception: `Invoke-AzureSignIn.ps1` holds all seven Azure/Nerdio auth helpers).
 - The whole UI is one XAML file, `Resources\EvergreenUI.xaml`. `Start-EvergreenWorkbench` loads it, binds named controls and wires event handlers. Navigation is RadioButtons (`Nav{View}`) toggling `{View}Panel` content, not a TabControl. Import is a nested TabControl (`ImportProviderTabControl`).
 - WPF needs STA. Long-running work (downloads, library updates, Intune/Nerdio/M365 builds and imports) runs in background STA runspaces created by `New-WpfRunspace`. Runspaces talk to the UI only through the shared `$syncHash` and `Dispatcher.Invoke`. Never touch controls directly from a runspace.

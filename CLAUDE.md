@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
+`EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the in-progress v2 rewrite, requiring PowerShell 7.6 or later. Unless explicitly marked v2, the architecture and conventions below describe v1. Read `docs\adr\` before designing v2 changes.
+
 **Evergreen Workbench** is a WPF-based graphical frontend for the [Evergreen](https://github.com/aaronparker/evergreen) PowerShell module. It provides a GUI for discovering, downloading, and managing 500+ Windows applications. Published to PowerShell Gallery as a pre-release module.
 
 - **Platform**: Windows only (WPF requires Windows)
