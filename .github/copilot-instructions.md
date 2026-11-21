@@ -27,14 +27,47 @@ Import-Module .\EvergreenUI-v1\EvergreenUI.psd1 -Force
 Start-EvergreenWorkbench
 ```
 
+To run the v2 preview UI, import `.\EvergreenUI\EvergreenUI.psd1` instead.
+
 ## Architecture
 
-- v2 loads feature-grouped private and public scripts recursively, with private scripts first. Its settings commands use `%APPDATA%\EvergreenWorkbench\settings.json` without migrating v1 settings. `Get-EwApp` lists the catalog or resolves artifacts; `Get-EwFilterableProperty` derives filter metadata; `Save-EwArtifact` downloads an artifact. `Get-EwLibrary` reads inventory and `Update-EwLibrary` refreshes it. Definition commands validate App.json files, safely evaluate supported `Application.Filter` expressions, resolve artifacts, and update definitions. `Test-EwDetection` and `Install-EwPackage` handle local installation; `New-EwPackage` builds Intune and Microsoft 365 packages. Provider auth and publishing commands load optional Graph/Azure modules only when requested. Favourites, dependency status, Microsoft 365 configuration discovery, Intune and Nerdio comparison, Azure resource discovery, and Nerdio version cleanup are also headless commands (see `CLAUDE.md`). Keep Evergreen calls behind private wrappers so tests can mock them. `Start-EwJob` uses a bounded runspace pool; `Get-EwJob` exposes progress, information and state-change events. Remove completed jobs with `Remove-EwJob`. The v2 UI is not yet implemented.
-- v1's `EvergreenUI.psm1` dot-sources `Private\themes\*.ps1` first, then `Private\*.ps1`, then `Public\`. Its only exported function is `Start-EvergreenWorkbench`. For v2, the manifest exports the headless commands listed in `CLAUDE.md`. New private helpers go in feature-grouped `Private\` folders, one function per file (v1 exception: `Invoke-AzureSignIn.ps1` holds all seven Azure/Nerdio auth helpers).
-- The whole UI is one XAML file, `Resources\EvergreenUI.xaml`. `Start-EvergreenWorkbench` loads it, binds named controls and wires event handlers. Navigation is RadioButtons (`Nav{View}`) toggling `{View}Panel` content, not a TabControl. Import is a nested TabControl (`ImportProviderTabControl`).
-- WPF needs STA. Long-running work (downloads, library updates, Intune/Nerdio/M365 builds and imports) runs in background STA runspaces created by `New-WpfRunspace`. Runspaces talk to the UI only through the shared `$syncHash` and `Dispatcher.Invoke`. Never touch controls directly from a runspace.
+- V2 loads feature-grouped private and public scripts recursively, with private
+  scripts first. Settings use
+  `%APPDATA%\EvergreenWorkbench\settings.json` without migrating v1 settings.
+  `Get-EwApp` lists the catalog or resolves artifacts;
+  `Get-EwFilterableProperty` derives filter metadata; `Save-EwArtifact`
+  downloads an artifact. `Get-EwLibrary` reads inventory and
+  `Update-EwLibrary` refreshes it. Definition commands validate App.json files,
+  safely evaluate supported `Application.Filter` expressions, resolve
+  artifacts, and update definitions. `Test-EwDetection` and `Install-EwPackage`
+  handle local installation; `New-EwPackage` builds Intune and Microsoft 365
+  packages. Provider auth and publishing commands load optional Graph/Azure
+  modules only when requested. Other headless commands support favourites,
+  dependency status, Microsoft 365 configuration discovery, Intune and Nerdio
+  comparison, Azure resource discovery, and Nerdio version cleanup (see
+  `CLAUDE.md`). Keep Evergreen calls behind private wrappers so tests can mock
+  them. `Start-EwJob` uses a bounded runspace pool; `Get-EwJob` exposes
+  progress, information and state-change events. Remove completed jobs with
+  `Remove-EwJob`. The v2 WPF shell currently provides Apps, Download, and
+  Library views through `Start-EvergreenWorkbench`.
+- V1's `EvergreenUI.psm1` dot-sources `Private\themes\*.ps1` first, then
+  `Private\*.ps1`, then `Public\`. Its only exported function is
+  `Start-EvergreenWorkbench`. V2 loads feature-grouped scripts; its manifest
+  exports the headless commands and the `Start-EvergreenWorkbench` UI entry
+  point listed in `CLAUDE.md`. Keep private helpers in feature folders, one
+  function per file (v1 exception: `Invoke-AzureSignIn.ps1` holds the Azure
+  and Nerdio authentication helpers).
+- V1's UI is defined in `Resources\EvergreenUI.xaml`.
+  `Start-EvergreenWorkbench` loads it and wires its named controls. Navigation
+  uses RadioButtons (`Nav{View}`) to toggle `{View}Panel` content. Import uses
+  a nested TabControl (`ImportProviderTabControl`).
+- WPF needs STA. V1 long-running work uses background STA runspaces created by `New-WpfRunspace`. V2 starts Apps, downloads, and Library operations through `Start-EwJob`; its dispatcher timer polls job state and applies results on the UI thread. Never touch controls directly from a worker runspace.
+- V2's XAML lives in `EvergreenUI\Resources\EvergreenWorkbench.xaml`; private UI helpers and per-view event wiring live in `EvergreenUI\Private\UI\`. WPF assemblies are loaded only when the v2 UI is started, so importing the module remains headless.
 - Install and Import workflows are driven by `App.json` definition files (`Application.Filter` expression resolves the latest version via `Get-EvergreenApp` or `Get-VcList`; `DetectionRule` entries for File, Registry, MSI).
-- Settings persist to `%APPDATA%\EvergreenUI\settings.json`. `Get-UIConfig` creates defaults and forward-merges missing keys; when adding a setting, add a default there and use `Merge-ConfigSection` for nested sections.
+- V1 settings persist to `%APPDATA%\EvergreenUI\settings.json`.
+  `Get-UIConfig` creates defaults and forward-merges missing keys; when adding
+  a v1 setting, add a default there and use `Merge-ConfigSection` for nested
+  sections.
 - v1 tests import `..\EvergreenUI-v1\EvergreenUI.psd1`; v2 tests import `..\EvergreenUI\EvergreenUI.psd1`. Private functions are tested via module scope.
 
 ## Conventions

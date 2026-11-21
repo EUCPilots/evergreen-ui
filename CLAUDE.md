@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the in-progress v2 rewrite, requiring PowerShell 7.6 or later. Its public settings, job, Apps, download, Library, definitions, install, package, authentication, and publishing commands run without WPF; the v2 UI is not implemented. Unless explicitly marked v2, the architecture and conventions below describe v1. Read `docs\adr\` before designing v2 changes.
+`EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the v2
+rewrite, requiring PowerShell 7.6 or later. Its public headless commands run
+without WPF; the initial v2 UI provides Apps, Download, and Library views.
+Unless explicitly marked v2, the architecture and conventions below describe
+v1. Read `docs\adr\` before designing v2 changes.
 
 **Evergreen Workbench** is a WPF-based graphical frontend for the [Evergreen](https://github.com/aaronparker/evergreen) PowerShell module. It provides a GUI for discovering, downloading, and managing 500+ Windows applications. Published to PowerShell Gallery as a pre-release module.
 
@@ -41,8 +45,17 @@ Invoke-ScriptAnalyzer -Path .\EvergreenUI -Recurse
 
 ### Running the UI
 
+V1 reference:
+
 ```powershell
 Import-Module .\EvergreenUI-v1\EvergreenUI.psd1
+Start-EvergreenWorkbench
+```
+
+V2 preview:
+
+```powershell
+Import-Module .\EvergreenUI\EvergreenUI.psd1
 Start-EvergreenWorkbench
 ```
 
@@ -51,6 +64,7 @@ Start-EvergreenWorkbench
 | Area | Commands | Notes |
 |---|---|---|
 | Settings | `Get-EwSetting`, `Set-EwSetting`, `Reset-EwSetting` | Uses fresh settings at `%APPDATA%\EvergreenWorkbench\settings.json`. |
+| WPF interface | `Start-EvergreenWorkbench` | Opens the Apps, Download, and Library views; requires Windows and PowerShell 7.6+. |
 | Jobs | `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, `Remove-EwJob` | Runs bounded background work in the module's runspace pool. |
 | Apps and downloads | `Get-EwApp`, `Get-EwFilterableProperty`, `Save-EwArtifact` | Wraps Evergreen catalog, artifact, and download operations. |
 | Library | `Get-EwLibrary`, `Update-EwLibrary` | Reads or updates a local Evergreen library. |
@@ -72,31 +86,43 @@ Start-EvergreenWorkbench
 
 ### Module Structure
 
-The module exposes a single public function (`Start-EvergreenWorkbench`) that orchestrates everything. All internal logic lives in private helper functions dot-sourced by `EvergreenUI.psm1`.
+The v1 module exposes a single public function
+(`Start-EvergreenWorkbench`) that orchestrates its WPF interface. V2 exports
+headless commands plus the WPF entry point; its UI calls the public v2
+commands.
 
 ```
 EvergreenUI/
 ├── EvergreenUI.psd1        # Module manifest (version, deps, exports)
 ├── EvergreenUI.psm1        # Loads Private/ then Public/
-├── en-US/
-│   └── EvergreenUI-help.xml           # Comment-based help
 ├── Public/
-│   └── Start-EvergreenWorkbench.ps1   # Only exported function
-├── Private/                           # 32 helper functions
-│   ├── themes/
-│   │   ├── Set-LightTheme.ps1
-│   │   └── Set-DarkTheme.ps1
-│   └── [utility functions]
+│   ├── Start-EvergreenWorkbench.ps1
+│   └── [headless commands grouped by feature]
+├── Private/
+│   ├── UI/                            # WPF shell, view wiring, and job monitor
+│   └── [headless helpers grouped by feature]
 └── Resources/
-    ├── EvergreenUI.xaml    # WPF UI definition (~3,900 lines)
-    ├── NerdioShellApps.psm1           # Bundled Nerdio Shell Apps helper module
-    ├── m365-app.json                  # Microsoft 365 Apps App.json template
-    └── evergreenbulb.png
+    ├── EvergreenWorkbench.xaml        # V2 WPF shell
+    ├── Install.ps1
+    └── m365-app.json
 ```
 
 ### Threading Model
 
-WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures STA thread on startup. Background operations (app downloads, library updates, Intune imports) run in isolated STA runspaces created by `New-WpfRunspace`. Communication between runspaces and the UI uses a `$syncHash` (synchronized hashtable) with `Dispatcher.Invoke` for thread-safe UI updates.
+V1 uses dedicated STA runspaces and communicates through `$syncHash` and
+`Dispatcher.Invoke`. V2 loads WPF only when `Start-EvergreenWorkbench` is
+called, and moves to an STA runspace when necessary. The v2 Apps, Download,
+and Library views start headless operations with `Start-EwJob`; a WPF
+dispatcher timer reads job snapshots and updates controls on the UI thread.
+Worker runspaces never access WPF controls.
+
+### V2 Navigation Views
+
+The v2 shell currently includes three RadioButton navigation views: Apps,
+Download, and Library. Apps uses `Get-EwApp`, `Get-EwFilterableProperty`, and
+the favourite commands; Download queues artifacts for `Save-EwArtifact`;
+Library reads and updates an Evergreen library. The remaining v1 views are
+planned for later phases.
 
 ### Key Private Functions
 
@@ -140,7 +166,7 @@ WPF requires STA (Single Threaded Apartment). `Start-EvergreenWorkbench` ensures
 
 Note: `Invoke-AzureSignIn.ps1` is a multi-function file containing all seven Azure/Nerdio authentication helpers listed above.
 
-### Navigation Views
+### V1 Navigation Views
 
 The UI uses a RadioButton-based navigation system (not a TabControl) with 8 views. The top-level navigation buttons are named `Nav{View}` and each view's content lives in a `{View}Panel`:
 

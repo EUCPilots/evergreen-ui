@@ -4,7 +4,11 @@ A WPF-based graphical frontend and headless API for the [Evergreen](https://eucp
 
 Evergreen Workbench ships as a separate PowerShell module so it never modifies the core Evergreen module. The v1 WPF application supports **Windows PowerShell 5.1** and **PowerShell 7+**. The v2 preview targets Windows and requires **PowerShell 7.6+**.
 
-The v1 implementation in `EvergreenUI-v1\` is the reference for the existing WPF experience. The v2 preview in `EvergreenUI\` provides headless settings, job, Apps, download, Library, definitions, local install, packaging, authentication, and publishing commands. Its WPF UI is not yet implemented.
+The v1 implementation in `EvergreenUI-v1\` is the reference for the existing
+WPF experience. The v2 preview in `EvergreenUI\` provides headless settings,
+job, Apps, download, Library, definitions, local install, packaging,
+authentication, and publishing commands. Its initial WPF interface covers
+Apps, Download, and Library; the other views are planned for later phases.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
 
@@ -83,14 +87,28 @@ Import-Module .\EvergreenUI\EvergreenUI.psd1
 Get-EwDefinition -Path .\Definitions
 ```
 
-The v2 manifest requires Evergreen. `IntuneWin32App`, `Microsoft.Graph.Authentication`, `Az.Accounts`, and `Az.Storage` are optional and are checked when the corresponding packaging or provider command is used.
+The v2 manifest requires Evergreen. `IntuneWin32App`,
+`Microsoft.Graph.Authentication`, `Az.Accounts`, `Az.Resources`, and `Az.Storage`
+are optional and are checked when the corresponding packaging or provider
+command is used.
 
-## Usage
+## V1 Usage
 
 ```powershell
-Import-Module EvergreenUI
+Import-Module .\EvergreenUI-v1\EvergreenUI.psd1
 Start-EvergreenWorkbench
 ```
+
+To start the v2 preview interface from the repository, import the v2 manifest:
+
+```powershell
+Import-Module .\EvergreenUI\EvergreenUI.psd1
+Start-EvergreenWorkbench
+```
+
+The v2 interface uses WPF's native theme modes, and runs catalog lookups,
+downloads, and library updates through the module's bounded background job
+pool.
 
 ## Repository structure
 
