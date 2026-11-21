@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the v2
 rewrite, requiring PowerShell 7.6 or later. Its public headless commands run
-without WPF; the initial v2 UI provides Apps, Download, and Library views.
+without WPF; the v2 UI provides Apps, Download, Library, Packages, and Install
+views.
 Unless explicitly marked v2, the architecture and conventions below describe
 v1. Read `docs\adr\` before designing v2 changes.
 
@@ -118,11 +119,16 @@ Worker runspaces never access WPF controls.
 
 ### V2 Navigation Views
 
-The v2 shell currently includes three RadioButton navigation views: Apps,
-Download, and Library. Apps uses `Get-EwApp`, `Get-EwFilterableProperty`, and
-the favourite commands; Download queues artifacts for `Save-EwArtifact`;
-Library reads and updates an Evergreen library. The remaining v1 views are
-planned for later phases.
+The v2 shell includes five RadioButton navigation views: Apps, Download,
+Library, Packages, and Install. Apps uses `Get-EwApp`,
+`Get-EwFilterableProperty`, and the favourite commands; Download queues
+artifacts for `Save-EwArtifact`; Library reads and updates an Evergreen library
+and shows selected application versions; Packages loads and updates shared
+Intune App.json definitions and saves definition and output paths; Install
+reloads definitions, checks local detection, resolves latest versions
+separately, and supports confirmed batch installs through `Install-EwPackage`.
+Long-running work uses the shared job pool, and each install result is reported
+individually.
 
 ### Key Private Functions
 

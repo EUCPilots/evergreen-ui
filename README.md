@@ -7,8 +7,8 @@ Evergreen Workbench ships as a separate PowerShell module so it never modifies t
 The v1 implementation in `EvergreenUI-v1\` is the reference for the existing
 WPF experience. The v2 preview in `EvergreenUI\` provides headless settings,
 job, Apps, download, Library, definitions, local install, packaging,
-authentication, and publishing commands. Its initial WPF interface covers
-Apps, Download, and Library; the other views are planned for later phases.
+authentication, and publishing commands. Its WPF interface covers
+Apps, Download, Library, Packages, and Install.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
 
@@ -108,7 +108,10 @@ Start-EvergreenWorkbench
 
 The v2 interface uses WPF's native theme modes, and runs catalog lookups,
 downloads, and library updates through the module's bounded background job
-pool.
+pool. Its Packages view loads and updates shared Intune App.json definitions
+and saves definition and package-output paths. Its Install view reloads those
+definitions, checks local detection, resolves latest versions on request, and
+supports confirmed batch installation with per-application results.
 
 ## Repository structure
 

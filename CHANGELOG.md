@@ -10,6 +10,8 @@
 - Add headless parity commands: favourite apps, dependency status and Evergreen updates, Microsoft 365 configuration discovery, Intune app listing and comparison, Azure resource discovery, and Nerdio definition, Shell App, comparison, and version cleanup commands.
 - `Publish-EwNerdioApp` can now add a version to an existing Shell App and download the package from the definition source when `-PackagePath` is omitted.
 - Add the initial v2 WPF interface for Apps, Download, and Library, with native WPF theme modes and background work through the shared job pool.
+- Expand the v2 WPF shell with Intune Packages setup and local Install views, including shared App.json definitions, local detection, separate latest-version lookup, and confirmed batch installation.
+- Restore metadata-driven artifact filters, show Library version details and queued architecture/URI, and improve path-row sizing and theme contrast.
 
 ## [1.1.27]
 
