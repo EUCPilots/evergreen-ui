@@ -1,0 +1,385 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        x:Name="MainWindow"
+        Title="Evergreen Workbench"
+        Width="1200"
+        Height="820"
+        MinWidth="960"
+        MinHeight="660"
+        WindowStartupLocation="CenterScreen"
+        ThemeMode="System"
+        Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
+    <Window.Resources>
+        <SolidColorBrush x:Key="WorkbenchAccentBrush" Color="#008A82" />
+        <Style x:Key="NavigationButtonStyle" TargetType="{x:Type RadioButton}">
+            <Setter Property="GroupName" Value="MainNavigation" />
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type RadioButton}">
+                        <Border x:Name="NavigationBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavigationBorder"
+                                        Property="Background"
+                                        Value="{DynamicResource {x:Static SystemColors.ControlBrushKey}}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="NavigationBorder"
+                                        Property="Background"
+                                        Value="{StaticResource WorkbenchAccentBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground"
+                    Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" />
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Column="0"
+                Grid.RowSpan="2"
+                Padding="16"
+                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
+                BorderBrush="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}"
+                BorderThickness="0,0,1,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="4,8,4,24">
+                    <TextBlock Text="Evergreen"
+                               FontSize="20"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="Workbench"
+                               FontSize="13"
+                               Opacity="0.75" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <RadioButton x:Name="NavApps"
+                                 Style="{StaticResource NavigationButtonStyle}"
+                                 Content="Apps"
+                                 IsChecked="True"
+                                 AutomationProperties.Name="Apps view" />
+                    <RadioButton x:Name="NavDownload"
+                                 Style="{StaticResource NavigationButtonStyle}"
+                                 Content="Download"
+                                 AutomationProperties.Name="Download view" />
+                    <RadioButton x:Name="NavLibrary"
+                                 Style="{StaticResource NavigationButtonStyle}"
+                                 Content="Library"
+                                 AutomationProperties.Name="Library view" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom" Margin="4,16,4,4">
+                    <TextBlock Text="Appearance" Margin="0,0,0,6" />
+                    <ComboBox x:Name="ThemeCombo"
+                              SelectedIndex="0"
+                              ToolTip="Choose the Workbench color theme"
+                              AutomationProperties.Name="Color theme">
+                        <sys:String>System</sys:String>
+                        <sys:String>Light</sys:String>
+                        <sys:String>Dark</sys:String>
+                    </ComboBox>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="1" Grid.Row="0" Margin="24,18,24,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <DockPanel Grid.Row="0" Margin="0,0,0,18">
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock x:Name="ViewTitleText"
+                               Text="Apps"
+                               FontSize="24"
+                               FontWeight="SemiBold" />
+                    <TextBlock x:Name="SubtitleTextBlock"
+                               Text="Discover and manage Evergreen applications"
+                               Margin="0,3,0,0"
+                               Opacity="0.75" />
+                </StackPanel>
+                <TextBlock x:Name="StatusLabel"
+                           DockPanel.Dock="Right"
+                           Text="Ready"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Right"
+                           Margin="16,0,0,0"
+                           TextWrapping="Wrap" />
+            </DockPanel>
+
+            <Grid Grid.Row="1">
+                <Grid x:Name="AppsPanel" Visibility="Visible">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                            <TextBlock Text="Search apps"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0" />
+                            <TextBox x:Name="AppSearchBox"
+                                     Width="250"
+                                     Height="34"
+                                     VerticalContentAlignment="Center"
+                                     ToolTip="Search the application catalog"
+                                     AutomationProperties.Name="Search applications" />
+                            <Button x:Name="RefreshAppsButton"
+                                    Content="Refresh catalog"
+                                    Margin="8,0,0,0"
+                                    Padding="14,5"
+                                    ToolTip="Refresh the Evergreen application catalog" />
+                            <TextBlock x:Name="AppCountLabel"
+                                       Text="0 applications"
+                                       VerticalAlignment="Center"
+                                       Margin="12,0,0,0" />
+                        </StackPanel>
+                        <Button x:Name="FavoriteAppButton"
+                                DockPanel.Dock="Right"
+                                Content="Add favourite"
+                                Padding="14,5"
+                                IsEnabled="False" />
+                    </DockPanel>
+                    <DockPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="Download location"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0" />
+                        <TextBox x:Name="OutputPathBox"
+                                 Height="32"
+                                 VerticalContentAlignment="Center"
+                                 ToolTip="Folder used for downloaded Evergreen artifacts" />
+                        <Button x:Name="BrowseOutputPathButton"
+                                Content="Browse"
+                                Margin="8,0,0,0"
+                                Padding="12,4" />
+                        <Button x:Name="SetOutputPathButton"
+                                Content="Save path"
+                                Margin="8,0,0,0"
+                                Padding="12,4" />
+                    </DockPanel>
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="260" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <DataGrid x:Name="AppsListView"
+                                  Grid.Column="0"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  HeadersVisibility="Column"
+                                  CanUserAddRows="False"
+                                  CanUserSortColumns="True"
+                                  EnableRowVirtualization="True"
+                                  AutomationProperties.Name="Application catalog">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Application"
+                                                    Binding="{Binding FriendlyName}"
+                                                    Width="*" />
+                                <DataGridCheckBoxColumn Header="Favourite"
+                                                        Binding="{Binding IsFavourite}"
+                                                        Width="78" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Grid Grid.Column="1" Margin="16,0,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="SelectedAppText"
+                                       Grid.Row="0"
+                                       Text="Select an application to view available versions"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,10" />
+                            <WrapPanel x:Name="ArtifactFiltersPanel"
+                                       Grid.Row="1"
+                                       Margin="0,0,0,8" />
+                            <DataGrid x:Name="ArtifactsGrid"
+                                      Grid.Row="2"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Extended"
+                                      SelectionUnit="FullRow"
+                                      HeadersVisibility="Column"
+                                      CanUserAddRows="False"
+                                      EnableRowVirtualization="True"
+                                      AutomationProperties.Name="Available application artifacts">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" />
+                                    <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="110" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" />
+                                    <DataGridTextColumn Header="Channel" Binding="{Binding Channel}" Width="120" />
+                                    <DataGridTextColumn Header="Language" Binding="{Binding Language}" Width="120" />
+                                    <DataGridTextColumn Header="Download URI" Binding="{Binding URI}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <DockPanel Grid.Row="3" Margin="0,10,0,0">
+                                <TextBlock x:Name="ArtifactCountLabel"
+                                           Text="0 artifacts"
+                                           VerticalAlignment="Center" />
+                                <Button x:Name="QueueDownloadButton"
+                                        DockPanel.Dock="Right"
+                                        Content="Add selected to download queue"
+                                        Padding="14,6"
+                                        IsEnabled="False" />
+                            </DockPanel>
+                        </Grid>
+                    </Grid>
+                </Grid>
+
+                <Grid x:Name="DownloadPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock Text="Queued downloads"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button x:Name="RemoveQueuedDownloadButton"
+                                    Content="Remove selected"
+                                    Margin="0,0,8,0"
+                                    Padding="12,5" />
+                            <Button x:Name="ClearQueueButton"
+                                    Content="Clear completed"
+                                    Margin="0,0,8,0"
+                                    Padding="12,5" />
+                            <Button x:Name="StartDownloadButton"
+                                    Content="Download pending"
+                                    Padding="14,5"
+                                    IsEnabled="False" />
+                        </StackPanel>
+                    </DockPanel>
+                    <DataGrid x:Name="DownloadQueueListView"
+                              Grid.Row="1"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Extended"
+                              SelectionUnit="FullRow"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False"
+                              EnableRowVirtualization="True"
+                              AutomationProperties.Name="Download queue">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Application" Binding="{Binding AppName}" Width="2*" />
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
+                            <DataGridTextColumn Header="Saved file" Binding="{Binding SavedPath}" Width="3*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+
+                <Grid x:Name="LibraryPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock Text="Evergreen library"
+                                   FontSize="18"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="Read or update an initialized local Evergreen library."
+                                   Margin="0,3,0,0"
+                                   Opacity="0.75" />
+                    </StackPanel>
+                    <DockPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="Library location"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0" />
+                        <TextBox x:Name="LibraryPathBox"
+                                 Height="32"
+                                 VerticalContentAlignment="Center"
+                                 ToolTip="Folder containing EvergreenLibrary.json" />
+                        <Button x:Name="BrowseLibraryPathButton"
+                                Content="Browse"
+                                Margin="8,0,0,0"
+                                Padding="12,4" />
+                        <Button x:Name="SetLibraryPathButton"
+                                Content="Save path"
+                                Margin="8,0,0,0"
+                                Padding="12,4" />
+                        <Button x:Name="LoadLibraryButton"
+                                Content="Load"
+                                Margin="8,0,0,0"
+                                Padding="12,4" />
+                        <Button x:Name="UpdateLibraryButton"
+                                Content="Update library"
+                                Margin="8,0,0,0"
+                                Padding="14,4" />
+                    </DockPanel>
+                    <DataGrid x:Name="LibraryListView"
+                              Grid.Row="2"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False"
+                              EnableRowVirtualization="True"
+                              AutomationProperties.Name="Evergreen library inventory">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" />
+                            <DataGridTextColumn Header="Versions" Binding="{Binding VersionCount}" Width="110" />
+                            <DataGridTextColumn Header="Location" Binding="{Binding Path}" Width="3*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Grid>
+
+            <DockPanel Grid.Row="2" Margin="0,12,0,0">
+                <ProgressBar x:Name="JobProgressBar"
+                             Height="6"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Visibility="Collapsed" />
+            </DockPanel>
+        </Grid>
+
+        <TextBox x:Name="ActivityLog"
+                 Grid.Column="1"
+                 Grid.Row="1"
+                 Margin="24,0,24,16"
+                 Height="110"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 FontFamily="Consolas"
+                 FontSize="12"
+                 AutomationProperties.Name="Workbench activity log" />
+    </Grid>
+</Window>
