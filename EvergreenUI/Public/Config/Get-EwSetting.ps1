@@ -24,6 +24,24 @@ function Get-EwSetting {
         Theme = 'System'
         OutputPath = Join-Path -Path ([Environment]::GetFolderPath('UserProfile')) -ChildPath 'Downloads'
         LibraryPath = ''
+        FavouriteApps = @()
+        PackageOutputPath = ''
+        IntuneDefinitionsPath = ''
+        IntuneTenantId = ''
+        NerdioDefinitionsPath = ''
+        NerdioTenantId = ''
+        NmeHost = ''
+        NmeClientId = ''
+        NmeApiScope = ''
+        NmeOAuthTokenUrl = ''
+        NmeSubscriptionId = ''
+        NmeResourceGroup = ''
+        NmeStorageAccount = ''
+        NmeContainer = ''
+        M365DefinitionsPath = ''
+        M365Channel = 'MonthlyEnterprise'
+        M365CompanyName = ''
+        M365ImportFor = 'Single session'
     }
     $path = Get-EwSettingsPath
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {

@@ -7,8 +7,9 @@ function Connect-EwNerdio {
         Connects to Azure and authenticates to Nerdio Manager.
     .DESCRIPTION
         Uses Az.Accounts for the selected Azure subscription and a client
-        credentials token for Nerdio Manager API calls. The client secret and
-        tokens remain in memory and are not written to settings.
+        credentials token for Nerdio Manager API calls. An existing Azure
+        context for the same tenant and subscription is reused. The client
+        secret and tokens remain in memory and are not written to settings.
     .PARAMETER TenantId
         Entra tenant ID.
     .PARAMETER SubscriptionId
@@ -92,22 +93,15 @@ function Connect-EwNerdio {
         $token = Get-EwNerdioAccessToken -TenantId $TenantId -ClientId $ClientId `
             -ClientSecret $ClientSecret -ApiScope $ApiScope -OAuthTokenUrl $OAuthTokenUrl
         Assert-EwModule -Name Az.Accounts
-        $connectParameters = @{ Tenant = $TenantId; ErrorAction = 'Stop' }
-        if (-not [string]::IsNullOrWhiteSpace($SubscriptionId)) {
-            $connectParameters.Subscription = $SubscriptionId
-        }
-        if ($UseDeviceAuthentication) {
-            $connectParameters.UseDeviceAuthentication = $true
-        }
-        Connect-AzAccount @connectParameters | Out-Null
-        $azureContext = Get-AzContext -ErrorAction Stop
+        $azureContext = Connect-EwAzAccount -TenantId $TenantId -SubscriptionId $SubscriptionId `
+            -UseDeviceAuthentication:$UseDeviceAuthentication
         $script:ewNerdioContext = [PSCustomObject]@{
             AccessToken = [string]$token.access_token
             TokenExpiresAt = [DateTimeOffset]::UtcNow.AddSeconds([double]$token.expires_in)
             TenantId = [string]$TenantId
-            AccountId = if ($null -ne $azureContext.Account) { [string]$azureContext.Account.Id } else { '' }
-            SubscriptionId = if ($null -ne $azureContext.Subscription) { [string]$azureContext.Subscription.Id } else { [string]$SubscriptionId }
-            SubscriptionName = if ($null -ne $azureContext.Subscription) { [string]$azureContext.Subscription.Name } else { '' }
+            AccountId = $azureContext.AccountId
+            SubscriptionId = $azureContext.SubscriptionId
+            SubscriptionName = $azureContext.SubscriptionName
             NmeHost = $hostUri.Host
             ResourceGroupName = $ResourceGroupName
             StorageAccountName = $StorageAccountName

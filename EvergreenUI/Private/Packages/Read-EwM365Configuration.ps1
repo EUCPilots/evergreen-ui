@@ -1,7 +1,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Get-EwM365Configuration {
+function Read-EwM365Configuration {
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
@@ -50,6 +50,7 @@ function Get-EwM365Configuration {
 
     [PSCustomObject]@{
         ConfigId = $xml.Configuration.GetAttribute('ID')
+        Channel = $addNode.GetAttribute('Channel')
         DisplayName = $displayName
         Architecture = $architecture
         Products = $productIds -join ', '

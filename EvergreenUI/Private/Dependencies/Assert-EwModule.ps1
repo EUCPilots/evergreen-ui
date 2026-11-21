@@ -5,7 +5,7 @@ function Assert-EwModule {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('IntuneWin32App', 'Microsoft.Graph.Authentication', 'Az.Accounts', 'Az.Storage')]
+        [ValidateSet('IntuneWin32App', 'Microsoft.Graph.Authentication', 'Az.Accounts', 'Az.Resources', 'Az.Storage')]
         [string]$Name
     )
 

@@ -6,7 +6,8 @@ function Get-EwApp {
     .SYNOPSIS
         Lists Evergreen applications or resolves an application's artifacts.
     .DESCRIPTION
-        Without Name, returns the cached application catalog. With Name,
+        Without Name, returns the cached application catalog with favourites
+        listed first. With Name,
         resolves its artifacts using Evergreen. Filter values are exact
         case-insensitive matches; each filter value may be one value or a set
         of alternatives. Use Force to refresh the catalog cache.
@@ -40,11 +41,34 @@ function Get-EwApp {
     )
 
     if ([string]::IsNullOrWhiteSpace($Name)) {
+        $favourites = @()
+        try {
+            $favourites = @((Get-EwSetting).FavouriteApps | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+        }
+        catch {
+            # best-effort - unreadable settings must not prevent the catalog from loading
+            Write-Verbose -Message "EvergreenUI: Favourite applications could not be read: $($_.Exception.Message)"
+        }
+        $favouriteSet = [System.Collections.Generic.HashSet[string]]::new([string[]]$favourites, [System.StringComparer]::OrdinalIgnoreCase)
+        $markFavourites = {
+            param([object[]]$Items)
+            @($Items |
+                    ForEach-Object {
+                        [PSCustomObject]@{
+                            Name = $_.Name
+                            FriendlyName = $_.FriendlyName
+                            Link = $_.Link
+                            IsFavourite = $favouriteSet.Contains([string]$_.Name)
+                        }
+                    } |
+                    Sort-Object -Property @{ Expression = 'IsFavourite'; Descending = $true }, @{ Expression = 'Name'; Descending = $false })
+        }
+
         $cache = $script:ewAppCatalogCache
         if (-not $Force -and $null -ne $cache.RetrievedAt) {
             $age = [DateTimeOffset]::Now - $cache.RetrievedAt
             Write-Verbose -Message ('EvergreenUI: Application catalog cache hit; age {0:n0} seconds' -f $age.TotalSeconds)
-            return $cache.Items
+            return (& $markFavourites -Items $cache.Items)
         }
 
         Write-Verbose -Message 'EvergreenUI: Application catalog cache miss; querying Evergreen'
@@ -67,7 +91,7 @@ function Get-EwApp {
         $script:ewAppCatalogCache.Items = $items
         $script:ewAppCatalogCache.RetrievedAt = [DateTimeOffset]::Now
         Write-Verbose -Message "EvergreenUI: Application catalog loaded; $($items.Count) applications"
-        return $items
+        return (& $markFavourites -Items $items)
     }
 
     Write-Verbose -Message "EvergreenUI: Resolving artifacts for '$Name'"

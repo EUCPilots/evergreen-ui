@@ -34,7 +34,7 @@ function Invoke-EwM365PackageBuild {
         [string]$AppJsonTemplatePath
     )
 
-    $configuration = Get-EwM365Configuration -Path $ConfigurationPath
+    $configuration = Read-EwM365Configuration -Path $ConfigurationPath
     $name = $configuration.DisplayName
     $safeName = [regex]::Replace($name, '[\\/:*?"<>|]', '_').Trim('_')
     $sourcePath = Join-Path -Path $WorkingPath -ChildPath "$safeName\Source"
