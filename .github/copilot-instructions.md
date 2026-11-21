@@ -1,5 +1,51 @@
-# Custom instructions for GitHub Copilot
+# Copilot instructions
 
-* Review .github/instructions.md for custom instructions that will be applied to all suggestions from GitHub Copilot.
-* When using tools for code generatation or reviewing existing code, searching for text, search commands etc., prefer PowerShell over other tools, unless the context clearly indicates otherwise. For example, instead of using rg, use Select-String in PowerShell.
-* If a tool is not available locally or in PowerShell, ask for the user to install the tool
+Evergreen Workbench (`EvergreenUI` module): a Windows-only WPF frontend for the [Evergreen](https://github.com/aaronparker/evergreen) PowerShell module. Must run on PowerShell 5.1 and 7+. Requires the Evergreen module. Active code is in `EvergreenUI\`; `EvergreenUI-v1\` is a legacy copy and `.scripts\` holds standalone packaging helpers. Do not edit either unless asked.
+
+See `CLAUDE.md` for the full function table, settings keys and control naming scheme. Additional rules live in `.github\instructions\` (PowerShell, Pester 5, WPF, Markdown) and custom agents in `.github\agents`.
+
+## Commands
+
+```powershell
+# All tests (Pester 5)
+Invoke-Pester -Path .\tests\EvergreenUI.tests.ps1 -Output Detailed
+
+# Single Describe/test by name
+Invoke-Pester -Path .\tests\EvergreenUI.tests.ps1 -Output Detailed -FullNameFilter '*Get-UIConfig*'
+
+# Lint (default PSScriptAnalyzer ruleset must pass)
+Invoke-ScriptAnalyzer -Path .\EvergreenUI -Recurse
+
+# Run the UI
+Import-Module .\EvergreenUI\EvergreenUI.psd1 -Force
+Start-EvergreenWorkbench
+```
+
+## Architecture
+
+- `EvergreenUI.psm1` dot-sources `Private\themes\*.ps1` first, then `Private\*.ps1`, then `Public\`. The only exported function is `Start-EvergreenWorkbench` (listed in `FunctionsToExport` in the manifest). New helpers go in `Private\`, one function per file named after the function (exception: `Invoke-AzureSignIn.ps1` holds all seven Azure/Nerdio auth helpers).
+- The whole UI is one XAML file, `Resources\EvergreenUI.xaml`. `Start-EvergreenWorkbench` loads it, binds named controls and wires event handlers. Navigation is RadioButtons (`Nav{View}`) toggling `{View}Panel` content, not a TabControl. Import is a nested TabControl (`ImportProviderTabControl`).
+- WPF needs STA. Long-running work (downloads, library updates, Intune/Nerdio/M365 builds and imports) runs in background STA runspaces created by `New-WpfRunspace`. Runspaces talk to the UI only through the shared `$syncHash` and `Dispatcher.Invoke`. Never touch controls directly from a runspace.
+- Install and Import workflows are driven by `App.json` definition files (`Application.Filter` expression resolves the latest version via `Get-EvergreenApp` or `Get-VcList`; `DetectionRule` entries for File, Registry, MSI).
+- Settings persist to `%APPDATA%\EvergreenUI\settings.json`. `Get-UIConfig` creates defaults and forward-merges missing keys; when adding a setting, add a default there and use `Merge-ConfigSection` for nested sections.
+- Tests import `..\EvergreenUI\EvergreenUI.psd1` and test private functions via the module scope.
+
+## Conventions
+
+- Every script: `Set-StrictMode -Version Latest` and `$ErrorActionPreference = 'Stop'`.
+- Always use named parameters. Keep code compatible with PS 5.1 (for example, `Join-Path` has no `-AdditionalChildPaths`; nest calls instead).
+- CRLF line endings for PowerShell files (`.gitattributes`).
+- No em dashes, emojis or horizontal rules in code or markdown.
+- Logging: functions that receive `$SyncHash` use `Write-UILog`; utility functions without it use `Write-Verbose "EvergreenUI: ..."`. Use `Format-LogEntry` for any new log-output helper rather than formatting inline. Log start and outcome of file/network/API operations, cache hit/miss with age, which branch a complex condition took, and version resolution outcomes.
+- Use `-ErrorAction Stop` on cmdlets inside `try/catch`. An empty `catch {}` must have a comment explaining why and a `Write-Verbose` of the exception. Retry/polling loops log each failed attempt with number and message.
+- Functions with complex results define a local `$fail` scriptblock returning a function-specific `[PSCustomObject]` with `Succeeded = $false` and `Error`.
+- Use `Get-SafeFolderName -DefinitionPath` for working folder names derived from definition paths.
+- New XAML controls follow the naming scheme (`{Action}{Feature}Button`, `{Feature}StatusLabel`, `{Feature}PathBox`, `{Feature}ListView`, `Show{Feature}Toggle`, `{Feature}Combo`, `{Feature}StatusDot`).
+
+## Releases
+
+Bump `ModuleVersion` in `EvergreenUI\EvergreenUI.psd1` (format `Major.Minor.Patch`). `tag-release.yml` tags `v{version}`, then `publish-psgallery.yml` publishes to PowerShell Gallery. Update `CHANGELOG.md` with user-facing changes.
+
+## Tooling preference
+
+Prefer PowerShell (`Select-String` rather than `rg`) for searching. If a tool is missing, ask the user to install it.
