@@ -9,7 +9,7 @@
 
 BeforeAll {
     # Import the module from source (not from an installed copy)
-    $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1'
+    $modulePath = Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI-v1\EvergreenUI.psd1'
     Import-Module -Name $modulePath -Force -ErrorAction Stop
 }
 
@@ -19,13 +19,13 @@ AfterAll {
 
 Describe 'Module manifest' {
     It 'Has a valid module manifest' {
-        $manifestPath = Join-Path $PSScriptRoot '..\EvergreenUI\EvergreenUI.psd1'
+        $manifestPath = Join-Path $PSScriptRoot '..\EvergreenUI-v1\EvergreenUI.psd1'
         { Test-ModuleManifest -Path $manifestPath -ErrorAction Stop } | Should -Not -Throw
     }
 
     It 'Exports only Start-EvergreenWorkbench' {
         $manifest = Import-PowerShellDataFile -Path (
-            Join-Path $PSScriptRoot '..\EvergreenUI\EvergreenUI.psd1'
+            Join-Path $PSScriptRoot '..\EvergreenUI-v1\EvergreenUI.psd1'
         )
         $manifest.FunctionsToExport | Should -Be @('Start-EvergreenWorkbench')
     }
@@ -111,7 +111,7 @@ Describe 'Get-UIConfig' {
                 $config = Get-UIConfig
                 $config.Theme        | Should -Be 'Light'
                 $config.LogHeight    | Should -Be 150
-                $config.ImportSettings.CurrentProvider | Should -Be 'Nerdio'
+                $config.ImportSettings.CurrentProvider | Should -Be 'Authentication'
                 $config.NerdioSettings.NmeResourceGroup | Should -Be ''
                 $config.NerdioSettings.NmeStorageAccount | Should -Be ''
                 $config.NerdioSettings.NmeContainer | Should -Be ''
