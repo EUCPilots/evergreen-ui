@@ -28,6 +28,41 @@ function Get-EwWorkbenchWindow {
     if ($window -isnot [System.Windows.Window]) {
         throw "Workbench XAML did not create a WPF Window: $xamlPath"
     }
+
+    $navigationColumn = $window.FindName('NavigationColumn')
+    $navigationPane = $window.FindName('NavigationPane')
+    $navigationBrand = $window.FindName('NavigationBrand')
+    $navigationScroll = $window.FindName('NavigationScrollViewer')
+    $window.Add_SizeChanged({
+        $compact = $args[0].ActualWidth -lt 1100
+        $navigationColumn.Width = [System.Windows.GridLength]::new($(if ($compact) { 64 } else { 208 }))
+        $navigationPane.Padding = [System.Windows.Thickness]::new($(if ($compact) { 4 } else { 16 }))
+        $navigationBrand.Visibility = if ($compact) { 'Collapsed' } else { 'Visible' }
+        $navigationScroll.Tag = $compact
+    }.GetNewClosure())
+
+    $activityLog = $window.FindName('ActivityLog')
+    $resizeLog = {
+        param([double]$change)
+        $activityLog.Height = [Math]::Clamp($activityLog.Height + $change, 60, 300)
+    }.GetNewClosure()
+    $logResizeThumb = $window.FindName('ActivityLogResizeThumb')
+    $logResizeThumb.Add_DragDelta({
+        $dragArgs = $args[1]
+        & $resizeLog -change (-$dragArgs.VerticalChange)
+    }.GetNewClosure())
+    $logResizeThumb.Add_KeyDown({
+        $keyArgs = $args[1]
+        if ($keyArgs.Key -eq [System.Windows.Input.Key]::Up) {
+            & $resizeLog -change 10
+            $keyArgs.Handled = $true
+        }
+        elseif ($keyArgs.Key -eq [System.Windows.Input.Key]::Down) {
+            & $resizeLog -change -10
+            $keyArgs.Handled = $true
+        }
+    }.GetNewClosure())
+
     $backgroundDescriptor = [System.ComponentModel.DependencyPropertyDescriptor]::FromProperty(
         [System.Windows.Controls.Control]::BackgroundProperty, [System.Windows.Window]
     )

@@ -20,6 +20,7 @@ function Write-EwWorkbenchLog {
     $State.ActivityLog.AppendText($entry + [Environment]::NewLine)
     $State.ActivityLog.ScrollToEnd()
     if (-not $PreserveStatus) {
+        $State.StatusLabel.Tag = $Level
         $State.StatusLabel.Text = $Message
     }
 }

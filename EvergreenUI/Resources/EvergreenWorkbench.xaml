@@ -11,25 +11,64 @@
         ThemeMode="System"
         Background="{DynamicResource ApplicationBackgroundBrush}">
     <Window.Resources>
-        <SolidColorBrush x:Key="WorkbenchAccentBrush" Color="#008A82" />
+        <Style x:Key="PageTitleTextBlockStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontSize" Value="28" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="SectionHeadingTextBlockStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="FormLabelStyle" TargetType="{x:Type Label}">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
         <Style x:Key="NavigationButtonStyle" TargetType="{x:Type RadioButton}">
             <Setter Property="GroupName" Value="MainNavigation" />
-            <Setter Property="Margin" Value="0,3" />
-            <Setter Property="Padding" Value="14,10" />
-            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type RadioButton}">
                         <Border x:Name="NavigationBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="5"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center" />
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="SelectedIndicator"
+                                        Grid.Column="0"
+                                        Margin="0,5,0,5"
+                                        Background="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"
+                                        CornerRadius="2"
+                                        Visibility="Collapsed" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{TemplateBinding Tag}"
+                                           FontFamily="Segoe Fluent Icons"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Opacity="0.8" />
+                                <ContentPresenter x:Name="NavigationLabel"
+                                                  Grid.Column="2"
+                                                  Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center" />
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -37,13 +76,30 @@
                                         Property="Background"
                                         Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
                             </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="NavigationBorder"
+                                        Property="Background"
+                                        Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                            </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="NavigationBorder"
                                         Property="Background"
-                                        Value="{StaticResource WorkbenchAccentBrush}" />
-                                <Setter Property="Foreground" Value="White" />
+                                        Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                <Setter TargetName="SelectedIndicator" Property="Visibility" Value="Visible" />
                                 <Setter Property="FontWeight" Value="SemiBold" />
                             </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="NavigationBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
+                                         Value="True">
+                                <Setter TargetName="NavigationLabel" Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -52,7 +108,7 @@
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220" />
+            <ColumnDefinition x:Name="NavigationColumn" Width="208" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -60,29 +116,20 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Column="0"
+        <Border x:Name="NavigationPane"
+                Grid.Column="0"
                 Grid.RowSpan="2"
                 Padding="16"
-                BorderThickness="0,0,1,0">
+                BorderThickness="0,0,1,0"
+                BorderBrush="{DynamicResource SubtleFillColorSecondaryBrush}">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Margin="4,8,4,24">
+                <StackPanel x:Name="NavigationBrand" DockPanel.Dock="Top" Margin="4,8,4,20">
                     <TextBlock Text="Evergreen"
                                FontSize="20"
                                FontWeight="SemiBold" />
                     <TextBlock Text="Workbench"
-                               FontSize="13"
+                               FontSize="14"
                                Opacity="0.75" />
-                </StackPanel>
-                <StackPanel DockPanel.Dock="Bottom" Margin="4,16,4,4">
-                    <TextBlock Text="Appearance" Margin="0,0,0,6" />
-                    <ComboBox x:Name="ThemeCombo"
-                              SelectedIndex="0"
-                              ToolTip="Choose the Workbench color theme"
-                              AutomationProperties.Name="Color theme">
-                        <sys:String>System</sys:String>
-                        <sys:String>Light</sys:String>
-                        <sys:String>Dark</sys:String>
-                    </ComboBox>
                 </StackPanel>
                 <ScrollViewer x:Name="NavigationScrollViewer"
                               VerticalScrollBarVisibility="Auto"
@@ -91,69 +138,88 @@
                         <RadioButton x:Name="NavApps"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Apps"
+                                     Tag="&#xE71D;"
                                      IsChecked="True"
                                      AutomationProperties.Name="Apps view" />
                         <RadioButton x:Name="NavDownload"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Download"
+                                     Tag="&#xEBD3;"
                                      AutomationProperties.Name="Download view" />
                         <RadioButton x:Name="NavLibrary"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Library"
+                                     Tag="&#xE8F1;"
                                      AutomationProperties.Name="Library view" />
                         <RadioButton x:Name="NavPackages"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Packages"
+                                     Tag="&#xE7B8;"
                                      AutomationProperties.Name="Packages view" />
                         <RadioButton x:Name="NavIntune"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Intune"
+                                     Tag="&#xE753;"
                                      AutomationProperties.Name="Intune view" />
                         <RadioButton x:Name="NavNerdio"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Nerdio"
+                                     Tag="&#xE968;"
                                      AutomationProperties.Name="Nerdio view" />
                         <RadioButton x:Name="NavInstall"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Install"
+                                     Tag="&#xE896;"
                                      AutomationProperties.Name="Install view" />
+                        <Border Height="1" Margin="8,12" Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
                         <RadioButton x:Name="NavSettings"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Settings"
+                                     Tag="&#xE713;"
                                      AutomationProperties.Name="Settings view" />
                         <RadioButton x:Name="NavAbout"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="About"
+                                     Tag="&#xE946;"
                                      AutomationProperties.Name="About view" />
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>
         </Border>
 
-        <Grid Grid.Column="1" Grid.Row="0" Margin="24,18,24,10">
+        <Grid Grid.Column="1" Grid.Row="0" Margin="20,18,20,10">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <DockPanel Grid.Row="0" Margin="0,0,0,18">
+                <Border DockPanel.Dock="Right"
+                        Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                        CornerRadius="6"
+                        Padding="10,6"
+                        VerticalAlignment="Center"
+                        Margin="16,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Tag, ElementName=StatusLabel}"
+                                   FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock x:Name="StatusLabel"
+                                   Text="Ready"
+                                   Tag="Info"
+                                   MaxWidth="300"
+                                   TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </Border>
                 <StackPanel DockPanel.Dock="Left">
                     <TextBlock x:Name="ViewTitleText"
                                Text="Apps"
-                               FontSize="24"
-                               FontWeight="SemiBold" />
+                               Style="{StaticResource PageTitleTextBlockStyle}" />
                     <TextBlock x:Name="SubtitleTextBlock"
                                Text="Discover and manage Evergreen applications"
                                Margin="0,3,0,0"
                                Opacity="0.75" />
                 </StackPanel>
-                <TextBlock x:Name="StatusLabel"
-                           DockPanel.Dock="Right"
-                           Text="Ready"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Right"
-                           Margin="16,0,0,0"
-                           TextWrapping="Wrap" />
             </DockPanel>
 
             <Grid Grid.Row="1">
@@ -164,8 +230,8 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                        <WrapPanel>
+                    <Expander Grid.Row="0" Header="Evergreen maintenance" IsExpanded="False" Margin="0,0,0,12">
+                        <WrapPanel Margin="8">
                             <Button x:Name="UpdateEvergreenButton" Content="Update Evergreen" Padding="14,5"
                                     ToolTip="Refresh Evergreen application data, without installing or upgrading the module" />
                             <Button x:Name="ClearWorkbenchCacheButton" Content="Clear Workbench cache" Margin="8,0,0,0" Padding="14,5"
@@ -173,35 +239,32 @@
                             <Button x:Name="OpenCacheFolderButton" Content="Open cache folder" Margin="8,0,0,0" Padding="14,5"
                                     ToolTip="Create and open the Workbench cache folder" />
                         </WrapPanel>
-                        <TextBlock x:Name="AppsMaintenanceStatusLabel" Text="Maintenance ready" Margin="0,6,0,0" TextWrapping="Wrap" />
-                    </StackPanel>
-                    <DockPanel Grid.Row="1" Margin="0,0,0,12">
-                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-                            <TextBlock Text="Search apps"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,8,0" />
-                            <TextBox x:Name="AppSearchBox"
-                                     Width="250"
-                                     Height="34"
-                                     VerticalContentAlignment="Center"
-                                     ToolTip="Search the application catalog"
-                                     AutomationProperties.Name="Search applications" />
-                            <Button x:Name="RefreshAppsButton"
-                                    Content="Refresh catalog"
-                                    Margin="8,0,0,0"
-                                    Padding="14,5"
-                                    ToolTip="Refresh the Evergreen application catalog" />
-                            <TextBlock x:Name="AppCountLabel"
-                                       Text="0 applications"
-                                       VerticalAlignment="Center"
-                                       Margin="12,0,0,0" />
-                        </StackPanel>
+                    </Expander>
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,12" VerticalAlignment="Center">
+                        <Label Content="Search apps" Target="{Binding ElementName=AppSearchBox}"
+                               VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
+                        <TextBox x:Name="AppSearchBox"
+                                 Width="220"
+                                 Height="34"
+                                 VerticalContentAlignment="Center"
+                                 Margin="0,0,8,4"
+                                 ToolTip="Search the application catalog"
+                                 AutomationProperties.Name="Search applications" />
+                        <Button x:Name="RefreshAppsButton"
+                                Content="Refresh catalog"
+                                Margin="0,0,8,4"
+                                Padding="14,5"
+                                ToolTip="Refresh the Evergreen application catalog" />
+                        <TextBlock x:Name="AppCountLabel"
+                                   Text="0 applications"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,12,4" />
                         <Button x:Name="FavoriteAppButton"
-                                DockPanel.Dock="Right"
                                 Content="Add favourite"
                                 Padding="14,5"
+                                Margin="0,0,0,4"
                                 IsEnabled="False" />
-                    </DockPanel>
+                    </WrapPanel>
                     <Grid Grid.Row="2" Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -209,10 +272,9 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0"
-                                   Text="Download location"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,10,0" />
+                        <Label x:Name="OutputPathLabel" Grid.Column="0" Content="Download location"
+                               Target="{Binding ElementName=OutputPathBox}"
+                               VerticalAlignment="Center" Padding="0" Margin="0,0,10,0" />
                         <TextBox x:Name="OutputPathBox"
                                  Grid.Column="1"
                                  MinWidth="100"
@@ -232,8 +294,9 @@
                     </Grid>
                     <Grid Grid.Row="3">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="260" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="220" MinWidth="160" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" MinWidth="300" />
                         </Grid.ColumnDefinitions>
                         <DataGrid x:Name="AppsListView"
                                   Grid.Column="0"
@@ -254,11 +317,20 @@
                                                         Width="78" />
                             </DataGrid.Columns>
                         </DataGrid>
-                        <Grid Grid.Column="1" Margin="16,0,0,0">
+                        <GridSplitter Grid.Column="1"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Stretch"
+                                      ResizeDirection="Columns"
+                                      ResizeBehavior="PreviousAndNext"
+                                      Background="Transparent"
+                                      ToolTip="Resize application list"
+                                      AutomationProperties.Name="Resize application list" />
+                        <Grid Grid.Column="2" Margin="4,0,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <TextBlock x:Name="SelectedAppText"
@@ -282,25 +354,66 @@
                                       AutomationProperties.Name="Available application artifacts">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" />
-                                    <DataGridTextColumn Header="Release" Binding="{Binding Release}" Width="110" />
                                     <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="110" />
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" />
                                     <DataGridTextColumn Header="Channel" Binding="{Binding Channel}" Width="120" />
+                                    <DataGridTextColumn Header="Release" Binding="{Binding Release}" Width="110" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" />
                                     <DataGridTextColumn Header="Language" Binding="{Binding Language}" Width="120" />
                                     <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="120" />
                                     <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="*" />
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <DockPanel Grid.Row="3" Margin="0,10,0,0">
+                            <Grid Grid.Row="3" Margin="0,8,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Release" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="1" Text="{Binding SelectedItem.Release, ElementName=ArtifactsGrid}" VerticalAlignment="Center" Margin="0,0,12,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="2" Text="Type" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="3" Text="{Binding SelectedItem.Type, ElementName=ArtifactsGrid}" VerticalAlignment="Center" Margin="0,0,12,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="4" Text="Date" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="5" Text="{Binding SelectedItem.Date, ElementName=ArtifactsGrid}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Language" VerticalAlignment="Center" Margin="0,4,6,0" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="5" Text="{Binding SelectedItem.Language, ElementName=ArtifactsGrid}" VerticalAlignment="Center" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                            <Grid Grid.Row="4" Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="URI" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBox x:Name="ArtifactUriTextBox"
+                                         Grid.Column="1"
+                                         Text="{Binding SelectedItem.URI, ElementName=ArtifactsGrid}"
+                                         IsReadOnly="True"
+                                         VerticalContentAlignment="Center"
+                                         ToolTip="URI for the selected artifact"
+                                         AutomationProperties.Name="Selected artifact URI" />
                                 <TextBlock x:Name="ArtifactCountLabel"
+                                           Grid.Column="2"
                                            Text="0 artifacts"
-                                           VerticalAlignment="Center" />
+                                           VerticalAlignment="Center"
+                                           Margin="12,0" />
                                 <Button x:Name="QueueDownloadButton"
-                                        DockPanel.Dock="Right"
+                                        Grid.Column="3"
                                         Content="Add selected to download queue"
+                                        Style="{DynamicResource AccentButtonStyle}"
                                         Padding="14,6"
+                                        FontWeight="SemiBold"
+                                        Margin="0"
                                         IsEnabled="False" />
-                            </DockPanel>
+                            </Grid>
                         </Grid>
                     </Grid>
                 </Grid>
@@ -311,10 +424,6 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                        <TextBlock Text="Queued downloads"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button x:Name="RemoveQueuedDownloadButton"
                                     Content="Remove selected"
@@ -332,9 +441,14 @@
                                     AutomationProperties.HelpText="Remove every item from the queue" />
                             <Button x:Name="StartDownloadButton"
                                     Content="Download pending"
+                                    Style="{DynamicResource AccentButtonStyle}"
                                     Padding="14,5"
                                     IsEnabled="False" />
                         </StackPanel>
+                        <TextBlock Text="Queued downloads"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
                     </DockPanel>
                     <DataGrid x:Name="DownloadQueueListView"
                               Grid.Row="1"
@@ -367,51 +481,48 @@
                     </Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock Text="Evergreen library"
-                                   FontSize="18"
-                                   FontWeight="SemiBold" />
+                                   Style="{StaticResource SectionHeadingTextBlockStyle}" />
                         <TextBlock Text="Read or update an initialized local Evergreen library."
                                    Margin="0,3,0,0"
                                    Opacity="0.75" />
                     </StackPanel>
                     <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0"
-                                   Text="Library location"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,10,0" />
+                        <Label Grid.Column="0" Content="Library location"
+                               Target="{Binding ElementName=LibraryPathBox}"
+                               VerticalAlignment="Center" Padding="0" Margin="0,0,10,0" />
                         <TextBox x:Name="LibraryPathBox"
                                  Grid.Column="1"
-                                 MinWidth="80"
+                                 MinWidth="100"
                                  Height="32"
                                  VerticalContentAlignment="Center"
                                  ToolTip="Folder containing EvergreenLibrary.json" />
-                        <Button x:Name="BrowseLibraryPathButton"
-                                Grid.Column="2"
-                                Content="Browse"
-                                Margin="8,0,0,0"
-                                Padding="12,4" />
-                        <Button x:Name="SetLibraryPathButton"
-                                Grid.Column="3"
-                                Content="Save path"
-                                Margin="8,0,0,0"
-                                Padding="12,4" />
-                        <Button x:Name="LoadLibraryButton"
-                                Grid.Column="4"
-                                Content="Load"
-                                Margin="8,0,0,0"
-                                Padding="12,4" />
-                        <Button x:Name="UpdateLibraryButton"
-                                Grid.Column="5"
-                                Content="Update library"
-                                Margin="8,0,0,0"
-                                Padding="14,4" />
+                        <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,8,0,0">
+                            <Button x:Name="BrowseLibraryPathButton"
+                                    Content="Browse"
+                                    Margin="0,0,8,0"
+                                    Padding="12,4" />
+                            <Button x:Name="SetLibraryPathButton"
+                                    Content="Save path"
+                                    Margin="0,0,8,0"
+                                    Padding="12,4" />
+                            <Button x:Name="LoadLibraryButton"
+                                    Content="Load"
+                                    Margin="0,0,8,0"
+                                    Padding="12,4" />
+                            <Button x:Name="UpdateLibraryButton"
+                                    Content="Update library"
+                                    Style="{DynamicResource AccentButtonStyle}"
+                                    Padding="14,4"
+                                    FontWeight="SemiBold" />
+                        </WrapPanel>
                     </Grid>
                     <DataGrid x:Name="LibraryListView"
                               Grid.Row="2"
@@ -456,15 +567,14 @@
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="0,0,0,8">
                             <TextBlock Text="Intune package definitions"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
+                                       Style="{StaticResource SectionHeadingTextBlockStyle}"
                                        Margin="0,0,0,12" />
                             <TextBlock Text="These App.json definitions are shared with local Install. Updating definitions writes the latest resolved version and setup file to valid definition files."
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,12"
                                        Opacity="0.75" />
-                            <TextBlock Text="Definitions folder"
-                                       Margin="0,0,0,5" />
+                            <Label Content="Definitions folder" Target="{Binding ElementName=IntuneDefinitionsPathBox}"
+                                   Padding="0" Margin="0,0,0,5" />
                             <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -488,9 +598,6 @@
                                         Padding="12,4" />
                             </Grid>
                             <DockPanel Margin="0,0,0,10">
-                                <TextBlock x:Name="PackageDefinitionsCountLabel"
-                                           Text="0 definitions"
-                                           VerticalAlignment="Center" />
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                     <Button x:Name="LoadPackageDefinitionsButton"
                                             Content="Load definitions"
@@ -500,6 +607,9 @@
                                             Content="Update definitions"
                                             Padding="12,5" />
                                 </StackPanel>
+                                <TextBlock x:Name="PackageDefinitionsCountLabel"
+                                           Text="0 definitions"
+                                           VerticalAlignment="Center" />
                             </DockPanel>
                             <DataGrid x:Name="PackageDefinitionsListView"
                                       Height="260"
@@ -517,8 +627,8 @@
                                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" />
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <TextBlock Text="Package output folder"
-                                       Margin="0,18,0,5" />
+                            <Label Content="Package output folder" Target="{Binding ElementName=PackageOutputPathBox}"
+                                   Padding="0" Margin="0,18,0,5" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -557,7 +667,8 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <WrapPanel Grid.Row="0" Margin="0,0,0,8">
-                        <TextBlock Text="Tenant ID (optional)" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <Label Content="Tenant ID (optional)" Target="{Binding ElementName=IntuneTenantIdBox}"
+                               VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
                         <TextBox x:Name="IntuneTenantIdBox" Width="220" Height="32"
                                  VerticalContentAlignment="Center" AutomationProperties.Name="Intune tenant ID" />
                         <CheckBox x:Name="UseIntuneDeviceCodeToggle" Content="Device code"
@@ -566,10 +677,10 @@
                         <Button x:Name="DisconnectIntuneButton" Content="Disconnect" Margin="8,0,0,0" Padding="12,4" />
                     </WrapPanel>
                     <DockPanel Grid.Row="1" Margin="0,0,0,8">
-                        <TextBlock x:Name="IntuneConnectionStatusLabel" Text="Not connected"
-                                   VerticalAlignment="Center" TextWrapping="Wrap" />
                         <Button x:Name="CompareIntuneButton" DockPanel.Dock="Right" Content="Compare definitions"
                                 Padding="12,4" />
+                        <TextBlock x:Name="IntuneConnectionStatusLabel" Text="Not connected"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" />
                     </DockPanel>
                     <DataGrid x:Name="IntuneComparisonListView" Grid.Row="2"
                               AutoGenerateColumns="False" SelectionMode="Extended" SelectionUnit="FullRow"
@@ -584,14 +695,14 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     <DockPanel Grid.Row="3" Margin="0,8">
-                        <TextBlock Text="Update app assigns to All Devices." VerticalAlignment="Center"
-                                   TextWrapping="Wrap" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button x:Name="CancelIntuneBatchButton" Content="Cancel batch" Margin="0,0,8,0"
                                     Padding="12,4" IsEnabled="False" />
                             <Button x:Name="PublishSelectedIntuneButton" Content="Build and publish selected"
-                                    Padding="12,4" IsEnabled="False" />
+                                    Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold" />
                         </StackPanel>
+                        <TextBlock Text="Update app assigns to All Devices." VerticalAlignment="Center"
+                                   TextWrapping="Wrap" />
                     </DockPanel>
                     <Grid Grid.Row="4">
                         <Grid.RowDefinitions>
@@ -599,9 +710,9 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <DockPanel Margin="0,0,0,4">
-                            <TextBlock Text="Batch results" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <Button x:Name="RetryIntuneSupersedenceButton" DockPanel.Dock="Right"
                                     Content="Retry selected link" Padding="12,4" IsEnabled="False" />
+                            <TextBlock Text="Batch results" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </DockPanel>
                         <DataGrid x:Name="IntunePublishResultsListView" Grid.Row="1" AutoGenerateColumns="False"
                                   IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
@@ -619,45 +730,57 @@
                         </TabItem>
                         <TabItem Header="Microsoft 365 Apps">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel x:Name="IntuneM365Form" Margin="8">
-                                    <TextBlock Text="Configuration folder" />
-                                    <DockPanel Margin="0,3,0,8">
-                                        <Button x:Name="IntuneM365BrowseButton" DockPanel.Dock="Right" Content="Browse" Padding="12,4" Margin="8,0,0,0" />
-                                        <TextBox x:Name="IntuneM365PathBox" AutomationProperties.Name="Intune Microsoft 365 configuration folder" />
-                                    </DockPanel>
-                                    <WrapPanel Margin="0,0,0,8">
-                                        <Button x:Name="IntuneM365LoadButton" Content="Load configurations" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="IntuneM365SaveButton" Content="Save shared settings" Padding="12,4" />
-                                    </WrapPanel>
-                                    <TextBlock Text="Configuration" />
-                                    <ComboBox x:Name="IntuneM365ConfigurationCombo" DisplayMemberPath="FileName" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 configuration" />
-                                    <TextBlock Text="Channel" />
-                                    <ComboBox x:Name="IntuneM365ChannelCombo" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 channel" />
-                                    <TextBlock Text="Company name" />
-                                    <TextBox x:Name="IntuneM365CompanyBox" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 company" />
-                                    <TextBlock Text="Session type" />
-                                    <ComboBox x:Name="IntuneM365SessionCombo" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 session type" />
-                                    <WrapPanel Margin="0,0,0,8">
-                                        <Button x:Name="IntuneM365TargetsButton" Content="Load matching Intune apps" Padding="12,4" />
-                                    </WrapPanel>
-                                    <TextBlock Text="Optional app to supersede (update relationship)" />
-                                    <ComboBox x:Name="IntuneM365TargetCombo" DisplayMemberPath="Name" Margin="0,3,0,8" AutomationProperties.Name="Intune app to supersede" />
-                                    <WrapPanel Margin="0,0,0,8">
-                                        <Button x:Name="IntuneM365PreviewBuildButton" Content="Preview build" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="IntuneM365PreviewPublishButton" Content="Preview publishing" Padding="12,4" />
-                                    </WrapPanel>
-                                    <TextBlock x:Name="IntuneM365PreviewText" Text="Select a configuration and preview the operation." TextWrapping="Wrap" Margin="0,0,0,8" />
-                                    <WrapPanel Margin="0,0,0,8">
-                                        <Button x:Name="IntuneM365BuildButton" Content="Build only" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="IntuneM365PublishButton" Content="Build and publish" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="IntuneM365CancelButton" Content="Cancel" Padding="12,4" />
-                                    </WrapPanel>
-                                    <TextBlock Text="Recovery: inspect an unknown outcome in Intune before acknowledging it." TextWrapping="Wrap" />
-                                    <ComboBox x:Name="IntuneM365RecoveryCombo" DisplayMemberPath="Id" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 recovery outcome" />
-                                    <WrapPanel Margin="0,0,0,8">
-                                        <Button x:Name="IntuneM365RecoveryLoadButton" Content="Load recovery records" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="IntuneM365ReviewButton" Content="Acknowledge reviewed outcome" Padding="12,4" />
-                                    </WrapPanel>
+                                <StackPanel x:Name="IntuneM365Form" MaxWidth="760" Margin="16">
+                                    <GroupBox Header="Package configuration" Margin="0,0,0,12">
+                                        <StackPanel Margin="8">
+                                            <Label Content="Configuration folder" Target="{Binding ElementName=IntuneM365PathBox}" Style="{StaticResource FormLabelStyle}" />
+                                            <DockPanel Margin="0,3,0,8">
+                                                <Button x:Name="IntuneM365BrowseButton" DockPanel.Dock="Right" Content="Browse" Padding="12,4" Margin="8,0,0,0" />
+                                                <TextBox x:Name="IntuneM365PathBox" AutomationProperties.Name="Intune Microsoft 365 configuration folder" />
+                                            </DockPanel>
+                                            <WrapPanel Margin="0,0,0,8">
+                                                <Button x:Name="IntuneM365LoadButton" Content="Load configurations" Padding="12,4" Margin="0,0,8,0" />
+                                                <Button x:Name="IntuneM365SaveButton" Content="Save shared settings" Padding="12,4" />
+                                            </WrapPanel>
+                                            <Label Content="Configuration" Target="{Binding ElementName=IntuneM365ConfigurationCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="IntuneM365ConfigurationCombo" DisplayMemberPath="FileName" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 configuration" />
+                                            <Label Content="Channel" Target="{Binding ElementName=IntuneM365ChannelCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="IntuneM365ChannelCombo" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 channel" />
+                                            <Label x:Name="IntuneM365CompanyLabel" Content="Company name" Target="{Binding ElementName=IntuneM365CompanyBox}" Style="{StaticResource FormLabelStyle}" />
+                                            <TextBox x:Name="IntuneM365CompanyBox" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 company" />
+                                            <Label Content="Session type" Target="{Binding ElementName=IntuneM365SessionCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="IntuneM365SessionCombo" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 session type" />
+                                            <WrapPanel Margin="0,0,0,8">
+                                                <Button x:Name="IntuneM365TargetsButton" Content="Load matching Intune apps" Padding="12,4" />
+                                            </WrapPanel>
+                                            <Label Content="Optional app to supersede (update relationship)" Target="{Binding ElementName=IntuneM365TargetCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="IntuneM365TargetCombo" DisplayMemberPath="Name" Margin="0,3,0,0" AutomationProperties.Name="Intune app to supersede" />
+                                        </StackPanel>
+                                    </GroupBox>
+                                    <GroupBox Header="Build and publish" Margin="0,0,0,12">
+                                        <StackPanel Margin="8">
+                                            <WrapPanel Margin="0,0,0,8">
+                                                <Button x:Name="IntuneM365PreviewBuildButton" Content="Preview build" Padding="12,4" Margin="0,0,8,0" />
+                                                <Button x:Name="IntuneM365PreviewPublishButton" Content="Preview publishing" Padding="12,4" />
+                                            </WrapPanel>
+                                            <TextBlock x:Name="IntuneM365PreviewText" Text="Select a configuration and preview the operation." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                            <WrapPanel Margin="0,0,0,8">
+                                                <Button x:Name="IntuneM365BuildButton" Content="Build only" Padding="12,4" Margin="0,0,8,0" />
+                                                <Button x:Name="IntuneM365PublishButton" Content="Build and publish" Style="{DynamicResource AccentButtonStyle}" Padding="12,4" Margin="0,0,8,0" FontWeight="SemiBold" />
+                                                <Button x:Name="IntuneM365CancelButton" Content="Cancel" Padding="12,4" />
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </GroupBox>
+                                    <Expander Header="Recovery" IsExpanded="False" Margin="0,0,0,12">
+                                        <StackPanel Margin="8">
+                                            <TextBlock Text="Inspect an unknown outcome in Intune before acknowledging it." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                            <ComboBox x:Name="IntuneM365RecoveryCombo" DisplayMemberPath="Id" Margin="0,0,0,8" AutomationProperties.Name="Intune Microsoft 365 recovery outcome" />
+                                            <WrapPanel>
+                                                <Button x:Name="IntuneM365RecoveryLoadButton" Content="Load recovery records" Padding="12,4" Margin="0,0,8,0" />
+                                                <Button x:Name="IntuneM365ReviewButton" Content="Acknowledge reviewed outcome" Padding="12,4" />
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Expander>
                                     <TextBlock x:Name="IntuneM365ResultText" TextWrapping="Wrap" />
                                 </StackPanel>
                             </ScrollViewer>
@@ -670,45 +793,45 @@
                         <TabItem Header="Shell Apps">
                             <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="1.5*" MaxHeight="200" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="3*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="2*" />
                     </Grid.RowDefinitions>
-                    <ScrollViewer x:Name="NerdioSetupScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
+                    <ScrollViewer x:Name="NerdioSetupScrollViewer" Grid.Row="0" MaxHeight="240" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
                             <Expander Header="Azure storage setup" IsExpanded="False" Margin="0,0,0,6">
                                 <StackPanel Margin="0,8">
-                                    <TextBlock Text="Azure tenant ID" />
+                                    <Label Content="Azure tenant ID" Target="{Binding ElementName=NerdioTenantIdBox}" Padding="0" />
                                     <TextBox x:Name="NerdioTenantIdBox" AutomationProperties.Name="Nerdio Azure tenant ID" Margin="0,2,0,6" />
-                                    <TextBlock Text="Azure subscription ID" />
+                                    <Label Content="Azure subscription ID" Target="{Binding ElementName=NmeSubscriptionIdBox}" Padding="0" />
                                     <TextBox x:Name="NmeSubscriptionIdBox" AutomationProperties.Name="Nerdio Azure subscription ID" Margin="0,2,0,6" />
                                     <WrapPanel Margin="0,0,0,6">
                                         <CheckBox x:Name="UseNerdioDeviceCodeToggle" Content="Device authentication" VerticalAlignment="Center" />
                                         <Button x:Name="ConnectNerdioAzureButton" Content="Connect Azure" Margin="12,0,0,0" Padding="12,4" />
                                         <Button x:Name="DisconnectNerdioButton" Content="Disconnect Azure and Nerdio" Margin="8,0,0,0" Padding="12,4" />
                                     </WrapPanel>
-                                    <TextBlock Text="Resource group" />
+                                    <Label Content="Resource group" Target="{Binding ElementName=NmeResourceGroupCombo}" Padding="0" />
                                     <ComboBox x:Name="NmeResourceGroupCombo" AutomationProperties.Name="Nerdio resource group" Margin="0,2,0,6" />
-                                    <TextBlock Text="Storage account" />
+                                    <Label Content="Storage account" Target="{Binding ElementName=NmeStorageAccountCombo}" Padding="0" />
                                     <ComboBox x:Name="NmeStorageAccountCombo" AutomationProperties.Name="Nerdio storage account" Margin="0,2,0,6" />
-                                    <TextBlock Text="Blob container" />
+                                    <Label Content="Blob container" Target="{Binding ElementName=NmeContainerCombo}" Padding="0" />
                                     <ComboBox x:Name="NmeContainerCombo" AutomationProperties.Name="Nerdio blob container" Margin="0,2,0,6" />
                                 </StackPanel>
                             </Expander>
                             <Expander Header="Nerdio API setup" IsExpanded="False" Margin="0,0,0,6">
                                 <StackPanel Margin="0,8">
-                                    <TextBlock Text="Nerdio HTTPS host" />
+                                    <Label Content="Nerdio HTTPS host" Target="{Binding ElementName=NmeHostBox}" Padding="0" />
                                     <TextBox x:Name="NmeHostBox" AutomationProperties.Name="Nerdio host" Margin="0,2,0,6" />
-                                    <TextBlock Text="Application client ID" />
+                                    <Label Content="Application client ID" Target="{Binding ElementName=NmeClientIdBox}" Padding="0" />
                                     <TextBox x:Name="NmeClientIdBox" AutomationProperties.Name="Nerdio client ID" Margin="0,2,0,6" />
-                                    <TextBlock Text="API scope" />
+                                    <Label Content="API scope" Target="{Binding ElementName=NmeApiScopeBox}" Padding="0" />
                                     <TextBox x:Name="NmeApiScopeBox" AutomationProperties.Name="Nerdio API scope" Margin="0,2,0,6" />
-                                    <TextBlock Text="OAuth token URL (optional)" />
+                                    <Label Content="OAuth token URL (optional)" Target="{Binding ElementName=NmeOAuthTokenUrlBox}" Padding="0" />
                                     <TextBox x:Name="NmeOAuthTokenUrlBox" AutomationProperties.Name="Nerdio OAuth token URL" Margin="0,2,0,6" />
-                                    <TextBlock Text="Client secret (not saved)" />
+                                    <Label Content="Client secret (not saved)" Target="{Binding ElementName=NmeClientSecretBox}" Padding="0" />
                                     <PasswordBox x:Name="NmeClientSecretBox" AutomationProperties.Name="Nerdio client secret" Margin="0,2,0,6" />
                                     <CheckBox x:Name="NerdioApiOnlyToggle" Content="API only (Microsoft 365 build only)" Margin="0,0,0,6" />
                                     <Button x:Name="ConnectNerdioButton" Content="Connect Nerdio API" HorizontalAlignment="Left" Padding="12,4" />
@@ -716,7 +839,7 @@
                             </Expander>
                             <Expander Header="Shell App definitions" IsExpanded="False" Margin="0,0,0,6">
                                 <StackPanel Margin="0,8">
-                                    <TextBlock Text="Folder containing Definition.json files and scripts" Margin="0,0,0,4" />
+                                    <Label Content="Folder containing Definition.json files and scripts" Target="{Binding ElementName=NerdioDefinitionsPathBox}" Padding="0" Margin="0,0,0,4" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -751,18 +874,28 @@
                             <DataGridTextColumn Header="Details" Binding="{Binding Message}" Width="2*" />
                         </DataGrid.Columns>
                     </DataGrid>
-                    <WrapPanel Grid.Row="3" HorizontalAlignment="Right" Margin="0,8">
-                        <Button x:Name="PruneSelectedNerdioVersionsButton" Content="Prune versions" Margin="0,0,8,0"
-                                Padding="12,4" IsEnabled="False"
-                                ToolTip="Preview exact versions for one selected, matched existing Shell App without publishing." />
-                        <Button x:Name="PruneNerdioVersionsButton" Content="Preview version pruning" Margin="0,0,8,0"
-                                Padding="12,4" IsEnabled="False"
-                                ToolTip="Preview exact versions for successfully published Shell Apps. No app is selected by default." />
+                    <Grid Grid.Row="3" Margin="0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Expander Header="Version maintenance" IsExpanded="False" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Margin="8">
+                                <Button x:Name="PruneSelectedNerdioVersionsButton" Content="Prune selected app" Margin="0,0,8,0"
+                                        Padding="12,4" IsEnabled="False"
+                                        ToolTip="Preview exact versions for one selected, matched existing Shell App without publishing." />
+                                <Button x:Name="PruneNerdioVersionsButton" Content="Preview published apps"
+                                        Padding="12,4" IsEnabled="False"
+                                        ToolTip="Preview exact versions for successfully published Shell Apps. No app is selected by default." />
+                            </StackPanel>
+                        </Expander>
+                        <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
                         <Button x:Name="ReviewNerdioOutcomeButton" Content="Review outcome" Margin="0,0,8,0"
                                 Padding="12,4" IsEnabled="False" ToolTip="After inspecting the selected pending or unknown result in Nerdio, record its final outcome. This does not retry or delete anything." />
                         <Button x:Name="CancelNerdioBatchButton" Content="Cancel batch" Margin="0,0,8,0" Padding="12,4" IsEnabled="False" />
-                        <Button x:Name="PublishSelectedNerdioButton" Content="Publish selected" Padding="12,4" IsEnabled="False" />
-                    </WrapPanel>
+                        <Button x:Name="PublishSelectedNerdioButton" Content="Publish selected" Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold" />
+                        </WrapPanel>
+                    </Grid>
                     <DataGrid x:Name="NerdioPublishResultsListView" Grid.Row="4" AutoGenerateColumns="False"
                               IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column"
                               AutomationProperties.Name="Nerdio publishing results">
@@ -780,43 +913,51 @@
                         </TabItem>
                         <TabItem Header="Microsoft 365 Apps">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel x:Name="NerdioM365Form" Margin="8">
-                                    <TextBlock Text="Configuration folder" />
-                                    <DockPanel Margin="0,3,0,8">
-                                        <Button x:Name="NerdioM365BrowseButton" DockPanel.Dock="Right" Content="Browse" Padding="12,4" Margin="8,0,0,0" />
-                                        <TextBox x:Name="NerdioM365PathBox" AutomationProperties.Name="Nerdio Microsoft 365 configuration folder" />
-                                    </DockPanel>
-                                    <WrapPanel Margin="0,0,0,8">
-                                        <Button x:Name="NerdioM365LoadButton" Content="Load configurations" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="NerdioM365SaveButton" Content="Save shared settings" Padding="12,4" />
-                                    </WrapPanel>
-                                    <TextBlock Text="Configuration" />
-                                    <ComboBox x:Name="NerdioM365ConfigurationCombo" DisplayMemberPath="FileName" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 configuration" />
-                                    <TextBlock Text="Channel" />
-                                    <ComboBox x:Name="NerdioM365ChannelCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 channel" />
-                                    <TextBlock Text="Company name" />
-                                    <TextBox x:Name="NerdioM365CompanyBox" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 company" />
-                                    <TextBlock Text="Session type" />
-                                    <ComboBox x:Name="NerdioM365SessionCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 session type" />
-                                    <TextBlock Text="Publish operation" />
-                                    <ComboBox x:Name="NerdioM365OperationCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 publish operation" />
-                                    <TextBlock Text="New Shell App name" />
-                                    <TextBox x:Name="NerdioM365NameBox" Margin="0,3,0,8" AutomationProperties.Name="New Microsoft 365 Shell App name" />
-                                    <Button x:Name="NerdioM365TargetsButton" Content="Load Nerdio Shell Apps" HorizontalAlignment="Left" Padding="12,4" Margin="0,0,0,8" />
-                                    <TextBlock Text="Existing Shell App for add version" />
-                                    <ComboBox x:Name="NerdioM365TargetCombo" DisplayMemberPath="Name" Margin="0,3,0,8" AutomationProperties.Name="Existing Nerdio Shell App" />
-                                    <CheckBox x:Name="NerdioM365AttestToggle" Content="I confirm the configuration changed if this Office version already exists." Margin="0,0,0,8" />
-                                    <TextBlock Text="Nerdio cannot compare the remote configuration and may reject a duplicate version." TextWrapping="Wrap" Margin="0,0,0,8" />
-                                    <WrapPanel Margin="0,0,0,8">
-                                        <Button x:Name="NerdioM365PreviewBuildButton" Content="Preview build" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="NerdioM365PreviewPublishButton" Content="Preview publishing" Padding="12,4" />
-                                    </WrapPanel>
-                                    <TextBlock x:Name="NerdioM365PreviewText" Text="Select a configuration and preview the operation." TextWrapping="Wrap" Margin="0,0,0,8" />
-                                    <WrapPanel Margin="0,0,0,8">
-                                        <Button x:Name="NerdioM365BuildButton" Content="Build only" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="NerdioM365PublishButton" Content="Build and publish" Padding="12,4" Margin="0,0,8,0" />
-                                        <Button x:Name="NerdioM365CancelButton" Content="Cancel" Padding="12,4" />
-                                    </WrapPanel>
+                                <StackPanel x:Name="NerdioM365Form" MaxWidth="760" Margin="16">
+                                    <GroupBox Header="Package configuration" Margin="0,0,0,12">
+                                        <StackPanel Margin="8">
+                                            <Label Content="Configuration folder" Target="{Binding ElementName=NerdioM365PathBox}" Style="{StaticResource FormLabelStyle}" />
+                                            <DockPanel Margin="0,3,0,8">
+                                                <Button x:Name="NerdioM365BrowseButton" DockPanel.Dock="Right" Content="Browse" Padding="12,4" Margin="8,0,0,0" />
+                                                <TextBox x:Name="NerdioM365PathBox" AutomationProperties.Name="Nerdio Microsoft 365 configuration folder" />
+                                            </DockPanel>
+                                            <WrapPanel Margin="0,0,0,8">
+                                                <Button x:Name="NerdioM365LoadButton" Content="Load configurations" Padding="12,4" Margin="0,0,8,0" />
+                                                <Button x:Name="NerdioM365SaveButton" Content="Save shared settings" Padding="12,4" />
+                                            </WrapPanel>
+                                            <Label Content="Configuration" Target="{Binding ElementName=NerdioM365ConfigurationCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="NerdioM365ConfigurationCombo" DisplayMemberPath="FileName" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 configuration" />
+                                            <Label Content="Channel" Target="{Binding ElementName=NerdioM365ChannelCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="NerdioM365ChannelCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 channel" />
+                                            <Label Content="Company name" Target="{Binding ElementName=NerdioM365CompanyBox}" Style="{StaticResource FormLabelStyle}" />
+                                            <TextBox x:Name="NerdioM365CompanyBox" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 company" />
+                                            <Label Content="Session type" Target="{Binding ElementName=NerdioM365SessionCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="NerdioM365SessionCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 session type" />
+                                            <Label Content="Publish operation" Target="{Binding ElementName=NerdioM365OperationCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="NerdioM365OperationCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 publish operation" />
+                                            <Label Content="New Shell App name" Target="{Binding ElementName=NerdioM365NameBox}" Style="{StaticResource FormLabelStyle}" />
+                                            <TextBox x:Name="NerdioM365NameBox" Margin="0,3,0,8" AutomationProperties.Name="New Microsoft 365 Shell App name" />
+                                            <Button x:Name="NerdioM365TargetsButton" Content="Load Nerdio Shell Apps" HorizontalAlignment="Left" Padding="12,4" Margin="0,0,0,8" />
+                                            <Label Content="Existing Shell App for add version" Target="{Binding ElementName=NerdioM365TargetCombo}" Style="{StaticResource FormLabelStyle}" />
+                                            <ComboBox x:Name="NerdioM365TargetCombo" DisplayMemberPath="Name" Margin="0,3,0,8" AutomationProperties.Name="Existing Nerdio Shell App" />
+                                            <CheckBox x:Name="NerdioM365AttestToggle" Content="I confirm the configuration changed if this Office version already exists." Margin="0,0,0,8" />
+                                            <TextBlock Text="Nerdio cannot compare the remote configuration and may reject a duplicate version." TextWrapping="Wrap" Margin="0,0,0,0" />
+                                        </StackPanel>
+                                    </GroupBox>
+                                    <GroupBox Header="Build and publish" Margin="0,0,0,12">
+                                        <StackPanel Margin="8">
+                                            <WrapPanel Margin="0,0,0,8">
+                                                <Button x:Name="NerdioM365PreviewBuildButton" Content="Preview build" Padding="12,4" Margin="0,0,8,0" />
+                                                <Button x:Name="NerdioM365PreviewPublishButton" Content="Preview publishing" Padding="12,4" />
+                                            </WrapPanel>
+                                            <TextBlock x:Name="NerdioM365PreviewText" Text="Select a configuration and preview the operation." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                            <WrapPanel>
+                                                <Button x:Name="NerdioM365BuildButton" Content="Build only" Padding="12,4" Margin="0,0,8,0" />
+                                                <Button x:Name="NerdioM365PublishButton" Content="Build and publish" Style="{DynamicResource AccentButtonStyle}" Padding="12,4" Margin="0,0,8,0" FontWeight="SemiBold" />
+                                                <Button x:Name="NerdioM365CancelButton" Content="Cancel" Padding="12,4" />
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </GroupBox>
                                     <TextBlock x:Name="NerdioM365ResultText" TextWrapping="Wrap" />
                                 </StackPanel>
                             </ScrollViewer>
@@ -830,21 +971,29 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <TextBlock x:Name="InstallDefinitionsCountLabel"
                                    Text="0 definitions"
                                    VerticalAlignment="Center" />
-                        <TextBlock x:Name="InstallActionStatusLabel"
-                                   DockPanel.Dock="Right"
-                                   Text="Reload definitions to check local installation status."
-                                   VerticalAlignment="Center"
-                                   Opacity="0.75" />
                         <CheckBox x:Name="HideIncompatibleInstallToggle"
+                                  Grid.Column="1"
                                   Content="Hide incompatible"
                                   Margin="18,0,0,0"
                                   VerticalAlignment="Center"
                                   IsChecked="False" />
-                    </DockPanel>
+                        <TextBlock x:Name="InstallActionStatusLabel"
+                                   Grid.Column="2"
+                                   Text="Reload definitions to check local installation status."
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Right"
+                                   TextWrapping="Wrap"
+                                   Opacity="0.75" />
+                    </Grid>
                     <DataGrid x:Name="InstallDefinitionsListView"
                               Grid.Row="1"
                               AutoGenerateColumns="False"
@@ -874,9 +1023,6 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     <DockPanel Grid.Row="2" Margin="0,12,0,0">
-                        <TextBlock Text="Latest-version lookup uses the Evergreen catalog."
-                                   VerticalAlignment="Center"
-                                   Opacity="0.75" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button x:Name="ReloadInstallDefinitionsButton"
                                     Content="Reload definitions"
@@ -889,25 +1035,44 @@
                                     IsEnabled="False" />
                             <Button x:Name="InstallSelectedPackagesButton"
                                     Content="Install selected"
+                                    Style="{DynamicResource AccentButtonStyle}"
                                     Padding="14,5"
+                                    FontWeight="SemiBold"
                                     IsEnabled="False" />
                         </StackPanel>
+                        <TextBlock Text="Latest-version lookup uses the Evergreen catalog."
+                                   VerticalAlignment="Center"
+                                   Opacity="0.75" />
                     </DockPanel>
                 </Grid>
 
                 <Grid x:Name="SettingsPanel" Visibility="Collapsed">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="0,0,0,8">
+                        <StackPanel MaxWidth="760" Margin="0,0,0,8">
+                            <TextBlock Text="Appearance"
+                                       Style="{StaticResource SectionHeadingTextBlockStyle}"
+                                       Margin="0,0,0,8" />
+                            <Label Content="Color theme" Target="{Binding ElementName=ThemeCombo}" Padding="0" Margin="0,0,0,5" />
+                            <ComboBox x:Name="ThemeCombo"
+                                      SelectedIndex="0"
+                                      HorizontalAlignment="Left"
+                                      MinWidth="180"
+                                      Margin="0,0,0,24"
+                                      ToolTip="Choose the Workbench color theme"
+                                      AutomationProperties.Name="Color theme">
+                                <sys:String>System</sys:String>
+                                <sys:String>Light</sys:String>
+                                <sys:String>Dark</sys:String>
+                            </ComboBox>
                             <TextBlock Text="Saved folders"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
+                                       Style="{StaticResource SectionHeadingTextBlockStyle}"
                                        Margin="0,0,0,8" />
                             <TextBlock Text="Change these paths in Apps or Library. The values shown here are saved settings."
                                        TextWrapping="Wrap"
                                        Opacity="0.75"
                                        Margin="0,0,0,16" />
-                            <TextBlock Text="Download folder" Margin="0,0,0,5" />
+                            <Label Content="Download folder" Target="{Binding ElementName=SettingsDownloadPathBox}" Padding="0" Margin="0,0,0,5" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -931,7 +1096,7 @@
                                        TextWrapping="Wrap"
                                        Opacity="0.75"
                                        Margin="0,5,0,16" />
-                            <TextBlock Text="Library folder" Margin="0,0,0,5" />
+                            <Label Content="Library folder" Target="{Binding ElementName=SettingsLibraryPathBox}" Padding="0" Margin="0,0,0,5" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -962,10 +1127,9 @@
                 <Grid x:Name="AboutPanel" Visibility="Collapsed">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="0,0,0,8">
+                        <StackPanel MaxWidth="900" Margin="0,0,0,8">
                             <TextBlock x:Name="AboutNameValue"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
+                                       Style="{StaticResource SectionHeadingTextBlockStyle}"
                                        Margin="0,0,0,8" />
                             <TextBlock x:Name="AboutVersionValue" Margin="0,0,0,4" />
                             <TextBlock x:Name="AboutAuthorValue" Margin="0,0,0,4" />
@@ -986,8 +1150,7 @@
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,8" />
                             <TextBlock Text="Dependencies"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
+                                       Style="{StaticResource SectionHeadingTextBlockStyle}"
                                        Margin="0,0,0,8" />
                             <TextBlock Text="Installed is the highest discoverable version. Loaded versions are for the Workbench window runspace; background Jobs and the caller can differ."
                                        TextWrapping="Wrap"
@@ -1039,6 +1202,12 @@
             </Grid>
 
             <DockPanel Grid.Row="2" Margin="0,12,0,0">
+                <TextBlock x:Name="AppsMaintenanceStatusLabel"
+                           DockPanel.Dock="Top"
+                           Text="Maintenance ready"
+                           TextWrapping="Wrap"
+                           Visibility="{Binding Visibility, ElementName=AppsPanel}"
+                           Margin="0,0,0,6" />
                 <ProgressBar x:Name="JobProgressBar"
                              Height="6"
                              Minimum="0"
@@ -1048,18 +1217,29 @@
             </DockPanel>
         </Grid>
 
-        <TextBox x:Name="ActivityLog"
-                 Grid.Column="1"
-                 Grid.Row="1"
-                 Margin="24,0,24,16"
-                 Height="110"
-                 IsReadOnly="True"
-                 AcceptsReturn="True"
-                 TextWrapping="NoWrap"
-                 VerticalScrollBarVisibility="Auto"
-                 HorizontalScrollBarVisibility="Auto"
-                 FontFamily="Consolas"
-                 FontSize="12"
-                 AutomationProperties.Name="Workbench activity log" />
+        <Expander Grid.Column="1"
+                  Grid.Row="1"
+                  Header="Activity log"
+                  IsExpanded="False"
+                  Margin="24,0,24,12">
+            <StackPanel>
+                <Thumb x:Name="ActivityLogResizeThumb"
+                       Height="8"
+                       Cursor="SizeNS"
+                       Focusable="True"
+                       ToolTip="Drag or use the up and down arrow keys to resize the activity log"
+                       AutomationProperties.Name="Resize activity log" />
+                <TextBox x:Name="ActivityLog"
+                     Height="140"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     AutomationProperties.Name="Workbench activity log" />
+            </StackPanel>
+        </Expander>
     </Grid>
 </Window>

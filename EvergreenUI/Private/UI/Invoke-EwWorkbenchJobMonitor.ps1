@@ -63,6 +63,7 @@ function Invoke-EwWorkbenchJobMonitor {
     while ($State.ProgressReadIndex -lt $job.Progress.Count) {
         $progress = $job.Progress[$State.ProgressReadIndex]
         $State.ProgressReadIndex++
+        $State.StatusLabel.Tag = 'Info'
         $State.StatusLabel.Text = $progress.Activity
         if ($State.ActiveJobKind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')) {
             Write-EwWorkbenchLog -State $State -Message "$($progress.Activity): $($progress.StatusDescription)"

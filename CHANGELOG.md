@@ -35,6 +35,9 @@
 - Add Apps maintenance controls for Evergreen application-data updates, confirmed Workbench cache clearing, and opening the cache folder without upgrading the installed module.
 - Add headless cache clearing with cross-runspace/process invalidation, protection against stale in-flight cache writes, targeted custom paths, and explicit partial outcomes.
 - Refresh Apps after maintenance while preserving valid filters and queued Artifacts; distinguish refresh failures from maintenance outcomes and mark retained data stale.
+- Refresh the WPF interface with adaptive icon navigation, themed primary
+  actions, grouped provider forms, and a collapsible, resizable activity log.
+  Theme selection is now in Settings.
 
 ## [1.1.27]
 

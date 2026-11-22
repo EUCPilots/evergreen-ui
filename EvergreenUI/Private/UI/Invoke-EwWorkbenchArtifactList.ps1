@@ -29,13 +29,15 @@ function Invoke-EwWorkbenchArtifactList {
                 foreach ($filter in $metadata) {
                     $group = [System.Windows.Controls.StackPanel]::new()
                     $group.Margin = [System.Windows.Thickness]::new(0, 0, 10, 6)
-                    $label = [System.Windows.Controls.TextBlock]::new()
-                    $label.Text = $filter.DisplayName
+                    $label = [System.Windows.Controls.Label]::new()
+                    $label.Content = $filter.DisplayName
+                    $label.Padding = [System.Windows.Thickness]::new(0)
                     $label.Margin = [System.Windows.Thickness]::new(0, 0, 0, 3)
                     $null = $group.Children.Add($label)
 
                     # A read-only editable ComboBox shows a summary while its drop-down hosts value check boxes.
                     $control = [System.Windows.Controls.ComboBox]::new()
+                    $label.Target = $control
                     $control.MinWidth = 120
                     $control.IsEditable = $true
                     $control.IsReadOnly = $true

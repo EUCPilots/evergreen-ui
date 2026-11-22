@@ -112,7 +112,7 @@ Describe 'Evergreen Workbench WPF shell' {
                         'SettingsPanel', 'AboutPanel', 'SettingsDownloadPathBox', 'SettingsLibraryPathBox',
                         'OpenDownloadFolderButton', 'OpenLibraryFolderButton', 'AboutDependenciesListView',
                         'RefreshAboutDependenciesButton', 'AboutProjectLink', 'AboutLicenseLink',
-                        'AppSearchBox', 'AppCountLabel', 'AppsListView', 'ArtifactsGrid',
+                        'AppSearchBox', 'AppCountLabel', 'AppsListView', 'ArtifactsGrid', 'ArtifactUriTextBox',
                         'DownloadQueueListView', 'LibraryListView', 'LibraryVersionsListView',
                         'PackageDefinitionsListView', 'InstallDefinitionsListView',
                         'LoadPackageDefinitionsButton', 'UpdatePackageDefinitionsButton',
@@ -161,6 +161,7 @@ Describe 'Evergreen Workbench WPF shell' {
                 Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                 foreach ($filter in $state.ArtifactFilterControls.Values) {
                     $filter.Control | Should -BeOfType ([System.Windows.Controls.ComboBox])
+                    $filter.Control.Parent.Children[0].Target | Should -Be $filter.Control
                     $filter.Control.Text | Should -Be 'All'
                     @($filter.CheckBoxes | Where-Object IsChecked).Count | Should -Be 0
                 }
@@ -205,7 +206,37 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'uses the theme foreground for unselected sidebar items across light and dark modes' {
+    It 'shows the selected artifact URI outside the compact results table' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.AllArtifacts = @(
+                    [PSCustomObject]@{
+                        Version = '1.0'
+                        Architecture = 'x64'
+                        Channel = 'Stable'
+                        Release = 'November'
+                        Type = 'exe'
+                        Date = '2026-11-22'
+                        Language = 'en-US'
+                        URI = 'https://example.test/application.exe'
+                    }
+                )
+                Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                $window.Show()
+                $state.ArtifactsGrid.SelectedItem = $state.ArtifactsGrid.Items[0]
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+
+                $window.FindName('ArtifactUriTextBox').Text | Should -Be 'https://example.test/application.exe'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'uses theme-aware foreground and accent selection in the sidebar across light and dark modes' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -213,13 +244,96 @@ Describe 'Evergreen Workbench WPF shell' {
                 foreach ($mode in 'Light', 'Dark', 'Light') {
                     $window.ThemeMode = [System.Windows.ThemeMode]::$mode
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                    foreach ($name in 'NavDownload', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall', 'NavSettings', 'NavAbout') {
+                    foreach ($name in 'NavApps', 'NavDownload', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall', 'NavSettings', 'NavAbout') {
                         $window.FindName($name).Foreground.Color |
                             Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
                     }
-                    $window.FindName('NavApps').Foreground.Color |
-                        Should -Be ([System.Windows.Media.Colors]::White)
+                    $window.FindName('NavIntune').Content | Should -Be 'Intune'
+                    $selectedIndicator = $window.FindName('NavApps').Template.FindName(
+                        'SelectedIndicator',
+                        $window.FindName('NavApps')
+                    )
+                    $selectedIndicator.Visibility | Should -Be 'Visible'
+                    $selectedIndicator.Background.Color |
+                        Should -Be $window.TryFindResource([System.Windows.SystemColors]::HighlightBrushKey).Color
                 }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'adapts navigation to window width while keeping labels available to automation' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Width = 960
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $button = $window.FindName('NavApps')
+                $label = $button.Template.FindName('NavigationLabel', $button)
+                $window.FindName('NavigationColumn').ActualWidth | Should -Be 64
+                $label.Visibility | Should -Be 'Collapsed'
+                $button.ActualHeight | Should -BeGreaterOrEqual 40
+                [System.Windows.Automation.AutomationProperties]::GetName($button) | Should -Be 'Apps view'
+
+                $window.Width = 1200
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.FindName('NavigationColumn').ActualWidth | Should -Be 208
+                $label.Visibility | Should -Be 'Visible'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'resizes the activity log without preventing it from collapsing' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Show()
+                $log = $window.FindName('ActivityLog')
+                $expander = $log.Parent.Parent
+                $expander.IsExpanded = $true
+                $thumb = $window.FindName('ActivityLogResizeThumb')
+                $thumb.RaiseEvent([System.Windows.Controls.Primitives.DragDeltaEventArgs]::new(0, -40))
+                $log.Height | Should -Be 180
+                $keyArgs = [System.Windows.Input.KeyEventArgs]::new(
+                    [System.Windows.Input.Keyboard]::PrimaryDevice,
+                    [System.Windows.PresentationSource]::FromVisual($window),
+                    0,
+                    [System.Windows.Input.Key]::Up
+                )
+                $keyArgs.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent
+                $thumb.RaiseEvent($keyArgs)
+                $log.Height | Should -Be 190
+                $expander.IsExpanded = $false
+                $expander.IsExpanded | Should -BeFalse
+                $expander.IsExpanded = $true
+                $log.Height | Should -Be 190
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'associates form labels with their controls and displays log severity' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.FindName('OutputPathLabel').Target | Should -Be $window.FindName('OutputPathBox')
+                $state.NavIntune.IsChecked = $true
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.FindName('IntuneM365CompanyLabel').Target | Should -Be $window.FindName('IntuneM365CompanyBox')
+                Write-EwWorkbenchLog -State $state -Message 'Example failure' -Level Error
+                $state.StatusLabel.Tag | Should -Be 'Error'
+                $state.StatusLabel.Text | Should -Be 'Example failure'
             }
             finally {
                 $window.Close()
@@ -1613,7 +1727,7 @@ function Get-EwDependency {
         }
     }
 
-    It 'keeps About reachable above the theme selector at minimum window size' {
+    It 'keeps About reachable in the navigation at minimum window size' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -1624,13 +1738,10 @@ function Get-EwDependency {
                 $scroll.ScrollToEnd()
                 $window.UpdateLayout()
                 $about = $window.FindName('NavAbout')
-                $theme = $window.FindName('ThemeCombo')
                 $aboutTop = $about.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
-                $themeTop = $theme.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
                 $scrollTop = $scroll.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
                 $aboutTop | Should -BeGreaterOrEqual $scrollTop
                 ($aboutTop + $about.ActualHeight) | Should -BeLessOrEqual ($scrollTop + $scroll.ActualHeight)
-                ($aboutTop + $about.ActualHeight) | Should -BeLessOrEqual $themeTop
                 $about.ActualHeight | Should -BeGreaterThan 0
             }
             finally {
