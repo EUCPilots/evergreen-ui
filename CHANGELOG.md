@@ -22,6 +22,10 @@
 - Persist Nerdio publish and delete attempts before provider writes, restore unresolved outcomes and pruning offers after restart, and require reconnection to the same destination.
 - Add optional post-publish Shell App version pruning with a default retention of one, explicit app selection, exact-version preview and recheck, and separate confirmation.
 - Stop on pending or unknown deletion outcomes, require manual review, and skip apps with duplicate, unorderable or non-newest published versions.
+- Add API-only Nerdio authentication without changing an unrelated Azure context on disconnect.
+- Require valid Microsoft 365 configuration IDs and use the Office channel version for package metadata and detection. Stage rolling-channel configurations and reject `DownloadPath`, which requires a pinned version.
+- Add Microsoft 365 build and confirmed publishing tabs for Intune and Nerdio, with separate Office and deployment-tool versions, input and target rechecks, and cooperative cancellation.
+- Preserve partial provider outcomes and require explicit review of uncertain Intune and Nerdio writes; do not retry, roll back or remove provider resources automatically.
 
 ## [1.1.27]
 

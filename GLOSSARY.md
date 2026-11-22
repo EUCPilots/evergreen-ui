@@ -8,6 +8,10 @@ A Windows desktop application and PowerShell module (`EvergreenUI`) for discover
 An `App.json` file describing one application: how to resolve its latest installer, how to install it and how to detect it.
 _Avoid_: Manifest, package definition, template
 
+**Microsoft 365 configuration**:
+An Office Deployment Tool XML file describing a Microsoft 365 Apps installation.
+_Avoid_: App.json Definition, Shell App definition
+
 **Artifact**:
 A resolved installer for a specific version of an application, produced by evaluating a Definition's filter or a Shell App definition's source.
 _Avoid_: Download, installer, result

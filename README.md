@@ -18,6 +18,9 @@ V2 definition workflows use `Get-EwDefinition`, `Resolve-EwArtifact`, and `Updat
 
 `New-EwPackage` builds Intune Win32 packages from App.json definitions or creates Microsoft 365 Apps packages for Intune or Nerdio from ODT XML. Intune package building uses the optional `IntuneWin32App` module. `Connect-EwIntune` and `Connect-EwNerdio` establish provider sessions; publishing commands require their corresponding Microsoft Graph or Azure modules and live provider access. Authentication tokens and secrets are kept in process memory, not settings.
 
+`Connect-EwNerdio -ApiOnly` authenticates without an Azure storage connection.
+A full connection with Azure storage remains required for Nerdio publishing.
+
 Additional headless commands cover the remaining v1 workflows: `Add-EwFavouriteApp` and `Remove-EwFavouriteApp`; `Get-EwDependency` and `Update-EwEvergreen`; `Get-EwM365Configuration`; `Get-EwIntuneApp` and `Compare-EwIntuneApp`; `Connect-EwAzure`, `Disconnect-EwAzure`, and the `Get-EwAzure*` resource listing commands; and `Get-EwNerdioDefinition`, `Get-EwNerdioShellApp`, `Get-EwNerdioShellAppVersion`, `Compare-EwNerdioShellApp`, and `Remove-EwNerdioShellAppVersion`. `Publish-EwNerdioApp -ShellAppId` adds a version to an existing Shell App.
 
 ```powershell
@@ -168,6 +171,61 @@ preview. Nerdio sessions are shared explicitly across the module's Job workers
 in memory; expiry, disconnect and provider-configuration changes require
 reconnection. Live publishing requires provider access and explicit
 authorization; automated tests use mocks.
+
+### Microsoft 365 Apps
+
+The Intune and Nerdio views each have a Microsoft 365 Apps tab. Sign in to the
+matching provider, load the folder containing the Office Deployment Tool (ODT)
+configuration XML, and select one configuration with a valid, non-empty ID.
+Choose the channel, company and session type, then preview and build or preview
+and publish. Use Save settings to persist the shared, non-secret selections.
+Nerdio build-only can use API-only sign-in; publishing additionally requires
+the connected Azure tenant, subscription and storage destination.
+
+The folder must contain `Uninstall-Microsoft365Apps.xml` with a
+`Configuration.Remove` element for Nerdio builds and Intune publishing.
+Intune build-only can run without this file, but publishing requires rebuilding
+with it because the generated uninstall command references the file. Nerdio also needs a
+`shell-app` folder containing `Definition.json`, `Detect.ps1`, `Install.ps1`
+and `Uninstall.ps1`. Source XML and scripts are not modified.
+
+The preview shows the resolved Office channel version separately from the ODT
+download version. Workbench extracts the signed ODT archive using Windows
+`tar.exe` without running the downloaded executable. The built configuration
+uses a rolling channel and cannot
+use `DownloadPath`. An installation may be newer than the preview; Intune
+version detection accepts the previewed version or a newer one. The tool
+retains the v1 `TenantId` property and writes company as
+`AppSettings\Setup Name="Company"`,
+but Microsoft does not document these as tenant association or company
+configuration. The verified session tenant is not proof that the installed
+Office instance is associated with that tenant. Microsoft's documented
+[`TenantAssociationKey`](https://learn.microsoft.com/microsoft-365-apps/deploy/office-deployment-tool-configuration-options#tenantassociationkey-property-part-of-property-element)
+is a different value and is not generated from the tenant ID.
+
+Publishing requires confirmation before building. Intune creates a new app,
+shows existing configuration-ID matches and can optionally supersede one
+using an update relationship without uninstalling it. Nerdio can create a
+Shell App or add a version to a selected Shell App. Adding the same version
+requires explicit attestation that the configuration changed; Nerdio may
+still reject it. Preview inputs and provider targets are rechecked before
+writes, but these checks are not atomic locks.
+
+Existing packages are replaced only after explicit approval. Builds retain
+their staged source and downloaded tool under the output folder's
+`<application>\Builds\<GUID>` directory; remove these directories manually
+when no longer needed. Cancellation takes effect between stages and does not
+interrupt an active build, upload or provider request. Review any partial
+result before proceeding; no retry, rollback or provider cleanup is automatic.
+Unknown Intune outcomes are stored without secrets and block writes for that
+configuration until reviewed and acknowledged in the Intune Microsoft 365
+tab. Nerdio pending and unknown outcomes use the Shell Apps recovery controls.
+
+Headless workflows use `Get-EwM365BuildPlan`, `Get-EwM365IntunePublishPlan` or
+`Get-EwM365NerdioPublishPlan`, and the corresponding
+`Publish-EwM365IntuneApp` or `Publish-EwM365NerdioApp` command. An M365
+`New-EwPackage` call without a preview creates one automatically and still
+requires the matching provider session.
 
 ### Optional Intune connection check
 
