@@ -66,11 +66,15 @@ function Get-EwWorkbenchState {
             NavIntune = $Window.FindName('NavIntune')
             NavNerdio = $Window.FindName('NavNerdio')
             NavInstall = $Window.FindName('NavInstall')
+            NavSettings = $Window.FindName('NavSettings')
+            NavAbout = $Window.FindName('NavAbout')
             OutputPathBox = $Window.FindName('OutputPathBox')
             PackagesPanel = $Window.FindName('PackagesPanel')
             IntunePanel = $Window.FindName('IntunePanel')
             NerdioPanel = $Window.FindName('NerdioPanel')
             InstallPanel = $Window.FindName('InstallPanel')
+            SettingsPanel = $Window.FindName('SettingsPanel')
+            AboutPanel = $Window.FindName('AboutPanel')
             IntuneTenantIdBox = $Window.FindName('IntuneTenantIdBox')
             UseIntuneDeviceCodeToggle = $Window.FindName('UseIntuneDeviceCodeToggle')
             ConnectIntuneButton = $Window.FindName('ConnectIntuneButton')
@@ -138,6 +142,17 @@ function Get-EwWorkbenchState {
         'IntuneM365RecoveryCombo', 'IntuneM365RecoveryLoadButton', 'IntuneM365ReviewButton') {
         $state[$name] = $Window.FindName($name)
     }
+    foreach ($name in @(
+            'SettingsDownloadPathBox', 'SettingsLibraryPathBox', 'OpenDownloadFolderButton',
+            'OpenLibraryFolderButton', 'DownloadFolderStatusLabel', 'LibraryFolderStatusLabel',
+            'AboutNameValue', 'AboutVersionValue', 'AboutAuthorValue', 'AboutCompanyValue',
+            'AboutCopyrightValue', 'AboutDescriptionValue', 'AboutProjectLink', 'AboutLicenseLink',
+            'AboutLinkStatusLabel', 'RefreshAboutDependenciesButton', 'AboutDependencyStatusLabel',
+            'AboutDependenciesListView'
+        )) {
+        $state[$name] = $Window.FindName($name)
+    }
     Initialize-EwWorkbenchView -State $state
+    Initialize-EwWorkbenchInfoView -State $state
     return $state
 }

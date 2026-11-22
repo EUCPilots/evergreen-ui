@@ -6,9 +6,9 @@ function Start-EwJob {
     .SYNOPSIS
         Starts a headless operation in the shared runspace pool.
     .DESCRIPTION
-        Starts a job in a pool of up to four runspaces. The module is imported
-        in the worker. Script blocks are recreated in the worker and do not
-        capture caller variables; pass values through ArgumentList instead.
+        Starts a job in a pool of up to four runspaces. By default, the module
+        is imported in the worker. Script blocks are recreated in the worker
+        and do not capture caller variables; pass values through ArgumentList.
         Get-EwJob exposes progress and information streams and final output.
     .PARAMETER ScriptBlock
         The operation to run in the worker.
@@ -16,6 +16,9 @@ function Start-EwJob {
         Positional arguments passed to the operation.
     .PARAMETER Name
         A descriptive name for the job.
+    .PARAMETER NoModuleImport
+        Does not automatically import EvergreenUI in the worker. A reused
+        runspace may still contain modules loaded by earlier jobs.
     .EXAMPLE
         Start-EwJob -ScriptBlock { param($Name) "Hello $Name" } -ArgumentList 'World'
     .OUTPUTS
@@ -32,7 +35,9 @@ function Start-EwJob {
         [object[]]$ArgumentList = @(),
 
         [ValidateNotNullOrEmpty()]
-        [string]$Name = 'Evergreen Workbench job'
+        [string]$Name = 'Evergreen Workbench job',
+
+        [switch]$NoModuleImport
     )
 
     if (-not $PSCmdlet.ShouldProcess($Name, 'Start background job')) {
@@ -58,18 +63,20 @@ function Start-EwJob {
     $powerShell.Streams.Progress.BlockingEnumerator = $false
     $powerShell.Streams.Information.BlockingEnumerator = $false
     $worker = {
-        param($ModulePath, $Body, $Arguments, $NerdioSession)
+        param($ModulePath, $Body, $Arguments, $NerdioSession, $SkipImport)
         $ErrorActionPreference = 'Stop'
-        Import-Module -Name $ModulePath -ErrorAction Stop
-        & (Get-Module -Name EvergreenUI) {
-            param($Session)
-            $script:ewNerdioSession = $Session
-            $script:ewOwnsNerdioSession = $false
-        } $NerdioSession
+        if (-not $SkipImport) {
+            Import-Module -Name $ModulePath -ErrorAction Stop
+            & (Get-Module -Name EvergreenUI) {
+                param($Session)
+                $script:ewNerdioSession = $Session
+                $script:ewOwnsNerdioSession = $false
+            } $NerdioSession
+        }
         & ([scriptblock]::Create($Body)) @Arguments
     }
     try {
-        $null = $powerShell.AddScript($worker.ToString()).AddArgument($script:ewModulePath).AddArgument($ScriptBlock.ToString()).AddArgument($ArgumentList).AddArgument($script:ewNerdioSession)
+        $null = $powerShell.AddScript($worker.ToString()).AddArgument($script:ewModulePath).AddArgument($ScriptBlock.ToString()).AddArgument($ArgumentList).AddArgument($script:ewNerdioSession).AddArgument([bool]$NoModuleImport)
         $handle = $powerShell.BeginInvoke()
     }
     catch {

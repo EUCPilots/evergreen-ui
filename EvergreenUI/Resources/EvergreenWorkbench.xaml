@@ -73,37 +73,6 @@
                                FontSize="13"
                                Opacity="0.75" />
                 </StackPanel>
-                <StackPanel DockPanel.Dock="Top">
-                    <RadioButton x:Name="NavApps"
-                                 Style="{StaticResource NavigationButtonStyle}"
-                                 Content="Apps"
-                                 IsChecked="True"
-                                 AutomationProperties.Name="Apps view" />
-                    <RadioButton x:Name="NavDownload"
-                                 Style="{StaticResource NavigationButtonStyle}"
-                                 Content="Download"
-                                 AutomationProperties.Name="Download view" />
-                    <RadioButton x:Name="NavLibrary"
-                                 Style="{StaticResource NavigationButtonStyle}"
-                                 Content="Library"
-                                 AutomationProperties.Name="Library view" />
-                    <RadioButton x:Name="NavPackages"
-                                 Style="{StaticResource NavigationButtonStyle}"
-                                 Content="Packages"
-                                 AutomationProperties.Name="Packages view" />
-                    <RadioButton x:Name="NavIntune"
-                                 Style="{StaticResource NavigationButtonStyle}"
-                                 Content="Intune"
-                                 AutomationProperties.Name="Intune view" />
-                    <RadioButton x:Name="NavNerdio"
-                                 Style="{StaticResource NavigationButtonStyle}"
-                                 Content="Nerdio"
-                                 AutomationProperties.Name="Nerdio view" />
-                    <RadioButton x:Name="NavInstall"
-                                 Style="{StaticResource NavigationButtonStyle}"
-                                 Content="Install"
-                                 AutomationProperties.Name="Install view" />
-                </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom" Margin="4,16,4,4">
                     <TextBlock Text="Appearance" Margin="0,0,0,6" />
                     <ComboBox x:Name="ThemeCombo"
@@ -115,6 +84,49 @@
                         <sys:String>Dark</sys:String>
                     </ComboBox>
                 </StackPanel>
+                <ScrollViewer x:Name="NavigationScrollViewer"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <RadioButton x:Name="NavApps"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Apps"
+                                     IsChecked="True"
+                                     AutomationProperties.Name="Apps view" />
+                        <RadioButton x:Name="NavDownload"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Download"
+                                     AutomationProperties.Name="Download view" />
+                        <RadioButton x:Name="NavLibrary"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Library"
+                                     AutomationProperties.Name="Library view" />
+                        <RadioButton x:Name="NavPackages"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Packages"
+                                     AutomationProperties.Name="Packages view" />
+                        <RadioButton x:Name="NavIntune"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Intune"
+                                     AutomationProperties.Name="Intune view" />
+                        <RadioButton x:Name="NavNerdio"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Nerdio"
+                                     AutomationProperties.Name="Nerdio view" />
+                        <RadioButton x:Name="NavInstall"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Install"
+                                     AutomationProperties.Name="Install view" />
+                        <RadioButton x:Name="NavSettings"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Settings"
+                                     AutomationProperties.Name="Settings view" />
+                        <RadioButton x:Name="NavAbout"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="About"
+                                     AutomationProperties.Name="About view" />
+                    </StackPanel>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 
@@ -846,6 +858,148 @@
                                     IsEnabled="False" />
                         </StackPanel>
                     </DockPanel>
+                </Grid>
+
+                <Grid x:Name="SettingsPanel" Visibility="Collapsed">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="Saved folders"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,8" />
+                            <TextBlock Text="Change these paths in Apps or Library. The values shown here are saved settings."
+                                       TextWrapping="Wrap"
+                                       Opacity="0.75"
+                                       Margin="0,0,0,16" />
+                            <TextBlock Text="Download folder" Margin="0,0,0,5" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="SettingsDownloadPathBox"
+                                         IsReadOnly="True"
+                                         Height="32"
+                                         VerticalContentAlignment="Center"
+                                         AutomationProperties.Name="Saved download folder" />
+                                <Button x:Name="OpenDownloadFolderButton"
+                                        Grid.Column="1"
+                                        Content="Open folder"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4"
+                                        IsEnabled="False"
+                                        AutomationProperties.Name="Open download folder" />
+                            </Grid>
+                            <TextBlock x:Name="DownloadFolderStatusLabel"
+                                       Text="Folder has not been checked."
+                                       TextWrapping="Wrap"
+                                       Opacity="0.75"
+                                       Margin="0,5,0,16" />
+                            <TextBlock Text="Library folder" Margin="0,0,0,5" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="SettingsLibraryPathBox"
+                                         IsReadOnly="True"
+                                         Height="32"
+                                         VerticalContentAlignment="Center"
+                                         AutomationProperties.Name="Saved library folder" />
+                                <Button x:Name="OpenLibraryFolderButton"
+                                        Grid.Column="1"
+                                        Content="Open folder"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4"
+                                        IsEnabled="False"
+                                        AutomationProperties.Name="Open library folder" />
+                            </Grid>
+                            <TextBlock x:Name="LibraryFolderStatusLabel"
+                                       Text="Folder has not been checked."
+                                       TextWrapping="Wrap"
+                                       Opacity="0.75"
+                                       Margin="0,5,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <Grid x:Name="AboutPanel" Visibility="Collapsed">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock x:Name="AboutNameValue"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,8" />
+                            <TextBlock x:Name="AboutVersionValue" Margin="0,0,0,4" />
+                            <TextBlock x:Name="AboutAuthorValue" Margin="0,0,0,4" />
+                            <TextBlock x:Name="AboutCompanyValue" Margin="0,0,0,4" />
+                            <TextBlock x:Name="AboutCopyrightValue"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8" />
+                            <TextBlock x:Name="AboutDescriptionValue"
+                                       TextWrapping="Wrap"
+                                       Opacity="0.75"
+                                       Margin="0,0,0,8" />
+                            <TextBlock Margin="0,0,0,18">
+                                <Hyperlink x:Name="AboutProjectLink">Project website</Hyperlink>
+                                <Run Text="    " />
+                                <Hyperlink x:Name="AboutLicenseLink">License</Hyperlink>
+                            </TextBlock>
+                            <TextBlock x:Name="AboutLinkStatusLabel"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8" />
+                            <TextBlock Text="Dependencies"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,8" />
+                            <TextBlock Text="Installed is the highest discoverable version. Loaded versions are for the Workbench window runspace; background Jobs and the caller can differ."
+                                       TextWrapping="Wrap"
+                                       Opacity="0.75"
+                                       Margin="0,0,0,8" />
+                            <DockPanel Margin="0,0,0,8">
+                                <Button x:Name="RefreshAboutDependenciesButton"
+                                        DockPanel.Dock="Right"
+                                        Content="Refresh"
+                                        Padding="12,4"
+                                        AutomationProperties.Name="Refresh dependency status" />
+                                <TextBlock x:Name="AboutDependencyStatusLabel"
+                                           Text="Dependency status has not been checked."
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0" />
+                            </DockPanel>
+                            <DataGrid x:Name="AboutDependenciesListView"
+                                      Height="220"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single"
+                                      HeadersVisibility="Column"
+                                      CanUserAddRows="False"
+                                      EnableRowVirtualization="True"
+                                      AutomationProperties.Name="Workbench dependency status">
+                                <DataGrid.Resources>
+                                    <Style x:Key="DependencyCellStyle" TargetType="{x:Type TextBlock}">
+                                        <Setter Property="TextWrapping" Value="Wrap" />
+                                        <Setter Property="Margin" Value="4,2" />
+                                    </Style>
+                                </DataGrid.Resources>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Module" Binding="{Binding Name}"
+                                                        Width="150" ElementStyle="{StaticResource DependencyCellStyle}" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="80" />
+                                    <DataGridTextColumn Header="Installed" Binding="{Binding InstalledVersion}" Width="110" />
+                                    <DataGridTextColumn Header="Loaded (window)" Binding="{Binding LoadedVersions}"
+                                                        Width="150" ElementStyle="{StaticResource DependencyCellStyle}" />
+                                    <DataGridTextColumn Header="Minimum" Binding="{Binding MinimumVersion}" Width="100" />
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
+                                    <DataGridTextColumn Header="Purpose" Binding="{Binding Purpose}"
+                                                        Width="220" ElementStyle="{StaticResource DependencyCellStyle}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </Grid>
 

@@ -8,6 +8,7 @@ function Invoke-EwWorkbenchJobMonitor {
         [System.Collections.IDictionary]$State
     )
 
+    Invoke-EwWorkbenchInfoJobMonitor -State $State
     if ($null -eq $State.ActiveJobId) {
         return
     }

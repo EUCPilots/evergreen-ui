@@ -30,7 +30,7 @@ function Get-EwDependency {
     )
 
     foreach ($dependency in $dependencies) {
-        $installed = Get-Module -ListAvailable -Name $dependency.Name -ErrorAction SilentlyContinue |
+        $installed = Get-Module -ListAvailable -Name $dependency.Name -ErrorAction Stop |
             Sort-Object -Property Version -Descending |
             Select-Object -First 1
         $version = if ($installed) { [string]$installed.Version } else { '' }

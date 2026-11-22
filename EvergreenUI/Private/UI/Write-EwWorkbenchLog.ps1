@@ -11,11 +11,15 @@ function Write-EwWorkbenchLog {
         [string]$Message,
 
         [ValidateSet('Info', 'Warning', 'Error', 'Cmd')]
-        [string]$Level = 'Info'
+        [string]$Level = 'Info',
+
+        [switch]$PreserveStatus
     )
 
     $entry = Format-LogEntry -Message $Message -Level $Level
     $State.ActivityLog.AppendText($entry + [Environment]::NewLine)
     $State.ActivityLog.ScrollToEnd()
-    $State.StatusLabel.Text = $Message
+    if (-not $PreserveStatus) {
+        $State.StatusLabel.Text = $Message
+    }
 }
