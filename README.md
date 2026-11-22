@@ -140,15 +140,33 @@ the Azure/Nerdio destination. Files, sources and matches are checked again
 before writes. Cancellation takes effect between items, and the current
 provider operation finishes first. Results retain known blob, app and job IDs.
 Pending or unknown outcomes stop the batch and block further Nerdio publishing
-in the current Workbench session, including after refreshing or changing setup.
-Inspect the operation in Nerdio, select its result and use Acknowledge outcome
-review before comparing again. This acknowledgment does not retry or delete
-anything, and does not turn an uncertain result into a success.
+until inspected. The Workbench stores unresolved operation metadata and
+successful-publish pruning offers in
+`%APPDATA%\EvergreenWorkbench\nerdio-recovery.json`; it never stores tokens or
+client secrets. Recovery requires reconnecting to the same tenant, subscription,
+Nerdio host and Azure storage destination. Select an unresolved result and use
+Review outcome: choose Yes only after confirming success in Nerdio, No only
+after confirming failure, or Cancel to leave it unresolved. A claimed publish
+success is not accepted until v2 refreshes the Shell App and verifies the
+published version is uniquely newest.
+
+After a successful publish, choose Preview version pruning to review saved
+pruning offers. The preview selects no apps by default, keeps one version by
+default (including the newly published version), and lists the exact versions
+to keep or delete. You can change the retention count, select specific apps,
+and must confirm the exact deletion list. V2 rechecks the full version snapshot
+before deleting; duplicate, unorderable or non-newest published versions are
+skipped. A pending or unknown delete stops pruning and requires review. Its
+recovery record also blocks publishing to that Shell App until resolved.
+Postponed offers remain available across restarts and later batches.
 
 The headless equivalents are `Get-EwNerdioPublishPlan` and
-`Publish-EwNerdioBatch`. Nerdio sessions are shared explicitly across the
-module's Job workers in memory; expiry, disconnect and provider-configuration changes
-require reconnection. Live publishing requires provider access and explicit
+`Publish-EwNerdioBatch`, `Get-EwNerdioShellAppVersionPrunePlan` and
+`Remove-EwNerdioShellAppVersion`. The removal command accepts
+`-ExpectedVersionNames` and `-ExpectedRemovalVersions` to reject a stale
+preview. Nerdio sessions are shared explicitly across the module's Job workers
+in memory; expiry, disconnect and provider-configuration changes require
+reconnection. Live publishing requires provider access and explicit
 authorization; automated tests use mocks.
 
 ### Optional Intune connection check

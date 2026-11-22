@@ -79,7 +79,7 @@ Start-EvergreenWorkbench
 | Microsoft 365 | `Get-EwM365Configuration` | Discovers ODT XML configurations with channel, products, and architecture. |
 | Intune compare | `Get-EwIntuneApp`, `Compare-EwIntuneApp` | Lists Win32 apps via Graph and compares them with App.json definitions. |
 | Azure discovery | `Connect-EwAzure`, `Disconnect-EwAzure`, `Get-EwAzureResourceGroup`, `Get-EwAzureStorageAccount`, `Get-EwAzureStorageContainer` | Lists resources for Nerdio storage configuration. |
-| Nerdio | `Get-EwNerdioDefinition`, `Get-EwNerdioShellApp`, `Get-EwNerdioShellAppVersion`, `Compare-EwNerdioShellApp`, `Get-EwNerdioPublishPlan`, `Remove-EwNerdioShellAppVersion` | Reads Definition.json files, compares Shell Apps and prepares read-only publishing snapshots. The UI supports Evergreen sources and defers pruning. |
+| Nerdio | `Get-EwNerdioDefinition`, `Get-EwNerdioShellApp`, `Get-EwNerdioShellAppVersion`, `Compare-EwNerdioShellApp`, `Get-EwNerdioPublishPlan`, `Get-EwNerdioShellAppVersionPrunePlan`, `Remove-EwNerdioShellAppVersion` | Reads Definition.json files, compares Shell Apps, prepares publishing snapshots and previews exact version retention/deletion. The UI supports Evergreen sources, confirmed post-publish pruning, and durable recovery of uncertain writes without credentials. |
 
 `Evergreen` is required. `IntuneWin32App`, `Microsoft.Graph.Authentication`, `Az.Accounts`, `Az.Resources`, and `Az.Storage` are optional provider dependencies.
 
@@ -132,8 +132,11 @@ Intune compares Definitions and builds and publishes confirmed batches through
 publishing plans through `Get-EwNerdioPublishPlan` and `Publish-EwNerdioBatch`.
 Nerdio's synchronized session is passed explicitly into Job workers; script
 variables alone are not shared between runspaces. Pending and unknown provider
-outcomes require review before another write. Long-running work uses the shared
-job pool.
+outcomes are persisted before writes, require review, and are never retried
+automatically. The UI supports Evergreen sources and optional post-publish
+pruning through an exact-version preview and a separate confirmation; ambiguous
+versions are skipped. Recovery state contains no credentials and requires the
+same Nerdio destination to resume. Long-running work uses the shared job pool.
 
 ### Key Private Functions
 

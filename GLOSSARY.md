@@ -32,6 +32,10 @@ _Avoid_: App.json Definition, Intune Definition
 An application managed in Nerdio Manager, with one or more installer versions.
 _Avoid_: Intune app, Package
 
+**Shell App version pruning**:
+Removal of older Shell App versions while retaining a selected number of versions.
+_Avoid_: Version cleanup, version purge
+
 **Publish**:
 Upload an Artifact or Package and its metadata to a Provider. Replaces the v1 term "Import".
 _Avoid_: Import, deploy, push

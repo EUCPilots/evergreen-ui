@@ -19,6 +19,9 @@
 - Rename the Publish view to Intune and add a dedicated Nerdio view with staged Azure/API connection, storage discovery and saved non-secret setup.
 - Add read-only Nerdio publishing plans and confirmed sequential batches for Evergreen-backed Shell Apps, with source/file/target rechecks and cancellation between items.
 - Share Nerdio sessions across Job workers and preserve partial blob, app and job identifiers; block pending or unknown outcomes until reviewed rather than retrying automatically.
+- Persist Nerdio publish and delete attempts before provider writes, restore unresolved outcomes and pruning offers after restart, and require reconnection to the same destination.
+- Add optional post-publish Shell App version pruning with a default retention of one, explicit app selection, exact-version preview and recheck, and separate confirmation.
+- Stop on pending or unknown deletion outcomes, require manual review, and skip apps with duplicate, unorderable or non-newest published versions.
 
 ## [1.1.27]
 
