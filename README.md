@@ -12,6 +12,8 @@ Apps, Download, Library, Packages, Intune, Nerdio, Install, Settings, and About.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
 
+The v2 interface restores its window size and maximised state, last viewed page, and last selected application at startup. Apps artifact filters are multi-select: values combine with OR within a property and AND across properties, and no selection means All. The Download view can clear the whole queue unless a download is running, or clear only completed rows.
+
 Use `Start-EwJob -NoModuleImport` for work that does not need Workbench
 commands. A reused worker may still contain modules loaded by earlier jobs.
 

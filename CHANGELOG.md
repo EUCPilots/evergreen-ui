@@ -16,7 +16,9 @@
 - Add the Intune Publish view with connection, comparison, confirmed sequential build-and-publish batches, optional update apps, and supersedence retry.
 - Preserve partial Intune app IDs and Definition update failures, and distinguish linked supersedence chains from ambiguous Intune matches.
 - Match the v2 title bar to the form background on Windows 11 and correct sidebar text and hover colours in light and dark modes.
-- Use single-select dropdowns with an All option for Apps artifact filters.
+- Use multi-select check box dropdowns for Apps artifact filters; values combine with OR within a property and AND across properties, and no selection means All.
+- Add a Clear queue action that removes every queued row unless a download is running; Clear completed now removes only downloaded and failed rows.
+- Restore the window size and maximised state, the last selected application, and the last viewed page when the Workbench starts.
 - Rename the Publish view to Intune and add a dedicated Nerdio view with staged Azure/API connection, storage discovery and saved non-secret setup.
 - Add read-only Nerdio publishing plans and confirmed sequential batches for Evergreen-backed Shell Apps, with source/file/target rechecks and cancellation between items.
 - Share Nerdio sessions across Job workers and preserve partial blob, app and job identifiers; block pending or unknown outcomes until reviewed rather than retrying automatically.
