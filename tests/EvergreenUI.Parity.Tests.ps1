@@ -71,6 +71,29 @@ Describe 'Dependencies' {
         }
     }
 
+    It 'surfaces dependency discovery errors instead of reporting missing modules' {
+        InModuleScope EvergreenUI {
+            Mock Get-Module -ParameterFilter { $ListAvailable } {
+                Write-Error -Message 'module discovery failed'
+            }
+            { @(Get-EwDependency) } | Should -Throw '*module discovery failed*'
+        }
+    }
+
+    It 'selects the highest installed dependency version' {
+        InModuleScope EvergreenUI {
+            Mock Get-Module -ParameterFilter { $ListAvailable } {
+                if ($Name -eq 'Az.Storage') {
+                    [PSCustomObject]@{ Name = 'Az.Storage'; Version = [version]'3.0' }
+                    [PSCustomObject]@{ Name = 'Az.Storage'; Version = [version]'10.0' }
+                }
+            }
+            $dependency = Get-EwDependency | Where-Object Name -EQ 'Az.Storage'
+            $dependency.InstalledVersion | Should -Be '10.0'
+            $dependency.Status | Should -Be 'Installed'
+        }
+    }
+
     It 'updates Evergreen and clears the catalog cache' {
         InModuleScope EvergreenUI {
             Mock Invoke-EwEvergreenUpdate {}

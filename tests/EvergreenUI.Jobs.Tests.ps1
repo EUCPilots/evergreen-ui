@@ -23,6 +23,20 @@ AfterAll {
 }
 
 Describe 'Workbench jobs' {
+    It 'can run a local job without importing Workbench or Evergreen in a fresh worker' {
+        $job = Start-EwJob -NoModuleImport -ScriptBlock {
+            @(Get-Module -Name EvergreenUI, Evergreen).Count
+        }
+        try {
+            $job = Wait-TestJob -Id $job.Id
+            $job.State | Should -Be 'Completed'
+            $job.Output | Should -Be 0
+        }
+        finally {
+            Remove-EwJob -Id $job.Id -Confirm:$false
+        }
+    }
+
     It 'executes with arguments and exposes progress, information, and output' {
         $job = Start-EwJob -Name 'stream test' -ScriptBlock {
             param($Value)
