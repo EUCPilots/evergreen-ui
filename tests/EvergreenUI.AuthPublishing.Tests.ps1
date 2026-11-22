@@ -42,8 +42,8 @@ Describe 'Provider authentication' {
             $result.Succeeded | Should -BeTrue
             $result.AccountId | Should -Be 'user@example.test'
             $result.NmeHost | Should -Be 'nme.example.test'
-            $script:ewNerdioContext.AccessToken | Should -Be 'test-token'
-            $script:ewNerdioContext.PSObject.Properties.Name | Should -Not -Contain 'ClientSecret'
+            $script:ewNerdioSession.Context.AccessToken | Should -Be 'test-token'
+            $script:ewNerdioSession.Context.PSObject.Properties.Name | Should -Not -Contain 'ClientSecret'
             Should -Invoke Connect-AzAccount -Exactly 1 -ParameterFilter { $Tenant -eq 'tenant-id' -and $Subscription -eq 'sub-id' }
         }
     }
@@ -178,7 +178,7 @@ Describe 'Provider publishing' {
 
     It 'uploads a Nerdio Shell App payload and removes internal source metadata' {
         InModuleScope EvergreenUI -Parameters @{ DefinitionPath = $shellDefinitionPath; PackagePath = $packagePath } {
-            $script:ewNerdioContext = [PSCustomObject]@{
+            $script:ewNerdioSession.Context = [PSCustomObject]@{
                 AccessToken = 'test-token'
                 TokenExpiresAt = [DateTimeOffset]::UtcNow.AddHours(1)
                 NmeHost = 'nme.example.test'

@@ -14,8 +14,8 @@ Describe 'Intune Publish view' {
             $window = Get-EwWorkbenchWindow
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
-                $state.NavPublish.IsChecked = $true
-                $state.PublishPanel.Visibility.ToString() | Should -Be 'Visible'
+                $state.NavIntune.IsChecked = $true
+                $state.IntunePanel.Visibility.ToString() | Should -Be 'Visible'
                 $state.IntuneTenantId = 'tenant'
                 $state.IntuneComparisonRoot = 'C:\Definitions'
                 $state.Settings.IntuneDefinitionsPath = 'C:\Definitions'

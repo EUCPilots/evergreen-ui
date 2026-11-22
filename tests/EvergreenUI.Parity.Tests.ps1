@@ -269,7 +269,7 @@ Describe 'Azure discovery' {
 
     It 'signs out, clears the Azure process context, and clears the Nerdio token' {
         InModuleScope EvergreenUI {
-            $script:ewNerdioContext = [PSCustomObject]@{ Token = 'token' }
+            $script:ewNerdioSession.Context = [PSCustomObject]@{ Token = 'token' }
             Mock Assert-EwModule {}
             Mock Get-AzContext { [PSCustomObject]@{ Account = [PSCustomObject]@{ Id = 'user@example.test' } } }
             Mock Disconnect-AzAccount {}
@@ -277,7 +277,7 @@ Describe 'Azure discovery' {
             $result = Disconnect-EwAzure
             $result.Succeeded | Should -BeTrue
             $result.WasConnected | Should -BeTrue
-            $script:ewNerdioContext | Should -BeNullOrEmpty
+            $script:ewNerdioSession.Context | Should -BeNullOrEmpty
             Should -Invoke Disconnect-AzAccount -Exactly 1 -ParameterFilter { $Scope -eq 'Process' }
             Should -Invoke Clear-AzContext -Exactly 1 -ParameterFilter { $Scope -eq 'Process' -and $Force }
         }
@@ -318,7 +318,7 @@ Describe 'Nerdio Shell App parity' {
 
     BeforeEach {
         InModuleScope EvergreenUI {
-            $script:ewNerdioContext = [PSCustomObject]@{
+            $script:ewNerdioSession.Context = [PSCustomObject]@{
                 AccessToken = 'test-token'
                 TokenExpiresAt = [DateTimeOffset]::UtcNow.AddHours(1)
                 NmeHost = 'nme.example.test'

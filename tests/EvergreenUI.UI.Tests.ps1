@@ -89,8 +89,8 @@ Describe 'Evergreen Workbench WPF shell' {
             try {
                 foreach ($name in @(
                         'NavApps', 'NavDownload', 'NavLibrary',
-                        'NavPackages', 'NavPublish', 'NavInstall',
-                        'AppsPanel', 'DownloadPanel', 'LibraryPanel', 'PackagesPanel', 'PublishPanel', 'InstallPanel',
+                        'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall',
+                        'AppsPanel', 'DownloadPanel', 'LibraryPanel', 'PackagesPanel', 'IntunePanel', 'NerdioPanel', 'InstallPanel',
                         'AppSearchBox', 'AppCountLabel', 'AppsListView', 'ArtifactsGrid',
                         'DownloadQueueListView', 'LibraryListView', 'LibraryVersionsListView',
                         'PackageDefinitionsListView', 'InstallDefinitionsListView',
@@ -179,7 +179,7 @@ Describe 'Evergreen Workbench WPF shell' {
                 foreach ($mode in 'Light', 'Dark', 'Light') {
                     $window.ThemeMode = [System.Windows.ThemeMode]::$mode
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                    foreach ($name in 'NavDownload', 'NavLibrary', 'NavPackages', 'NavPublish', 'NavInstall') {
+                    foreach ($name in 'NavDownload', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall') {
                         $window.FindName($name).Foreground.Color |
                             Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
                     }
