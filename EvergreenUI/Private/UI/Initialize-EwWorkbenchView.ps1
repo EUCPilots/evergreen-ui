@@ -25,6 +25,7 @@ function Initialize-EwWorkbenchView {
     $State.AppsLoading = $false
     $State.AppCatalog = @()
     $State.AllArtifacts = @()
+    $State.PendingLastAppName = if ($State.Settings.Contains('LastAppName')) { [string]$State.Settings.LastAppName } else { '' }
     Initialize-EwWorkbenchMaintenanceView -State $State
 
     $State.NavApps.Add_Checked({
@@ -82,6 +83,14 @@ function Initialize-EwWorkbenchView {
         $selectedApp = $State.AppsListView.SelectedItem
         $State.CurrentApp = $selectedApp
         $State.CurrentAppName = [string]$selectedApp.Name
+        $State.PendingLastAppName = ''
+        if ([string]$State.Settings.LastAppName -ne $State.CurrentAppName) {
+            & $State.ModuleInvoker -Name 'Save-EwWorkbenchUiSetting' -Parameters @{
+                State = $State
+                Name = 'LastAppName'
+                Value = $State.CurrentAppName
+            }
+        }
         $State.FavoriteAppButton.Content = if ($selectedApp.IsFavourite) { 'Remove favourite' } else { 'Add favourite' }
         $State.FavoriteAppButton.IsEnabled = $null -eq $State.ActiveJobId
         $State.SelectedAppText.Text = "Loading versions for $($selectedApp.FriendlyName)..."
@@ -363,9 +372,27 @@ function Initialize-EwWorkbenchView {
         }
         $State.StartDownloadButton.IsEnabled = @($State.Queue | Where-Object Status -eq 'Pending').Count -gt 0 -and $null -eq $State.ActiveJobId
     }.GetNewClosure())
-    $State.ClearQueueButton.Add_Click({
-        foreach ($item in @($State.Queue | Where-Object Status -ne 'Pending')) {
+    $State.ClearCompletedQueueButton.Add_Click({
+        foreach ($item in @($State.Queue | Where-Object Status -in @('Downloaded', 'Failed'))) {
             $State.Queue.Remove($item)
+        }
+    }.GetNewClosure())
+    $State.ClearQueueButton.Add_Click({
+        # Rows of an active download Job must remain so its results can be applied.
+        if ($null -ne $State.ActiveJobId -and $State.ActiveJobKind -eq 'Downloads') {
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State
+                Message = 'Cannot clear the queue while a download is running.'
+                Level = 'Warning'
+            }
+            return
+        }
+        $count = $State.Queue.Count
+        $State.Queue.Clear()
+        $State.StartDownloadButton.IsEnabled = $false
+        & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+            State = $State
+            Message = "Cleared $count items from the download queue."
         }
     }.GetNewClosure())
     $State.StartDownloadButton.Add_Click({
@@ -435,6 +462,4 @@ function Initialize-EwWorkbenchView {
             }
         }
     }.GetNewClosure())
-
-    Show-EwWorkbenchView -State $State -View 'Apps'
 }

@@ -35,8 +35,9 @@ function Invoke-EwWorkbenchMaintenanceAction {
         if ($Action -in @('Update', 'Clear')) {
             $filters = @{}
             foreach ($name in $State.ArtifactFilterControls.Keys) {
-                $control = $State.ArtifactFilterControls[$name].Control
-                if ($control.SelectedIndex -gt 0) { $filters[$name] = [string]$control.SelectedItem }
+                $selectedValues = @($State.ArtifactFilterControls[$name].CheckBoxes |
+                    Where-Object { [bool]$_.IsChecked } | ForEach-Object { [string]$_.Tag })
+                if ($selectedValues.Count -gt 0) { $filters[$name] = $selectedValues }
             }
             $State.MaintenanceContext = @{
                 AppName = if ($null -ne $State.CurrentApp) { [string]$State.CurrentApp.Name } else { '' }

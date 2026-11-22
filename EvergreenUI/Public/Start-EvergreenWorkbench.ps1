@@ -70,6 +70,7 @@ function Start-EvergreenWorkbench {
         default { [System.Windows.ThemeMode]::System }
     }
     $state = Get-EwWorkbenchState -Window $window -Settings $settings
+    Restore-EwWorkbenchWindowSize -Window $window -Settings $settings
     $timer = [System.Windows.Threading.DispatcherTimer]::new()
     $timer.Interval = [TimeSpan]::FromMilliseconds(250)
     $timer.Add_Tick({
@@ -100,6 +101,9 @@ function Start-EvergreenWorkbench {
         param($eventSource, $closingArgs)
         if ($eventSource -eq $state.Window) {
             & $state.ModuleInvoker -Name 'Invoke-EwWorkbenchClosingGuard' -Parameters @{ State = $state; ClosingArgs = $closingArgs }
+            if (-not $closingArgs.Cancel) {
+                & $state.ModuleInvoker -Name 'Save-EwWorkbenchWindowSize' -Parameters @{ State = $state }
+            }
         }
     }.GetNewClosure())
     Write-Verbose -Message 'EvergreenUI: Showing Workbench window'

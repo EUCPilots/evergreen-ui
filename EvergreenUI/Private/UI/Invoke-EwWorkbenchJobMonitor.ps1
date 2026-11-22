@@ -97,6 +97,7 @@ function Invoke-EwWorkbenchJobMonitor {
     $output = @($job.Output)
     $refreshIntune = $kind -in @('IntunePublish', 'IntuneRetry')
     $nextMaintenanceAction = ''
+    $restoreApp = $null
     if ($kind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')) {
         $nextMaintenanceAction = Invoke-EwWorkbenchMaintenanceJobResult -State $State -Kind $kind -Job $job
     }
@@ -123,6 +124,19 @@ function Invoke-EwWorkbenchJobMonitor {
                 $State.AppCatalog = @($output)
                 Invoke-EwWorkbenchAppList -State $State
                 Write-EwWorkbenchLog -State $State -Message "Loaded $($State.AppCatalog.Count) applications."
+                if (-not [string]::IsNullOrWhiteSpace([string]$State.PendingLastAppName)) {
+                    $lastAppName = [string]$State.PendingLastAppName
+                    $State.PendingLastAppName = ''
+                    if ($null -eq $State.CurrentApp) {
+                        $restoreApp = $State.AppCatalog | Where-Object Name -eq $lastAppName | Select-Object -First 1
+                        if ($null -eq $restoreApp) {
+                            Write-EwWorkbenchLog -State $State -Message "Last application '$lastAppName' is no longer in the catalog; not restored."
+                        }
+                        else {
+                            Write-Verbose -Message "EvergreenUI: Restoring last application $lastAppName"
+                        }
+                    }
+                }
             }
             'Artifacts' {
                 $State.AllArtifacts = @($output)
@@ -365,6 +379,11 @@ function Invoke-EwWorkbenchJobMonitor {
         $State.IntuneCancellation = $null
     }
     Invoke-EwWorkbenchBusyState -State $State -IsBusy $false
+    if ($null -ne $restoreApp -and $null -eq $State.CurrentApp) {
+        # Selecting the row starts the normal Artifact load for the restored application.
+        $State.AppsListView.SelectedItem = $restoreApp
+        $State.AppsListView.ScrollIntoView($restoreApp)
+    }
     if ($nextMaintenanceAction) {
         Invoke-EwWorkbenchMaintenanceAction -State $State -Action $nextMaintenanceAction
     }

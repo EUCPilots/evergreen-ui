@@ -42,6 +42,11 @@ function Get-EwSetting {
         M365Channel = 'MonthlyEnterprise'
         M365CompanyName = ''
         M365ImportFor = 'Single session'
+        StartupView = 'Apps'
+        LastAppName = ''
+        WindowWidth = 1200
+        WindowHeight = 820
+        WindowMaximized = $false
     }
     $path = Get-EwSettingsPath
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {

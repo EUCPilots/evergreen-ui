@@ -20,7 +20,7 @@ function Invoke-EwWorkbenchBusyState {
             $State.BrowseOutputPathButton,
             $State.SetOutputPathButton,
             $State.RemoveQueuedDownloadButton,
-            $State.ClearQueueButton,
+            $State.ClearCompletedQueueButton,
             $State.StartDownloadButton,
             $State.BrowseLibraryPathButton,
             $State.SetLibraryPathButton,
@@ -44,6 +44,9 @@ function Invoke-EwWorkbenchBusyState {
         if ($null -ne $button) {
             $button.IsEnabled = -not $IsBusy
         }
+    }
+    if ($null -ne $State.ClearQueueButton) {
+        $State.ClearQueueButton.IsEnabled = -not ($IsBusy -and $State.ActiveJobKind -eq 'Downloads')
     }
     $State.AppsListView.IsEnabled = -not $IsBusy
     $maintenanceBusy = $IsBusy -and $State.ActiveJobKind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')

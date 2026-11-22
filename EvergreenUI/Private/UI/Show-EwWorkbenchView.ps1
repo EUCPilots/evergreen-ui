@@ -22,6 +22,9 @@ function Show-EwWorkbenchView {
         $State["${name}Panel"].Visibility = $visibility
     }
     $State.ViewTitleText.Text = $View
+    if ($State.UiStateReady -and [string]$State.Settings.StartupView -ne $View) {
+        Save-EwWorkbenchUiSetting -State $State -Name 'StartupView' -Value $View
+    }
     switch ($View) {
         'Apps' { $State.SubtitleTextBlock.Text = 'Discover and manage Evergreen applications' }
         'Download' { $State.SubtitleTextBlock.Text = 'Review and run queued artifact downloads' }

@@ -46,6 +46,8 @@ function Get-EwWorkbenchState {
             ErrorReadIndex = 0
             CurrentApp = $null
             CurrentAppName = ''
+            UiStateReady = $false
+            PendingLastAppName = ''
             ArtifactFiltersPanel = $Window.FindName('ArtifactFiltersPanel')
             ArtifactCountLabel = $Window.FindName('ArtifactCountLabel')
             AppsListView = $Window.FindName('AppsListView')
@@ -56,6 +58,7 @@ function Get-EwWorkbenchState {
             BrowseLibraryPathButton = $Window.FindName('BrowseLibraryPathButton')
             BrowseOutputPathButton = $Window.FindName('BrowseOutputPathButton')
             ClearQueueButton = $Window.FindName('ClearQueueButton')
+            ClearCompletedQueueButton = $Window.FindName('ClearCompletedQueueButton')
             DownloadPanel = $Window.FindName('DownloadPanel')
             DownloadQueueListView = $Window.FindName('DownloadQueueListView')
             FavoriteAppButton = $Window.FindName('FavoriteAppButton')
@@ -162,5 +165,6 @@ function Get-EwWorkbenchState {
     }
     Initialize-EwWorkbenchView -State $state
     Initialize-EwWorkbenchInfoView -State $state
+    Restore-EwWorkbenchStartupView -State $state
     return $state
 }
