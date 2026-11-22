@@ -5,11 +5,13 @@ function Invoke-EwWorkbenchAppList {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [System.Collections.IDictionary]$State
+        [System.Collections.IDictionary]$State,
+
+        [switch]$PreserveCurrentApp
     )
 
     $searchText = [string]$State.AppSearchBox.Text
-    $items = if ([string]::IsNullOrWhiteSpace($searchText)) {
+    $items = @(if ([string]::IsNullOrWhiteSpace($searchText)) {
         @($State.AppCatalog)
     }
     else {
@@ -17,11 +19,14 @@ function Invoke-EwWorkbenchAppList {
                 ([string]$_.Name).IndexOf($searchText, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
                 ([string]$_.FriendlyName).IndexOf($searchText, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
             })
-    }
+    })
     $selectedName = if ($null -ne $State.CurrentApp) { [string]$State.CurrentApp.Name } else { '' }
     $selectedApp = $null
     if (-not [string]::IsNullOrWhiteSpace($selectedName)) {
         $selectedApp = $items | Where-Object Name -eq $selectedName | Select-Object -First 1
+        if ($null -eq $selectedApp -and $PreserveCurrentApp) {
+            $selectedApp = $State.AppCatalog | Where-Object Name -eq $selectedName | Select-Object -First 1
+        }
     }
     $State.SuppressAppSelection = $true
     try {
@@ -48,4 +53,5 @@ function Invoke-EwWorkbenchAppList {
         $State.SuppressAppSelection = $false
     }
     $State.AppCountLabel.Text = "$($items.Count) applications"
+    if ($State.AppsDisplayStale) { $State.AppCountLabel.Text = "STALE: $($State.AppCountLabel.Text)" }
 }

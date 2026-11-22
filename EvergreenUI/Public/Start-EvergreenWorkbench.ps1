@@ -98,13 +98,8 @@ function Start-EvergreenWorkbench {
     }.GetNewClosure())
     $window.Add_Closing({
         param($eventSource, $closingArgs)
-        if ($eventSource -eq $state.Window -and $state.ActiveJobKind -in @('IntunePublish', 'IntuneRetry', 'NerdioPublish')) {
-            $closingArgs.Cancel = $true
-            & $state.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $state
-                Message = 'Wait for the current provider write to finish before closing. A batch can be cancelled between items.'
-                Level = 'Warning'
-            }
+        if ($eventSource -eq $state.Window) {
+            & $state.ModuleInvoker -Name 'Invoke-EwWorkbenchClosingGuard' -Parameters @{ State = $state; ClosingArgs = $closingArgs }
         }
     }.GetNewClosure())
     Write-Verbose -Message 'EvergreenUI: Showing Workbench window'

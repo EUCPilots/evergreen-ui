@@ -75,26 +75,21 @@ function Resolve-EwArtifact {
         return (& $fail "Failed to parse definition filter: $($_.Exception.Message)" $filter)
     }
 
-    if ([string]::IsNullOrWhiteSpace($CachePath)) {
-        $localAppData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-        if ([string]::IsNullOrWhiteSpace($localAppData)) {
-            $localAppData = [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
-        }
-        $CachePath = Join-Path -Path $localAppData -ChildPath 'EvergreenWorkbench\Cache'
-    }
+    $CachePath = Get-EwCachePath -CachePath $CachePath
     $cacheFile = Join-Path -Path $CachePath -ChildPath 'definition-artifact-cache.json'
     $definitionHash = Get-EwDefinitionFileHash -DefinitionPath $DefinitionPath
     $resolvedPath = [System.IO.Path]::GetFullPath($DefinitionPath)
 
-    if (-not $NoCache -and $CacheMaxAgeHours -gt 0 -and (Test-Path -LiteralPath $cacheFile -PathType Leaf)) {
+    $cacheEpoch = $null
+    if (-not $NoCache) {
         try {
-            $entries = @(Get-Content -LiteralPath $cacheFile -Raw -ErrorAction Stop |
-                ConvertFrom-Json -ErrorAction Stop)
-            $entry = $entries | Where-Object {
+            $snapshot = Invoke-EwDefinitionCache -Action Read -CachePath $CachePath -ErrorAction Stop
+            $cacheEpoch = $snapshot.Epoch
+            $entry = $snapshot.Entries | Where-Object {
                 [string]$_.DefinitionPath -ieq $resolvedPath -and
                 [string]$_.DefinitionHash -eq $definitionHash
             } | Select-Object -First 1
-            if ($null -ne $entry) {
+            if ($null -ne $entry -and $CacheMaxAgeHours -gt 0) {
                 $retrievedAt = [DateTimeOffset]::MinValue
                 $timestampValid = $false
                 if ($entry.RetrievedAt -is [DateTimeOffset]) {
@@ -136,6 +131,7 @@ function Resolve-EwArtifact {
         }
     }
 
+    Write-Verbose -Message "EvergreenUI: Definition artifact cache miss or bypass (NoCache: $($NoCache.IsPresent)); querying Evergreen for '$resolvedPath'"
     try {
         $artifacts = @(Invoke-EwDefinitionQuery -Query $query)
         if ($null -ne $query.Predicate) {
@@ -210,23 +206,17 @@ function Resolve-EwArtifact {
             IsFromCache      = $false
             CacheFile        = $cacheFile
         }
+        Write-Verbose -Message "EvergreenUI: Definition artifact resolved for '$resolvedPath'; version '$($result.Version)'"
     }
     catch {
         $result = & $fail "Artifact resolution failed: $($_.Exception.Message)" $filter
         $result.CacheFile = $cacheFile
+        Write-Verbose -Message "EvergreenUI: $($result.Error)"
     }
 
-    if (-not $NoCache) {
+    if (-not $NoCache -and $null -ne $cacheEpoch) {
         try {
-            $null = New-Item -Path $CachePath -ItemType Directory -Force -ErrorAction Stop
-            $entries = @()
-            if (Test-Path -LiteralPath $cacheFile -PathType Leaf) {
-                $entries = @(Get-Content -LiteralPath $cacheFile -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop)
-            }
-            $entries = @($entries | Where-Object {
-                [string]$_.DefinitionPath -ine $resolvedPath
-            })
-            $entries += [PSCustomObject]@{
+            $entry = [PSCustomObject]@{
                 DefinitionPath   = $resolvedPath
                 DefinitionHash   = $definitionHash
                 RetrievedAt      = [DateTimeOffset]::UtcNow.ToString('o')
@@ -236,7 +226,7 @@ function Resolve-EwArtifact {
                 ResolvedArtifact = $result.ResolvedArtifact
                 Error            = $result.Error
             }
-            Write-EwJsonFile -Path $cacheFile -InputObject @($entries)
+            Invoke-EwDefinitionCache -Action Write -CachePath $CachePath -Epoch $cacheEpoch -Entry $entry -ErrorAction Stop
         }
         catch {
             Write-Verbose -Message "EvergreenUI: Definition artifact cache write failed: $($_.Exception.Message)"

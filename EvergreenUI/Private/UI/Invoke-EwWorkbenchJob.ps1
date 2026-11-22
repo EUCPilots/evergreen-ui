@@ -11,6 +11,10 @@ function Invoke-EwWorkbenchJob {
         [ValidateSet(
             'Apps',
             'Artifacts',
+            'EvergreenUpdate',
+            'CacheClear',
+            'MaintenanceCatalog',
+            'MaintenanceArtifacts',
             'Downloads',
             'Library',
             'LibraryUpdate',

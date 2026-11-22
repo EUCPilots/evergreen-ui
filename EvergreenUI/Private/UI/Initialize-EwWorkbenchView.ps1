@@ -25,6 +25,7 @@ function Initialize-EwWorkbenchView {
     $State.AppsLoading = $false
     $State.AppCatalog = @()
     $State.AllArtifacts = @()
+    Initialize-EwWorkbenchMaintenanceView -State $State
 
     $State.NavApps.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Apps' }

@@ -13,6 +13,8 @@ function Invoke-EwWorkbenchBusyState {
 
     foreach ($button in @(
             $State.RefreshAppsButton,
+            $State.UpdateEvergreenButton,
+            $State.ClearWorkbenchCacheButton,
             $State.FavoriteAppButton,
             $State.QueueDownloadButton,
             $State.BrowseOutputPathButton,
@@ -44,6 +46,9 @@ function Invoke-EwWorkbenchBusyState {
         }
     }
     $State.AppsListView.IsEnabled = -not $IsBusy
+    $maintenanceBusy = $IsBusy -and $State.ActiveJobKind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')
+    $State.AppSearchBox.IsEnabled = -not $maintenanceBusy
+    $State.ArtifactFiltersPanel.IsEnabled = -not $maintenanceBusy
     $State.PackageDefinitionsListView.IsEnabled = -not $IsBusy
     $State.InstallDefinitionsListView.IsEnabled = -not $IsBusy
     $State.IntuneComparisonListView.IsEnabled = -not $IsBusy

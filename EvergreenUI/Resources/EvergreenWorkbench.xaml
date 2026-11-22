@@ -161,9 +161,21 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                        <WrapPanel>
+                            <Button x:Name="UpdateEvergreenButton" Content="Update Evergreen" Padding="14,5"
+                                    ToolTip="Refresh Evergreen application data, without installing or upgrading the module" />
+                            <Button x:Name="ClearWorkbenchCacheButton" Content="Clear Workbench cache" Margin="8,0,0,0" Padding="14,5"
+                                    ToolTip="Clear only Workbench catalog and definition-Artifact caches after confirmation" />
+                            <Button x:Name="OpenCacheFolderButton" Content="Open cache folder" Margin="8,0,0,0" Padding="14,5"
+                                    ToolTip="Create and open the Workbench cache folder" />
+                        </WrapPanel>
+                        <TextBlock x:Name="AppsMaintenanceStatusLabel" Text="Maintenance ready" Margin="0,6,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <DockPanel Grid.Row="1" Margin="0,0,0,12">
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                             <TextBlock Text="Search apps"
                                        VerticalAlignment="Center"
@@ -190,7 +202,7 @@
                                 Padding="14,5"
                                 IsEnabled="False" />
                     </DockPanel>
-                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                    <Grid Grid.Row="2" Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
@@ -218,7 +230,7 @@
                                 Margin="8,0,0,0"
                                 Padding="12,4" />
                     </Grid>
-                    <Grid Grid.Row="2">
+                    <Grid Grid.Row="3">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="260" />
                             <ColumnDefinition Width="*" />

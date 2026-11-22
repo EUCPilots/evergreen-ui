@@ -64,7 +64,13 @@ function Get-EwApp {
                     Sort-Object -Property @{ Expression = 'IsFavourite'; Descending = $true }, @{ Expression = 'Name'; Descending = $false })
         }
 
-        $cache = $script:ewAppCatalogCache
+        $cache = @{ RetrievedAt = $null; Items = @(); Epoch = $null }
+        try {
+            $cache = Invoke-EwCatalogCache -Action Read -ErrorAction Stop
+        }
+        catch {
+            Write-Verbose -Message "EvergreenUI: Catalog cache coordination failed; querying without caching: $($_.Exception.Message)"
+        }
         if (-not $Force -and $null -ne $cache.RetrievedAt) {
             $age = [DateTimeOffset]::Now - $cache.RetrievedAt
             Write-Verbose -Message ('EvergreenUI: Application catalog cache hit; age {0:n0} seconds' -f $age.TotalSeconds)
@@ -88,8 +94,14 @@ function Get-EwApp {
                     }
                 }
         )
-        $script:ewAppCatalogCache.Items = $items
-        $script:ewAppCatalogCache.RetrievedAt = [DateTimeOffset]::Now
+        if ($null -ne $cache.Epoch) {
+            try {
+                Invoke-EwCatalogCache -Action Write -Epoch $cache.Epoch -Items $items -ErrorAction Stop
+            }
+            catch {
+                Write-Verbose -Message "EvergreenUI: Catalog cache write failed: $($_.Exception.Message)"
+            }
+        }
         Write-Verbose -Message "EvergreenUI: Application catalog loaded; $($items.Count) applications"
         return (& $markFavourites -Items $items)
     }

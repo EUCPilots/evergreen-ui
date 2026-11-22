@@ -34,6 +34,13 @@ function Get-EwWorkbenchState {
             Queue = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
             ActiveJobId = $null
             ActiveJobKind = ''
+            MaintenancePromptActive = $false
+            MaintenanceContext = $null
+            AppsDisplayStale = $false
+            UpdateEvergreenButton = $Window.FindName('UpdateEvergreenButton')
+            ClearWorkbenchCacheButton = $Window.FindName('ClearWorkbenchCacheButton')
+            OpenCacheFolderButton = $Window.FindName('OpenCacheFolderButton')
+            AppsMaintenanceStatusLabel = $Window.FindName('AppsMaintenanceStatusLabel')
             ProgressReadIndex = 0
             InformationReadIndex = 0
             ErrorReadIndex = 0

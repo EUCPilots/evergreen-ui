@@ -26,7 +26,7 @@
         'Connect-EwIntune', 'Disconnect-EwIntune', 'Connect-EwNerdio', 'Disconnect-EwNerdio',
         'Publish-EwIntuneApp', 'Publish-EwIntuneBatch', 'Publish-EwNerdioApp', 'Publish-EwNerdioBatch', 'Set-EwIntuneSupersedence',
         'Add-EwFavouriteApp', 'Remove-EwFavouriteApp',
-        'Get-EwDependency', 'Update-EwEvergreen',
+        'Get-EwDependency', 'Update-EwEvergreen', 'Clear-EwCache',
         'Get-EwM365Configuration', 'Get-EwM365BuildPlan', 'Get-EwM365NerdioPublishPlan', 'Publish-EwM365NerdioApp',
         'Get-EwM365IntunePublishPlan', 'Publish-EwM365IntuneApp', 'Get-EwM365IntuneRecovery', 'Clear-EwM365IntuneRecovery',
         'Get-EwIntuneApp', 'Compare-EwIntuneApp',

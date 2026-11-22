@@ -8,7 +8,7 @@ function Invoke-EwWorkbenchJobMonitor {
         [System.Collections.IDictionary]$State
     )
 
-    if ($State.InstallPromptActive) {
+    if ($State.InstallPromptActive -or $State.MaintenancePromptActive) {
         return
     }
     Invoke-EwWorkbenchInfoJobMonitor -State $State
@@ -20,7 +20,34 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     catch {
         Write-EwWorkbenchLog -State $State -Message "Could not read the active job: $($_.Exception.Message)" -Level Error
-        if ($State.ActiveJobKind -in @('NerdioPublish', 'M365')) {
+        if ($State.ActiveJobKind -in @('NerdioPublish', 'M365', 'EvergreenUpdate', 'CacheClear')) {
+            return
+        }
+        if ($State.ActiveJobKind -in @('MaintenanceCatalog', 'MaintenanceArtifacts')) {
+            $unavailableJobId = $State.ActiveJobId
+            $unavailableJob = [PSCustomObject]@{ State = 'Unknown'; TerminatingError = $_; Output = @() }
+            try {
+                $null = Invoke-EwWorkbenchMaintenanceJobResult -State $State -Kind $State.ActiveJobKind -Job $unavailableJob
+                Write-EwWorkbenchLog -State $State -Message "Stopping and removing unusable read-only refresh job $unavailableJobId."
+                try {
+                    $null = Stop-EwJob -Id $unavailableJobId -Confirm:$false -ErrorAction Stop
+                }
+                catch {
+                    Write-EwWorkbenchLog -State $State -Message "Could not stop unusable refresh job ${unavailableJobId}: $($_.Exception.Message)" -Level Warning
+                }
+                try {
+                    Remove-EwJob -Id $unavailableJobId -Confirm:$false -ErrorAction Stop
+                    Write-EwWorkbenchLog -State $State -Message "Removed unusable refresh job $unavailableJobId."
+                }
+                catch {
+                    Write-EwWorkbenchLog -State $State -Message "Could not remove unusable refresh job ${unavailableJobId}: $($_.Exception.Message)" -Level Warning
+                }
+            }
+            finally {
+                $State.ActiveJobId = $null
+                $State.ActiveJobKind = ''
+                Invoke-EwWorkbenchBusyState -State $State -IsBusy $false
+            }
             return
         }
         if ($State.ActiveJobKind -in @('InstallReview', 'InstallPackages') -and $State.InstallBatchActive) {
@@ -37,6 +64,9 @@ function Invoke-EwWorkbenchJobMonitor {
         $progress = $job.Progress[$State.ProgressReadIndex]
         $State.ProgressReadIndex++
         $State.StatusLabel.Text = $progress.Activity
+        if ($State.ActiveJobKind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')) {
+            Write-EwWorkbenchLog -State $State -Message "$($progress.Activity): $($progress.StatusDescription)"
+        }
         if ($progress.PercentComplete -ge 0) {
             $State.JobProgressBar.IsIndeterminate = $false
             $State.JobProgressBar.Value = $progress.PercentComplete
@@ -66,7 +96,11 @@ function Invoke-EwWorkbenchJobMonitor {
     $kind = [string]$State.ActiveJobKind
     $output = @($job.Output)
     $refreshIntune = $kind -in @('IntunePublish', 'IntuneRetry')
-    if ($null -ne $job.TerminatingError) {
+    $nextMaintenanceAction = ''
+    if ($kind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')) {
+        $nextMaintenanceAction = Invoke-EwWorkbenchMaintenanceJobResult -State $State -Kind $kind -Job $job
+    }
+    elseif ($null -ne $job.TerminatingError) {
         if ($kind -eq 'Apps') {
             $State.AppsLoading = $false
         }
@@ -319,6 +353,10 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     catch {
         Write-EwWorkbenchLog -State $State -Message "Could not remove completed job $($job.Id): $($_.Exception.Message)" -Level Warning
+        if ($nextMaintenanceAction) {
+            Invoke-EwWorkbenchMaintenanceStale -State $State -Message "Could not clean up the completed maintenance job: $($_.Exception.Message)"
+            $nextMaintenanceAction = ''
+        }
     }
     $State.ActiveJobId = $null
     $State.ActiveJobKind = ''
@@ -327,6 +365,9 @@ function Invoke-EwWorkbenchJobMonitor {
         $State.IntuneCancellation = $null
     }
     Invoke-EwWorkbenchBusyState -State $State -IsBusy $false
+    if ($nextMaintenanceAction) {
+        Invoke-EwWorkbenchMaintenanceAction -State $State -Action $nextMaintenanceAction
+    }
     if ($nextInstallAction) {
         try {
             Invoke-EwWorkbenchInstallAction -State $State -Action $nextInstallAction

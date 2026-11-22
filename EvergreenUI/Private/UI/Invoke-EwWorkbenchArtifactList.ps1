@@ -7,7 +7,12 @@ function Invoke-EwWorkbenchArtifactList {
         [Parameter(Mandatory)]
         [System.Collections.IDictionary]$State,
 
-        [switch]$RebuildFilters
+        [switch]$RebuildFilters,
+
+        [System.Collections.IDictionary]$PreservedFilters = @{},
+
+        [AllowEmptyCollection()]
+        [object[]]$FilterMetadata
     )
 
     if ($RebuildFilters) {
@@ -16,7 +21,12 @@ function Invoke-EwWorkbenchArtifactList {
         $State.ArtifactFilterControls = @{}
         try {
             if ($State.AllArtifacts.Count -gt 0) {
-                foreach ($filter in @(Get-EwFilterableProperty -Artifact $State.AllArtifacts)) {
+                $metadata = if ($PSBoundParameters.ContainsKey('FilterMetadata')) {
+                    @($FilterMetadata)
+                } else {
+                    @(Get-EwFilterableProperty -Artifact $State.AllArtifacts)
+                }
+                foreach ($filter in $metadata) {
                     $group = [System.Windows.Controls.StackPanel]::new()
                     $group.Margin = [System.Windows.Thickness]::new(0, 0, 10, 6)
                     $label = [System.Windows.Controls.TextBlock]::new()
@@ -37,6 +47,21 @@ function Invoke-EwWorkbenchArtifactList {
                         $null = $control.Items.Add([string]$value)
                     }
                     $control.SelectedIndex = 0
+                    if ($PreservedFilters.Contains($filter.Name)) {
+                        $oldValue = [string]$PreservedFilters[$filter.Name]
+                        $index = $control.Items.IndexOf($oldValue)
+                        # 'All' can also be an actual Artifact value; index zero is the unfiltered sentinel.
+                        if ($oldValue -eq 'All') {
+                            $index = -1
+                            for ($itemIndex = 1; $itemIndex -lt $control.Items.Count; $itemIndex++) {
+                                if ([string]$control.Items[$itemIndex] -eq $oldValue) { $index = $itemIndex; break }
+                            }
+                        }
+                        if ($index -gt 0) { $control.SelectedIndex = $index }
+                        else {
+                            Write-EwWorkbenchLog -State $State -Message "Filter '$($filter.DisplayName)' value '$oldValue' is no longer supported; reset to All." -Level Warning
+                        }
+                    }
                     $control.Add_SelectionChanged({
                         if ($State.AllowFilterEvents) {
                             & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchArtifactList' -Parameters @{ State = $State }
@@ -45,6 +70,11 @@ function Invoke-EwWorkbenchArtifactList {
                     $null = $group.Children.Add($control)
                     $null = $State.ArtifactFiltersPanel.Children.Add($group)
                     $State.ArtifactFilterControls[$filter.Name] = @{ Control = $control }
+                }
+            }
+            foreach ($oldName in $PreservedFilters.Keys) {
+                if (-not $State.ArtifactFilterControls.ContainsKey($oldName)) {
+                    Write-EwWorkbenchLog -State $State -Message "Filter '$oldName' is no longer supported; reset to All." -Level Warning
                 }
             }
         }
@@ -91,5 +121,6 @@ function Invoke-EwWorkbenchArtifactList {
 
     $State.ArtifactsGrid.ItemsSource = [object[]]$filtered
     $State.ArtifactCountLabel.Text = "Showing $($filtered.Count) of $($State.AllArtifacts.Count) artifacts"
+    if ($State.AppsDisplayStale) { $State.ArtifactCountLabel.Text = "STALE: $($State.ArtifactCountLabel.Text)" }
     $State.QueueDownloadButton.IsEnabled = $State.ArtifactsGrid.SelectedItems.Count -gt 0 -and $null -eq $State.ActiveJobId
 }
