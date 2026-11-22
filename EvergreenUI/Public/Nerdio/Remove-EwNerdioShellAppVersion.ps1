@@ -7,12 +7,18 @@ function Remove-EwNerdioShellAppVersion {
         Removes old versions of a Nerdio Manager Shell App.
     .DESCRIPTION
         Keeps the newest versions of a Shell App and deletes the older ones.
-        Versions are ordered by their numeric version; names that cannot be
-        parsed are treated as the newest and are kept.
+        The exact version snapshot can be required to match the reviewed plan.
+        Pending or unknown deletes stop the operation and require manual review.
     .PARAMETER Id
         Shell App ID.
     .PARAMETER KeepVersions
-        Number of the newest versions to keep.
+        Number of the newest versions to keep. Defaults to one.
+    .PARAMETER ExpectedVersionNames
+        Exact version names shown in the reviewed preview.
+    .PARAMETER ExpectedRemovalVersions
+        Exact version names approved for removal.
+    .PARAMETER OfferId
+        Pruning offer being processed, if the call follows a successful publish.
     .EXAMPLE
         Remove-EwNerdioShellAppVersion -Id 42 -KeepVersions 3 -WhatIf
     .OUTPUTS
@@ -27,56 +33,145 @@ function Remove-EwNerdioShellAppVersion {
         [ValidateNotNullOrEmpty()]
         [string]$Id,
 
-        [Parameter(Mandatory)]
+        [Parameter()]
         [ValidateRange(1, [int]::MaxValue)]
-        [int]$KeepVersions
+        [int]$KeepVersions = 1,
+
+        [Parameter()]
+        [string[]]$ExpectedVersionNames,
+
+        [Parameter()]
+        [string[]]$ExpectedRemovalVersions,
+
+        [Parameter()]
+        [string]$OfferId
     )
 
     process {
         $context = Get-EwNerdioSessionContext
-        $names = @(Get-EwNerdioShellAppVersion -Id $Id | ForEach-Object {
-                [string](Get-EwFirstPropertyValue -InputObject $_ -Name 'name', 'version')
-            } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-        $sorted = @($names | Sort-Object -Property @{ Expression = { ConvertTo-EwNerdioVersionSortKey -Name $_ } }, @{ Expression = { $_ } })
-        $removeCount = [Math]::Max(0, $sorted.Count - $KeepVersions)
-        $candidates = @(if ($removeCount -gt 0) { $sorted[0..($removeCount - 1)] })
-        Write-Verbose -Message "EvergreenUI: Shell App '$Id' has $($sorted.Count) versions; $removeCount selected for removal"
-
+        Assert-EwNerdioWriteAllowed -Context $context -ShellAppId $Id
+        if ($OfferId) {
+            $recovery = Invoke-EwNerdioRecoveryStore -Action Read
+            $offer = @($recovery.PruningOffers | Where-Object Id -eq $OfferId | Select-Object -First 1)
+            if ($offer.Count -eq 0) { throw "Pruning offer '$OfferId' is no longer available." }
+            Assert-EwNerdioRecoveryDestination -Context $context -Destination $offer[0].Destination
+        }
+        $plan = Get-EwNerdioShellAppVersionPrunePlan -Id $Id -KeepVersions $KeepVersions
+        if (-not $plan.Eligible) {
+            throw "Shell App '$Id' cannot be pruned safely: $($plan.Message)"
+        }
+        $compareNames = {
+            param([string[]]$Names)
+            $sortedNames = [string[]]$Names.Clone()
+            [Array]::Sort($sortedNames, [System.StringComparer]::Ordinal)
+            [string]::Join([char]0, $sortedNames)
+        }
+        if ($PSBoundParameters.ContainsKey('ExpectedVersionNames') -and
+            (& $compareNames -Names $ExpectedVersionNames) -cne (& $compareNames -Names $plan.VersionNames)) {
+            throw "Shell App '$Id' versions changed after the pruning preview. Review the versions again."
+        }
+        if ($PSBoundParameters.ContainsKey('ExpectedRemovalVersions') -and
+            (& $compareNames -Names $ExpectedRemovalVersions) -cne (& $compareNames -Names $plan.Remove)) {
+            throw "Shell App '$Id' removal selection changed after the pruning preview. Review the versions again."
+        }
+        $candidates = @($plan.Remove)
         $removed = [System.Collections.Generic.List[string]]::new()
         $failed = [System.Collections.Generic.List[string]]::new()
+        $pending = [System.Collections.Generic.List[string]]::new()
+        $unknown = [System.Collections.Generic.List[string]]::new()
+        $outcomes = [System.Collections.Generic.List[object]]::new()
+        $blocked = $false
         foreach ($name in $candidates) {
             if (-not $PSCmdlet.ShouldProcess("Shell App $Id version $name", 'Remove')) {
                 continue
             }
+            $operation = [ordered]@{
+                Id = [guid]::NewGuid().ToString()
+                Type = 'Delete'
+                Status = 'InProgress'
+                StartedAt = [DateTimeOffset]::UtcNow.ToString('o')
+                Destination = Get-EwNerdioDestinationIdentity -Context $context
+                Name = $Id
+                AppId = $Id
+                Version = $name
+                KeepVersions = $KeepVersions
+                OfferId = $OfferId
+                JobId = ''
+                Error = 'The provider delete started but no final outcome was recorded.'
+            }
+            $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $operation
             $uri = "https://$($context.NmeHost)/api/v1/shell-app/$([uri]::EscapeDataString($Id))/version/$([uri]::EscapeDataString($name))"
+            $status = 'Unknown'
+            $jobId = ''
+            $errorMessage = ''
             try {
                 $response = Invoke-EwNerdioApiRequest -Method DELETE -Uri $uri -AccessToken $context.AccessToken
                 $job = Get-EwFirstPropertyValue -InputObject $response -Name 'job'
-                $status = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'status')
-                if ($status -in @('Completed', 'Pending')) {
+                $jobId = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'id')
+                $providerStatus = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'status')
+                $status = switch ($providerStatus) {
+                    'Completed' { 'Completed' }
+                    'Pending' { 'Pending' }
+                    'Failed' { 'Failed' }
+                    default { 'Unknown' }
+                }
+                if ($status -eq 'Completed') {
                     $removed.Add($name)
-                    Write-Verbose -Message "EvergreenUI: Removed Shell App '$Id' version '$name' (status: $status)"
+                    $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $operation.Id
+                    Write-Verbose -Message "EvergreenUI: Removed Shell App '$Id' version '$name'"
+                }
+                elseif ($status -eq 'Failed') {
+                    $failed.Add($name)
+                    $errorMessage = "Nerdio returned '$providerStatus'."
+                    $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $operation.Id
+                    Write-Verbose -Message "EvergreenUI: Removing Shell App '$Id' version '$name' returned status '$providerStatus'"
                 }
                 else {
-                    $failed.Add($name)
-                    Write-Verbose -Message "EvergreenUI: Removing Shell App '$Id' version '$name' returned status '$status'"
+                    $operation.Status = $status
+                    $operation.JobId = $jobId
+                    $operation.Error = "Nerdio returned '$providerStatus'; inspect the operation before continuing."
+                    $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $operation
+                    if ($status -eq 'Pending') { $pending.Add($name) } else { $unknown.Add($name) }
                 }
             }
             catch {
-                $failed.Add($name)
-                Write-Verbose -Message "EvergreenUI: Removing Shell App '$Id' version '$name' failed: $($_.Exception.Message)"
+                $status = 'Unknown'
+                $errorMessage = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+                $operation.Status = 'Unknown'
+                $operation.Error = $errorMessage
+                $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $operation
+                $unknown.Add($name)
+                Write-Verbose -Message "EvergreenUI: Removing Shell App '$Id' version '$name' has an unknown outcome: $errorMessage"
+            }
+            $outcomes.Add([PSCustomObject]@{ Version = $name; Status = $status; JobId = $jobId; Error = $errorMessage })
+            if ($status -in @('Pending', 'Unknown')) {
+                $blocked = $true
+                break
+            }
+        }
+        if ($OfferId -and -not $WhatIfPreference) {
+            $state = Invoke-EwNerdioRecoveryStore -Action Read
+            $offer = @($state.PruningOffers | Where-Object Id -eq $OfferId | Select-Object -First 1)
+            if ($offer.Count -gt 0 -and
+                ($candidates.Count -eq 0 -or
+                    (-not $blocked -and $failed.Count -eq 0 -and $outcomes.Count -eq $candidates.Count))) {
+                $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOfferId $OfferId
             }
         }
 
         [PSCustomObject]@{
             Id = $Id
-            TotalVersions = $sorted.Count
+            OfferId = $OfferId
+            TotalVersions = $plan.TotalVersions
             KeepVersions = $KeepVersions
             RequestedRemovals = $candidates.Count
             RemovedCount = $removed.Count
             RemovedVersions = $removed.ToArray()
             FailedCount = $failed.Count
             FailedVersions = $failed.ToArray()
+            PendingVersions = $pending.ToArray()
+            UnknownVersions = $unknown.ToArray()
+            Outcomes = $outcomes.ToArray()
         }
     }
 }

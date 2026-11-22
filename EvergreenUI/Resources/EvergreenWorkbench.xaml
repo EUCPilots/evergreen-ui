@@ -667,8 +667,11 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8">
-                        <Button x:Name="ReviewNerdioOutcomeButton" Content="Acknowledge outcome review" Margin="0,0,8,0"
-                                Padding="12,4" IsEnabled="False" ToolTip="After inspecting the selected pending or unknown result in Nerdio, acknowledge its final outcome. This does not retry or delete anything." />
+                        <Button x:Name="PruneNerdioVersionsButton" Content="Preview version pruning" Margin="0,0,8,0"
+                                Padding="12,4" IsEnabled="False"
+                                ToolTip="Preview exact versions for successfully published Shell Apps. No app is selected by default." />
+                        <Button x:Name="ReviewNerdioOutcomeButton" Content="Review outcome" Margin="0,0,8,0"
+                                Padding="12,4" IsEnabled="False" ToolTip="After inspecting the selected pending or unknown result in Nerdio, record its final outcome. This does not retry or delete anything." />
                         <Button x:Name="CancelNerdioBatchButton" Content="Cancel batch" Margin="0,0,8,0" Padding="12,4" IsEnabled="False" />
                         <Button x:Name="PublishSelectedNerdioButton" Content="Publish selected" Padding="12,4" IsEnabled="False" />
                     </StackPanel>

@@ -26,9 +26,6 @@ function Invoke-EwWorkbenchNerdioJobResult {
             }
         }
         foreach ($item in $output) {
-            $key = "$($State.NerdioPlan.Destination.NmeHost)|$($item.DefinitionPath)"
-            $item | Add-Member -NotePropertyName OutcomeKey -NotePropertyValue $key -Force
-            if ($item.Status -in @('Pending', 'Unknown')) { $State.NerdioBlockedOutcomes[$key] = $true }
             $State.NerdioResults.Add($item)
             Write-EwWorkbenchLog -State $State -Message "$($item.Name): $($item.Status). $($item.Error)" `
                 -Level $(if ($item.Succeeded) { 'Info' } else { 'Warning' })
@@ -83,10 +80,14 @@ function Invoke-EwWorkbenchNerdioJobResult {
                 'NerdioCompare' {
                     $State.NerdioPlan = $result
                     foreach ($row in $result.Items) {
-                        if ($State.NerdioBlockedOutcomes.Count -gt 0) {
+                        $publishBlocked = @($State.NerdioBlockedOutcomes.Values | Where-Object Type -eq 'Publish').Count -gt 0
+                        $deleteBlocked = @($State.NerdioBlockedOutcomes.Values | Where-Object {
+                                $_.Type -eq 'Delete' -and $_.AppId -eq [string]$row.NerdioAppId
+                            }).Count -gt 0
+                        if ($publishBlocked -or $deleteBlocked -or -not [string]::IsNullOrWhiteSpace($State.NerdioRecoveryError)) {
                             $row.Eligible = $false
                             $row.Operation = ''
-                            $row.Message = 'Review the previous pending/unknown outcome in Nerdio and acknowledge it in results.'
+                            $row.Message = 'Review the previous pending/unknown outcome in Nerdio before writing to this app.'
                         }
                     }
                     $State.NerdioComparisonListView.ItemsSource = [object[]]$result.Items
@@ -97,9 +98,42 @@ function Invoke-EwWorkbenchNerdioJobResult {
                         Write-EwWorkbenchLog -State $State -Message $result.Error -Level Error
                     }
                 }
+                'NerdioReview' {
+                    if ($null -ne $result -and $result.Succeeded) {
+                        $State.NerdioPlan = $null
+                        $State.NerdioComparisonListView.ItemsSource = @()
+                        Write-EwWorkbenchLog -State $State -Message "Reviewed Nerdio outcome as $($result.Outcome); compare again before another publish."
+                    }
+                }
+                'NerdioPrunePreview' {
+                    if ($output.Count -eq 0) {
+                        Write-EwWorkbenchLog -State $State -Message 'No Nerdio pruning previews were returned.' -Level Warning
+                    }
+                    else {
+                        $selection = Show-EwWorkbenchNerdioPruneDialog -Owner $State.Window -Plans $output
+                        if ($selection.Count -gt 0) {
+                            $State.NerdioSelectedPrunePlans = $selection
+                            $next = 'PruneSelected'
+                        }
+                    }
+                }
+                'NerdioPruneSelected' {
+                    foreach ($pruneResult in $output) {
+                        Write-EwWorkbenchLog -State $State -Message (
+                            "Pruned Shell App $($pruneResult.Id): removed $($pruneResult.RemovedCount), " +
+                            "failed $($pruneResult.FailedCount), pending $(@($pruneResult.PendingVersions).Count), " +
+                            "unknown $(@($pruneResult.UnknownVersions).Count)."
+                        ) -Level $(if ($pruneResult.PendingVersions.Count -gt 0 -or $pruneResult.UnknownVersions.Count -gt 0 -or
+                                $pruneResult.FailedCount -gt 0) { 'Warning' } else { 'Info' })
+                    }
+                }
             }
         }
         finally { $State.AllowNerdioEvents = $true }
+    }
+    if ($Kind -in @('NerdioPublish', 'NerdioReview', 'NerdioPrunePreview', 'NerdioPruneSelected')) {
+        Sync-EwWorkbenchNerdioRecoveryState -State $State | Out-Null
+        Invoke-EwWorkbenchNerdioBusyState -State $State
     }
     return $next
 }

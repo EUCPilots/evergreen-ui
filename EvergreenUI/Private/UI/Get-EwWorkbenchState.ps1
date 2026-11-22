@@ -119,7 +119,8 @@ function Get-EwWorkbenchState {
             'NmeApiScopeBox', 'NmeOAuthTokenUrlBox', 'NmeClientSecretBox', 'ConnectNerdioButton',
             'NerdioDefinitionsPathBox', 'BrowseNerdioDefinitionsButton', 'SaveNerdioSettingsButton',
             'CompareNerdioButton', 'NerdioConnectionStatusLabel', 'NerdioComparisonListView',
-            'CancelNerdioBatchButton', 'PublishSelectedNerdioButton', 'NerdioPublishResultsListView', 'ReviewNerdioOutcomeButton'
+            'CancelNerdioBatchButton', 'PublishSelectedNerdioButton', 'NerdioPublishResultsListView',
+            'ReviewNerdioOutcomeButton', 'PruneNerdioVersionsButton'
         )) {
         $state[$name] = $Window.FindName($name)
     }

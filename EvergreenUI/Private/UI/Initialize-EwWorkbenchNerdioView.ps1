@@ -13,6 +13,9 @@ function Initialize-EwWorkbenchNerdioView {
     $State.NerdioResults = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
     $State.NerdioPublishResultsListView.ItemsSource = $State.NerdioResults
     $State.NerdioBlockedOutcomes = @{}
+    $State.NerdioPruningOffers = @()
+    $State.NerdioRecoveryError = ''
+    $State.NerdioSelectedPrunePlans = @()
     $State.NerdioSettingControls = @{
         NerdioTenantId = $State.NerdioTenantIdBox
         NmeSubscriptionId = $State.NmeSubscriptionIdBox
@@ -44,6 +47,7 @@ function Initialize-EwWorkbenchNerdioView {
         SaveNerdioSettingsButton = 'Save'; BrowseNerdioDefinitionsButton = 'Browse'
         PublishSelectedNerdioButton = 'Publish'; CancelNerdioBatchButton = 'Cancel'
         ReviewNerdioOutcomeButton = 'Review'
+        PruneNerdioVersionsButton = 'Prune'
     }
     foreach ($name in $actions.Keys) {
         $action = $actions[$name]
@@ -85,6 +89,7 @@ function Initialize-EwWorkbenchNerdioView {
     $State.NerdioPublishResultsListView.Add_SelectionChanged({
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchNerdioBusyState' -Parameters @{ State = $State }
     }.GetNewClosure())
+    Sync-EwWorkbenchNerdioRecoveryState -State $State | Out-Null
     $State.AllowNerdioEvents = $true
     Invoke-EwWorkbenchNerdioBusyState -State $State
 }

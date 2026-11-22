@@ -51,9 +51,11 @@ function Publish-EwNerdioApp {
     }
     $addVersion = $PSCmdlet.ParameterSetName -eq 'AddVersion'
     $postStarted = $false
+    $recoveryOperation = $null
     if (-not $PSCmdlet.ShouldProcess($DefinitionPath, 'Upload and publish Nerdio Shell App')) { return }
     try {
         $context = Get-EwNerdioSessionContext
+        Assert-EwNerdioWriteAllowed -Context $context -ShellAppId $ShellAppId
         $definition = Get-EwNerdioPublishContent -DefinitionPath $DefinitionPath -AddVersion:$addVersion
         if ($null -ne $Snapshot) {
             if ($Snapshot.Item.DefinitionPath -ne $DefinitionPath -or
@@ -84,10 +86,29 @@ function Publish-EwNerdioApp {
         }
         $result.Version = $Version
         if ($null -ne $Snapshot) { Assert-EwNerdioPublishSnapshot -Snapshot $Snapshot }
+        $recoveryOperation = [ordered]@{
+            Id = [guid]::NewGuid().ToString()
+            Type = 'Publish'
+            Status = 'InProgress'
+            StartedAt = [DateTimeOffset]::UtcNow.ToString('o')
+            Destination = Get-EwNerdioDestinationIdentity -Context $context
+            Name = [string](Get-EwFirstPropertyValue -InputObject $definition -Name 'name')
+            Publisher = [string](Get-EwFirstPropertyValue -InputObject $definition -Name 'publisher')
+            DefinitionPath = $DefinitionPath
+            Operation = if ($addVersion) { 'Add version' } else { 'Create' }
+            AppId = [string]$ShellAppId
+            Version = $Version
+            JobId = ''
+            BlobName = [string]$result.BlobName
+            Error = 'The provider write started but no final outcome was recorded.'
+        }
+        $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $recoveryOperation
         Write-Verbose -Message "EvergreenUI: Uploading Nerdio payload for version '$Version'"
         $package = Invoke-EwNerdioBlobUpload -Path $PackagePath -Context $context
         $blobName = Get-EwFirstPropertyValue -InputObject $package -Name 'BlobName'
         $result.BlobName = [string]$blobName
+        $recoveryOperation.BlobName = $result.BlobName
+        $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $recoveryOperation
         if ($null -ne $Snapshot) { Assert-EwNerdioPublishSnapshot -Snapshot $Snapshot }
         if ($addVersion) {
             $result.AppId = $ShellAppId
@@ -125,6 +146,31 @@ function Publish-EwNerdioApp {
         if ($result.Status -eq 'Completed' -and -not $result.AppId) { $result.Status = 'Unknown' }
         $result.Succeeded = $result.Status -eq 'Completed'
         if (-not $result.Succeeded) { $result.Error = "Nerdio returned '$status'; inspect the operation before retrying." }
+        if ($result.Status -in @('Pending', 'Unknown')) {
+            $recoveryOperation.Status = $result.Status
+            $recoveryOperation.AppId = $result.AppId
+            $recoveryOperation.JobId = $result.JobId
+            $recoveryOperation.BlobName = $result.BlobName
+            $recoveryOperation.Error = $result.Error
+            $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $recoveryOperation
+        }
+        elseif ($result.Succeeded) {
+            $offer = [ordered]@{
+                Id = [guid]::NewGuid().ToString()
+                Type = 'PruningOffer'
+                CreatedAt = [DateTimeOffset]::UtcNow.ToString('o')
+                Destination = $recoveryOperation.Destination
+                AppId = $result.AppId
+                Name = $recoveryOperation.Name
+                Publisher = $recoveryOperation.Publisher
+                DefinitionPath = $DefinitionPath
+                PublishedVersion = $Version
+            }
+            $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $recoveryOperation.Id -UpsertOffer $offer
+        }
+        else {
+            $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $recoveryOperation.Id
+        }
         Write-Verbose -Message "EvergreenUI: Nerdio publish outcome '$($result.Status)', app '$($result.AppId)', job '$($result.JobId)'"
         return $result
     }
@@ -133,6 +179,19 @@ function Publish-EwNerdioApp {
         if ($_.Exception.Data.Contains('BlobName')) { $result.BlobName = [string]$_.Exception.Data['BlobName'] }
         $message = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
         Write-Verbose -Message "EvergreenUI: Nerdio publish failed: $message"
+        if ($null -ne $recoveryOperation) {
+            if ($postStarted -or $_.Exception.Data.Contains('OutcomeUnknown')) {
+                $recoveryOperation.Status = 'Unknown'
+                $recoveryOperation.AppId = $result.AppId
+                $recoveryOperation.JobId = $result.JobId
+                $recoveryOperation.BlobName = $result.BlobName
+                $recoveryOperation.Error = $message
+                $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $recoveryOperation
+            }
+            else {
+                $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $recoveryOperation.Id
+            }
+        }
         return (& $fail -Message $message)
     }
 }

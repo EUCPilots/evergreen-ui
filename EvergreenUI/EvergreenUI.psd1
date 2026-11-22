@@ -32,7 +32,8 @@
         'Connect-EwAzure', 'Disconnect-EwAzure', 'Get-EwAzureResourceGroup',
         'Get-EwAzureStorageAccount', 'Get-EwAzureStorageContainer',
         'Get-EwNerdioDefinition', 'Get-EwNerdioShellApp', 'Get-EwNerdioShellAppVersion',
-        'Compare-EwNerdioShellApp', 'Get-EwNerdioPublishPlan', 'Remove-EwNerdioShellAppVersion',
+        'Compare-EwNerdioShellApp', 'Get-EwNerdioPublishPlan', 'Get-EwNerdioShellAppVersionPrunePlan',
+        'Remove-EwNerdioShellAppVersion',
         'Start-EvergreenWorkbench'
     )
     CmdletsToExport   = @()

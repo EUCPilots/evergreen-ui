@@ -30,7 +30,10 @@ function Invoke-EwWorkbenchJob {
             'NerdioContainers',
             'NerdioApiConnect',
             'NerdioCompare',
-            'NerdioPublish'
+            'NerdioPublish',
+            'NerdioReview',
+            'NerdioPrunePreview',
+            'NerdioPruneSelected'
         )]
         [string]$Kind,
 
