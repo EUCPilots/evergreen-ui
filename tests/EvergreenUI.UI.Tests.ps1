@@ -112,7 +112,7 @@ Describe 'Evergreen Workbench WPF shell' {
                         'DownloadQueueListView', 'LibraryListView', 'LibraryVersionsListView',
                         'PackageDefinitionsListView', 'InstallDefinitionsListView',
                         'LoadPackageDefinitionsButton', 'UpdatePackageDefinitionsButton',
-                        'ReloadInstallDefinitionsButton', 'ResolveInstallVersionsButton',
+                        'ReloadInstallDefinitionsButton', 'ResolveInstallVersionsButton', 'HideIncompatibleInstallToggle',
                         'InstallSelectedPackagesButton', 'ConnectIntuneButton', 'CompareIntuneButton',
                         'IntuneComparisonListView', 'PublishSelectedIntuneButton', 'CancelIntuneBatchButton',
                         'IntunePublishResultsListView', 'RetryIntuneSupersedenceButton', 'ThemeCombo', 'ActivityLog'
@@ -433,7 +433,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'starts one shared job after an install batch is confirmed' {
+    It 'starts an architecture review after an install batch is confirmed' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -449,16 +449,16 @@ Describe 'Evergreen Workbench WPF shell' {
                 Mock Start-EwJob {
                     [PSCustomObject]@{
                         Id = [guid]::NewGuid()
-                        Name = 'Install selected applications'
+                        Name = 'Review selected installations'
                     }
                 }
                 $eventArgs = [System.Windows.RoutedEventArgs]::new(
                     [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
                 )
                 $state.InstallSelectedPackagesButton.RaiseEvent($eventArgs)
-                $state.ActiveJobKind | Should -Be 'InstallPackages'
+                $state.ActiveJobKind | Should -Be 'InstallReview'
                 Should -Invoke Confirm-EwWorkbenchInstallBatch -Exactly 1
-                Should -Invoke Start-EwJob -Exactly 1 -ParameterFilter { $Name -eq 'Install selected applications' }
+                Should -Invoke Start-EwJob -Exactly 1 -ParameterFilter { $Name -eq 'Review selected installations' }
             }
             finally {
                 $window.Close()
@@ -497,6 +497,12 @@ Describe 'Evergreen Workbench WPF shell' {
                 }
                 $state.InstallDefinitions.Add($successfulDefinition)
                 $state.InstallDefinitions.Add($failedDefinition)
+                $state.InstallBatchActive = $true
+                $state.InstallBatchCounts = @{ Installed = 0; Failed = 0; Blocked = 0; Skipped = 0; Unknown = 0 }
+                $state.InstallActiveItems = @(
+                    [PSCustomObject]@{ Name = $successfulDefinition.Name; DefinitionPath = $successfulPath; Reconfirmations = 0 }
+                    [PSCustomObject]@{ Name = $failedDefinition.Name; DefinitionPath = $failedPath; Reconfirmations = 0 }
+                )
                 $jobId = [guid]::NewGuid()
                 $state.ActiveJobId = $jobId
                 $state.ActiveJobKind = 'InstallPackages'
@@ -511,6 +517,8 @@ Describe 'Evergreen Workbench WPF shell' {
                                 Name = 'Contoso App'
                                 DefinitionPath = $successfulPath
                                 Succeeded = $true
+                                Status = 'Installed'
+                                ReviewChanged = $false
                                 DownloadedVersion = '2.0'
                                 Error = ''
                             }
@@ -518,6 +526,8 @@ Describe 'Evergreen Workbench WPF shell' {
                                 Name = 'Fabrikam App'
                                 DefinitionPath = $failedPath
                                 Succeeded = $false
+                                Status = 'Failed'
+                                ReviewChanged = $false
                                 DownloadedVersion = ''
                                 Error = 'Installer exited with code 1.'
                             }
