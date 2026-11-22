@@ -8,7 +8,7 @@ The v1 implementation in `EvergreenUI-v1\` is the reference for the existing
 WPF experience. The v2 preview in `EvergreenUI\` provides headless settings,
 job, Apps, download, Library, definitions, local install, packaging,
 authentication, and publishing commands. Its WPF interface covers
-Apps, Download, Library, Packages, Publish, and Install.
+Apps, Download, Library, Packages, Intune, Nerdio, and Install.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
 
@@ -113,12 +113,43 @@ and saves definition and package-output paths. Its Install view reloads those
 definitions, checks local detection, resolves latest versions on request, and
 supports confirmed batch installation with per-application results.
 
-The Publish view connects to Intune and compares saved Definitions. Select
+The Intune view connects to Intune and compares saved Definitions. Select
 eligible rows to build and publish them after one confirmation. Existing
 matched apps are superseded; update-app mode is opt-in per row and assigns the
 app as required to All Devices. The batch may update Definition files, stops
 between applications when cancelled, and reports partial local and Intune
 changes. Supersedence can be retried during the current Workbench session.
+
+### Nerdio Shell Apps
+
+The Nerdio view has collapsible Azure, API and Shell App definition setup.
+Connect Azure with the tenant and subscription IDs, then select a resource
+group, storage account and blob container. Enter the Nerdio host, client ID,
+API scope and client secret, and connect the API. Use Save setup to persist
+non-secret configuration; the client secret is cleared from the form when
+connecting and is never saved.
+
+Save the Shell App definition folder, then choose Load and compare. Only
+valid Evergreen-backed definitions are publishable: unmatched definitions
+create Shell Apps, and unambiguous matches with newer versions add a version.
+Current apps, duplicate matches and unsupported sources are blocked. The
+resolved installer is uploaded directly; local definitions are not changed.
+
+Publish selected requires one confirmation showing versions, operations and
+the Azure/Nerdio destination. Files, sources and matches are checked again
+before writes. Cancellation takes effect between items, and the current
+provider operation finishes first. Results retain known blob, app and job IDs.
+Pending or unknown outcomes stop the batch and block further Nerdio publishing
+in the current Workbench session, including after refreshing or changing setup.
+Inspect the operation in Nerdio, select its result and use Acknowledge outcome
+review before comparing again. This acknowledgment does not retry or delete
+anything, and does not turn an uncertain result into a success.
+
+The headless equivalents are `Get-EwNerdioPublishPlan` and
+`Publish-EwNerdioBatch`. Nerdio sessions are shared explicitly across the
+module's Job workers in memory; expiry, disconnect and provider-configuration changes
+require reconnection. Live publishing requires provider access and explicit
+authorization; automated tests use mocks.
 
 ### Optional Intune connection check
 

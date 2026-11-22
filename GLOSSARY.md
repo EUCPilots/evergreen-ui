@@ -9,7 +9,7 @@ An `App.json` file describing one application: how to resolve its latest install
 _Avoid_: Manifest, package definition, template
 
 **Artifact**:
-A resolved installer for a specific version of an application, produced by evaluating a Definition's filter.
+A resolved installer for a specific version of an application, produced by evaluating a Definition's filter or a Shell App definition's source.
 _Avoid_: Download, installer, result
 
 **Library**:
@@ -21,11 +21,19 @@ A deployable container built from an Artifact: an `.intunewin` file for Intune o
 _Avoid_: Bundle, build output
 
 **Provider**:
-A destination that Packages are published to: Intune, Nerdio or Microsoft 365 Apps.
+A destination that Artifacts or Packages are published to: Intune, Nerdio or Microsoft 365 Apps.
 _Avoid_: Target, platform, service
 
+**Shell App definition**:
+A description of a Nerdio application and its detection, installation and uninstallation scripts.
+_Avoid_: App.json Definition, Intune Definition
+
+**Shell App**:
+An application managed in Nerdio Manager, with one or more installer versions.
+_Avoid_: Intune app, Package
+
 **Publish**:
-Upload a Package and its metadata to a Provider. Replaces the v1 term "Import".
+Upload an Artifact or Package and its metadata to a Provider. Replaces the v1 term "Import".
 _Avoid_: Import, deploy, push
 
 **Intune update app**:

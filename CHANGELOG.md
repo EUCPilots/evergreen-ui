@@ -16,6 +16,9 @@
 - Preserve partial Intune app IDs and Definition update failures, and distinguish linked supersedence chains from ambiguous Intune matches.
 - Match the v2 title bar to the form background on Windows 11 and correct sidebar text and hover colours in light and dark modes.
 - Use single-select dropdowns with an All option for Apps artifact filters.
+- Rename the Publish view to Intune and add a dedicated Nerdio view with staged Azure/API connection, storage discovery and saved non-secret setup.
+- Add read-only Nerdio publishing plans and confirmed sequential batches for Evergreen-backed Shell Apps, with source/file/target rechecks and cancellation between items.
+- Share Nerdio sessions across Job workers and preserve partial blob, app and job identifiers; block pending or unknown outcomes until reviewed rather than retrying automatically.
 
 ## [1.1.27]
 

@@ -49,9 +49,11 @@ To run the v2 preview UI, import `.\EvergreenUI\EvergreenUI.psd1` instead.
   them. `Start-EwJob` uses a bounded runspace pool; `Get-EwJob` exposes
   progress, information and state-change events. Remove completed jobs with
   `Remove-EwJob`. The v2 WPF shell provides Apps, Download, Library, Packages,
-  Publish, and Install views through `Start-EvergreenWorkbench`. Packages
-  manages shared Intune paths; Publish compares Definitions and runs
-  confirmed build-and-publish batches; Install checks and installs locally.
+  Intune, Nerdio, and Install views through `Start-EvergreenWorkbench`. Packages
+  manages shared Intune paths; Intune runs confirmed build-and-publish batches.
+  Nerdio owns staged Azure/API setup and confirmed publishing plans; its
+  in-memory session is passed explicitly into Job workers. Install checks
+  and installs locally.
 - V1's `EvergreenUI.psm1` dot-sources `Private\themes\*.ps1` first, then
   `Private\*.ps1`, then `Public\`. Its only exported function is
   `Start-EvergreenWorkbench`. V2 loads feature-grouped scripts; its manifest

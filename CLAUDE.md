@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the v2
 rewrite, requiring PowerShell 7.6 or later. Its public headless commands run
-without WPF; the v2 UI provides Apps, Download, Library, Packages, Publish, and Install
+without WPF; the v2 UI provides Apps, Download, Library, Packages, Intune, Nerdio, and Install
 views.
 Unless explicitly marked v2, the architecture and conventions below describe
 v1. Read `docs\adr\` before designing v2 changes.
@@ -73,13 +73,13 @@ Start-EvergreenWorkbench
 | Local install | `Test-EwDetection`, `Install-EwPackage` | Evaluates File, Registry, and MSI rules; installation supports `ShouldProcess`. |
 | Packages | `New-EwPackage` | Builds Intune Win32 or Microsoft 365 Intune/Nerdio packages. Intune packaging requires optional `IntuneWin32App`. |
 | Authentication | `Connect-EwIntune`, `Disconnect-EwIntune`, `Connect-EwNerdio`, `Disconnect-EwNerdio` | Loads Graph and Azure modules only for the requested provider. |
-| Publishing | `Publish-EwIntuneApp`, `Publish-EwIntuneBatch`, `Publish-EwNerdioApp`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio and supports Intune supersedence. `Publish-EwNerdioApp -ShellAppId` adds a version to an existing Shell App. |
+| Publishing | `Publish-EwIntuneApp`, `Publish-EwIntuneBatch`, `Publish-EwNerdioApp`, `Publish-EwNerdioBatch`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio. Batches confirm snapshots and preserve partial outcomes. |
 | Favourites | `Add-EwFavouriteApp`, `Remove-EwFavouriteApp` | Stores favourites in settings; `Get-EwApp` lists favourites first. |
 | Dependencies | `Get-EwDependency`, `Update-EwEvergreen` | Reports required and optional module status; refreshes Evergreen manifests and caches. |
 | Microsoft 365 | `Get-EwM365Configuration` | Discovers ODT XML configurations with channel, products, and architecture. |
 | Intune compare | `Get-EwIntuneApp`, `Compare-EwIntuneApp` | Lists Win32 apps via Graph and compares them with App.json definitions. |
 | Azure discovery | `Connect-EwAzure`, `Disconnect-EwAzure`, `Get-EwAzureResourceGroup`, `Get-EwAzureStorageAccount`, `Get-EwAzureStorageContainer` | Lists resources for Nerdio storage configuration. |
-| Nerdio | `Get-EwNerdioDefinition`, `Get-EwNerdioShellApp`, `Get-EwNerdioShellAppVersion`, `Compare-EwNerdioShellApp`, `Remove-EwNerdioShellAppVersion` | Reads Definition.json files, lists and compares Shell Apps, and prunes old versions. Compare supports Evergreen sources only. |
+| Nerdio | `Get-EwNerdioDefinition`, `Get-EwNerdioShellApp`, `Get-EwNerdioShellAppVersion`, `Compare-EwNerdioShellApp`, `Get-EwNerdioPublishPlan`, `Remove-EwNerdioShellAppVersion` | Reads Definition.json files, compares Shell Apps and prepares read-only publishing snapshots. The UI supports Evergreen sources and defers pruning. |
 
 `Evergreen` is required. `IntuneWin32App`, `Microsoft.Graph.Authentication`, `Az.Accounts`, `Az.Resources`, and `Az.Storage` are optional provider dependencies.
 
@@ -119,16 +119,21 @@ Worker runspaces never access WPF controls.
 
 ### V2 Navigation Views
 
-The v2 shell includes six RadioButton navigation views: Apps, Download,
-Library, Packages, Publish, and Install. Apps uses `Get-EwApp`,
+The v2 shell includes seven RadioButton navigation views: Apps, Download,
+Library, Packages, Intune, Nerdio, and Install. Apps uses `Get-EwApp`,
 `Get-EwFilterableProperty`, and the favourite commands; Download queues
 artifacts for `Save-EwArtifact`; Library reads and updates an Evergreen library
 and shows selected application versions; Packages loads and updates shared
 Intune App.json definitions and saves definition and output paths; Install
 reloads definitions, checks local detection, resolves latest versions
 separately, and supports confirmed batch installs through `Install-EwPackage`.
-Publish compares Definitions and builds and publishes confirmed Intune batches
-through `Publish-EwIntuneBatch`. Long-running work uses the shared job pool.
+Intune compares Definitions and builds and publishes confirmed batches through
+`Publish-EwIntuneBatch`. Nerdio owns its staged Azure/API setup and runs confirmed
+publishing plans through `Get-EwNerdioPublishPlan` and `Publish-EwNerdioBatch`.
+Nerdio's synchronized session is passed explicitly into Job workers; script
+variables alone are not shared between runspaces. Pending and unknown provider
+outcomes require review before another write. Long-running work uses the shared
+job pool.
 
 ### Key Private Functions
 
