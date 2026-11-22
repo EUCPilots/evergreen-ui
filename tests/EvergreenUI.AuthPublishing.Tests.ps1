@@ -189,8 +189,15 @@ Describe 'Provider publishing' {
             Mock Invoke-EwNerdioApiRequest {
                 [PSCustomObject]@{ item = [PSCustomObject]@{ id = 'shell-id' }; job = [PSCustomObject]@{ id = 'job-id'; status = 'Completed' } }
             }
+            Mock Get-EwNerdioSessionContext {
+                [PSCustomObject]@{
+                    AccessToken = 'test-token'; TokenExpiresAt = [DateTimeOffset]::UtcNow.AddHours(1)
+                    TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.example.test'
+                    ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+                }
+            }
             $result = Publish-EwNerdioApp -DefinitionPath $DefinitionPath -PackagePath $PackagePath -Version '2.0' -Confirm:$false
-            $result.Succeeded | Should -BeTrue
+            $result.Succeeded | Should -BeTrue -Because $result.Error
             $result.JobId | Should -Be 'job-id'
             Should -Invoke Invoke-EwNerdioApiRequest -Exactly 1 -ParameterFilter {
                 $Method -eq 'POST' -and $Uri -eq 'https://nme.example.test/api/v1/shell-app' -and

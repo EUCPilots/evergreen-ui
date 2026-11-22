@@ -1,11 +1,27 @@
 #Requires -Version 7.6
 
 BeforeAll {
+    $script:originalAppData = $env:APPDATA
+    $script:testAppData = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath "EvergreenUI.NerdioUI.Tests.$([guid]::NewGuid())"
+    $env:APPDATA = $script:testAppData
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1') -Force
 }
-AfterAll { Remove-Module -Name EvergreenUI -Force }
+AfterAll {
+    Remove-Module -Name EvergreenUI -Force
+    $env:APPDATA = $script:originalAppData
+    if (Test-Path -LiteralPath $script:testAppData) {
+        Remove-Item -LiteralPath $script:testAppData -Recurse -Force
+    }
+}
 
 Describe 'Nerdio WPF view' {
+    BeforeEach {
+        $recoveryPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenWorkbench\nerdio-recovery.json'
+        if (Test-Path -LiteralPath $recoveryPath) {
+            Remove-Item -LiteralPath $recoveryPath -Force
+        }
+    }
+
     It 'keeps comparison and results usable at the minimum window size in both native themes' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
@@ -105,6 +121,35 @@ Describe 'Nerdio WPF view' {
         }
     }
 
+    It 'restores unresolved outcomes and pruning offers from durable recovery state' {
+        InModuleScope EvergreenUI {
+            $destination = [ordered]@{
+                TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+            }
+            Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation ([ordered]@{
+                    Id = 'restart-publish'; Type = 'Publish'; Status = 'Unknown'; Destination = $destination
+                    Name = 'Browser'; DefinitionPath = 'C:\Apps\Browser'; Version = '2.0'
+                    AppId = '42'; JobId = 'job'; BlobName = 'blob'; Error = 'Inspect Nerdio'
+                }) | Out-Null
+            Invoke-EwNerdioRecoveryStore -Action Update -UpsertOffer ([ordered]@{
+                    Id = 'restart-offer'; Type = 'PruningOffer'; Destination = $destination
+                    AppId = '43'; Name = 'Editor'; PublishedVersion = '3.0'
+                }) | Out-Null
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NerdioResults | Should -HaveCount 1
+                $state.NerdioResults[0].RecoveryOperationId | Should -Be 'restart-publish'
+                $state.NerdioResults[0].Status | Should -Be 'Unknown'
+                $state.NerdioBlockedOutcomes.ContainsKey('restart-publish') | Should -BeTrue
+                $state.NerdioPruningOffers | Should -HaveCount 1
+                $state.NerdioPruningOffers[0].Id | Should -Be 'restart-offer'
+            }
+            finally { $window.Close() }
+        }
+    }
+
     It 'declining confirmation does not start publishing and pending outcomes survive comparison refresh' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
@@ -127,10 +172,21 @@ Describe 'Nerdio WPF view' {
                     Name = 'App'; DefinitionPath = 'app-path'; Version = '2'; Status = 'Pending'
                     AppId = 'id'; JobId = 'job'; BlobName = 'blob'; Succeeded = $false; Error = 'Review'
                 }
+                $recoveryState = [ordered]@{
+                    SchemaVersion = 1
+                    Operations = @([ordered]@{
+                            Id = 'pending-op'; Type = 'Publish'; Status = 'Pending'; Name = 'App'
+                            DefinitionPath = 'app-path'; Version = '2'; AppId = 'id'; JobId = 'job'
+                            BlobName = 'blob'; Error = 'Review'
+                            Destination = [ordered]@{ NmeHost = 'nme.test' }
+                        })
+                    PruningOffers = @()
+                }
+                Mock Invoke-EwNerdioRecoveryStore { $recoveryState }
                 $null = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind NerdioPublish `
                     -Job ([PSCustomObject]@{ State = 'Completed'; Output = @($pending); TerminatingError = $null })
                 $state.NerdioResults.Count | Should -Be 1
-                $state.NerdioBlockedOutcomes.ContainsKey('nme.test|app-path') | Should -BeTrue
+                $state.NerdioBlockedOutcomes.ContainsKey('pending-op') | Should -BeTrue
                 $other = [PSCustomObject]@{
                     AppName = 'Other'; DefinitionPath = 'other-path'; SourceVersion = '2'; Eligible = $true
                     Operation = 'Create'; NerdioAppId = ''; Message = ''

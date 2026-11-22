@@ -389,31 +389,19 @@ Describe 'Nerdio Shell App parity' {
         }
     }
 
-    It 'removes the oldest versions and keeps unparseable names' {
+    It 'rejects unorderable version names before deleting anything' {
         InModuleScope EvergreenUI {
             Mock Invoke-EwNerdioApiRequest -ParameterFilter { $Method -eq 'GET' } {
                 [PSCustomObject]@{ items = @(
                         [PSCustomObject]@{ name = '10.0' }
-                        [PSCustomObject]@{ name = 'v2.0' }
-                        [PSCustomObject]@{ name = 'latest' }
                         [PSCustomObject]@{ name = '9.1' }
+                        [PSCustomObject]@{ name = '8.0' }
+                        [PSCustomObject]@{ name = 'latest' }
                     ) }
             }
-            Mock Invoke-EwNerdioApiRequest -ParameterFilter { $Method -eq 'DELETE' -and $Uri -like '*/9.1' } {
-                [PSCustomObject]@{ job = [PSCustomObject]@{ status = 'Failed' } }
-            }
-            Mock Invoke-EwNerdioApiRequest -ParameterFilter { $Method -eq 'DELETE' -and $Uri -notlike '*/9.1' } {
-                [PSCustomObject]@{ job = [PSCustomObject]@{ status = 'Pending' } }
-            }
-            Remove-EwNerdioShellAppVersion -Id 7 -KeepVersions 2 -WhatIf | Out-Null
+            { Remove-EwNerdioShellAppVersion -Id 7 -KeepVersions 2 -Confirm:$false } |
+                Should -Throw '*cannot be pruned safely*'
             Should -Invoke Invoke-EwNerdioApiRequest -Exactly 0 -ParameterFilter { $Method -eq 'DELETE' }
-
-            $result = Remove-EwNerdioShellAppVersion -Id 7 -KeepVersions 2 -Confirm:$false
-            $result.TotalVersions | Should -Be 4
-            $result.RequestedRemovals | Should -Be 2
-            $result.RemovedVersions | Should -Be @('v2.0')
-            $result.FailedVersions | Should -Be @('9.1')
-            Should -Invoke Invoke-EwNerdioApiRequest -Exactly 0 -ParameterFilter { $Method -eq 'DELETE' -and $Uri -like '*/latest' }
         }
     }
 

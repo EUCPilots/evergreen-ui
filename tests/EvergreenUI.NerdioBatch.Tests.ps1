@@ -1,12 +1,25 @@
 #Requires -Version 7.6
 
 BeforeAll {
+    $script:originalAppData = $env:APPDATA
+    $script:testAppData = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath "EvergreenUI.NerdioBatch.Tests.$([guid]::NewGuid())"
+    $env:APPDATA = $script:testAppData
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1') -Force
 }
-AfterAll { Remove-Module -Name EvergreenUI -Force }
+AfterAll {
+    Remove-Module -Name EvergreenUI -Force
+    $env:APPDATA = $script:originalAppData
+    if (Test-Path -LiteralPath $script:testAppData) {
+        Remove-Item -LiteralPath $script:testAppData -Recurse -Force
+    }
+}
 
 Describe 'Nerdio publish outcomes' {
     BeforeEach {
+        $recoveryPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenWorkbench\nerdio-recovery.json'
+        if (Test-Path -LiteralPath $recoveryPath) {
+            Remove-Item -LiteralPath $recoveryPath -Force
+        }
         $folder = Join-Path -Path $TestDrive -ChildPath 'App'
         $null = New-Item -Path $folder -ItemType Directory -Force
         Set-Content -LiteralPath (Join-Path -Path $folder -ChildPath 'Definition.json') -Value '{"name":"App","publisher":"Vendor","versions":[{"name":"1","file":{"sourceUrl":"","sha256":""}}]}'
@@ -29,6 +42,56 @@ Describe 'Nerdio publish outcomes' {
             $result.AppId | Should -Be 'app'
             $result.JobId | Should -Be 'job'
             $result | ConvertTo-Json | Should -Not -Match 'sig=secret'
+            $recovery = Invoke-EwNerdioRecoveryStore -Action Read
+            $recovery.Operations | Should -HaveCount 1
+            $recovery.Operations[0].Status | Should -Be 'Pending'
+            (Get-Content -LiteralPath (Join-Path -Path $env:APPDATA -ChildPath 'EvergreenWorkbench\nerdio-recovery.json') -Raw) |
+                Should -Not -Match 'AccessToken|ClientSecret|token'
+        }
+    }
+
+    It 'persists a publish intent before writing the installer blob or calling Nerdio' {
+        InModuleScope EvergreenUI -Parameters @{ Folder = $folder; File = $file } {
+            $events = [System.Collections.Generic.List[string]]::new()
+            Mock Get-EwNerdioSessionContext { [PSCustomObject]@{ AccessToken = 'token'; NmeHost = 'nme.test' } }
+            Mock Invoke-EwNerdioRecoveryStore {
+                if ($Action -eq 'Read') {
+                    return [ordered]@{ SchemaVersion = 1; Operations = @(); PruningOffers = @() }
+                }
+                $events.Add('Persist') | Out-Null
+            }
+            Mock Invoke-EwNerdioBlobUpload {
+                $events.Add('Blob') | Out-Null
+                [PSCustomObject]@{ BlobName = 'blob'; SourceUrl = 'https://storage.test/file'; Sha256 = 'hash' }
+            }
+            Mock Invoke-EwNerdioApiRequest {
+                $events.Add('Nerdio') | Out-Null
+                [PSCustomObject]@{ item = [PSCustomObject]@{ id = 'app' }; job = [PSCustomObject]@{ id = 'job'; status = 'Completed' } }
+            }
+
+            $result = Publish-EwNerdioApp -DefinitionPath $Folder -PackagePath $File -Version '2.0' -Confirm:$false
+
+            $result.Status | Should -Be 'Completed'
+            $events.ToArray() | Should -Be @('Persist', 'Blob', 'Persist', 'Nerdio', 'Persist')
+        }
+    }
+
+    It 'blocks blob and Nerdio writes when the recovery intent cannot be saved' {
+        InModuleScope EvergreenUI -Parameters @{ Folder = $folder; File = $file } {
+            Mock Get-EwNerdioSessionContext { [PSCustomObject]@{ AccessToken = 'token'; NmeHost = 'nme.test' } }
+            Mock Invoke-EwNerdioRecoveryStore {
+                if ($Action -eq 'Read') {
+                    return [ordered]@{ SchemaVersion = 1; Operations = @(); PruningOffers = @() }
+                }
+                throw 'Recovery storage unavailable'
+            }
+            Mock Invoke-EwNerdioBlobUpload {}
+            Mock Invoke-EwNerdioApiRequest {}
+
+            { Publish-EwNerdioApp -DefinitionPath $Folder -PackagePath $File -Version '2.0' -Confirm:$false } |
+                Should -Throw '*Recovery storage unavailable*'
+            Should -Invoke Invoke-EwNerdioBlobUpload -Exactly 0
+            Should -Invoke Invoke-EwNerdioApiRequest -Exactly 0
         }
     }
 
@@ -66,6 +129,10 @@ Describe 'Nerdio publish outcomes' {
             $result.BlobName | Should -Match '\.app.exe$'
             $result.Error | Should -Not -Match 'sig=secret'
             Should -Invoke New-AzStorageBlobSASToken -Exactly 0
+            $recovery = Invoke-EwNerdioRecoveryStore -Action Read
+            foreach ($operation in @($recovery.Operations)) {
+                $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $operation.Id
+            }
             Mock Set-AzStorageBlobContent -RemoveParameterType Context { [PSCustomObject]@{ ICloudBlob = [PSCustomObject]@{ Uri = [uri]'https://storage.test/file' } } }
             $result = Publish-EwNerdioApp -DefinitionPath $Folder -ShellAppId 'target' -PackagePath $File -Version '2.0' -Confirm:$false
             $result.Status | Should -Be 'Failed' -Because $result.Error
