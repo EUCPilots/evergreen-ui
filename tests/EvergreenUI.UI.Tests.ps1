@@ -1,6 +1,9 @@
 #Requires -Version 7.6
 
 BeforeAll {
+    $script:originalAppData = $env:APPDATA
+    $env:APPDATA = Join-Path -Path $TestDrive -ChildPath 'appdata'
+    $null = New-Item -Path $env:APPDATA -ItemType Directory -Force
     Import-Module (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1') -Force
 
     $waitForInfoJob = {
@@ -77,6 +80,7 @@ namespace EvergreenUI {
 }
 
 AfterAll {
+    $env:APPDATA = $script:originalAppData
     Remove-Module EvergreenUI -Force -ErrorAction SilentlyContinue
 }
 
@@ -128,7 +132,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'switches views and filters artifacts using dropdowns for all property sizes' {
+    It 'switches views and filters artifacts using multi-select check box dropdowns' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -150,38 +154,50 @@ Describe 'Evergreen Workbench WPF shell' {
                         }
                     }
                 )
+                $check = {
+                    param([string]$Property, [string]$Value, [bool]$Checked = $true)
+                    ($state.ArtifactFilterControls[$Property].CheckBoxes | Where-Object Tag -eq $Value).IsChecked = $Checked
+                }
                 Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                 foreach ($filter in $state.ArtifactFilterControls.Values) {
                     $filter.Control | Should -BeOfType ([System.Windows.Controls.ComboBox])
-                    $filter.Control.SelectedIndex | Should -Be 0
-                    $filter.Control.SelectedItem | Should -Be 'All'
+                    $filter.Control.Text | Should -Be 'All'
+                    @($filter.CheckBoxes | Where-Object IsChecked).Count | Should -Be 0
                 }
                 @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 24
-                $architectureFilter = $state.ArtifactFilterControls['Architecture']
-                $architectureFilter.Control.SelectedItem = 'x64'
+                & $check -Property 'Architecture' -Value 'x64'
                 @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 12
-                $channelFilter = $state.ArtifactFilterControls['Channel']
-                $channelFilter.Control.SelectedItem = 'channel8'
+                $state.ArtifactFilterControls['Architecture'].Control.Text | Should -Be 'x64'
+                & $check -Property 'Architecture' -Value 'x86'
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 24 -Because 'values within a property are combined with OR'
+                $state.ArtifactFilterControls['Architecture'].Control.Text | Should -Be '2 selected'
+                & $check -Property 'Channel' -Value 'channel8'
+                & $check -Property 'Channel' -Value 'channel7'
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 6 -Because 'properties are combined with AND'
+                & $check -Property 'Architecture' -Value 'x86' -Checked $false
                 @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 3
-                $typeFilter = $state.ArtifactFilterControls['_DerivedType']
-                $typeFilter.Control.SelectedItem = 'msi'
+                & $check -Property '_DerivedType' -Value 'msi'
                 @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 0
-                $typeFilter.Control.SelectedIndex = 0
-                $channelFilter.Control.SelectedIndex = 0
-                $architectureFilter.Control.SelectedIndex = 0
-                $state.ArtifactFilterControls['Track'].Control.SelectedItem = 'track1'
-                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 1
-                $state.ArtifactFilterControls['Track'].Control.SelectedIndex = 0
-                $categoryFilter = $state.ArtifactFilterControls['Category'].Control
-                $categoryFilter.SelectedIndex = 1
-                $categoryFilter.SelectedItem | Should -Be 'All'
-                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 1
-                $categoryFilter.SelectedIndex = 0
+                foreach ($filter in $state.ArtifactFilterControls.Values) {
+                    foreach ($box in $filter.CheckBoxes) { $box.IsChecked = $false }
+                }
                 @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 24
-                $architectureFilter.Control.SelectedItem = 'x64'
+                & $check -Property 'Category' -Value 'All'
+                $state.ArtifactFilterControls['Category'].Control.Text | Should -Be 'All'
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 1 -Because "an actual 'All' value is distinct from no selection"
+                & $check -Property 'Category' -Value 'All' -Checked $false
+
+                $trackControl = $state.ArtifactFilterControls['Track'].Control
+                $trackControl.SelectedItem = $state.ArtifactFilterControls['Track'].CheckBoxes[0]
+                $state.ArtifactFilterControls['Track'].CheckBoxes[0].IsChecked | Should -BeTrue -Because 'keyboard selection toggles the value'
+                $trackControl.SelectedIndex | Should -Be -1
+                @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 1
+                $state.ArtifactFilterControls['Track'].CheckBoxes[0].IsChecked = $false
+
+                & $check -Property 'Architecture' -Value 'x64'
                 Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                 @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 24
-                $state.ArtifactFilterControls['Architecture'].Control.SelectedIndex | Should -Be 0
+                @($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object IsChecked).Count | Should -Be 0
             }
             finally {
                 $window.Close()
@@ -574,6 +590,205 @@ Describe 'Evergreen Workbench WPF shell' {
             }
         }
     }
+
+    It 'clears the whole queue unless a download job is running and clears completed rows separately' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                foreach ($status in 'Pending', 'Downloading', 'Downloaded', 'Failed') {
+                    $state.Queue.Add([PSCustomObject]@{ Id = $status; Status = $status; Version = '1.0' })
+                }
+                $click = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)
+                $state.ClearCompletedQueueButton.RaiseEvent($click)
+                @($state.Queue | ForEach-Object Status) | Should -Be @('Pending', 'Downloading')
+                $state.ActiveJobId = 'running'
+                $state.ActiveJobKind = 'Downloads'
+                Invoke-EwWorkbenchBusyState -State $state -IsBusy $true
+                $state.ClearQueueButton.IsEnabled | Should -BeFalse
+                $state.ClearQueueButton.RaiseEvent($click)
+                $state.Queue.Count | Should -Be 2
+                $state.ActivityLog.Text | Should -Match 'download is running'
+                $state.ActiveJobKind = 'Apps'
+                Invoke-EwWorkbenchBusyState -State $state -IsBusy $true
+                $state.ClearQueueButton.IsEnabled | Should -BeTrue
+                $state.ClearQueueButton.RaiseEvent($click)
+                $state.Queue.Count | Should -Be 0
+                $state.StartDownloadButton.IsEnabled | Should -BeFalse
+                $state.ActivityLog.Text | Should -Match 'Cleared 2 items'
+            }
+            finally {
+                $state.ActiveJobId = $null
+                $state.ActiveJobKind = ''
+                $window.Close()
+            }
+        }
+    }
+
+    It 'restores and clamps saved window bounds to the work area' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $workArea = [System.Windows.Rect]::new(0, 0, 1000, 700)
+                Restore-EwWorkbenchWindowSize -Window $window -WorkArea $workArea -Settings @{ WindowWidth = 5000; WindowHeight = 100; WindowMaximized = $true }
+                $window.Width | Should -Be 1000
+                $window.Height | Should -Be $window.MinHeight
+                $window.WindowState | Should -Be ([System.Windows.WindowState]::Maximized)
+                $window.WindowState = [System.Windows.WindowState]::Normal
+                $large = [System.Windows.Rect]::new(0, 0, 3000, 2000)
+                Restore-EwWorkbenchWindowSize -Window $window -WorkArea $large -Settings @{ WindowWidth = 'wide'; WindowHeight = 900; WindowMaximized = 'maybe' }
+                $window.Width | Should -Be 1200
+                $window.Height | Should -Be 900
+                $window.WindowState | Should -Be ([System.Windows.WindowState]::Normal)
+                $small = [System.Windows.Rect]::new(0, 0, 800, 600)
+                Restore-EwWorkbenchWindowSize -Window $window -WorkArea $small -Settings @{}
+                $window.Width | Should -Be 800 -Because 'a work area smaller than the minimum keeps the window on screen'
+                $window.Height | Should -Be 600
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'saves the normal window size and maximised state' {
+        InModuleScope EvergreenUI {
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.WindowStartupLocation = [System.Windows.WindowStartupLocation]::Manual
+                $window.Left = 0
+                $window.Top = 0
+                $window.Width = 1000
+                $window.Height = 700
+                $window.Show()
+                $window.WindowState = [System.Windows.WindowState]::Maximized
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                Save-EwWorkbenchWindowSize -State $state
+                $saved = Get-EwSetting
+                $saved.WindowWidth | Should -Be 1000
+                $saved.WindowHeight | Should -Be 700
+                $saved.WindowMaximized | Should -BeTrue
+                $window.WindowState = [System.Windows.WindowState]::Normal
+                $window.Width = 1100
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                Save-EwWorkbenchWindowSize -State $state
+                $saved = Get-EwSetting
+                $saved.WindowWidth | Should -Be 1100
+                $saved.WindowMaximized | Should -BeFalse
+            }
+            finally {
+                $window.Close()
+                $env:APPDATA = $originalAppData
+            }
+        }
+    }
+
+    It 'restores the startup view without saving it and saves later navigation' {
+        InModuleScope EvergreenUI {
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $settingsPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenWorkbench\settings.json'
+            Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid(); Name = 'stub' } }
+            $windows = [System.Collections.Generic.List[object]]::new()
+            try {
+                $settings = Get-EwSetting
+                $settings.StartupView = 'Bogus'
+                $window = Get-EwWorkbenchWindow
+                $windows.Add($window)
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $state.AppsPanel.Visibility.ToString() | Should -Be 'Visible'
+                $state.NavApps.IsChecked | Should -BeTrue
+                Test-Path -Path $settingsPath | Should -BeFalse
+                $state.ActiveJobId = $null
+                $state.NavDownload.IsChecked = $true
+                (Get-EwSetting).StartupView | Should -Be 'Download'
+
+                $window = Get-EwWorkbenchWindow
+                $windows.Add($window)
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.DownloadPanel.Visibility.ToString() | Should -Be 'Visible'
+                $state.AppsPanel.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.NavDownload.IsChecked | Should -BeTrue
+            }
+            finally {
+                foreach ($item in $windows) { $item.Close() }
+                $env:APPDATA = $originalAppData
+            }
+        }
+    }
+
+    It 'reselects the last application once after the startup catalog load and saves new selections' {
+        InModuleScope EvergreenUI {
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $window = Get-EwWorkbenchWindow
+            try {
+                Set-EwSetting -Name LastAppName -Value 'Beta'
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $alpha = [PSCustomObject]@{ Name = 'Alpha'; FriendlyName = 'Alpha'; IsFavourite = $false }
+                $beta = [PSCustomObject]@{ Name = 'Beta'; FriendlyName = 'Beta'; IsFavourite = $false }
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = [guid]::NewGuid(); State = 'Completed'; Output = @($alpha, $beta); TerminatingError = $null
+                        Progress = @(); Information = @(); Errors = @()
+                    }
+                }
+                Mock Remove-EwJob {}
+                Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid(); Name = $Name } }
+                $state.ActiveJobId = [guid]::NewGuid()
+                $state.ActiveJobKind = 'Apps'
+                $state.AppsLoading = $true
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.CurrentAppName | Should -Be 'Beta'
+                $state.AppsListView.SelectedItem | Should -Be $beta
+                $state.PendingLastAppName | Should -BeNullOrEmpty
+                Should -Invoke Start-EwJob -Exactly 1 -ParameterFilter { $Name -eq 'Load Beta artifacts' }
+
+                $state.ActiveJobId = $null
+                $state.ActiveJobKind = ''
+                $state.AppsListView.SelectedItem = $alpha
+                (Get-EwSetting).LastAppName | Should -Be 'Alpha'
+            }
+            finally {
+                $state.ActiveJobId = $null
+                $window.Close()
+                $env:APPDATA = $originalAppData
+            }
+        }
+    }
+
+    It 'logs and skips a last application that is no longer in the catalog' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $settings = Get-EwSetting
+                $settings.LastAppName = 'Gone'
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = [guid]::NewGuid(); State = 'Completed'; TerminatingError = $null; Progress = @(); Information = @(); Errors = @()
+                        Output = @([PSCustomObject]@{ Name = 'Alpha'; FriendlyName = 'Alpha'; IsFavourite = $false })
+                    }
+                }
+                Mock Remove-EwJob {}
+                Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid(); Name = $Name } }
+                $state.ActiveJobId = [guid]::NewGuid()
+                $state.ActiveJobKind = 'Apps'
+                $state.AppsLoading = $true
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.CurrentApp | Should -BeNullOrEmpty
+                $state.ActivityLog.Text | Should -Match "Last application 'Gone' is no longer in the catalog"
+                Should -Invoke Start-EwJob -Exactly 0
+            }
+            finally {
+                $state.ActiveJobId = $null
+                $window.Close()
+            }
+        }
+    }
 }
 
 Describe 'Workbench Settings and About' {
@@ -655,7 +870,7 @@ Describe 'Workbench Settings and About' {
         }
     }
 
-    It 'shows existing defaults without creating a settings file' {
+    It 'shows existing defaults without persisting them' {
         InModuleScope EvergreenUI -Parameters @{ Wait = $waitForInfoJob } {
             param($Wait)
             $defaults = Get-EwSetting
@@ -667,7 +882,10 @@ Describe 'Workbench Settings and About' {
                 & $Wait -State $state -Kind 'Download'
                 $state.SettingsDownloadPathBox.Text | Should -Be $defaults.OutputPath
                 $state.SettingsLibraryPathBox.Text | Should -Be $defaults.LibraryPath
-                Test-Path -LiteralPath $settingsPath | Should -BeFalse
+                # Navigation persists only the startup view; displayed defaults are not written.
+                $saved = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json -AsHashtable
+                @($saved.Keys | Where-Object { $_ -notin 'SchemaVersion', 'StartupView' -and [string]$saved[$_] -ne [string]$defaults[$_] }) | Should -BeNullOrEmpty
+                $saved.StartupView | Should -Be 'Settings'
             }
             finally {
                 $window.Close()

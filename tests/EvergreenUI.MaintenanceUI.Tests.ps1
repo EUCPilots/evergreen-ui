@@ -5,12 +5,16 @@ BeforeDiscovery {
 }
 
 BeforeAll {
+    $script:originalAppData = $env:APPDATA
+    $env:APPDATA = Join-Path -Path $TestDrive -ChildPath 'appdata'
+    $null = New-Item -Path $env:APPDATA -ItemType Directory -Force
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1') -Force
 }
 
 AfterAll {
+    $env:APPDATA = $script:originalAppData
     Remove-Module -Name EvergreenUI -Force -ErrorAction SilentlyContinue
 }
 
@@ -276,7 +280,7 @@ Describe 'Apps maintenance' {
 
         It 'preserves app search favourites filters and queued version snapshots across both refresh stages' {
             $state.AppSearchBox.Text = 'Test'
-            $state.ArtifactFilterControls['Architecture'].Control.SelectedItem = 'x64'
+            ($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object Tag -eq 'x64').IsChecked = $true
             Invoke-EwWorkbenchMaintenanceAction -State $state -Action Update
             $newApp = [PSCustomObject]@{ Name = 'TestApp'; FriendlyName = 'Test App New'; IsFavourite = $true }
             $catalog = [PSCustomObject]@{ State = 'Completed'; TerminatingError = $null; Output = @($newApp) }
@@ -292,7 +296,8 @@ Describe 'Apps maintenance' {
             $state.CurrentApp | Should -Be $newApp
             $state.AppsListView.SelectedItem | Should -Be $newApp
             $state.FavoriteAppButton.Content | Should -Be 'Remove favourite'
-            $state.ArtifactFilterControls['Architecture'].Control.SelectedItem | Should -Be 'x64'
+            @($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object IsChecked | ForEach-Object Tag) | Should -Be @('x64')
+            $state.ArtifactFilterControls['Architecture'].Control.Text | Should -Be 'x64'
             @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 1
             $state.Queue.Count | Should -Be 1
             $state.Queue[0].Version | Should -Be '1.0'
@@ -304,9 +309,19 @@ Describe 'Apps maintenance' {
             $state.MaintenanceContext.Filters = @{ Architecture = 'arm64'; Channel = 'Beta' }
             $job = [PSCustomObject]@{ State = 'Completed'; TerminatingError = $null; Output = @($artifact) }
             Invoke-EwWorkbenchMaintenanceJobResult -State $state -Kind MaintenanceArtifacts -Job $job | Should -Be ''
-            $state.ArtifactFilterControls['Architecture'].Control.SelectedIndex | Should -Be 0
+            @($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object IsChecked).Count | Should -Be 0
+            $state.ArtifactFilterControls['Architecture'].Control.Text | Should -Be 'All'
             $state.ActivityLog.Text | Should -Match 'arm64.*reset to All'
             $state.ActivityLog.Text | Should -Match "Channel.*reset to All"
+        }
+
+        It 'keeps supported values of a multi-value filter and removes the rest with a notice' {
+            $state.MaintenanceContext.Catalog = @($app)
+            $state.MaintenanceContext.Filters = @{ Architecture = @('x64', 'arm64') }
+            $job = [PSCustomObject]@{ State = 'Completed'; TerminatingError = $null; Output = @($artifact) }
+            Invoke-EwWorkbenchMaintenanceJobResult -State $state -Kind MaintenanceArtifacts -Job $job | Should -Be ''
+            @($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object IsChecked | ForEach-Object Tag) | Should -Be @('x64')
+            $state.ActivityLog.Text | Should -Match 'arm64.*removed from the selection'
         }
 
         It 'retains selected app details when its new friendly name no longer matches the preserved search' {

@@ -1,6 +1,9 @@
 #Requires -Version 7.6
 
 BeforeAll {
+    $script:originalAppData = $env:APPDATA
+    $env:APPDATA = Join-Path -Path $TestDrive -ChildPath 'appdata'
+    $null = New-Item -Path $env:APPDATA -ItemType Directory -Force
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1') -Force
@@ -469,4 +472,8 @@ Describe 'Install architecture review in the Workbench' {
             }
         }
     }
+}
+
+AfterAll {
+    $env:APPDATA = $script:originalAppData
 }

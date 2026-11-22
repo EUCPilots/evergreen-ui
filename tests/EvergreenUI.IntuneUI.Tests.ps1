@@ -1,10 +1,14 @@
 #Requires -Version 7.6
 
 BeforeAll {
+    $script:originalAppData = $env:APPDATA
+    $env:APPDATA = Join-Path -Path $TestDrive -ChildPath 'appdata'
+    $null = New-Item -Path $env:APPDATA -ItemType Directory -Force
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1') -Force -ErrorAction Stop
 }
 
 AfterAll {
+    $env:APPDATA = $script:originalAppData
     Remove-Module -Name EvergreenUI -Force -ErrorAction SilentlyContinue
 }
 
