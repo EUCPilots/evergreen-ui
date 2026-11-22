@@ -58,13 +58,18 @@ function Start-EwJob {
     $powerShell.Streams.Progress.BlockingEnumerator = $false
     $powerShell.Streams.Information.BlockingEnumerator = $false
     $worker = {
-        param($ModulePath, $Body, $Arguments)
+        param($ModulePath, $Body, $Arguments, $NerdioSession)
         $ErrorActionPreference = 'Stop'
         Import-Module -Name $ModulePath -ErrorAction Stop
+        & (Get-Module -Name EvergreenUI) {
+            param($Session)
+            $script:ewNerdioSession = $Session
+            $script:ewOwnsNerdioSession = $false
+        } $NerdioSession
         & ([scriptblock]::Create($Body)) @Arguments
     }
     try {
-        $null = $powerShell.AddScript($worker.ToString()).AddArgument($script:ewModulePath).AddArgument($ScriptBlock.ToString()).AddArgument($ArgumentList)
+        $null = $powerShell.AddScript($worker.ToString()).AddArgument($script:ewModulePath).AddArgument($ScriptBlock.ToString()).AddArgument($ArgumentList).AddArgument($script:ewNerdioSession)
         $handle = $powerShell.BeginInvoke()
     }
     catch {

@@ -23,7 +23,14 @@ function Invoke-EwWorkbenchJob {
             'IntuneDisconnect',
             'IntuneCompare',
             'IntunePublish',
-            'IntuneRetry'
+            'IntuneRetry',
+            'NerdioAzureConnect',
+            'NerdioDisconnect',
+            'NerdioStorage',
+            'NerdioContainers',
+            'NerdioApiConnect',
+            'NerdioCompare',
+            'NerdioPublish'
         )]
         [string]$Kind,
 

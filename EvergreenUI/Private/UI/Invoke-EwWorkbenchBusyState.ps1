@@ -77,4 +77,5 @@ function Invoke-EwWorkbenchBusyState {
         $State.RetryIntuneSupersedenceButton.IsEnabled = $connected -and $null -ne $selectedResult -and
             $selectedResult.Status -eq 'Supersedence failed' -and $selectedResult.TenantId -eq $State.IntuneTenantId
     }
+    Invoke-EwWorkbenchNerdioBusyState -State $State
 }

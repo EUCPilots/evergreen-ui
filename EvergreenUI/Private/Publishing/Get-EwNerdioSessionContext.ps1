@@ -5,12 +5,13 @@ function Get-EwNerdioSessionContext {
     [CmdletBinding()]
     param()
 
-    if ($null -eq $script:ewNerdioContext) {
+    $context = $script:ewNerdioSession.Context
+    if ($null -eq $context) {
         throw 'Nerdio is not connected. Call Connect-EwNerdio first.'
     }
-    if ([DateTimeOffset]::UtcNow -ge $script:ewNerdioContext.TokenExpiresAt) {
-        $script:ewNerdioContext = $null
+    if ([DateTimeOffset]::UtcNow -ge $context.TokenExpiresAt) {
+        $script:ewNerdioSession.Context = $null
         throw 'Nerdio Manager access token has expired. Call Connect-EwNerdio again.'
     }
-    return $script:ewNerdioContext
+    return $context
 }

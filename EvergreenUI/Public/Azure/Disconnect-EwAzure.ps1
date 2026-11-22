@@ -20,8 +20,8 @@ function Disconnect-EwAzure {
     [OutputType([PSCustomObject])]
     param()
 
-    $nerdioWasConnected = $null -ne $script:ewNerdioContext
-    $script:ewNerdioContext = $null
+    $nerdioWasConnected = $null -ne $script:ewNerdioSession.Context
+    $script:ewNerdioSession.Context = $null
     if ($nerdioWasConnected) {
         Write-Verbose -Message 'EvergreenUI: Cleared Nerdio Manager token during Azure sign-out.'
     }

@@ -19,8 +19,8 @@ function Disconnect-EwNerdio {
     [OutputType([PSCustomObject])]
     param()
 
-    $wasConnected = $null -ne $script:ewNerdioContext
-    $script:ewNerdioContext = $null
+    $wasConnected = $null -ne $script:ewNerdioSession.Context
+    $script:ewNerdioSession.Context = $null
     try {
         Assert-EwModule -Name Az.Accounts
         $context = Get-AzContext -ErrorAction Stop

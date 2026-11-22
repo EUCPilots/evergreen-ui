@@ -8,11 +8,11 @@ function Show-EwWorkbenchView {
         [System.Collections.IDictionary]$State,
 
         [Parameter(Mandatory)]
-        [ValidateSet('Apps', 'Download', 'Library', 'Packages', 'Publish', 'Install')]
+        [ValidateSet('Apps', 'Download', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install')]
         [string]$View
     )
 
-    foreach ($name in @('Apps', 'Download', 'Library', 'Packages', 'Publish', 'Install')) {
+    foreach ($name in @('Apps', 'Download', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install')) {
         $visibility = if ($name -eq $View) {
             [System.Windows.Visibility]::Visible
         }
@@ -27,7 +27,8 @@ function Show-EwWorkbenchView {
         'Download' { $State.SubtitleTextBlock.Text = 'Review and run queued artifact downloads' }
         'Library' { $State.SubtitleTextBlock.Text = 'Inspect and refresh a local Evergreen library' }
         'Packages' { $State.SubtitleTextBlock.Text = 'Configure and update Intune package definitions' }
-        'Publish' { $State.SubtitleTextBlock.Text = 'Compare and publish applications to Intune' }
+        'Intune' { $State.SubtitleTextBlock.Text = 'Compare and publish applications to Intune' }
+        'Nerdio' { $State.SubtitleTextBlock.Text = 'Compare and publish Nerdio Manager Shell Apps' }
         'Install' { $State.SubtitleTextBlock.Text = 'Check and install applications on this device' }
     }
 }

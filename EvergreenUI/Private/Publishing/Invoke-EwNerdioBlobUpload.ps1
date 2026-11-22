@@ -22,17 +22,33 @@ function Invoke-EwNerdioBlobUpload {
     }
     $storageContext = New-AzStorageContext -StorageAccountName $Context.StorageAccountName `
         -StorageAccountKey $keys[0].Value -ErrorAction Stop
-    $blob = Set-AzStorageBlobContent -File $Path -Container $Context.ContainerName `
-        -Blob $blobName -Context $storageContext -Force -ErrorAction Stop
-    $blobUri = [string]$blob.ICloudBlob.Uri.AbsoluteUri
-    if ([string]::IsNullOrWhiteSpace($blobUri)) {
-        throw "Azure Storage did not return a blob URI for '$blobName'."
+    Write-Verbose -Message "EvergreenUI: Uploading Nerdio blob '$blobName'"
+    try {
+        $blob = Set-AzStorageBlobContent -File $Path -Container $Context.ContainerName `
+            -Blob $blobName -Context $storageContext -Force -ErrorAction Stop
+        $blobUri = [string]$blob.ICloudBlob.Uri.AbsoluteUri
+        if ([string]::IsNullOrWhiteSpace($blobUri)) {
+            throw "Azure Storage did not confirm a blob URI for '$blobName'."
+        }
     }
-    $sas = New-AzStorageBlobSASToken -Context $storageContext -Container $Context.ContainerName `
-        -Blob $blobName -Permission r -ExpiryTime (Get-Date).AddYears(5) -FullUri -ErrorAction Stop
+    catch {
+        $_.Exception.Data['BlobName'] = $blobName
+        $_.Exception.Data['OutcomeUnknown'] = $true
+        throw
+    }
+    try {
+        $sas = New-AzStorageBlobSASToken -Context $storageContext -Container $Context.ContainerName `
+            -Blob $blobName -Permission r -ExpiryTime (Get-Date).AddYears(5) -FullUri -ErrorAction Stop
+        if ([string]::IsNullOrWhiteSpace([string]$sas)) { throw 'Azure Storage did not return a read-access URL.' }
+    }
+    catch {
+        $_.Exception.Data['BlobName'] = $blobName
+        throw
+    }
+    Write-Verbose -Message "EvergreenUI: Uploaded Nerdio blob '$blobName' and created read access"
     [PSCustomObject]@{
         Sha256 = $hash
         BlobName = $blobName
-        SourceUrl = if ([string]::IsNullOrWhiteSpace([string]$sas)) { $blobUri } else { [string]$sas }
+        SourceUrl = [string]$sas
     }
 }

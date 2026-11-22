@@ -16,6 +16,9 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     catch {
         Write-EwWorkbenchLog -State $State -Message "Could not read the active job: $($_.Exception.Message)" -Level Error
+        if ($State.ActiveJobKind -eq 'NerdioPublish') {
+            return
+        }
         $State.ActiveJobId = $null
         $State.ActiveJobKind = ''
         Invoke-EwWorkbenchBusyState -State $State -IsBusy $false
@@ -37,12 +40,16 @@ function Invoke-EwWorkbenchJobMonitor {
     while ($State.InformationReadIndex -lt $job.Information.Count) {
         $information = $job.Information[$State.InformationReadIndex]
         $State.InformationReadIndex++
-        Write-EwWorkbenchLog -State $State -Message ([string]$information.MessageData)
+        $message = [string]$information.MessageData
+        if ($State.ActiveJobKind -like 'Nerdio*') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
+        Write-EwWorkbenchLog -State $State -Message $message
     }
     while ($State.ErrorReadIndex -lt $job.Errors.Count) {
         $errorRecord = $job.Errors[$State.ErrorReadIndex]
         $State.ErrorReadIndex++
-        Write-EwWorkbenchLog -State $State -Message $errorRecord.Exception.Message -Level Error
+        $message = $errorRecord.Exception.Message
+        if ($State.ActiveJobKind -like 'Nerdio*') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
+        Write-EwWorkbenchLog -State $State -Message $message -Level Error
     }
     if ($job.State -in @('NotStarted', 'Running', 'Stopping')) {
         return
@@ -62,7 +69,9 @@ function Invoke-EwWorkbenchJobMonitor {
             $State.DownloadQueueListView.Items.Refresh()
         }
         if ($job.Errors.Count -eq 0) {
-            Write-EwWorkbenchLog -State $State -Message $job.TerminatingError.Exception.Message -Level Error
+            $message = $job.TerminatingError.Exception.Message
+            if ($kind -like 'Nerdio*') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
+            Write-EwWorkbenchLog -State $State -Message $message -Level Error
         }
     }
     elseif ($job.State -eq 'Completed') {
@@ -303,6 +312,10 @@ function Invoke-EwWorkbenchJobMonitor {
         Write-EwWorkbenchLog -State $State -Message "Background operation finished with state '$($job.State)'." -Level Error
     }
 
+    $nextNerdioAction = ''
+    if ($kind -like 'Nerdio*') {
+        $nextNerdioAction = Invoke-EwWorkbenchNerdioJobResult -State $State -Kind $kind -Job $job
+    }
     try {
         Remove-EwJob -Id $job.Id -Confirm:$false
     }
@@ -316,6 +329,9 @@ function Invoke-EwWorkbenchJobMonitor {
         $State.IntuneCancellation = $null
     }
     Invoke-EwWorkbenchBusyState -State $State -IsBusy $false
+    if ($nextNerdioAction) {
+        Invoke-EwWorkbenchNerdioAction -State $State -Action $nextNerdioAction
+    }
     if ($refreshIntune -and -not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)) {
         try {
             Invoke-EwWorkbenchIntuneComparison -State $State

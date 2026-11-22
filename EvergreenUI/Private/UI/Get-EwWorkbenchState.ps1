@@ -63,11 +63,13 @@ function Get-EwWorkbenchState {
             NavDownload = $Window.FindName('NavDownload')
             NavLibrary = $Window.FindName('NavLibrary')
             NavPackages = $Window.FindName('NavPackages')
-            NavPublish = $Window.FindName('NavPublish')
+            NavIntune = $Window.FindName('NavIntune')
+            NavNerdio = $Window.FindName('NavNerdio')
             NavInstall = $Window.FindName('NavInstall')
             OutputPathBox = $Window.FindName('OutputPathBox')
             PackagesPanel = $Window.FindName('PackagesPanel')
-            PublishPanel = $Window.FindName('PublishPanel')
+            IntunePanel = $Window.FindName('IntunePanel')
+            NerdioPanel = $Window.FindName('NerdioPanel')
             InstallPanel = $Window.FindName('InstallPanel')
             IntuneTenantIdBox = $Window.FindName('IntuneTenantIdBox')
             UseIntuneDeviceCodeToggle = $Window.FindName('UseIntuneDeviceCodeToggle')
@@ -110,6 +112,17 @@ function Get-EwWorkbenchState {
             ViewTitleText = $Window.FindName('ViewTitleText')
             AppsPanel = $Window.FindName('AppsPanel')
         })
+    foreach ($name in @(
+            'NerdioTenantIdBox', 'NmeSubscriptionIdBox', 'UseNerdioDeviceCodeToggle',
+            'ConnectNerdioAzureButton', 'DisconnectNerdioButton', 'NmeResourceGroupCombo',
+            'NmeStorageAccountCombo', 'NmeContainerCombo', 'NmeHostBox', 'NmeClientIdBox',
+            'NmeApiScopeBox', 'NmeOAuthTokenUrlBox', 'NmeClientSecretBox', 'ConnectNerdioButton',
+            'NerdioDefinitionsPathBox', 'BrowseNerdioDefinitionsButton', 'SaveNerdioSettingsButton',
+            'CompareNerdioButton', 'NerdioConnectionStatusLabel', 'NerdioComparisonListView',
+            'CancelNerdioBatchButton', 'PublishSelectedNerdioButton', 'NerdioPublishResultsListView', 'ReviewNerdioOutcomeButton'
+        )) {
+        $state[$name] = $Window.FindName($name)
+    }
     Initialize-EwWorkbenchView -State $state
     return $state
 }

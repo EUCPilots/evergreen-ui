@@ -85,6 +85,7 @@ function Connect-EwNerdio {
         [switch]$UseDeviceAuthentication
     )
 
+    $script:ewNerdioSession.Context = $null
     try {
         $hostUri = if ($NmeHost -match '^https://') { [uri]$NmeHost } else { [uri]("https://$($NmeHost.Trim('/'))") }
         if ($hostUri.Scheme -ne 'https' -or -not [string]::IsNullOrWhiteSpace($hostUri.PathAndQuery.Trim('/'))) {
@@ -95,7 +96,8 @@ function Connect-EwNerdio {
         Assert-EwModule -Name Az.Accounts
         $azureContext = Connect-EwAzAccount -TenantId $TenantId -SubscriptionId $SubscriptionId `
             -UseDeviceAuthentication:$UseDeviceAuthentication
-        $script:ewNerdioContext = [PSCustomObject]@{
+        $script:ewNerdioSession.Context = [PSCustomObject]@{
+            SessionId = [guid]::NewGuid().ToString()
             AccessToken = [string]$token.access_token
             TokenExpiresAt = [DateTimeOffset]::UtcNow.AddSeconds([double]$token.expires_in)
             TenantId = [string]$TenantId
@@ -109,16 +111,20 @@ function Connect-EwNerdio {
         }
         [PSCustomObject]@{
             Succeeded = $true
-            AccountId = $script:ewNerdioContext.AccountId
+            SessionId = $script:ewNerdioSession.Context.SessionId
+            AccountId = $script:ewNerdioSession.Context.AccountId
             TenantId = $TenantId
-            SubscriptionId = $script:ewNerdioContext.SubscriptionId
-            SubscriptionName = $script:ewNerdioContext.SubscriptionName
+            SubscriptionId = $script:ewNerdioSession.Context.SubscriptionId
+            SubscriptionName = $script:ewNerdioSession.Context.SubscriptionName
             NmeHost = $hostUri.Host
+            ResourceGroupName = $ResourceGroupName
+            StorageAccountName = $StorageAccountName
+            ContainerName = $ContainerName
             Error = ''
         }
     }
     catch {
-        $script:ewNerdioContext = $null
+        $script:ewNerdioSession.Context = $null
         [PSCustomObject]@{
             Succeeded = $false
             AccountId = ''

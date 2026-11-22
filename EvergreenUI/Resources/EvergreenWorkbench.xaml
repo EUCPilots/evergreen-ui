@@ -91,10 +91,14 @@
                                  Style="{StaticResource NavigationButtonStyle}"
                                  Content="Packages"
                                  AutomationProperties.Name="Packages view" />
-                    <RadioButton x:Name="NavPublish"
+                    <RadioButton x:Name="NavIntune"
                                  Style="{StaticResource NavigationButtonStyle}"
-                                 Content="Publish"
-                                 AutomationProperties.Name="Publish view" />
+                                 Content="Intune"
+                                 AutomationProperties.Name="Intune view" />
+                    <RadioButton x:Name="NavNerdio"
+                                 Style="{StaticResource NavigationButtonStyle}"
+                                 Content="Nerdio"
+                                 AutomationProperties.Name="Nerdio view" />
                     <RadioButton x:Name="NavInstall"
                                  Style="{StaticResource NavigationButtonStyle}"
                                  Content="Install"
@@ -511,7 +515,7 @@
                     </ScrollViewer>
                 </Grid>
 
-                <Grid x:Name="PublishPanel" Visibility="Collapsed">
+                <Grid x:Name="IntunePanel" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -578,6 +582,109 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
+                </Grid>
+
+                <Grid x:Name="NerdioPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="3*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="2*" />
+                    </Grid.RowDefinitions>
+                    <ScrollViewer Grid.Row="0" MaxHeight="200" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Expander Header="Azure storage setup" IsExpanded="False" Margin="0,0,0,6">
+                                <StackPanel Margin="0,8">
+                                    <TextBlock Text="Azure tenant ID" />
+                                    <TextBox x:Name="NerdioTenantIdBox" AutomationProperties.Name="Nerdio Azure tenant ID" Margin="0,2,0,6" />
+                                    <TextBlock Text="Azure subscription ID" />
+                                    <TextBox x:Name="NmeSubscriptionIdBox" AutomationProperties.Name="Nerdio Azure subscription ID" Margin="0,2,0,6" />
+                                    <WrapPanel Margin="0,0,0,6">
+                                        <CheckBox x:Name="UseNerdioDeviceCodeToggle" Content="Device authentication" VerticalAlignment="Center" />
+                                        <Button x:Name="ConnectNerdioAzureButton" Content="Connect Azure" Margin="12,0,0,0" Padding="12,4" />
+                                        <Button x:Name="DisconnectNerdioButton" Content="Disconnect Azure and Nerdio" Margin="8,0,0,0" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock Text="Resource group" />
+                                    <ComboBox x:Name="NmeResourceGroupCombo" AutomationProperties.Name="Nerdio resource group" Margin="0,2,0,6" />
+                                    <TextBlock Text="Storage account" />
+                                    <ComboBox x:Name="NmeStorageAccountCombo" AutomationProperties.Name="Nerdio storage account" Margin="0,2,0,6" />
+                                    <TextBlock Text="Blob container" />
+                                    <ComboBox x:Name="NmeContainerCombo" AutomationProperties.Name="Nerdio blob container" Margin="0,2,0,6" />
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Nerdio API setup" IsExpanded="False" Margin="0,0,0,6">
+                                <StackPanel Margin="0,8">
+                                    <TextBlock Text="Nerdio HTTPS host" />
+                                    <TextBox x:Name="NmeHostBox" AutomationProperties.Name="Nerdio host" Margin="0,2,0,6" />
+                                    <TextBlock Text="Application client ID" />
+                                    <TextBox x:Name="NmeClientIdBox" AutomationProperties.Name="Nerdio client ID" Margin="0,2,0,6" />
+                                    <TextBlock Text="API scope" />
+                                    <TextBox x:Name="NmeApiScopeBox" AutomationProperties.Name="Nerdio API scope" Margin="0,2,0,6" />
+                                    <TextBlock Text="OAuth token URL (optional)" />
+                                    <TextBox x:Name="NmeOAuthTokenUrlBox" AutomationProperties.Name="Nerdio OAuth token URL" Margin="0,2,0,6" />
+                                    <TextBlock Text="Client secret (not saved)" />
+                                    <PasswordBox x:Name="NmeClientSecretBox" AutomationProperties.Name="Nerdio client secret" Margin="0,2,0,6" />
+                                    <Button x:Name="ConnectNerdioButton" Content="Connect Nerdio API" HorizontalAlignment="Left" Padding="12,4" />
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Shell App definitions" IsExpanded="False" Margin="0,0,0,6">
+                                <StackPanel Margin="0,8">
+                                    <TextBlock Text="Folder containing Definition.json files and scripts" Margin="0,0,0,4" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="NerdioDefinitionsPathBox" MinWidth="100" AutomationProperties.Name="Nerdio definitions folder" />
+                                        <Button x:Name="BrowseNerdioDefinitionsButton" Grid.Column="1" Content="Browse" Margin="8,0,0,0" Padding="12,4" />
+                                        <Button x:Name="SaveNerdioSettingsButton" Grid.Column="2" Content="Save setup" Margin="8,0,0,0" Padding="12,4" />
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <DockPanel Grid.Row="1" Margin="0,4,0,8" LastChildFill="True">
+                        <Button x:Name="CompareNerdioButton" DockPanel.Dock="Right" Content="Load and compare" Padding="12,4" Margin="8,0,0,0" />
+                        <TextBlock x:Name="NerdioConnectionStatusLabel" Text="Azure and Nerdio not connected" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <DataGrid x:Name="NerdioComparisonListView" Grid.Row="2" AutoGenerateColumns="False"
+                              IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow"
+                              CanUserAddRows="False" EnableRowVirtualization="True" HeadersVisibility="Column"
+                              AutomationProperties.Name="Nerdio Shell App comparison">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Local app" Binding="{Binding AppName}" Width="*" />
+                            <DataGridTextColumn Header="Nerdio app" Binding="{Binding NerdioAppName}" Width="*" />
+                            <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" />
+                            <DataGridTextColumn Header="Source" Binding="{Binding SourceVersion}" Width="85" />
+                            <DataGridTextColumn Header="Nerdio" Binding="{Binding NerdioVersion}" Width="85" />
+                            <DataGridTextColumn Header="Versions" Binding="{Binding VersionCount}" Width="65" />
+                            <DataGridTextColumn Header="Operation" Binding="{Binding Operation}" Width="100" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding MatchStatus}" Width="2*" />
+                            <DataGridTextColumn Header="Details" Binding="{Binding Message}" Width="2*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8">
+                        <Button x:Name="ReviewNerdioOutcomeButton" Content="Acknowledge outcome review" Margin="0,0,8,0"
+                                Padding="12,4" IsEnabled="False" ToolTip="After inspecting the selected pending or unknown result in Nerdio, acknowledge its final outcome. This does not retry or delete anything." />
+                        <Button x:Name="CancelNerdioBatchButton" Content="Cancel batch" Margin="0,0,8,0" Padding="12,4" IsEnabled="False" />
+                        <Button x:Name="PublishSelectedNerdioButton" Content="Publish selected" Padding="12,4" IsEnabled="False" />
+                    </StackPanel>
+                    <DataGrid x:Name="NerdioPublishResultsListView" Grid.Row="4" AutoGenerateColumns="False"
+                              IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column"
+                              AutomationProperties.Name="Nerdio publishing results">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="App" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="85" />
+                            <DataGridTextColumn Header="Result" Binding="{Binding Status}" Width="100" />
+                            <DataGridTextColumn Header="App ID" Binding="{Binding AppId}" Width="*" />
+                            <DataGridTextColumn Header="Job ID" Binding="{Binding JobId}" Width="*" />
+                            <DataGridTextColumn Header="Blob" Binding="{Binding BlobName}" Width="*" />
+                            <DataGridTextColumn Header="Details" Binding="{Binding Error}" Width="2*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </Grid>
 
                 <Grid x:Name="InstallPanel" Visibility="Collapsed">

@@ -12,7 +12,8 @@
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$script:ewNerdioContext = $null
+$script:ewNerdioSession = [hashtable]::Synchronized(@{ Context = $null })
+$script:ewOwnsNerdioSession = $true
 
 foreach ($directory in @('Private', 'Public')) {
     $path = Join-Path -Path $PSScriptRoot -ChildPath $directory
@@ -31,6 +32,9 @@ foreach ($directory in @('Private', 'Public')) {
     $script:ewModulePath = Join-Path -Path $PSScriptRoot -ChildPath 'EvergreenUI.psd1'
 
     $ExecutionContext.SessionState.Module.OnRemove = {
+        if ($script:ewOwnsNerdioSession) {
+            $script:ewNerdioSession.Context = $null
+        }
         foreach ($job in $script:ewJobs.Values) {
             try {
                 if (-not $job.Handle.IsCompleted) {

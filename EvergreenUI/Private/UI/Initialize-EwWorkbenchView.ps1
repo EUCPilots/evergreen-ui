@@ -38,14 +38,18 @@ function Initialize-EwWorkbenchView {
     $State.NavPackages.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Packages' }
     }.GetNewClosure())
-    $State.NavPublish.Add_Checked({
-        & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Publish' }
+    $State.NavIntune.Add_Checked({
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Intune' }
+    }.GetNewClosure())
+    $State.NavNerdio.Add_Checked({
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Nerdio' }
     }.GetNewClosure())
     $State.NavInstall.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Install' }
     }.GetNewClosure())
     Initialize-EwWorkbenchPackageView -State $State
     Initialize-EwWorkbenchPublishView -State $State
+    Initialize-EwWorkbenchNerdioView -State $State
     Initialize-EwWorkbenchInstallView -State $State
     $State.AppSearchBox.Add_TextChanged({
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchAppList' -Parameters @{ State = $State }

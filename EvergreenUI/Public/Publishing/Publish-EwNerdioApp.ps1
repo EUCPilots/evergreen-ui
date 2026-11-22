@@ -4,175 +4,135 @@ $ErrorActionPreference = 'Stop'
 function Publish-EwNerdioApp {
     <#
     .SYNOPSIS
-        Publishes a Nerdio Manager Shell App or a new Shell App version.
+        Publishes a Nerdio Shell App or adds a version.
     .DESCRIPTION
-        Uploads a package to the configured Azure blob container. Without
-        ShellAppId it creates a Shell App from Definition.json and its
-        PowerShell scripts. With ShellAppId it adds a version to an existing
-        Shell App. When PackagePath is omitted, the package is resolved from
-        the Definition.json source and downloaded before upload.
+        Validates request content before upload and preserves partial blob,
+        app and job identifiers. Pending and unknown outcomes are not success.
     .PARAMETER DefinitionPath
-        Directory containing Definition.json. Creating a Shell App also requires
-        Detect.ps1, Install.ps1, and Uninstall.ps1.
+        Directory containing Definition.json and the scripts required for creation.
     .PARAMETER ShellAppId
         Existing Shell App ID to add a version to.
     .PARAMETER PackagePath
-        Package file to upload. Resolved from the definition source when omitted.
+        Installer or archive to upload; resolved from the source when omitted.
     .PARAMETER Version
-        Version label. Defaults to the version resolved from the definition source.
+        Version label; resolved from the source when omitted.
     .PARAMETER DownloadPath
-        Folder for downloaded source packages. Defaults to a temporary folder.
+        Folder for source downloads; defaults to a temporary directory.
+    .PARAMETER Snapshot
+        Confirmed publishing-plan item and destination, rechecked before writes.
     .EXAMPLE
-        Publish-EwNerdioApp -DefinitionPath .\ShellApp -PackagePath .\Packages\Microsoft365Apps.zip -Version 16.0.1
-    .EXAMPLE
-        Publish-EwNerdioApp -DefinitionPath .\ShellApps\GoogleChrome -ShellAppId 42
+        Publish-EwNerdioApp -DefinitionPath C:\ShellApps\Chrome -ShellAppId 42
     .OUTPUTS
         System.Management.Automation.PSCustomObject
     .NOTES
-        Requires Connect-EwNerdio, Az.Storage, and Nerdio Manager API access.
+        Requires Connect-EwNerdio. No automatic retry or cleanup is performed.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'Create')]
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
         [string]$DefinitionPath,
-
         [Parameter(Mandatory, ParameterSetName = 'AddVersion')]
-        [ValidateNotNullOrEmpty()]
         [string]$ShellAppId,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
         [string]$PackagePath,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
         [string]$Version,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string]$DownloadPath
+        [string]$DownloadPath,
+        [psobject]$Snapshot
     )
 
-    $addVersion = $PSCmdlet.ParameterSetName -eq 'AddVersion'
+    $result = [PSCustomObject]@{
+        Succeeded = $false; AppId = [string]$ShellAppId; JobId = ''; BlobName = ''; Version = $Version
+        Status = 'Failed'; Error = ''
+    }
     $fail = {
         param([string]$Message)
-        [PSCustomObject]@{ Succeeded = $false; AppId = ''; JobId = ''; Version = ''; Status = 'Failed'; Error = $Message }
+        $result.Error = $Message
+        $result
     }
-    if (-not (Test-Path -LiteralPath $DefinitionPath -PathType Container)) {
-        return (& $fail "Shell App definition directory was not found: $DefinitionPath")
-    }
-    if ($PSBoundParameters.ContainsKey('PackagePath') -and -not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
-        return (& $fail "Shell App package was not found: $PackagePath")
-    }
-    $requiredFiles = if ($addVersion) { @('Definition.json') } else { @('Definition.json', 'Detect.ps1', 'Install.ps1', 'Uninstall.ps1') }
-    foreach ($requiredFile in $requiredFiles) {
-        $path = Join-Path -Path $DefinitionPath -ChildPath $requiredFile
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-            return (& $fail "Required Shell App file was not found: $path")
-        }
-    }
-    $target = if ($addVersion) { "Shell App $ShellAppId" } else { $DefinitionPath }
-    $action = if ($addVersion) { 'Add Shell App version in Nerdio Manager' } else { 'Publish Shell App to Nerdio Manager' }
-    if (-not $PSCmdlet.ShouldProcess($target, $action)) {
-        return
-    }
-
+    $addVersion = $PSCmdlet.ParameterSetName -eq 'AddVersion'
+    $postStarted = $false
+    if (-not $PSCmdlet.ShouldProcess($DefinitionPath, 'Upload and publish Nerdio Shell App')) { return }
     try {
         $context = Get-EwNerdioSessionContext
-        $definitionFile = Join-Path -Path $DefinitionPath -ChildPath 'Definition.json'
-        $definition = Get-Content -LiteralPath $definitionFile -Raw -ErrorAction Stop |
-            ConvertFrom-Json -ErrorAction Stop
-
-        if (-not $PSBoundParameters.ContainsKey('PackagePath')) {
-            $source = Get-EwFirstPropertyValue -InputObject $definition -Name 'source'
-            if ($null -eq $source) {
-                throw 'Definition.json has no source; supply PackagePath and Version.'
+        $definition = Get-EwNerdioPublishContent -DefinitionPath $DefinitionPath -AddVersion:$addVersion
+        if ($null -ne $Snapshot) {
+            if ($Snapshot.Item.DefinitionPath -ne $DefinitionPath -or
+                [string]$Snapshot.Item.SourceVersion -ne $Version -or
+                [string]$Snapshot.Item.NerdioAppId -ne [string]$ShellAppId) {
+                throw 'Publish arguments do not match the confirmed snapshot.'
             }
-            $resolved = Resolve-EwNerdioSource -Source $source
-            if ([string]::IsNullOrWhiteSpace($resolved.URI)) {
-                throw 'The definition source did not return a download URI.'
-            }
-            if (-not $PSBoundParameters.ContainsKey('Version')) {
-                $Version = $resolved.Version
-            }
-            if (-not $PSBoundParameters.ContainsKey('DownloadPath')) {
-                $DownloadPath = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath "EvergreenWorkbench\Nerdio\$([guid]::NewGuid().ToString('N'))"
+            Assert-EwNerdioPublishSnapshot -Snapshot $Snapshot
+        }
+        if (-not $PackagePath) {
+            $resolved = Resolve-EwNerdioSource -Source $definition.source
+            if (-not $Version) { $Version = $resolved.Version }
+            if ([string]::IsNullOrWhiteSpace($resolved.URI)) { throw 'The source did not resolve a download URI.' }
+            if (-not $DownloadPath) {
+                $DownloadPath = Join-Path -Path ([IO.Path]::GetTempPath()) -ChildPath "EvergreenWorkbench\Nerdio\$([guid]::NewGuid())"
             }
             $null = New-Item -Path $DownloadPath -ItemType Directory -Force -ErrorAction Stop
             $artifact = if ($null -ne $resolved.Artifact) { $resolved.Artifact } else {
-                [PSCustomObject]@{ Version = $resolved.Version; URI = $resolved.URI }
+                [PSCustomObject]@{ URI = $resolved.URI; Version = $resolved.Version }
             }
-            Write-Verbose -Message "EvergreenUI: Downloading Nerdio source package '$($resolved.URI)' to '$DownloadPath'"
-            $saved = @(Invoke-EwArtifactSave -Artifact $artifact -Path $DownloadPath | Where-Object { $null -ne $_ })
-            $file = $saved | ForEach-Object { Get-EwFirstPropertyValue -InputObject $_ -Name 'FullName', 'Path' } |
-                Where-Object { $null -ne $_ } | Select-Object -First 1
-            if ($null -eq $file -or -not (Test-Path -LiteralPath ([string]$file) -PathType Leaf)) {
-                throw 'The source package download did not produce a file.'
-            }
-            $PackagePath = [string]$file
+            $saved = @(Invoke-EwArtifactSave -Artifact $artifact -Path $DownloadPath)
+            $PackagePath = [string]($saved | ForEach-Object {
+                Get-EwFirstPropertyValue -InputObject $_ -Name 'FullName', 'Path'
+            } | Select-Object -First 1)
         }
-        if ([string]::IsNullOrWhiteSpace($Version)) {
-            throw 'A version could not be determined; supply Version.'
+        if ([string]::IsNullOrWhiteSpace($Version) -or -not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
+            throw 'Publishing requires a version and an existing package file.'
         }
-
+        $result.Version = $Version
+        if ($null -ne $Snapshot) { Assert-EwNerdioPublishSnapshot -Snapshot $Snapshot }
+        Write-Verbose -Message "EvergreenUI: Uploading Nerdio payload for version '$Version'"
         $package = Invoke-EwNerdioBlobUpload -Path $PackagePath -Context $context
+        $blobName = Get-EwFirstPropertyValue -InputObject $package -Name 'BlobName'
+        $result.BlobName = [string]$blobName
+        if ($null -ne $Snapshot) { Assert-EwNerdioPublishSnapshot -Snapshot $Snapshot }
         if ($addVersion) {
+            $result.AppId = $ShellAppId
             $body = [PSCustomObject]@{
-                name = $Version
-                isPreview = $false
-                installScriptOverride = $null
+                name = $Version; isPreview = $false; installScriptOverride = $null
                 file = [PSCustomObject]@{ sourceUrl = $package.SourceUrl; sha256 = $package.Sha256 }
             }
             $uri = "https://$($context.NmeHost)/api/v1/shell-app/$([uri]::EscapeDataString($ShellAppId))/version"
         }
         else {
-            $versionEntries = @($definition.versions)
-            if ($versionEntries.Count -eq 0) {
-                throw 'Definition.json must contain at least one version entry.'
+            $definition.versions[0].name = $Version
+            $definition.versions[0].file.sourceUrl = $package.SourceUrl
+            $definition.versions[0].file.sha256 = $package.Sha256
+            if ([IO.Path]::GetExtension($PackagePath) -ieq '.zip') {
+                $definition | Add-Member -NotePropertyName fileUnzip -NotePropertyValue $true -Force
             }
-            $versionEntries[0].name = $Version
-            $versionEntries[0].file.sourceUrl = $package.SourceUrl
-            $versionEntries[0].file.sha256 = $package.Sha256
-            $definition.versions = $versionEntries
-            if ([System.IO.Path]::GetExtension($PackagePath) -ieq '.zip') {
-                $definition.fileUnzip = $true
-            }
-            foreach ($scriptName in @('detectScript', 'installScript', 'uninstallScript')) {
-                $scriptFile = switch ($scriptName) {
-                    'detectScript' { 'Detect.ps1' }
-                    'installScript' { 'Install.ps1' }
-                    'uninstallScript' { 'Uninstall.ps1' }
-                }
-                $definition | Add-Member -MemberType NoteProperty -Name $scriptName `
-                    -Value (Get-Content -LiteralPath (Join-Path -Path $DefinitionPath -ChildPath $scriptFile) -Raw -ErrorAction Stop) -Force
-            }
-            if ($null -ne $definition.PSObject.Properties['source']) {
-                $definition.PSObject.Properties.Remove('source')
-            }
+            if ($null -ne $definition.PSObject.Properties['source']) { $definition.PSObject.Properties.Remove('source') }
             $body = $definition
             $uri = "https://$($context.NmeHost)/api/v1/shell-app"
         }
-
-        Write-Verbose -Message "EvergreenUI: Posting Nerdio Shell App request to '$uri' for version '$Version'"
+        $postStarted = $true
         $response = Invoke-EwNerdioApiRequest -Method POST -Uri $uri -AccessToken $context.AccessToken -Body $body
-        $jobStatus = [string]$response.job.status
-        if ($jobStatus -ine 'Completed') {
-            return (& $fail "Nerdio Manager returned job status '$jobStatus'.")
+        $job = Get-EwFirstPropertyValue -InputObject $response -Name 'job'
+        $result.JobId = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'id')
+        if (-not $addVersion) {
+            $result.AppId = [string](Get-EwFirstPropertyValue -InputObject (Get-EwFirstPropertyValue -InputObject $response -Name 'item') -Name 'id')
         }
-        $appId = if ($addVersion) { $ShellAppId } else { [string](Get-EwFirstPropertyValue -InputObject (Get-EwFirstPropertyValue -InputObject $response -Name 'item') -Name 'id') }
-        Write-Verbose -Message "EvergreenUI: Nerdio Shell App '$appId' version '$Version' published"
-        [PSCustomObject]@{
-            Succeeded = $true
-            AppId = $appId
-            JobId = [string]$response.job.id
-            Version = $Version
-            Status = $jobStatus
-            Error = ''
+        $status = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'status')
+        $result.Status = switch ($status) {
+            'Completed' { 'Completed' }
+            'Pending' { 'Pending' }
+            'Failed' { 'Failed' }
+            default { 'Unknown' }
         }
+        if ($result.Status -eq 'Completed' -and -not $result.AppId) { $result.Status = 'Unknown' }
+        $result.Succeeded = $result.Status -eq 'Completed'
+        if (-not $result.Succeeded) { $result.Error = "Nerdio returned '$status'; inspect the operation before retrying." }
+        Write-Verbose -Message "EvergreenUI: Nerdio publish outcome '$($result.Status)', app '$($result.AppId)', job '$($result.JobId)'"
+        return $result
     }
     catch {
-        return (& $fail "Nerdio publishing failed: $($_.Exception.Message)")
+        if ($postStarted -or $_.Exception.Data.Contains('OutcomeUnknown')) { $result.Status = 'Unknown' }
+        if ($_.Exception.Data.Contains('BlobName')) { $result.BlobName = [string]$_.Exception.Data['BlobName'] }
+        $message = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+        Write-Verbose -Message "EvergreenUI: Nerdio publish failed: $message"
+        return (& $fail -Message $message)
     }
 }

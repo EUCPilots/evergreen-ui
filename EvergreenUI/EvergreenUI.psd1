@@ -24,7 +24,7 @@
         'Get-EwDefinition', 'Resolve-EwArtifact', 'Update-EwDefinition',
         'Test-EwDetection', 'Install-EwPackage', 'New-EwPackage',
         'Connect-EwIntune', 'Disconnect-EwIntune', 'Connect-EwNerdio', 'Disconnect-EwNerdio',
-        'Publish-EwIntuneApp', 'Publish-EwIntuneBatch', 'Publish-EwNerdioApp', 'Set-EwIntuneSupersedence',
+        'Publish-EwIntuneApp', 'Publish-EwIntuneBatch', 'Publish-EwNerdioApp', 'Publish-EwNerdioBatch', 'Set-EwIntuneSupersedence',
         'Add-EwFavouriteApp', 'Remove-EwFavouriteApp',
         'Get-EwDependency', 'Update-EwEvergreen',
         'Get-EwM365Configuration',
@@ -32,7 +32,7 @@
         'Connect-EwAzure', 'Disconnect-EwAzure', 'Get-EwAzureResourceGroup',
         'Get-EwAzureStorageAccount', 'Get-EwAzureStorageContainer',
         'Get-EwNerdioDefinition', 'Get-EwNerdioShellApp', 'Get-EwNerdioShellAppVersion',
-        'Compare-EwNerdioShellApp', 'Remove-EwNerdioShellAppVersion',
+        'Compare-EwNerdioShellApp', 'Get-EwNerdioPublishPlan', 'Remove-EwNerdioShellAppVersion',
         'Start-EvergreenWorkbench'
     )
     CmdletsToExport   = @()
