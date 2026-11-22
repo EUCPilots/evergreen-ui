@@ -126,7 +126,11 @@ Start-EvergreenWorkbench
 
 The v2 interface uses WPF's native theme modes, and runs catalog lookups,
 downloads, and library updates through the module's bounded background job
-pool. Its Packages view loads and updates shared Intune App.json definitions
+pool. On Windows 11 22H2 and later, its main window and title bar use Mica when
+available. Windows transparency and contrast settings can produce a solid
+background; unsupported systems use the native opaque title bar.
+
+Its Packages view loads and updates shared Intune App.json definitions
 and saves definition and package-output paths. Its Install view reloads those
 definitions, checks local detection, resolves latest versions on request, and
 supports confirmed batch installation with per-application results. It shows

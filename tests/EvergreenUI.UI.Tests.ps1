@@ -20,62 +20,19 @@ BeforeAll {
         throw "The $Kind information check did not finish in time."
     }
 
-    # Captures the window into memory and samples a blank caption pixel and a blank form pixel.
-    $getCaptionSample = {
-        param([System.Windows.Window]$Window)
-        Add-Type -AssemblyName System.Drawing -ErrorAction Stop
-        if (-not ('EvergreenUI.ThemeProbe' -as [type])) {
-            Add-Type -TypeDefinition @"
+    if (-not ('EvergreenUI.WorkbenchCaptionTestNative' -as [type])) {
+        Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 namespace EvergreenUI {
-    [StructLayout(LayoutKind.Sequential)]
-    public struct WindowRectangle {
-        public int Left, Top, Right, Bottom;
-    }
-    public static class ThemeProbe {
+    public static class WorkbenchCaptionTestNative {
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+        public static extern int GetWindowLong(IntPtr hwnd, int index);
         [DllImport("user32.dll")]
-        public static extern bool GetWindowRect(IntPtr hwnd, out WindowRectangle rectangle);
-        [DllImport("user32.dll")]
-        public static extern bool PrintWindow(IntPtr hwnd, IntPtr deviceContext, uint flags);
-        [DllImport("dwmapi.dll")]
-        public static extern int DwmFlush();
+        public static extern IntPtr SendMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam);
     }
 }
-"@ -ErrorAction Stop
-        }
-        $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-        $handle = [System.Windows.Interop.WindowInteropHelper]::new($Window).Handle
-        $rectangle = [EvergreenUI.WindowRectangle]::new()
-        if (-not [EvergreenUI.ThemeProbe]::GetWindowRect($handle, [ref]$rectangle)) { throw 'GetWindowRect failed.' }
-        $bitmap = [System.Drawing.Bitmap]::new($rectangle.Right - $rectangle.Left, $rectangle.Bottom - $rectangle.Top)
-        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-        try {
-            $scale = [System.Windows.Media.VisualTreeHelper]::GetDpi($Window).DpiScaleX
-            # Native colour transitions are asynchronous, so poll briefly for a settled frame.
-            $deadline = [DateTime]::UtcNow.AddSeconds(2)
-            do {
-                $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                $null = [EvergreenUI.ThemeProbe]::DwmFlush()
-                $deviceContext = $graphics.GetHdc()
-                try {
-                    if (-not [EvergreenUI.ThemeProbe]::PrintWindow($handle, $deviceContext, 2)) { throw 'PrintWindow failed.' }
-                }
-                finally {
-                    $graphics.ReleaseHdc($deviceContext)
-                }
-                $caption = $bitmap.GetPixel([int]($bitmap.Width - 170 * $scale), [int](20 * $scale))
-                $form = $bitmap.GetPixel([int]($bitmap.Width - 20 * $scale), [int](150 * $scale))
-                if ($caption.ToArgb() -eq $form.ToArgb()) { break }
-                Start-Sleep -Milliseconds 20
-            }
-            while ([DateTime]::UtcNow -lt $deadline)
-            [PSCustomObject]@{ Caption = $caption; Form = $form }
-        }
-        finally {
-            $graphics.Dispose()
-            $bitmap.Dispose()
-        }
+'@ -ErrorAction Stop
     }
 }
 
@@ -341,24 +298,37 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'matches the native caption to the form when the window first loads' {
-        if ([Environment]::OSVersion.Version.Build -lt 22000) {
-            Set-ItResult -Skipped -Because 'Native caption colour overrides require Windows 11.'
-            return
-        }
-        InModuleScope EvergreenUI -Parameters @{ Sample = $getCaptionSample } {
-            param($Sample)
-            # Light exposes a missed override because the native light caption differs from the form.
+    It 'shows the WPF Mica backdrop through the window and caption across theme changes' {
+        InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
-            $window.ThemeMode = [System.Windows.ThemeMode]::Light
+            $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+            Mock Set-EwSetting {}
             try {
                 $window.Show()
-                $result = & $Sample -Window $window
-                $result.Caption.ToArgb() | Should -Be $result.Form.ToArgb() -Because 'the caption should match the form on load'
-                $color = $window.TryFindResource('ApplicationBackgroundBrush').Color
-                $result.Form.R | Should -Be $color.R
-                $result.Form.G | Should -Be $color.G
-                $result.Form.B | Should -Be $color.B
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                if (-not (Test-EwWorkbenchMicaAvailable -Window $window)) {
+                    Set-ItResult -Skipped -Because 'WPF Mica is unavailable under the current Windows policies.'
+                }
+                $null = $window.Activate()
+                foreach ($mode in 'Light', 'Dark', 'Light', 'System') {
+                    $state.ThemeCombo.SelectedItem = $mode
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Visible'
+                    $window.WindowStyle | Should -Be ([System.Windows.WindowStyle]::None)
+                    $window.AllowsTransparency | Should -BeFalse
+                    $window.Background.Color.A | Should -Be 0
+                    $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
+                    $source = [System.Windows.Interop.HwndSource]::FromHwnd($handle)
+                    $source.CompositionTarget.BackgroundColor.A | Should -Be 0
+                    $backdrop = 0
+                    [EvergreenUI.WorkbenchChromeInterop]::DwmGetWindowAttribute($handle, 38, [ref]$backdrop, 4) |
+                        Should -Be 0
+                    $backdrop | Should -Be 2
+                    $renderingEnabled = -1
+                    [EvergreenUI.WorkbenchChromeInterop]::DwmGetWindowAttribute($handle, 1, [ref]$renderingEnabled, 4) |
+                        Should -Be 0
+                    $renderingEnabled | Should -Be 0
+                }
             }
             finally {
                 $window.Close()
@@ -366,30 +336,376 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'matches the native caption to the form across light and dark theme changes' {
-        if ([Environment]::OSVersion.Version.Build -lt 22000) {
-            Set-ItResult -Skipped -Because 'Native caption colour overrides require Windows 11.'
-            return
-        }
-        InModuleScope EvergreenUI -Parameters @{ Sample = $getCaptionSample } {
-            param($Sample)
+    It 'uses the native opaque fallback when Mica is unavailable and restores Mica afterwards' {
+        InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
-            $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
-            Mock Set-EwSetting {}
             try {
                 $window.Show()
-                foreach ($mode in 'Light', 'Dark', 'Light', 'System') {
-                    $state.ThemeCombo.SelectedItem = $mode
-                    $result = & $Sample -Window $window
-                    $result.Caption.ToArgb() | Should -Be $result.Form.ToArgb() -Because "the $mode caption should match the form"
-                    $color = $window.TryFindResource('ApplicationBackgroundBrush').Color
-                    $result.Form.R | Should -Be $color.R
-                    $result.Form.G | Should -Be $color.G
-                    $result.Form.B | Should -Be $color.B
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                if (-not (Test-EwWorkbenchMicaAvailable -Window $window)) {
+                    Set-ItResult -Skipped -Because 'WPF Mica is unavailable under the current Windows policies.'
+                }
+                Mock Test-EwWorkbenchMicaAvailable { $false }
+                Mock Invoke-EwWorkbenchDwmAttribute {
+                    $nativeValue = $Value
+                    [EvergreenUI.WorkbenchChromeInterop]::DwmSetWindowAttribute($Handle, $Attribute, [ref]$nativeValue, 4)
+                }
+                Set-EwWorkbenchTitleBar -Window $window
+                $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Collapsed'
+                $window.WindowStyle | Should -Be ([System.Windows.WindowStyle]::SingleBorderWindow)
+                [System.Windows.Shell.WindowChrome]::GetWindowChrome($window) | Should -BeNullOrEmpty
+                $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
+                $renderingEnabled = 0
+                [EvergreenUI.WorkbenchChromeInterop]::DwmGetWindowAttribute($handle, 1, [ref]$renderingEnabled, 4) |
+                    Should -Be 0
+                $renderingEnabled | Should -Be 1
+                foreach ($mode in 'Light', 'Dark') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    Set-EwWorkbenchTitleBar -Window $window
+                    $window.Background.Color | Should -Be $window.TryFindResource('ApplicationBackgroundBrush').Color
+                    $color = $window.Background.Color
+                    $captionColor = [int]$color.R -bor ([int]$color.G -shl 8) -bor ([int]$color.B -shl 16)
+                    $color = $window.Foreground.Color
+                    $textColor = [int]$color.R -bor ([int]$color.G -shl 8) -bor ([int]$color.B -shl 16)
+                    Should -Invoke Invoke-EwWorkbenchDwmAttribute -ParameterFilter {
+                        $Attribute -eq 35 -and $Value -eq $captionColor
+                    }
+                    Should -Invoke Invoke-EwWorkbenchDwmAttribute -ParameterFilter {
+                        $Attribute -eq 36 -and $Value -eq $textColor
+                    }
+                }
+
+                Mock Test-EwWorkbenchMicaAvailable { $true }
+                Set-EwWorkbenchTitleBar -Window $window
+                $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Visible'
+                $window.WindowStyle | Should -Be ([System.Windows.WindowStyle]::None)
+                $window.Background.Color.A | Should -Be 0
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'reapplies the caption policy when Windows changes non-client rendering' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                if (-not (Test-EwWorkbenchMicaAvailable -Window $window)) {
+                    Set-ItResult -Skipped -Because 'WPF Mica is unavailable under the current Windows policies.'
+                }
+                $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
+                $policy = 2
+                [EvergreenUI.WorkbenchChromeInterop]::DwmSetWindowAttribute($handle, 2, [ref]$policy, 4) |
+                    Should -Be 0
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $renderingEnabled = -1
+                [EvergreenUI.WorkbenchChromeInterop]::DwmGetWindowAttribute($handle, 1, [ref]$renderingEnabled, 4) |
+                    Should -Be 0
+                $renderingEnabled | Should -Be 0
+                $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Visible'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'restores an opaque window when native caption attribute <Attribute> fails' -ForEach @(
+        @{ Attribute = 2; Value = 1 }
+        @{ Attribute = 33; Value = 2 }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ FailureAttribute = $Attribute; FailureValue = $Value } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                if (-not (Test-EwWorkbenchMicaAvailable -Window $window)) {
+                    Set-ItResult -Skipped -Because 'WPF Mica is unavailable under the current Windows policies.'
+                }
+                Mock Test-EwWorkbenchMicaAvailable { $false }
+                Set-EwWorkbenchTitleBar -Window $window
+                Mock Test-EwWorkbenchMicaAvailable { $true }
+                Mock Invoke-EwWorkbenchDwmAttribute {
+                    $nativeValue = $Value
+                    [EvergreenUI.WorkbenchChromeInterop]::DwmSetWindowAttribute($Handle, $Attribute, [ref]$nativeValue, 4)
+                }
+                Mock Invoke-EwWorkbenchDwmAttribute { -1 } -ParameterFilter {
+                    $Attribute -eq $FailureAttribute -and $Value -eq $FailureValue
+                }
+
+                Set-EwWorkbenchTitleBar -Window $window
+
+                $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Collapsed'
+                $window.FindName('WorkbenchTitleBar').Tag | Should -BeNullOrEmpty
+                $window.WindowStyle | Should -Be ([System.Windows.WindowStyle]::SingleBorderWindow)
+                [System.Windows.Shell.WindowChrome]::GetWindowChrome($window) | Should -BeNullOrEmpty
+                $window.Background.Color | Should -Be $window.TryFindResource('ApplicationBackgroundBrush').Color
+                $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
+                $renderingEnabled = 0
+                [EvergreenUI.WorkbenchChromeInterop]::DwmGetWindowAttribute($handle, 1, [ref]$renderingEnabled, 4) |
+                    Should -Be 0
+                $renderingEnabled | Should -Be 1
+                Should -Invoke Invoke-EwWorkbenchDwmAttribute -Exactly 1 -ParameterFilter {
+                    $Attribute -eq 2 -and $Value -eq 0
+                }
+
+                Mock Invoke-EwWorkbenchDwmAttribute {
+                    $nativeValue = $Value
+                    [EvergreenUI.WorkbenchChromeInterop]::DwmSetWindowAttribute($Handle, $Attribute, [ref]$nativeValue, 4)
+                } -ParameterFilter {
+                    $Attribute -eq $FailureAttribute -and $Value -eq $FailureValue
+                }
+                Set-EwWorkbenchTitleBar -Window $window
+                $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Visible'
+                $window.Background.Color.A | Should -Be 0
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'keeps an opaque usable caption if restoring native rendering fails' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                if (-not (Test-EwWorkbenchMicaAvailable -Window $window)) {
+                    Set-ItResult -Skipped -Because 'WPF Mica is unavailable under the current Windows policies.'
+                }
+                Mock Test-EwWorkbenchMicaAvailable { $false }
+                Mock Invoke-EwWorkbenchDwmAttribute {
+                    $nativeValue = $Value
+                    [EvergreenUI.WorkbenchChromeInterop]::DwmSetWindowAttribute($Handle, $Attribute, [ref]$nativeValue, 4)
+                }
+                Mock Invoke-EwWorkbenchDwmAttribute { -1 } -ParameterFilter {
+                    $Attribute -eq 2 -and $Value -eq 0
+                }
+
+                Set-EwWorkbenchTitleBar -Window $window
+
+                $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Visible'
+                $window.WindowStyle | Should -Be ([System.Windows.WindowStyle]::None)
+                [System.Windows.Shell.WindowChrome]::GetWindowChrome($window) | Should -Not -BeNullOrEmpty
+                $window.Background.Color | Should -Be $window.TryFindResource('ApplicationBackgroundBrush').Color
+                $maximize = $window.FindName('MaximizeWindowButton')
+                $peer = [System.Windows.Automation.Peers.FrameworkElementAutomationPeer]::CreatePeerForElement($maximize)
+                $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke).Invoke()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.WindowState | Should -Be ([System.Windows.WindowState]::Maximized)
+
+                Mock Invoke-EwWorkbenchDwmAttribute {
+                    $nativeValue = $Value
+                    [EvergreenUI.WorkbenchChromeInterop]::DwmSetWindowAttribute($Handle, $Attribute, [ref]$nativeValue, 4)
+                } -ParameterFilter {
+                    $Attribute -eq 2 -and $Value -eq 0
+                }
+                Set-EwWorkbenchTitleBar -Window $window
+                $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Collapsed'
+                $window.WindowStyle | Should -Be ([System.Windows.WindowStyle]::SingleBorderWindow)
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'rejects unsupported Windows versions, high contrast and missing composition targets' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                Test-EwWorkbenchMicaAvailable -Window $window -WindowsBuild 22000 | Should -BeFalse
+                Test-EwWorkbenchMicaAvailable -Window $window -WindowsBuild 22621 -HighContrast $true | Should -BeFalse
+                Test-EwWorkbenchMicaAvailable -Window $window -WindowsBuild 22621 -HighContrast $false | Should -BeFalse
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'returns caption colour control to Windows in high contrast' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                if (-not (Test-EwWorkbenchMicaAvailable -Window $window)) {
+                    Set-ItResult -Skipped -Because 'WPF Mica is unavailable under the current Windows policies.'
+                }
+                Mock Invoke-EwWorkbenchDwmAttribute {
+                    $nativeValue = $Value
+                    [EvergreenUI.WorkbenchChromeInterop]::DwmSetWindowAttribute($Handle, $Attribute, [ref]$nativeValue, 4)
+                }
+
+                Set-EwWorkbenchTitleBar -Window $window -HighContrast $true
+
+                $window.FindName('WorkbenchTitleBar').Visibility | Should -Be 'Collapsed'
+                $window.WindowStyle | Should -Be ([System.Windows.WindowStyle]::SingleBorderWindow)
+                $window.Background.Color | Should -Be $window.TryFindResource('ApplicationBackgroundBrush').Color
+                Should -Invoke Invoke-EwWorkbenchDwmAttribute -Exactly 1 -ParameterFilter {
+                    $Attribute -eq 35 -and $Value -eq -1
+                }
+                Should -Invoke Invoke-EwWorkbenchDwmAttribute -Exactly 1 -ParameterFilter {
+                    $Attribute -eq 36 -and $Value -eq -1
                 }
             }
             finally {
                 $window.Close()
+            }
+        }
+    }
+
+    It 'falls back when the WPF backdrop policy is disabled' {
+        $modulePath = (Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1')).Path
+        $modulePath = $modulePath.Replace("'", "''")
+        $command = @"
+`$ErrorActionPreference = 'Stop'
+[AppContext]::SetSwitch('Switch.System.Windows.Appearance.DisableFluentThemeWindowBackdrop', `$true)
+Import-Module -Name '$modulePath' -Force
+& (Get-Module EvergreenUI) {
+    `$window = Get-EwWorkbenchWindow
+    try {
+        `$window.Show()
+        `$window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        if (`$window.FindName('WorkbenchTitleBar').Visibility -ne 'Collapsed' -or
+            `$window.WindowStyle -ne 'SingleBorderWindow' -or
+            `$window.Background.Color -ne `$window.TryFindResource('ApplicationBackgroundBrush').Color) {
+            throw 'The disabled-backdrop policy did not retain the native opaque window.'
+        }
+    }
+    finally {
+        `$window.Close()
+    }
+}
+"@
+        $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+        $output = & (Get-Process -Id $PID).Path -NoLogo -NoProfile -STA -EncodedCommand $encoded 2>&1
+        $LASTEXITCODE | Should -Be 0 -Because ($output -join [Environment]::NewLine)
+    }
+
+    It 'retains native move, resize and snap hit testing with accessible caption controls' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                if (-not (Test-EwWorkbenchMicaAvailable -Window $window)) {
+                    Set-ItResult -Skipped -Because 'WPF Mica is unavailable under the current Windows policies.'
+                }
+                $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
+                $style = [EvergreenUI.WorkbenchCaptionTestNative]::GetWindowLong($handle, -16)
+                foreach ($requiredStyle in 0x00010000, 0x00020000, 0x00040000, 0x00080000) {
+                    ($style -band $requiredStyle) | Should -Be $requiredStyle
+                }
+                $getHit = {
+                    param($Element, [double]$X, [double]$Y)
+                    $point = $Element.PointToScreen([System.Windows.Point]::new($X, $Y))
+                    $packed = ([long][int]$point.X -band 0xffff) -bor (([long][int]$point.Y -band 0xffff) -shl 16)
+                    [EvergreenUI.WorkbenchCaptionTestNative]::SendMessage(
+                        $handle, 0x84, [IntPtr]::Zero, [IntPtr]::new($packed)
+                    ).ToInt64()
+                }.GetNewClosure()
+                $titleBar = $window.FindName('WorkbenchTitleBar')
+                $maximize = $window.FindName('MaximizeWindowButton')
+                & $getHit -Element $titleBar -X 200 -Y 24 | Should -Be 2
+                & $getHit -Element $titleBar -X 200 -Y 2 | Should -Be 12
+                & $getHit -Element $maximize -X ($maximize.ActualWidth / 2) -Y ($maximize.ActualHeight / 2) |
+                    Should -Be 9
+                foreach ($pair in @(
+                        @{ Name = 'MinimizeWindowButton'; Label = 'Minimize' }
+                        @{ Name = 'MaximizeWindowButton'; Label = 'Maximize' }
+                        @{ Name = 'CloseWindowButton'; Label = 'Close' }
+                    )) {
+                    [System.Windows.Automation.AutomationProperties]::GetName($window.FindName($pair.Name)) |
+                        Should -Be $pair.Label
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'minimizes and maximizes or restores through the accessible caption buttons' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                if (-not (Test-EwWorkbenchMicaAvailable -Window $window)) {
+                    Set-ItResult -Skipped -Because 'WPF Mica is unavailable under the current Windows policies.'
+                }
+                $maximize = $window.FindName('MaximizeWindowButton')
+                $peer = [System.Windows.Automation.Peers.FrameworkElementAutomationPeer]::CreatePeerForElement($maximize)
+                $invoke = $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke)
+                $invoke.Invoke()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.WindowState | Should -Be ([System.Windows.WindowState]::Maximized)
+                [System.Windows.Automation.AutomationProperties]::GetName($maximize) | Should -Be 'Restore'
+                $window.FindName('WorkbenchRoot').Margin.Left | Should -BeGreaterThan 0
+                $invoke.Invoke()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.WindowState | Should -Be ([System.Windows.WindowState]::Normal)
+                [System.Windows.Automation.AutomationProperties]::GetName($maximize) | Should -Be 'Maximize'
+                $window.FindName('WorkbenchRoot').Margin.Left | Should -Be 0
+
+                $minimize = $window.FindName('MinimizeWindowButton')
+                $peer = [System.Windows.Automation.Peers.FrameworkElementAutomationPeer]::CreatePeerForElement($minimize)
+                $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke).Invoke()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.WindowState | Should -Be ([System.Windows.WindowState]::Minimized)
+                $window.WindowState = [System.Windows.WindowState]::Normal
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'honours the closing guard and persists window size through the custom close button' {
+        InModuleScope EvergreenUI {
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.Width = 1050
+                $window.Height = 720
+                $window.Add_Closing({
+                    $closingArgs = $args[1]
+                    & $state.ModuleInvoker -Name 'Invoke-EwWorkbenchClosingGuard' -Parameters @{
+                        State = $state
+                        ClosingArgs = $closingArgs
+                    }
+                    if (-not $closingArgs.Cancel) {
+                        & $state.ModuleInvoker -Name 'Save-EwWorkbenchWindowSize' -Parameters @{ State = $state }
+                    }
+                }.GetNewClosure())
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $state.ActiveJobKind = 'EvergreenUpdate'
+                $click = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)
+                $window.FindName('CloseWindowButton').RaiseEvent($click)
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.IsVisible | Should -BeTrue
+                $state.StatusLabel.Text | Should -Match 'maintenance'
+                $state.ActiveJobKind = ''
+                $window.FindName('CloseWindowButton').RaiseEvent($click)
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.IsVisible | Should -BeFalse
+                $saved = Get-EwSetting
+                $saved.WindowWidth | Should -Be 1050
+                $saved.WindowHeight | Should -Be 720
+            }
+            finally {
+                $state.ActiveJobKind = ''
+                if ($window.IsVisible) { $window.Close() }
+                $env:APPDATA = $originalAppData
             }
         }
     }

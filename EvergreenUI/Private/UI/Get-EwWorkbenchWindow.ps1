@@ -63,19 +63,51 @@ function Get-EwWorkbenchWindow {
         }
     }.GetNewClosure())
 
-    $backgroundDescriptor = [System.ComponentModel.DependencyPropertyDescriptor]::FromProperty(
-        [System.Windows.Controls.Control]::BackgroundProperty, [System.Windows.Window]
-    )
+    $minimizeButton = $window.FindName('MinimizeWindowButton')
+    $maximizeButton = $window.FindName('MaximizeWindowButton')
+    $closeButton = $window.FindName('CloseWindowButton')
+    $titleBar = $window.FindName('WorkbenchTitleBar')
+    $minimizeButton.Add_Click({
+        [System.Windows.SystemCommands]::MinimizeWindow($window)
+    }.GetNewClosure())
+    $maximizeButton.Add_Click({
+        if ($window.WindowState -eq [System.Windows.WindowState]::Maximized) {
+            [System.Windows.SystemCommands]::RestoreWindow($window)
+        }
+        else {
+            [System.Windows.SystemCommands]::MaximizeWindow($window)
+        }
+    }.GetNewClosure())
+    $closeButton.Add_Click({
+        [System.Windows.SystemCommands]::CloseWindow($window)
+    }.GetNewClosure())
+    $updateMaximizeButton = {
+        $maximized = $window.WindowState -eq [System.Windows.WindowState]::Maximized
+        $maximizeButton.Content = [string][char]$(if ($maximized) { 0xE923 } else { 0xE922 })
+        $name = if ($maximized) { 'Restore' } else { 'Maximize' }
+        $maximizeButton.ToolTip = $name
+        [System.Windows.Automation.AutomationProperties]::SetName($maximizeButton, $name)
+    }.GetNewClosure()
+    $window.Add_StateChanged({
+        & $updateMaximizeButton
+    }.GetNewClosure())
+
     $foregroundDescriptor = [System.ComponentModel.DependencyPropertyDescriptor]::FromProperty(
         [System.Windows.Controls.Control]::ForegroundProperty, [System.Windows.Window]
     )
+    $appearance = @{ Pending = $false; Closed = $false; Source = $null }
     $setTitleBar = Get-Command -Name Set-EwWorkbenchTitleBar -CommandType Function -ErrorAction Stop
     $refreshTitleBar = [System.EventHandler]{
-        # Nested closures only capture locals, so copy the outer captured values first.
+        if ($appearance.Closed -or $appearance.Pending -or $window.Dispatcher.HasShutdownStarted) {
+            return
+        }
+        $appearance.Pending = $true
         $targetWindow = $window
         $applyTitleBar = $setTitleBar
-        # Apply after the native theme has finished updating its own window chrome.
+        $appearanceState = $appearance
         $null = $targetWindow.Dispatcher.InvokeAsync([action]{
+            $appearanceState.Pending = $false
+            if ($appearanceState.Closed) { return }
             try {
                 & $applyTitleBar -Window $targetWindow
             }
@@ -85,16 +117,42 @@ function Get-EwWorkbenchWindow {
             }
         }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::Render)
     }.GetNewClosure()
-    $window.Add_SourceInitialized($refreshTitleBar)
+    $appearanceHook = [System.Windows.Interop.HwndSourceHook]{
+        if ($args[1] -in 0x001A, 0x031A, 0x031E, 0x031F, 0x0320) {
+            $refreshTitleBar.Invoke($window, [EventArgs]::Empty)
+        }
+        return [IntPtr]::Zero
+    }.GetNewClosure()
+    $window.Add_SourceInitialized({
+        $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
+        $appearance.Source = [System.Windows.Interop.HwndSource]::FromHwnd($handle)
+        if ($null -ne $appearance.Source) {
+            $appearance.Source.AddHook($appearanceHook)
+        }
+        $refreshTitleBar.Invoke($window, [EventArgs]::Empty)
+    }.GetNewClosure())
     $window.Add_Loaded({
         param($eventSource, $loadedArgs)
         $refreshTitleBar.Invoke($eventSource, $loadedArgs)
     }.GetNewClosure())
-    $backgroundDescriptor.AddValueChanged($window, $refreshTitleBar)
     $foregroundDescriptor.AddValueChanged($window, $refreshTitleBar)
+    $systemAppearanceChanged = [System.ComponentModel.PropertyChangedEventHandler]{
+        if ($args[1].PropertyName -in 'HighContrast', 'WindowGlassColor', 'WindowGlassBrush') {
+            $refreshTitleBar.Invoke($window, [EventArgs]::Empty)
+        }
+    }.GetNewClosure()
+    [System.Windows.SystemParameters]::add_StaticPropertyChanged($systemAppearanceChanged)
     $window.Add_Closed({
-        $backgroundDescriptor.RemoveValueChanged($window, $refreshTitleBar)
+        $appearance.Closed = $true
+        if ($titleBar.Tag -is [IDisposable]) {
+            $titleBar.Tag.Dispose()
+            $titleBar.Tag = $null
+        }
+        if ($null -ne $appearance.Source -and -not $appearance.Source.IsDisposed) {
+            $appearance.Source.RemoveHook($appearanceHook)
+        }
         $foregroundDescriptor.RemoveValueChanged($window, $refreshTitleBar)
+        [System.Windows.SystemParameters]::remove_StaticPropertyChanged($systemAppearanceChanged)
     }.GetNewClosure())
     return $window
 }

@@ -38,6 +38,8 @@
 - Refresh the WPF interface with adaptive icon navigation, themed primary
   actions, grouped provider forms, and a collapsible, resizable activity log.
   Theme selection is now in Settings.
+- Show Mica behind the v2 window and title bar when supported, with an opaque
+  fallback for Windows accessibility settings and unavailable backdrops.
 
 ## [1.1.27]
 
