@@ -118,10 +118,24 @@ function Get-EwWorkbenchState {
             'NmeStorageAccountCombo', 'NmeContainerCombo', 'NmeHostBox', 'NmeClientIdBox',
             'NmeApiScopeBox', 'NmeOAuthTokenUrlBox', 'NmeClientSecretBox', 'ConnectNerdioButton',
             'NerdioDefinitionsPathBox', 'BrowseNerdioDefinitionsButton', 'SaveNerdioSettingsButton',
+            'NerdioApiOnlyToggle',
             'CompareNerdioButton', 'NerdioConnectionStatusLabel', 'NerdioComparisonListView',
             'CancelNerdioBatchButton', 'PublishSelectedNerdioButton', 'NerdioPublishResultsListView',
             'ReviewNerdioOutcomeButton', 'PruneNerdioVersionsButton'
         )) {
+        $state[$name] = $Window.FindName($name)
+    }
+    foreach ($provider in 'Intune', 'Nerdio') {
+        foreach ($suffix in 'Form', 'BrowseButton', 'PathBox', 'LoadButton', 'SaveButton', 'ConfigurationCombo',
+            'ChannelCombo', 'CompanyBox', 'SessionCombo', 'TargetsButton', 'TargetCombo',
+            'PreviewBuildButton', 'PreviewPublishButton', 'PreviewText', 'BuildButton', 'PublishButton',
+            'CancelButton', 'ResultText') {
+            $name = "${provider}M365$suffix"
+            $state[$name] = $Window.FindName($name)
+        }
+    }
+    foreach ($name in 'NerdioM365OperationCombo', 'NerdioM365NameBox', 'NerdioM365AttestToggle',
+        'IntuneM365RecoveryCombo', 'IntuneM365RecoveryLoadButton', 'IntuneM365ReviewButton') {
         $state[$name] = $Window.FindName($name)
     }
     Initialize-EwWorkbenchView -State $state

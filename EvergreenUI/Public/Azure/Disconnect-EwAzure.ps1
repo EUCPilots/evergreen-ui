@@ -7,8 +7,8 @@ function Disconnect-EwAzure {
         Signs out of the Azure process context.
     .DESCRIPTION
         Disconnects Az.Accounts and clears the process-scoped Azure context.
-        The Nerdio Manager token is also cleared because it depends on the
-        Azure storage context.
+        A full Nerdio connection is also cleared because it depends on the
+        Azure storage context. An API-only Nerdio session is not affected.
     .EXAMPLE
         Disconnect-EwAzure
     .OUTPUTS
@@ -20,8 +20,10 @@ function Disconnect-EwAzure {
     [OutputType([PSCustomObject])]
     param()
 
-    $nerdioWasConnected = $null -ne $script:ewNerdioSession.Context
-    $script:ewNerdioSession.Context = $null
+    $nerdioWasConnected = $null -ne $script:ewNerdioSession.Context -and -not $script:ewNerdioSession.ApiOnly
+    if (-not $script:ewNerdioSession.ApiOnly) {
+        $script:ewNerdioSession.Context = $null
+    }
     if ($nerdioWasConnected) {
         Write-Verbose -Message 'EvergreenUI: Cleared Nerdio Manager token during Azure sign-out.'
     }

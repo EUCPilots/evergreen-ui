@@ -78,4 +78,5 @@ function Invoke-EwWorkbenchBusyState {
             $selectedResult.Status -eq 'Supersedence failed' -and $selectedResult.TenantId -eq $State.IntuneTenantId
     }
     Invoke-EwWorkbenchNerdioBusyState -State $State
+    Invoke-EwWorkbenchM365BusyState -State $State
 }

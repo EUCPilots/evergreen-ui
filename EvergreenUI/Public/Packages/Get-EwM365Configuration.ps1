@@ -43,7 +43,7 @@ function Get-EwM365Configuration {
             $status = if ([string]::IsNullOrWhiteSpace($configuration.ConfigId)) {
                 'No ID'
             }
-            elseif (-not [guid]::TryParse($configuration.ConfigId, [ref]$guid)) {
+            elseif (-not [guid]::TryParse($configuration.ConfigId, [ref]$guid) -or $guid -eq [guid]::Empty) {
                 'Invalid ID'
             }
             else {

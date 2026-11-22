@@ -138,21 +138,28 @@ function Invoke-EwWorkbenchNerdioAction {
                 $arguments = @($State.NerdioAzureIdentity, [string]$State.NmeResourceGroupCombo.SelectedItem, [string]$State.NmeStorageAccountCombo.SelectedItem)
             }
             'ApiConnect' {
-                if ($null -eq $State.NerdioAzureIdentity -or -not $State.NmeContainerCombo.SelectedItem) { throw 'Connect Azure and select storage first.' }
+                $apiOnly = [bool]$State.NerdioApiOnlyToggle.IsChecked
+                if (-not $apiOnly -and ($null -eq $State.NerdioAzureIdentity -or -not $State.NmeContainerCombo.SelectedItem)) { throw 'Connect Azure and select storage first.' }
                 $parameters = @{
-                    TenantId = [string]$State.NerdioTenantIdBox.Text; SubscriptionId = [string]$State.NmeSubscriptionIdBox.Text
+                    TenantId = [string]$State.NerdioTenantIdBox.Text
                     ClientId = [string]$State.NmeClientIdBox.Text; ClientSecret = $State.NmeClientSecretBox.SecurePassword.Copy()
                     ApiScope = [string]$State.NmeApiScopeBox.Text; NmeHost = [string]$State.NmeHostBox.Text
                     OAuthTokenUrl = [string]$State.NmeOAuthTokenUrlBox.Text
-                    ResourceGroupName = [string]$State.NmeResourceGroupCombo.SelectedItem
-                    StorageAccountName = [string]$State.NmeStorageAccountCombo.SelectedItem
-                    ContainerName = [string]$State.NmeContainerCombo.SelectedItem
+                }
+                if ($apiOnly) { $parameters.ApiOnly = $true }
+                else {
+                    $parameters.SubscriptionId = [string]$State.NmeSubscriptionIdBox.Text
+                    $parameters.ResourceGroupName = [string]$State.NmeResourceGroupCombo.SelectedItem
+                    $parameters.StorageAccountName = [string]$State.NmeStorageAccountCombo.SelectedItem
+                    $parameters.ContainerName = [string]$State.NmeContainerCombo.SelectedItem
                 }
                 $State.NmeClientSecretBox.Clear()
                 $body = {
                     param($Identity, $Parameters)
                     try {
-                        & (Get-Module -Name EvergreenUI) { param($Value) Assert-EwAzureIdentity -Identity $Value } $Identity
+                        if (-not $Parameters.ContainsKey('ApiOnly')) {
+                            & (Get-Module -Name EvergreenUI) { param($Value) Assert-EwAzureIdentity -Identity $Value } $Identity
+                        }
                         Connect-EwNerdio @Parameters
                     }
                     finally { $Parameters.ClientSecret.Dispose() }

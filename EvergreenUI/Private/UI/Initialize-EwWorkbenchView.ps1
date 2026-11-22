@@ -50,6 +50,7 @@ function Initialize-EwWorkbenchView {
     Initialize-EwWorkbenchPackageView -State $State
     Initialize-EwWorkbenchPublishView -State $State
     Initialize-EwWorkbenchNerdioView -State $State
+    Initialize-EwWorkbenchM365View -State $State
     Initialize-EwWorkbenchInstallView -State $State
     $State.AppSearchBox.Add_TextChanged({
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchAppList' -Parameters @{ State = $State }

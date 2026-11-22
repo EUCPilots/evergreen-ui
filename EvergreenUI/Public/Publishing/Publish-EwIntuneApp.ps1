@@ -18,6 +18,14 @@ function Publish-EwIntuneApp {
         Setup file used when the package was built. Defaults to App.json.
     .PARAMETER ImportAsUpdate
         Imports the package using update-app naming and requirement behavior.
+    .PARAMETER M365Plan
+        Confirmed Microsoft 365 Intune publishing preview.
+    .PARAMETER M365PackageHash
+        SHA256 hash of the built package.
+    .PARAMETER M365DefinitionHash
+        SHA256 hash of the staged App.json.
+    .PARAMETER CancellationToken
+        Optional cancellation checked between publishing stages.
     .EXAMPLE
         Publish-EwIntuneApp -DefinitionPath .\App.json -PackagePath .\Output\App.intunewin
     .OUTPUTS
@@ -43,12 +51,27 @@ function Publish-EwIntuneApp {
         [string]$SetupFile,
 
         [Parameter()]
-        [switch]$ImportAsUpdate
+        [switch]$ImportAsUpdate,
+
+        [Parameter()]
+        [psobject]$M365Plan,
+
+        [Parameter()]
+        [string]$M365PackageHash,
+
+        [Parameter()]
+        [string]$M365DefinitionHash,
+
+        [Parameter()]
+        [System.Threading.CancellationToken]$CancellationToken = [System.Threading.CancellationToken]::None
     )
 
     $fail = {
         param([string]$Message)
-        [PSCustomObject]@{ Succeeded = $false; IntuneAppId = ''; DisplayName = ''; Error = $Message }
+        [PSCustomObject]@{
+            Succeeded = $false; IntuneAppId = ''; DisplayName = ''; Error = $Message
+            Cancelled = $CancellationToken.IsCancellationRequested; WriteStarted = $false
+        }
     }
     if (-not (Test-Path -LiteralPath $DefinitionPath -PathType Leaf)) {
         return (& $fail "Definition file was not found: $DefinitionPath")
@@ -64,6 +87,11 @@ function Publish-EwIntuneApp {
         if ([string]::IsNullOrWhiteSpace($SetupFile)) {
             $SetupFile = [string]$definition.PackageInformation.SetupFile
         }
+        if ($null -ne $M365Plan -and ($ImportAsUpdate -or
+                $Version -cne [string]$M365Plan.BuildPlan.OfficeVersion -or
+                [string]::IsNullOrWhiteSpace($M365PackageHash) -or [string]::IsNullOrWhiteSpace($M365DefinitionHash))) {
+            throw 'Intune publish arguments do not match the confirmed Microsoft 365 preview.'
+        }
         if (-not $PSCmdlet.ShouldProcess([string]$definition.Information.DisplayName, 'Publish Win32 app to Intune')) {
             return
         }
@@ -74,7 +102,8 @@ function Publish-EwIntuneApp {
         return Invoke-EwIntuneGraphWin32Import -DefinitionObject $definition `
             -DefinitionPath $DefinitionPath -IntuneWinPath $PackagePath -SetupFilePath $SetupFile `
             -DownloadedVersion $Version -PSPackageFactoryGuid ([string]$definition.Information.PSPackageFactoryGuid) `
-            -ImportAsUpdate:$ImportAsUpdate -SyncHash @{}
+            -ImportAsUpdate:$ImportAsUpdate -SyncHash @{} -M365Plan $M365Plan `
+            -M365PackageHash $M365PackageHash -M365DefinitionHash $M365DefinitionHash -CancellationToken $CancellationToken
     }
     catch {
         return (& $fail "Intune publishing failed: $($_.Exception.Message)")

@@ -38,6 +38,7 @@ function Connect-EwAzure {
     )
 
     $script:ewNerdioSession.Context = $null
+    $script:ewNerdioSession.ApiOnly = $false
     try {
         $context = Connect-EwAzAccount -TenantId $TenantId -SubscriptionId $SubscriptionId `
             -UseDeviceAuthentication:$UseDeviceAuthentication

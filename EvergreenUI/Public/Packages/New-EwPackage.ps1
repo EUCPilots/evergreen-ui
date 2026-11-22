@@ -33,6 +33,11 @@ function New-EwPackage {
         Forces a fresh Evergreen query for App.json package definitions.
     .PARAMETER AppJsonTemplatePath
         Optional App.json template copied into a Microsoft 365 package.
+    .PARAMETER Force
+        Replaces an existing Microsoft 365 output package after confirmation by the caller.
+    .PARAMETER M365Plan
+        Optional confirmed build preview. If omitted, one is created automatically.
+        Inputs and the active matching provider session are rechecked.
     .EXAMPLE
         New-EwPackage -DefinitionPath .\Definitions\Example\App.json -WorkingPath .\Packages
     .EXAMPLE
@@ -89,7 +94,13 @@ function New-EwPackage {
         [switch]$NoCache,
 
         [Parameter(ParameterSetName = 'M365')]
-        [string]$AppJsonTemplatePath
+        [string]$AppJsonTemplatePath,
+
+        [Parameter(ParameterSetName = 'M365')]
+        [switch]$Force,
+
+        [Parameter(ParameterSetName = 'M365')]
+        [psobject]$M365Plan
     )
 
     if ([string]::IsNullOrWhiteSpace($WorkingPath)) {
@@ -123,7 +134,7 @@ function New-EwPackage {
         return Invoke-EwM365PackageBuild -ConfigurationPath $M365ConfigurationPath `
             -ConfigurationRoot $ConfigurationRoot -WorkingPath $WorkingPath -Channel $Channel `
             -CompanyName $CompanyName -ImportFor $ImportFor -TenantId $TenantId `
-            -Provider $Provider -AppJsonTemplatePath $AppJsonTemplatePath
+            -Provider $Provider -AppJsonTemplatePath $AppJsonTemplatePath -Force:$Force -Plan $M365Plan
     }
 
     $fail = {

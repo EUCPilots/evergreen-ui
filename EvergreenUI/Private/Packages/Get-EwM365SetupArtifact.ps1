@@ -19,16 +19,17 @@ function Get-EwM365SetupArtifact {
     $best = $null
     $bestVersion = [version]'0.0'
     foreach ($row in $rows) {
-        $versionText = ([string]$row.Version) -replace '^[^0-9]*', '' -replace '[^0-9\.].*$', ''
+        $versionText = ([string]$row.Version).Trim()
         $candidateVersion = [version]'0.0'
         if ([version]::TryParse($versionText, [ref]$candidateVersion) -and
             ($null -eq $best -or $candidateVersion -gt $bestVersion)) {
             $best = $row
             $bestVersion = $candidateVersion
         }
-        elseif ($null -eq $best) {
-            $best = $row
-        }
     }
+    if ($null -eq $best) {
+        throw "Evergreen returned no valid Microsoft 365 Apps version for channel '$Channel'."
+    }
+    Write-Verbose -Message "EvergreenUI: Resolved Microsoft 365 channel '$Channel' version '$($best.Version)'"
     return $best
 }

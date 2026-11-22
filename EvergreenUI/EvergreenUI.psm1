@@ -12,7 +12,7 @@
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$script:ewNerdioSession = [hashtable]::Synchronized(@{ Context = $null })
+$script:ewNerdioSession = [hashtable]::Synchronized(@{ Context = $null; ApiOnly = $false })
 $script:ewOwnsNerdioSession = $true
 
 foreach ($directory in @('Private', 'Public')) {

@@ -516,6 +516,9 @@
                 </Grid>
 
                 <Grid x:Name="IntunePanel" Visibility="Collapsed">
+                    <TabControl>
+                        <TabItem Header="Win32 apps">
+                            <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -582,17 +585,68 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
+                            </Grid>
+                        </TabItem>
+                        <TabItem Header="Microsoft 365 Apps">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="IntuneM365Form" Margin="8">
+                                    <TextBlock Text="Configuration folder" />
+                                    <DockPanel Margin="0,3,0,8">
+                                        <Button x:Name="IntuneM365BrowseButton" DockPanel.Dock="Right" Content="Browse" Padding="12,4" Margin="8,0,0,0" />
+                                        <TextBox x:Name="IntuneM365PathBox" AutomationProperties.Name="Intune Microsoft 365 configuration folder" />
+                                    </DockPanel>
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="IntuneM365LoadButton" Content="Load configurations" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="IntuneM365SaveButton" Content="Save shared settings" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock Text="Configuration" />
+                                    <ComboBox x:Name="IntuneM365ConfigurationCombo" DisplayMemberPath="FileName" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 configuration" />
+                                    <TextBlock Text="Channel" />
+                                    <ComboBox x:Name="IntuneM365ChannelCombo" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 channel" />
+                                    <TextBlock Text="Company name" />
+                                    <TextBox x:Name="IntuneM365CompanyBox" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 company" />
+                                    <TextBlock Text="Session type" />
+                                    <ComboBox x:Name="IntuneM365SessionCombo" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 session type" />
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="IntuneM365TargetsButton" Content="Load matching Intune apps" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock Text="Optional app to supersede (update relationship)" />
+                                    <ComboBox x:Name="IntuneM365TargetCombo" DisplayMemberPath="Name" Margin="0,3,0,8" AutomationProperties.Name="Intune app to supersede" />
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="IntuneM365PreviewBuildButton" Content="Preview build" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="IntuneM365PreviewPublishButton" Content="Preview publishing" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="IntuneM365PreviewText" Text="Select a configuration and preview the operation." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="IntuneM365BuildButton" Content="Build only" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="IntuneM365PublishButton" Content="Build and publish" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="IntuneM365CancelButton" Content="Cancel" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock Text="Recovery: inspect an unknown outcome in Intune before acknowledging it." TextWrapping="Wrap" />
+                                    <ComboBox x:Name="IntuneM365RecoveryCombo" DisplayMemberPath="Id" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 recovery outcome" />
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="IntuneM365RecoveryLoadButton" Content="Load recovery records" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="IntuneM365ReviewButton" Content="Acknowledge reviewed outcome" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="IntuneM365ResultText" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
                 </Grid>
 
                 <Grid x:Name="NerdioPanel" Visibility="Collapsed">
+                    <TabControl>
+                        <TabItem Header="Shell Apps">
+                            <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1.5*" MaxHeight="200" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="3*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="2*" />
                     </Grid.RowDefinitions>
-                    <ScrollViewer Grid.Row="0" MaxHeight="200" VerticalScrollBarVisibility="Auto"
+                    <ScrollViewer x:Name="NerdioSetupScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
                             <Expander Header="Azure storage setup" IsExpanded="False" Margin="0,0,0,6">
@@ -626,6 +680,7 @@
                                     <TextBox x:Name="NmeOAuthTokenUrlBox" AutomationProperties.Name="Nerdio OAuth token URL" Margin="0,2,0,6" />
                                     <TextBlock Text="Client secret (not saved)" />
                                     <PasswordBox x:Name="NmeClientSecretBox" AutomationProperties.Name="Nerdio client secret" Margin="0,2,0,6" />
+                                    <CheckBox x:Name="NerdioApiOnlyToggle" Content="API only (Microsoft 365 build only)" Margin="0,0,0,6" />
                                     <Button x:Name="ConnectNerdioButton" Content="Connect Nerdio API" HorizontalAlignment="Left" Padding="12,4" />
                                 </StackPanel>
                             </Expander>
@@ -688,6 +743,52 @@
                             <DataGridTextColumn Header="Details" Binding="{Binding Error}" Width="2*" />
                         </DataGrid.Columns>
                     </DataGrid>
+                            </Grid>
+                        </TabItem>
+                        <TabItem Header="Microsoft 365 Apps">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="NerdioM365Form" Margin="8">
+                                    <TextBlock Text="Configuration folder" />
+                                    <DockPanel Margin="0,3,0,8">
+                                        <Button x:Name="NerdioM365BrowseButton" DockPanel.Dock="Right" Content="Browse" Padding="12,4" Margin="8,0,0,0" />
+                                        <TextBox x:Name="NerdioM365PathBox" AutomationProperties.Name="Nerdio Microsoft 365 configuration folder" />
+                                    </DockPanel>
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="NerdioM365LoadButton" Content="Load configurations" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="NerdioM365SaveButton" Content="Save shared settings" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock Text="Configuration" />
+                                    <ComboBox x:Name="NerdioM365ConfigurationCombo" DisplayMemberPath="FileName" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 configuration" />
+                                    <TextBlock Text="Channel" />
+                                    <ComboBox x:Name="NerdioM365ChannelCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 channel" />
+                                    <TextBlock Text="Company name" />
+                                    <TextBox x:Name="NerdioM365CompanyBox" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 company" />
+                                    <TextBlock Text="Session type" />
+                                    <ComboBox x:Name="NerdioM365SessionCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 session type" />
+                                    <TextBlock Text="Publish operation" />
+                                    <ComboBox x:Name="NerdioM365OperationCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 publish operation" />
+                                    <TextBlock Text="New Shell App name" />
+                                    <TextBox x:Name="NerdioM365NameBox" Margin="0,3,0,8" AutomationProperties.Name="New Microsoft 365 Shell App name" />
+                                    <Button x:Name="NerdioM365TargetsButton" Content="Load Nerdio Shell Apps" HorizontalAlignment="Left" Padding="12,4" Margin="0,0,0,8" />
+                                    <TextBlock Text="Existing Shell App for add version" />
+                                    <ComboBox x:Name="NerdioM365TargetCombo" DisplayMemberPath="Name" Margin="0,3,0,8" AutomationProperties.Name="Existing Nerdio Shell App" />
+                                    <CheckBox x:Name="NerdioM365AttestToggle" Content="I confirm the configuration changed if this Office version already exists." Margin="0,0,0,8" />
+                                    <TextBlock Text="Nerdio cannot compare the remote configuration and may reject a duplicate version." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="NerdioM365PreviewBuildButton" Content="Preview build" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="NerdioM365PreviewPublishButton" Content="Preview publishing" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="NerdioM365PreviewText" Text="Select a configuration and preview the operation." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="NerdioM365BuildButton" Content="Build only" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="NerdioM365PublishButton" Content="Build and publish" Padding="12,4" Margin="0,0,8,0" />
+                                        <Button x:Name="NerdioM365CancelButton" Content="Cancel" Padding="12,4" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="NerdioM365ResultText" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
                 </Grid>
 
                 <Grid x:Name="InstallPanel" Visibility="Collapsed">

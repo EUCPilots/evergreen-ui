@@ -86,6 +86,10 @@ function Initialize-EwWorkbenchNerdioView {
     $State.NerdioComparisonListView.Add_SelectionChanged({
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchNerdioBusyState' -Parameters @{ State = $State }
     }.GetNewClosure())
+    $State.NerdioApiOnlyToggle.Add_Click({
+        & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{ State = $State; ConnectionChanged = $true }
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchNerdioBusyState' -Parameters @{ State = $State }
+    }.GetNewClosure())
     $State.NerdioPublishResultsListView.Add_SelectionChanged({
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchNerdioBusyState' -Parameters @{ State = $State }
     }.GetNewClosure())

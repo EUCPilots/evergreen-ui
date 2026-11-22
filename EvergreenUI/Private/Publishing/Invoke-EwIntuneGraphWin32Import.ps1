@@ -84,11 +84,24 @@ function Invoke-EwIntuneGraphWin32Import {
         [switch]$ImportAsUpdate,
 
         [Parameter(Mandatory)]
-        [System.Collections.Hashtable]$SyncHash
+        [System.Collections.Hashtable]$SyncHash,
+
+        [Parameter()]
+        [psobject]$M365Plan,
+
+        [Parameter()]
+        [string]$M365PackageHash,
+
+        [Parameter()]
+        [string]$M365DefinitionHash,
+
+        [Parameter()]
+        [System.Threading.CancellationToken]$CancellationToken = [System.Threading.CancellationToken]::None
     )
 
     $appId = ''
     $displayName = ''
+    $createStarted = $false
     $fail = {
         param([string]$Msg)
         return [PSCustomObject]@{
@@ -96,6 +109,8 @@ function Invoke-EwIntuneGraphWin32Import {
             IntuneAppId = $appId
             DisplayName = $displayName
             Error       = $Msg
+            Cancelled   = $CancellationToken.IsCancellationRequested
+            WriteStarted = $createStarted
         }
     }
 
@@ -682,9 +697,18 @@ function Invoke-EwIntuneGraphWin32Import {
     Write-UILog -Message $addIntuneCmdLine -Level Cmd -SyncHash $SyncHash
 
     # -- Step 1: Create the app ------------------------------------------------
+    if ($null -ne $M365Plan) {
+        Assert-EwM365IntunePublishPlan -Plan $M365Plan
+        if ((Get-FileHash -LiteralPath $IntuneWinPath -Algorithm SHA256 -ErrorAction Stop).Hash -cne $M365PackageHash -or
+            (Get-FileHash -LiteralPath $DefinitionPath -Algorithm SHA256 -ErrorAction Stop).Hash -cne $M365DefinitionHash) {
+            throw 'The built Microsoft 365 package or staged definition changed before the Intune request.'
+        }
+    }
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before the Intune app request.') }
     Write-UILog -Message "POST /beta/deviceAppManagement/mobileApps" -Level Cmd -SyncHash $SyncHash
     $appResponse = $null
     try {
+        $createStarted = $true
         $appResponse = Invoke-MgGraphRequest -Method POST `
             -Uri 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps' `
             -Body $appBodyJson `
@@ -732,6 +756,7 @@ function Invoke-EwIntuneGraphWin32Import {
     $baseAppUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId/microsoft.graph.win32LobApp"
 
     # -- Step 2: Create a content version -------------------------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before creating the Intune content version.') }
     Write-UILog -Message "POST $baseAppUri/contentVersions" -Level Cmd -SyncHash $SyncHash
     $contentVersionResponse = $null
     try {
@@ -749,6 +774,7 @@ function Invoke-EwIntuneGraphWin32Import {
     Write-UILog -Message "Content version created: id=$contentVersionId" -Level Info -SyncHash $SyncHash
 
     # -- Step 3: Create the file entry -----------------------------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before creating the Intune file entry.') }
     Write-UILog -Message "POST $baseAppUri/contentVersions/$contentVersionId/files" -Level Cmd -SyncHash $SyncHash
     $fileBody = [ordered]@{
         '@odata.type'  = '#microsoft.graph.mobileAppContentFile'
@@ -779,7 +805,9 @@ function Invoke-EwIntuneGraphWin32Import {
         $pollingAttempts = 0
         $maxPollingAttempts = 20
         while ([string]::IsNullOrWhiteSpace($sasUri) -and $pollingAttempts -lt $maxPollingAttempts) {
+            if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled while waiting for the Intune upload URI.') }
             Start-Sleep -Seconds 3
+            if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled while waiting for the Intune upload URI.') }
             $pollingAttempts++
             try {
                 $fileStatus = Invoke-MgGraphRequest -Method GET -Uri $fileUri -OutputType PSObject -ErrorAction Stop
@@ -787,7 +815,8 @@ function Invoke-EwIntuneGraphWin32Import {
             }
             catch {
                 # best-effort - transient Graph errors during SAS URI polling should not abort the loop
-                Write-UILog -Message "SAS URI poll attempt $pollingAttempts/$maxPollingAttempts failed (retrying): $($_.Exception.Message)" -Level Warning -SyncHash $SyncHash
+                $message = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+                Write-UILog -Message "SAS URI poll attempt $pollingAttempts/$maxPollingAttempts failed (retrying): $message" -Level Warning -SyncHash $SyncHash
             }
         }
         if (-not [string]::IsNullOrWhiteSpace($sasUri)) {
@@ -800,6 +829,7 @@ function Invoke-EwIntuneGraphWin32Import {
     }
 
     # -- Step 4: Upload encrypted content to Azure Blob ------------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before the Intune content upload.') }
     Write-UILog -Message "Uploading package to Azure Blob Storage ($('{0:N0}' -f ($encryptedSize / 1MB)) MB)..." -Level Info -SyncHash $SyncHash
 
     try {
@@ -859,6 +889,7 @@ function Invoke-EwIntuneGraphWin32Import {
         return (& $fail "Azure Blob upload failed: $($_.Exception.Message)")
     }
     # -- Step 5: Commit the file ------------------------------------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled after upload and before committing Intune content.') }
     Write-UILog -Message 'Committing file to Intune...' -Level Info -SyncHash $SyncHash
     $commitBody = [ordered]@{
         'fileEncryptionInfo' = [ordered]@{
@@ -889,7 +920,9 @@ function Invoke-EwIntuneGraphWin32Import {
     $commitAttempts = 0
     $maxCommitAttempts = 40
     while (-not $commitSuccess -and $commitAttempts -lt $maxCommitAttempts) {
+        if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled while waiting for the Intune content commit.') }
         Start-Sleep -Seconds 5
+        if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled while waiting for the Intune content commit.') }
         $commitAttempts++
         try {
             $fileStatus   = Invoke-MgGraphRequest -Method GET -Uri $fileUri -OutputType PSObject -ErrorAction Stop
@@ -900,7 +933,7 @@ function Invoke-EwIntuneGraphWin32Import {
             }
             elseif ($uploadState -imatch 'failed|error') {
                 try {
-                    $failureDetails = $fileStatus | ConvertTo-Json -Depth 12 -Compress
+                    $failureDetails = ($fileStatus | ConvertTo-Json -Depth 12 -Compress) -replace 'https?://[^"\s]+', '[URL omitted]'
                     Write-UILog -Message "Commit failure details: $failureDetails" -Level Error -SyncHash $SyncHash
                 }
                 catch {
@@ -911,7 +944,8 @@ function Invoke-EwIntuneGraphWin32Import {
             }
         }
         catch {
-            Write-UILog -Message "Commit poll error (retrying): $($_.Exception.Message)" -Level Warning -SyncHash $SyncHash
+            $message = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+            Write-UILog -Message "Commit poll error (retrying): $message" -Level Warning -SyncHash $SyncHash
         }
     }
 
@@ -920,6 +954,7 @@ function Invoke-EwIntuneGraphWin32Import {
     }
 
     # -- Step 6: Patch app with committed content version ---------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before finalizing Intune content.') }
     Write-UILog -Message "Updating app '$appId' with committedContentVersion '$contentVersionId'..." -Level Info -SyncHash $SyncHash
     $patchBody = [ordered]@{
         '@odata.type'               = '#microsoft.graph.win32LobApp'
@@ -1036,6 +1071,7 @@ function Invoke-EwIntuneGraphWin32Import {
             }
 
             Write-UILog -Message "Creating assignment '$assignmentType' for app '$displayName'..." -Level Info -SyncHash $SyncHash
+            if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before the next Intune assignment.') }
             try {
                 Invoke-MgGraphRequest -Method POST `
                     -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId/assignments" `
@@ -1055,6 +1091,8 @@ function Invoke-EwIntuneGraphWin32Import {
         IntuneAppId = $appId
         DisplayName = $displayName
         Error       = ''
+        Cancelled   = $false
+        WriteStarted = $true
     }
     }
     catch {

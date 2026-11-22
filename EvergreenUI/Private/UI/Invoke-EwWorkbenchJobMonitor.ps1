@@ -16,7 +16,7 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     catch {
         Write-EwWorkbenchLog -State $State -Message "Could not read the active job: $($_.Exception.Message)" -Level Error
-        if ($State.ActiveJobKind -eq 'NerdioPublish') {
+        if ($State.ActiveJobKind -in @('NerdioPublish', 'M365')) {
             return
         }
         $State.ActiveJobId = $null
@@ -41,14 +41,14 @@ function Invoke-EwWorkbenchJobMonitor {
         $information = $job.Information[$State.InformationReadIndex]
         $State.InformationReadIndex++
         $message = [string]$information.MessageData
-        if ($State.ActiveJobKind -like 'Nerdio*') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
+        if ($State.ActiveJobKind -like 'Nerdio*' -or $State.ActiveJobKind -eq 'M365') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
         Write-EwWorkbenchLog -State $State -Message $message
     }
     while ($State.ErrorReadIndex -lt $job.Errors.Count) {
         $errorRecord = $job.Errors[$State.ErrorReadIndex]
         $State.ErrorReadIndex++
         $message = $errorRecord.Exception.Message
-        if ($State.ActiveJobKind -like 'Nerdio*') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
+        if ($State.ActiveJobKind -like 'Nerdio*' -or $State.ActiveJobKind -eq 'M365') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
         Write-EwWorkbenchLog -State $State -Message $message -Level Error
     }
     if ($job.State -in @('NotStarted', 'Running', 'Stopping')) {
@@ -70,7 +70,7 @@ function Invoke-EwWorkbenchJobMonitor {
         }
         if ($job.Errors.Count -eq 0) {
             $message = $job.TerminatingError.Exception.Message
-            if ($kind -like 'Nerdio*') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
+            if ($kind -like 'Nerdio*' -or $kind -eq 'M365') { $message = $message -replace 'https?://\S+', '[URL omitted]' }
             Write-EwWorkbenchLog -State $State -Message $message -Level Error
         }
     }
@@ -313,6 +313,9 @@ function Invoke-EwWorkbenchJobMonitor {
     }
 
     $nextNerdioAction = ''
+    if ($kind -eq 'M365') {
+        Invoke-EwWorkbenchM365JobResult -State $State -Job $job
+    }
     if ($kind -like 'Nerdio*') {
         $nextNerdioAction = Invoke-EwWorkbenchNerdioJobResult -State $State -Kind $kind -Job $job
     }

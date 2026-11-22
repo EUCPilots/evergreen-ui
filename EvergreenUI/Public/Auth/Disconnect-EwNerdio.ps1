@@ -4,23 +4,30 @@ $ErrorActionPreference = 'Stop'
 function Disconnect-EwNerdio {
     <#
     .SYNOPSIS
-        Disconnects the Azure and Nerdio Manager sessions.
+        Disconnects the Nerdio Manager session and any associated Azure session.
     .DESCRIPTION
-        Clears the in-memory Nerdio token and signs out of the current Azure
-        process context.
+        Clears the in-memory Nerdio token. For a full connection, also signs
+        out of the current Azure process context. An API-only disconnect does
+        not change Azure context.
     .EXAMPLE
         Disconnect-EwNerdio
     .OUTPUTS
         System.Management.Automation.PSCustomObject
     .NOTES
-        Requires Az.Accounts.
+        A full connection requires Az.Accounts.
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param()
 
-    $wasConnected = $null -ne $script:ewNerdioSession.Context
+    $context = $script:ewNerdioSession.Context
+    $wasConnected = $null -ne $context
+    $apiOnly = [bool]$script:ewNerdioSession.ApiOnly
     $script:ewNerdioSession.Context = $null
+    $script:ewNerdioSession.ApiOnly = $false
+    if ($apiOnly) {
+        return [PSCustomObject]@{ Succeeded = $true; WasConnected = $wasConnected; Error = '' }
+    }
     try {
         Assert-EwModule -Name Az.Accounts
         $context = Get-AzContext -ErrorAction Stop

@@ -20,6 +20,12 @@ function Publish-EwNerdioApp {
         Folder for source downloads; defaults to a temporary directory.
     .PARAMETER Snapshot
         Confirmed publishing-plan item and destination, rechecked before writes.
+    .PARAMETER M365Plan
+        Confirmed Microsoft 365 publishing plan, rechecked before writes.
+    .PARAMETER M365PackageHash
+        SHA256 hash of the package produced for the Microsoft 365 preview.
+    .PARAMETER CancellationToken
+        Optional cancellation checked before upload and after it completes.
     .EXAMPLE
         Publish-EwNerdioApp -DefinitionPath C:\ShellApps\Chrome -ShellAppId 42
     .OUTPUTS
@@ -37,7 +43,10 @@ function Publish-EwNerdioApp {
         [string]$PackagePath,
         [string]$Version,
         [string]$DownloadPath,
-        [psobject]$Snapshot
+        [psobject]$Snapshot,
+        [psobject]$M365Plan,
+        [string]$M365PackageHash,
+        [System.Threading.CancellationToken]$CancellationToken = [System.Threading.CancellationToken]::None
     )
 
     $result = [PSCustomObject]@{
@@ -55,8 +64,21 @@ function Publish-EwNerdioApp {
     if (-not $PSCmdlet.ShouldProcess($DefinitionPath, 'Upload and publish Nerdio Shell App')) { return }
     try {
         $context = Get-EwNerdioSessionContext
+        if ($context.PSObject.Properties['ApiOnly'] -and $context.ApiOnly) {
+            throw 'A full Nerdio connection with Azure storage is required for publishing.'
+        }
         Assert-EwNerdioWriteAllowed -Context $context -ShellAppId $ShellAppId
         $definition = Get-EwNerdioPublishContent -DefinitionPath $DefinitionPath -AddVersion:$addVersion
+        if ($null -ne $M365Plan) {
+            if ($null -ne $Snapshot -or $DefinitionPath -ne (Join-Path -Path $M365Plan.BuildPlan.ConfigurationRoot -ChildPath 'shell-app') -or
+                $Version -ne $M365Plan.BuildPlan.OfficeVersion -or [string]::IsNullOrWhiteSpace($M365PackageHash) -or
+                [string]$ShellAppId -ne [string]$M365Plan.ShellAppId -or
+                $addVersion -ne ($M365Plan.Operation -eq 'Add version')) {
+                throw 'Publish arguments do not match the confirmed Microsoft 365 preview.'
+            }
+            Assert-EwM365NerdioPublishPlan -Plan $M365Plan
+            if (-not $addVersion) { $definition | Add-Member -NotePropertyName name -NotePropertyValue $M365Plan.Name -Force }
+        }
         if ($null -ne $Snapshot) {
             if ($Snapshot.Item.DefinitionPath -ne $DefinitionPath -or
                 [string]$Snapshot.Item.SourceVersion -ne $Version -or
@@ -86,6 +108,16 @@ function Publish-EwNerdioApp {
         }
         $result.Version = $Version
         if ($null -ne $Snapshot) { Assert-EwNerdioPublishSnapshot -Snapshot $Snapshot }
+        if ($null -ne $M365Plan) {
+            Assert-EwM365NerdioPublishPlan -Plan $M365Plan
+            if ((Get-FileHash -LiteralPath $PackagePath -Algorithm SHA256 -ErrorAction Stop).Hash -cne $M365PackageHash) {
+                throw 'The built Microsoft 365 package changed before upload.'
+            }
+        }
+        if ($CancellationToken.IsCancellationRequested) {
+            $result.Status = 'Cancelled'; $result.Error = 'Cancelled before upload.'
+            return $result
+        }
         $recoveryOperation = [ordered]@{
             Id = [guid]::NewGuid().ToString()
             Type = 'Publish'
@@ -109,7 +141,18 @@ function Publish-EwNerdioApp {
         $result.BlobName = [string]$blobName
         $recoveryOperation.BlobName = $result.BlobName
         $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $recoveryOperation
+        if ($CancellationToken.IsCancellationRequested) {
+            $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $recoveryOperation.Id
+            $result.Status = 'Cancelled'; $result.Error = 'Cancelled after upload and before the Nerdio request.'
+            return $result
+        }
         if ($null -ne $Snapshot) { Assert-EwNerdioPublishSnapshot -Snapshot $Snapshot }
+        if ($null -ne $M365Plan) {
+            Assert-EwM365NerdioPublishPlan -Plan $M365Plan
+            if ((Get-FileHash -LiteralPath $PackagePath -Algorithm SHA256 -ErrorAction Stop).Hash -cne $M365PackageHash) {
+                throw 'The built Microsoft 365 package changed during upload.'
+            }
+        }
         if ($addVersion) {
             $result.AppId = $ShellAppId
             $body = [PSCustomObject]@{
@@ -128,6 +171,11 @@ function Publish-EwNerdioApp {
             if ($null -ne $definition.PSObject.Properties['source']) { $definition.PSObject.Properties.Remove('source') }
             $body = $definition
             $uri = "https://$($context.NmeHost)/api/v1/shell-app"
+        }
+        if ($CancellationToken.IsCancellationRequested) {
+            $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $recoveryOperation.Id
+            $result.Status = 'Cancelled'; $result.Error = 'Cancelled after upload and before the Nerdio request.'
+            return $result
         }
         $postStarted = $true
         $response = Invoke-EwNerdioApiRequest -Method POST -Uri $uri -AccessToken $context.AccessToken -Body $body

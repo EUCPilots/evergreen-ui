@@ -68,7 +68,11 @@ function Invoke-EwWorkbenchNerdioJobResult {
                 'NerdioApiConnect' {
                     if ($null -ne $result -and $result.Succeeded) {
                         $State.NerdioDestination = $result
-                        $State.NerdioConnectionStatusLabel.Text = "Connected: $($result.NmeHost) / $($result.StorageAccountName) / $($result.ContainerName)"
+                        $State.NerdioConnectionStatusLabel.Text = if ([bool](Get-EwFirstPropertyValue -InputObject $result -Name 'ApiOnly')) {
+                            "Connected API only: $($result.NmeHost). Azure storage is required for publishing."
+                        } else {
+                            "Connected: $($result.NmeHost) / $($result.StorageAccountName) / $($result.ContainerName)"
+                        }
                     }
                     else {
                         $State.NerdioDestination = $null

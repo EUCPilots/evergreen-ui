@@ -33,7 +33,8 @@ function Invoke-EwWorkbenchJob {
             'NerdioPublish',
             'NerdioReview',
             'NerdioPrunePreview',
-            'NerdioPruneSelected'
+            'NerdioPruneSelected',
+            'M365'
         )]
         [string]$Kind,
 

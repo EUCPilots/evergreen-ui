@@ -7,17 +7,19 @@ function Invoke-EwWorkbenchNerdioBusyState {
 
     $idle = $null -eq $State.ActiveJobId
     foreach ($control in $State.NerdioSettingControls.Values) { $control.IsEnabled = $idle }
-    foreach ($name in 'UseNerdioDeviceCodeToggle', 'NmeClientSecretBox', 'ConnectNerdioAzureButton',
+    foreach ($name in 'UseNerdioDeviceCodeToggle', 'NerdioApiOnlyToggle', 'NmeClientSecretBox', 'ConnectNerdioAzureButton',
         'BrowseNerdioDefinitionsButton', 'SaveNerdioSettingsButton', 'NerdioComparisonListView') {
         $State[$name].IsEnabled = $idle
     }
     $State.NmeResourceGroupCombo.IsEnabled = $idle -and $null -ne $State.NerdioAzureIdentity
     $State.NmeStorageAccountCombo.IsEnabled = $idle -and $null -ne $State.NmeResourceGroupCombo.SelectedItem
     $State.NmeContainerCombo.IsEnabled = $idle -and $null -ne $State.NmeStorageAccountCombo.SelectedItem
-    $State.ConnectNerdioButton.IsEnabled = $idle -and $null -ne $State.NerdioAzureIdentity -and
-        $null -ne $State.NmeContainerCombo.SelectedItem
-    $State.DisconnectNerdioButton.IsEnabled = $idle -and $null -ne $State.NerdioAzureIdentity
-    $State.CompareNerdioButton.IsEnabled = $idle -and $null -ne $State.NerdioDestination
+    $apiOnly = $null -ne $State.NerdioApiOnlyToggle -and [bool]$State.NerdioApiOnlyToggle.IsChecked
+    $State.ConnectNerdioButton.IsEnabled = $idle -and ($apiOnly -or
+        ($null -ne $State.NerdioAzureIdentity -and $null -ne $State.NmeContainerCombo.SelectedItem))
+    $State.DisconnectNerdioButton.IsEnabled = $idle -and ($null -ne $State.NerdioAzureIdentity -or $null -ne $State.NerdioDestination)
+    $State.CompareNerdioButton.IsEnabled = $idle -and $null -ne $State.NerdioDestination -and
+        -not [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
     $selection = @($State.NerdioComparisonListView.SelectedItems)
     $publishBlocked = @($State.NerdioBlockedOutcomes.Values | Where-Object Type -eq 'Publish').Count -gt 0
     $eligible = $selection.Count -gt 0 -and -not $publishBlocked -and
