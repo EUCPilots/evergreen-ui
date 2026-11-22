@@ -34,13 +34,10 @@ function Invoke-EwWorkbenchAppList {
         $State.AppsListView.SelectedItem = $selectedApp
         if ($null -ne $selectedApp) {
             $State.CurrentApp = $selectedApp
-            $State.FavoriteAppButton.Content = if ($selectedApp.IsFavourite) { 'Remove favourite' } else { 'Add favourite' }
-            $State.FavoriteAppButton.IsEnabled = $null -eq $State.ActiveJobId
         }
         elseif (-not [string]::IsNullOrWhiteSpace($selectedName)) {
             $State.CurrentApp = $null
             $State.CurrentAppName = ''
-            $State.FavoriteAppButton.IsEnabled = $false
             $State.AllArtifacts = @()
             $State.ArtifactFilterControls = @{}
             $State.ArtifactFiltersPanel.Children.Clear()

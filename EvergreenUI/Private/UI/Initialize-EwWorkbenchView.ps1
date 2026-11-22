@@ -9,7 +9,6 @@ function Initialize-EwWorkbenchView {
     )
 
     $State.AppSearchBox.Text = ''
-    $State.OutputPathBox.Text = [string]$State.Settings.OutputPath
     $State.LibraryPathBox.Text = [string]$State.Settings.LibraryPath
     $State.IntuneDefinitionsPathBox.Text = [string]$State.Settings.IntuneDefinitionsPath
     $State.PackageOutputPathBox.Text = if ([string]::IsNullOrWhiteSpace([string]$State.Settings.PackageOutputPath)) {
@@ -19,6 +18,28 @@ function Initialize-EwWorkbenchView {
         [string]$State.Settings.PackageOutputPath
     }
     $State.DownloadQueueListView.ItemsSource = $State.Queue
+    $State.AppsPanel.RowDefinitions[3].Height = [System.Windows.GridLength]::new(0)
+    $State.DownloadTrayContent.Visibility = [System.Windows.Visibility]::Collapsed
+    $trayHeight = [Math]::Clamp([int]$State.Settings.DownloadTrayHeight, 120, 600)
+    $State.Settings.DownloadTrayHeight = $trayHeight
+    $State.EvergreenMenu = [System.Windows.Controls.ContextMenu]::new()
+    $State.RefreshAppsButton = [System.Windows.Controls.MenuItem]::new()
+    $State.RefreshAppsButton.Header = 'Refresh catalog'
+    $State.UpdateEvergreenButton = [System.Windows.Controls.MenuItem]::new()
+    $State.UpdateEvergreenButton.Header = 'Update Evergreen'
+    $State.ClearWorkbenchCacheButton = [System.Windows.Controls.MenuItem]::new()
+    $State.ClearWorkbenchCacheButton.Header = 'Clear Workbench cache'
+    $State.OpenCacheFolderButton = [System.Windows.Controls.MenuItem]::new()
+    $State.OpenCacheFolderButton.Header = 'Open cache folder'
+    $null = $State.EvergreenMenu.Items.Add($State.RefreshAppsButton)
+    $null = $State.EvergreenMenu.Items.Add([System.Windows.Controls.Separator]::new())
+    $null = $State.EvergreenMenu.Items.Add($State.UpdateEvergreenButton)
+    $null = $State.EvergreenMenu.Items.Add($State.ClearWorkbenchCacheButton)
+    $null = $State.EvergreenMenu.Items.Add($State.OpenCacheFolderButton)
+    $State.EvergreenMenuButton.ContextMenu = $State.EvergreenMenu
+    $State.EvergreenMenuButton.Add_Click({
+        $State.EvergreenMenu.IsOpen = $true
+    }.GetNewClosure())
     $State.ArtifactFilterControls = @{}
     $State.AllowFilterEvents = $true
     $State.SuppressAppSelection = $false
@@ -27,12 +48,12 @@ function Initialize-EwWorkbenchView {
     $State.AllArtifacts = @()
     $State.PendingLastAppName = if ($State.Settings.Contains('LastAppName')) { [string]$State.Settings.LastAppName } else { '' }
     Initialize-EwWorkbenchMaintenanceView -State $State
+    $State.Queue.add_CollectionChanged({
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
+    }.GetNewClosure())
 
     $State.NavApps.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Apps' }
-    }.GetNewClosure())
-    $State.NavDownload.Add_Checked({
-        & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Download' }
     }.GetNewClosure())
     $State.NavLibrary.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Library' }
@@ -91,8 +112,6 @@ function Initialize-EwWorkbenchView {
                 Value = $State.CurrentAppName
             }
         }
-        $State.FavoriteAppButton.Content = if ($selectedApp.IsFavourite) { 'Remove favourite' } else { 'Add favourite' }
-        $State.FavoriteAppButton.IsEnabled = $null -eq $State.ActiveJobId
         $State.SelectedAppText.Text = "Loading versions for $($selectedApp.FriendlyName)..."
         $State.AllArtifacts = @()
         $State.ArtifactsGrid.ItemsSource = @()
@@ -118,9 +137,9 @@ function Initialize-EwWorkbenchView {
             }
         }
     }.GetNewClosure())
-    $State.FavoriteAppButton.Add_Click({
-        $selectedApp = $State.AppsListView.SelectedItem
-        if ($null -eq $selectedApp) {
+    $State.AppsListView.AddHandler([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent, [System.Windows.RoutedEventHandler]{
+        $selectedApp = $args[1].OriginalSource.Tag
+        if ($null -eq $selectedApp -or $null -ne $State.ActiveJobId) {
             return
         }
         try {
@@ -142,7 +161,6 @@ function Initialize-EwWorkbenchView {
             finally {
                 $State.SuppressAppSelection = $false
             }
-            $State.FavoriteAppButton.Content = if ($wasFavourite) { 'Add favourite' } else { 'Remove favourite' }
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
                 Message = "Updated favourite status for $($selectedApp.FriendlyName)."
@@ -157,13 +175,78 @@ function Initialize-EwWorkbenchView {
         }
     }.GetNewClosure())
     $State.ArtifactsGrid.Add_SelectionChanged({
-        $State.QueueDownloadButton.IsEnabled = $State.ArtifactsGrid.SelectedItems.Count -gt 0 -and $null -eq $State.ActiveJobId
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
     }.GetNewClosure())
-    $State.QueueDownloadButton.Add_Click({
-        $selectedApp = $State.CurrentApp
-        if ($null -eq $selectedApp) {
+    $State.ArtifactsGrid.Add_PreviewMouseRightButtonDown({
+        $row = [System.Windows.Controls.ItemsControl]::ContainerFromElement(
+            $State.ArtifactsGrid,
+            $args[1].OriginalSource
+        )
+        if ($row -is [System.Windows.Controls.DataGridRow]) {
+            $row.IsSelected = $true
+        }
+    }.GetNewClosure())
+    $copyArtifactUriMenuItem = $State.ArtifactsGrid.ContextMenu.Items[0]
+    $openArtifactUriMenuItem = $State.ArtifactsGrid.ContextMenu.Items[1]
+    $State.ArtifactsGrid.Add_ContextMenuOpening({
+        $artifact = $State.ArtifactsGrid.SelectedItem
+        $uriProperty = if ($null -ne $artifact) { $artifact.PSObject.Properties['URI'] } else { $null }
+        $uri = if ($null -ne $uriProperty) { [string]$uriProperty.Value } else { '' }
+        $isHttpUri = $false
+        $uriObject = $null
+        if (-not [string]::IsNullOrWhiteSpace($uri)) {
+            $isHttpUri = [uri]::TryCreate($uri, [System.UriKind]::Absolute, [ref]$uriObject) -and
+                $uriObject.Scheme -in @('http', 'https')
+        }
+        if (-not $isHttpUri) {
+            $args[1].Handled = $true
             return
         }
+        $copyArtifactUriMenuItem.IsEnabled = $true
+        $openArtifactUriMenuItem.IsEnabled = $true
+    }.GetNewClosure())
+    $copyArtifactUriMenuItem.Add_Click({
+        $artifact = $State.ArtifactsGrid.SelectedItem
+        $uriProperty = if ($null -ne $artifact) { $artifact.PSObject.Properties['URI'] } else { $null }
+        $uri = if ($null -ne $uriProperty) { [string]$uriProperty.Value } else { '' }
+        if ([string]::IsNullOrWhiteSpace($uri)) {
+            return
+        }
+        try {
+            [System.Windows.Clipboard]::SetText($uri)
+        }
+        catch {
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State
+                Message = "Could not copy artifact URI: $($_.Exception.Message)"
+                Level = 'Error'
+            }
+        }
+    }.GetNewClosure())
+    $openArtifactUriMenuItem.Add_Click({
+        $artifact = $State.ArtifactsGrid.SelectedItem
+        $uriProperty = if ($null -ne $artifact) { $artifact.PSObject.Properties['URI'] } else { $null }
+        $uri = if ($null -ne $uriProperty) { [string]$uriProperty.Value } else { '' }
+        if ([string]::IsNullOrWhiteSpace($uri)) {
+            return
+        }
+        try {
+            Open-EwWorkbenchLink -Uri ([uri]$uri)
+        }
+        catch {
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State
+                Message = "Could not open artifact URI: $($_.Exception.Message)"
+                Level = 'Error'
+            }
+        }
+    }.GetNewClosure())
+    $addSelectedArtifacts = {
+        $selectedApp = $State.CurrentApp
+        if ($null -eq $selectedApp) {
+            return 0
+        }
+        $added = 0
         foreach ($artifact in @($State.ArtifactsGrid.SelectedItems)) {
             $architectureProperty = $artifact.PSObject.Properties['Architecture']
             $uriProperty = $artifact.PSObject.Properties['URI']
@@ -175,7 +258,7 @@ function Initialize-EwWorkbenchView {
                 }
                 continue
             }
-            $State.Queue.Add([PSCustomObject]@{
+            $null = $State.Queue.Add([PSCustomObject]@{
                     Id = [guid]::NewGuid().ToString()
                     AppName = [string]$selectedApp.Name
                     Version = [string]$artifact.Version
@@ -185,12 +268,20 @@ function Initialize-EwWorkbenchView {
                     Status = 'Pending'
                     SavedPath = ''
                 })
+            $added++
         }
-        $State.StartDownloadButton.IsEnabled = @($State.Queue | Where-Object Status -eq 'Pending').Count -gt 0 -and $null -eq $State.ActiveJobId
-        & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-            State = $State
-            Message = "Added selected $($selectedApp.FriendlyName) artifacts to the download queue."
+        if ($added -gt 0) {
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State
+                Message = "Added $added selected artifact(s) for $($selectedApp.FriendlyName) to the download queue."
+            }
         }
+        return $added
+    }.GetNewClosure()
+    $State.QueueDownloadButton.Add_Click({
+        $null = & $addSelectedArtifacts
+        $State.DownloadTrayToggleButton.IsChecked = $false
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
     }.GetNewClosure())
 
     $State.ThemeCombo.SelectedItem = [string]$State.Settings.Theme
@@ -213,36 +304,6 @@ function Initialize-EwWorkbenchView {
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
                 Message = "Could not change the theme: $($_.Exception.Message)"
-                Level = 'Error'
-            }
-        }
-    }.GetNewClosure())
-
-    $State.BrowseOutputPathButton.Add_Click({
-        $dialog = [Microsoft.Win32.OpenFolderDialog]::new()
-        $dialog.Title = 'Select the artifact download folder'
-        if (-not [string]::IsNullOrWhiteSpace($State.OutputPathBox.Text) -and
-            (Test-Path -LiteralPath $State.OutputPathBox.Text -PathType Container)) {
-            $dialog.InitialDirectory = $State.OutputPathBox.Text
-        }
-        if ($dialog.ShowDialog($State.Window)) {
-            $State.OutputPathBox.Text = $dialog.FolderName
-        }
-    }.GetNewClosure())
-    $State.SetOutputPathButton.Add_Click({
-        try {
-            $path = [string]$State.OutputPathBox.Text
-            & $State.ModuleInvoker -Name 'Set-EwSetting' -Parameters @{ Name = 'OutputPath'; Value = $path }
-            $State.Settings.OutputPath = $path
-            if ([string]::IsNullOrWhiteSpace([string]$State.Settings.PackageOutputPath)) {
-                $State.PackageOutputPathBox.Text = $path
-            }
-            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{ State = $State; Message = 'Download location saved.' }
-        }
-        catch {
-            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $State
-                Message = "Could not save download location: $($_.Exception.Message)"
                 Level = 'Error'
             }
         }
@@ -366,36 +427,91 @@ function Initialize-EwWorkbenchView {
         $State.LibraryVersionsListView.ItemsSource = $versions.ToArray()
     }.GetNewClosure())
 
-    $State.RemoveQueuedDownloadButton.Add_Click({
-        foreach ($item in @($State.DownloadQueueListView.SelectedItems)) {
-            $State.Queue.Remove($item)
-        }
-        $State.StartDownloadButton.IsEnabled = @($State.Queue | Where-Object Status -eq 'Pending').Count -gt 0 -and $null -eq $State.ActiveJobId
+    $State.DownloadTrayToggleButton.Add_Checked({
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
+    }.GetNewClosure())
+    $State.DownloadTrayToggleButton.Add_Unchecked({
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
+    }.GetNewClosure())
+    $State.ChangeDownloadPathButton.Add_Click({
+        $State.NavSettings.IsChecked = $true
+        $clickArgs = [System.Windows.RoutedEventArgs]::new(
+            [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+        )
+        $State.BrowseDownloadFolderButton.RaiseEvent($clickArgs)
+    }.GetNewClosure())
+    $State.DownloadTrayGridSplitter.Add_DragCompleted({
+        $height = [int][Math]::Round($State.AppsPanel.RowDefinitions[3].ActualHeight)
+        $height = [Math]::Clamp($height, 120, 600)
+        $State.AppsPanel.RowDefinitions[3].Height = [System.Windows.GridLength]::new($height)
+        Save-EwWorkbenchUiSetting -State $State -Name 'DownloadTrayHeight' -Value ([string]$height)
     }.GetNewClosure())
     $State.ClearCompletedQueueButton.Add_Click({
         foreach ($item in @($State.Queue | Where-Object Status -in @('Downloaded', 'Failed'))) {
             $State.Queue.Remove($item)
         }
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
     }.GetNewClosure())
-    $State.ClearQueueButton.Add_Click({
-        # Rows of an active download Job must remain so its results can be applied.
+    $State.DownloadQueueListView.AddHandler(
+        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+        [System.Windows.RoutedEventHandler]{
+            $button = $args[1].OriginalSource
+            $item = $button.Tag
+            if ($null -eq $item) {
+                return
+            }
+            if ([string]$button.Content -eq 'x') {
+                if ($item.Status -eq 'Downloading') {
+                    & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                        State = $State
+                        Message = 'A download cannot be removed while it is running.'
+                        Level = 'Warning'
+                    }
+                    return
+                }
+                $State.Queue.Remove($item)
+                return
+            }
+            if ([string]$button.Content -eq 'Open folder') {
+                try {
+                    $folder = Split-Path -Path ([string]$item.SavedPath) -Parent
+                    if ([string]::IsNullOrWhiteSpace($folder) -or
+                        -not (Test-Path -LiteralPath $folder -PathType Container)) {
+                        throw 'The downloaded file folder is not available.'
+                    }
+                    Start-Process -FilePath $folder -ErrorAction Stop
+                }
+                catch {
+                    & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                        State = $State
+                        Message = "Could not open the download folder: $($_.Exception.Message)"
+                        Level = 'Error'
+                    }
+                }
+            }
+        }.GetNewClosure()
+    )
+    $startDownloads = {
         if ($null -ne $State.ActiveJobId -and $State.ActiveJobKind -eq 'Downloads') {
-            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $State
-                Message = 'Cannot clear the queue while a download is running.'
-                Level = 'Warning'
+            try {
+                $null = Stop-EwJob -Id $State.ActiveJobId -Confirm:$false -ErrorAction Stop
+                & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                    State = $State
+                    Message = 'Stopping queued downloads.'
+                }
+            }
+            catch {
+                & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                    State = $State
+                    Message = "Could not stop downloads: $($_.Exception.Message)"
+                    Level = 'Error'
+                }
             }
             return
         }
-        $count = $State.Queue.Count
-        $State.Queue.Clear()
-        $State.StartDownloadButton.IsEnabled = $false
-        & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-            State = $State
-            Message = "Cleared $count items from the download queue."
+        if ($null -ne $State.ActiveJobId) {
+            return
         }
-    }.GetNewClosure())
-    $State.StartDownloadButton.Add_Click({
         $items = @(
             foreach ($item in $State.Queue) {
                 if ($item.Status -eq 'Pending') {
@@ -412,7 +528,9 @@ function Initialize-EwWorkbenchView {
         if ($items.Count -eq 0) {
             return
         }
+        $State.DownloadTrayToggleButton.IsChecked = $true
         $State.DownloadQueueListView.Items.Refresh()
+        & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
         try {
             & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
                 State = $State
@@ -455,11 +573,23 @@ function Initialize-EwWorkbenchView {
                 $item.Status = 'Pending'
             }
             $State.DownloadQueueListView.Items.Refresh()
+            & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
                 Message = $_.Exception.Message
                 Level = 'Error'
             }
         }
+    }.GetNewClosure()
+    $State.DownloadTrayActionButton.Add_Click({
+        & $startDownloads
     }.GetNewClosure())
+    $State.DownloadNowButton.Add_Click({
+        $added = & $addSelectedArtifacts
+        if ($added -gt 0) {
+            $State.DownloadTrayToggleButton.IsChecked = $true
+            & $startDownloads
+        }
+    }.GetNewClosure())
+    & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
 }

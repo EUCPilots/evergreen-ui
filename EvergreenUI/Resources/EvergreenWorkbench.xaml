@@ -235,15 +235,27 @@
                     <StackPanel>
                         <RadioButton x:Name="NavApps"
                                      Style="{StaticResource NavigationButtonStyle}"
-                                     Content="Apps"
                                      Tag="&#xE71D;"
-                                     IsChecked="True"
-                                     AutomationProperties.Name="Apps view" />
-                        <RadioButton x:Name="NavDownload"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Content="Download"
-                                     Tag="&#xEBD3;"
-                                     AutomationProperties.Name="Download view" />
+                                     AutomationProperties.Name="Apps view"
+                                     IsChecked="True">
+                            <DockPanel LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        x:Name="AppsQueueCountBadge"
+                                        Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                        CornerRadius="8"
+                                        Padding="6,1"
+                                        Margin="8,0,0,0"
+                                        Visibility="Collapsed">
+                                    <TextBlock x:Name="AppsQueueCountText"
+                                               Text="0"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"
+                                               AutomationProperties.Name="Pending downloads" />
+                                </Border>
+                                <TextBlock Text="Apps" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </RadioButton>
                         <RadioButton x:Name="NavLibrary"
                                      Style="{StaticResource NavigationButtonStyle}"
                                      Content="Library"
@@ -324,73 +336,35 @@
                 <Grid x:Name="AppsPanel" Visibility="Visible">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Expander Grid.Row="0" Header="Evergreen maintenance" IsExpanded="False" Margin="0,0,0,12">
-                        <WrapPanel Margin="8">
-                            <Button x:Name="UpdateEvergreenButton" Content="Update Evergreen" Padding="14,5"
-                                    ToolTip="Refresh Evergreen application data, without installing or upgrading the module" />
-                            <Button x:Name="ClearWorkbenchCacheButton" Content="Clear Workbench cache" Margin="8,0,0,0" Padding="14,5"
-                                    ToolTip="Clear only Workbench catalog and definition-Artifact caches after confirmation" />
-                            <Button x:Name="OpenCacheFolderButton" Content="Open cache folder" Margin="8,0,0,0" Padding="14,5"
-                                    ToolTip="Create and open the Workbench cache folder" />
-                        </WrapPanel>
-                    </Expander>
-                    <WrapPanel Grid.Row="1" Margin="0,0,0,12" VerticalAlignment="Center">
-                        <Label Content="Search apps" Target="{Binding ElementName=AppSearchBox}"
-                               VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
-                        <TextBox x:Name="AppSearchBox"
-                                 Width="220"
-                                 Height="34"
-                                 VerticalContentAlignment="Center"
-                                 Margin="0,0,8,4"
-                                 ToolTip="Search the application catalog"
-                                 AutomationProperties.Name="Search applications" />
-                        <Button x:Name="RefreshAppsButton"
-                                Content="Refresh catalog"
-                                Margin="0,0,8,4"
-                                Padding="14,5"
-                                ToolTip="Refresh the Evergreen application catalog" />
-                        <TextBlock x:Name="AppCountLabel"
-                                   Text="0 applications"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,12,4" />
-                        <Button x:Name="FavoriteAppButton"
-                                Content="Add favourite"
-                                Padding="14,5"
-                                Margin="0,0,0,4"
-                                IsEnabled="False" />
-                    </WrapPanel>
-                    <Grid Grid.Row="2" Margin="0,0,0,12">
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Label x:Name="OutputPathLabel" Grid.Column="0" Content="Download location"
-                               Target="{Binding ElementName=OutputPathBox}"
-                               VerticalAlignment="Center" Padding="0" Margin="0,0,10,0" />
-                        <TextBox x:Name="OutputPathBox"
-                                 Grid.Column="1"
-                                 MinWidth="100"
-                                 Height="32"
+                        <TextBox x:Name="AppSearchBox"
+                                 MinWidth="220"
+                                 Height="34"
                                  VerticalContentAlignment="Center"
-                                 ToolTip="Folder used for downloaded Evergreen artifacts" />
-                        <Button x:Name="BrowseOutputPathButton"
+                                 Margin="0,0,12,0"
+                                 ToolTip="Search the application catalog"
+                                 AutomationProperties.Name="Search applications" />
+                        <TextBlock x:Name="AppCountLabel"
+                                   Grid.Column="1"
+                                   Text="0 applications"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,12,0" />
+                        <Button x:Name="EvergreenMenuButton"
                                 Grid.Column="2"
-                                Content="Browse"
-                                Margin="8,0,0,0"
-                                Padding="12,4" />
-                        <Button x:Name="SetOutputPathButton"
-                                Grid.Column="3"
-                                Content="Save path"
-                                Margin="8,0,0,0"
-                                Padding="12,4" />
+                                Content="Actions..."
+                                Padding="14,5"
+                                ToolTip="Refresh the catalog or manage Evergreen data and the Workbench cache" />
                     </Grid>
-                    <Grid Grid.Row="3">
+                    <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="220" MinWidth="160" />
                             <ColumnDefinition Width="8" />
@@ -410,9 +384,31 @@
                                 <DataGridTextColumn Header="Application"
                                                     Binding="{Binding FriendlyName}"
                                                     Width="*" />
-                                <DataGridCheckBoxColumn Header="Favourite"
-                                                        Binding="{Binding IsFavourite}"
-                                                        Width="78" />
+                                <DataGridTemplateColumn Header="Favourite" Width="72">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Tag="{Binding}"
+                                                    FontFamily="Segoe Fluent Icons"
+                                                    FontSize="16"
+                                                    Padding="4,0"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    ToolTip="Toggle favourite"
+                                                    AutomationProperties.Name="Toggle favourite">
+                                                <Button.Style>
+                                                    <Style TargetType="{x:Type Button}">
+                                                        <Setter Property="Content" Value="&#xE734;" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsFavourite}" Value="True">
+                                                                <Setter Property="Content" Value="&#xE735;" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                         <GridSplitter Grid.Column="1"
@@ -428,7 +424,6 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <TextBlock x:Name="SelectedAppText"
@@ -450,6 +445,12 @@
                                       CanUserAddRows="False"
                                       EnableRowVirtualization="True"
                                       AutomationProperties.Name="Available application artifacts">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Copy URI" />
+                                        <MenuItem Header="Open URI" />
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" />
                                     <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="110" />
@@ -462,92 +463,94 @@
                                 </DataGrid.Columns>
                             </DataGrid>
                             <Grid Grid.Row="3" Margin="0,8,0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Release" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                <TextBlock Grid.Column="1" Text="{Binding SelectedItem.Release, ElementName=ArtifactsGrid}" VerticalAlignment="Center" Margin="0,0,12,0" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="2" Text="Type" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                <TextBlock Grid.Column="3" Text="{Binding SelectedItem.Type, ElementName=ArtifactsGrid}" VerticalAlignment="Center" Margin="0,0,12,0" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="4" Text="Date" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                <TextBlock Grid.Column="5" Text="{Binding SelectedItem.Date, ElementName=ArtifactsGrid}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Language" VerticalAlignment="Center" Margin="0,4,6,0" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="5" Text="{Binding SelectedItem.Language, ElementName=ArtifactsGrid}" VerticalAlignment="Center" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
-                            </Grid>
-                            <Grid Grid.Row="4" Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="URI" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                <TextBox x:Name="ArtifactUriTextBox"
-                                         Grid.Column="1"
-                                         Text="{Binding SelectedItem.URI, ElementName=ArtifactsGrid}"
-                                         IsReadOnly="True"
-                                         VerticalContentAlignment="Center"
-                                         ToolTip="URI for the selected artifact"
-                                         AutomationProperties.Name="Selected artifact URI" />
                                 <TextBlock x:Name="ArtifactCountLabel"
-                                           Grid.Column="2"
                                            Text="0 artifacts"
                                            VerticalAlignment="Center"
-                                           Margin="12,0" />
+                                           Margin="0,0,12,0" />
                                 <Button x:Name="QueueDownloadButton"
-                                        Grid.Column="3"
-                                        Content="Add selected to download queue"
+                                        Grid.Column="1"
+                                        Content="Add to queue"
                                         Style="{DynamicResource AccentButtonStyle}"
                                         Padding="14,6"
                                         FontWeight="SemiBold"
                                         Margin="0"
                                         IsEnabled="False" />
+                                <Button x:Name="DownloadNowButton"
+                                        Grid.Column="2"
+                                        Content="Download now"
+                                        Margin="8,0,0,0"
+                                        Padding="14,6"
+                                        IsEnabled="False" />
                             </Grid>
                         </Grid>
                     </Grid>
-                </Grid>
-
-                <Grid x:Name="DownloadPanel" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button x:Name="RemoveQueuedDownloadButton"
-                                    Content="Remove selected"
-                                    Margin="0,0,8,0"
-                                    Padding="12,5" />
-                            <Button x:Name="ClearCompletedQueueButton"
-                                    Content="Clear completed"
-                                    Margin="0,0,8,0"
-                                    Padding="12,5"
-                                    AutomationProperties.HelpText="Remove downloaded and failed items from the queue" />
-                            <Button x:Name="ClearQueueButton"
-                                    Content="Clear queue"
-                                    Margin="0,0,8,0"
-                                    Padding="12,5"
-                                    AutomationProperties.HelpText="Remove every item from the queue" />
-                            <Button x:Name="StartDownloadButton"
-                                    Content="Download pending"
+                    <GridSplitter x:Name="DownloadTrayGridSplitter"
+                                  Grid.Row="2"
+                                  Height="6"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Center"
+                                  ResizeDirection="Rows"
+                                  ResizeBehavior="PreviousAndNext"
+                                  Background="Transparent"
+                                  Visibility="Collapsed"
+                                  ToolTip="Resize the download queue"
+                                  AutomationProperties.Name="Resize the download queue" />
+                    <Grid x:Name="DownloadTrayPanel"
+                          Grid.Row="3"
+                          Visibility="Collapsed"
+                          Margin="0,4,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ToggleButton x:Name="DownloadTrayToggleButton"
+                                          Content="Show queue"
+                                          Padding="8,5"
+                                          AutomationProperties.Name="Show or hide the download queue" />
+                            <TextBlock x:Name="DownloadDestinationText"
+                                       Grid.Column="1"
+                                       VerticalAlignment="Center"
+                                       Margin="12,0"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="Saved download folder" />
+                            <Button x:Name="ChangeDownloadPathButton"
+                                    Grid.Column="2"
+                                    Content="Change"
+                                    Padding="8,5"
+                                    Margin="0,0,8,0" />
+                            <Button x:Name="DownloadTrayActionButton"
+                                    Grid.Column="3"
+                                    Content="Download"
                                     Style="{DynamicResource AccentButtonStyle}"
                                     Padding="14,5"
                                     IsEnabled="False" />
-                        </StackPanel>
-                        <TextBlock Text="Queued downloads"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
-                    </DockPanel>
+                        </Grid>
+                        <Grid x:Name="DownloadTrayContent"
+                              Grid.Row="1"
+                              Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Button x:Name="ClearCompletedQueueButton"
+                                    Grid.Row="0"
+                                    Content="Clear completed"
+                                    HorizontalAlignment="Right"
+                                    Padding="8,3"
+                                    Margin="0,4,0,4"
+                                    AutomationProperties.HelpText="Remove downloaded and failed items from the queue" />
                     <DataGrid x:Name="DownloadQueueListView"
                               Grid.Row="1"
                               AutoGenerateColumns="False"
@@ -565,8 +568,40 @@
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
                             <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="3*" />
                             <DataGridTextColumn Header="Saved file" Binding="{Binding SavedPath}" Width="3*" />
+                            <DataGridTemplateColumn Header="Actions" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="x"
+                                                    Tag="{Binding}"
+                                                    Padding="8,1"
+                                                    ToolTip="Remove this queued download"
+                                                    AutomationProperties.Name="Remove queued download" />
+                                            <Button Content="Open folder"
+                                                    Tag="{Binding}"
+                                                    Padding="8,1"
+                                                    Margin="4,0,0,0"
+                                                    ToolTip="Open the folder containing this download"
+                                                    AutomationProperties.Name="Open downloaded file folder">
+                                                <Button.Style>
+                                                    <Style TargetType="{x:Type Button}">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Downloaded">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+                        </Grid>
+                    </Grid>
                 </Grid>
 
                 <Grid x:Name="LibraryPanel" Visibility="Collapsed">
@@ -1166,7 +1201,7 @@
                             <TextBlock Text="Saved folders"
                                        Style="{StaticResource SectionHeadingTextBlockStyle}"
                                        Margin="0,0,0,8" />
-                            <TextBlock Text="Change these paths in Apps or Library. The values shown here are saved settings."
+                            <TextBlock Text="Use Browse to change a saved folder. The Library view also has its own path controls."
                                        TextWrapping="Wrap"
                                        Opacity="0.75"
                                        Margin="0,0,0,16" />
@@ -1175,14 +1210,21 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBox x:Name="SettingsDownloadPathBox"
                                          IsReadOnly="True"
                                          Height="32"
                                          VerticalContentAlignment="Center"
                                          AutomationProperties.Name="Saved download folder" />
-                                <Button x:Name="OpenDownloadFolderButton"
+                                <Button x:Name="BrowseDownloadFolderButton"
                                         Grid.Column="1"
+                                        Content="Browse"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4"
+                                        AutomationProperties.Name="Browse for download folder" />
+                                <Button x:Name="OpenDownloadFolderButton"
+                                        Grid.Column="2"
                                         Content="Open folder"
                                         Margin="8,0,0,0"
                                         Padding="12,4"
@@ -1199,14 +1241,21 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBox x:Name="SettingsLibraryPathBox"
                                          IsReadOnly="True"
                                          Height="32"
                                          VerticalContentAlignment="Center"
                                          AutomationProperties.Name="Saved library folder" />
-                                <Button x:Name="OpenLibraryFolderButton"
+                                <Button x:Name="BrowseLibraryFolderButton"
                                         Grid.Column="1"
+                                        Content="Browse"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4"
+                                        AutomationProperties.Name="Browse for library folder" />
+                                <Button x:Name="OpenLibraryFolderButton"
+                                        Grid.Column="2"
                                         Content="Open folder"
                                         Margin="8,0,0,0"
                                         Padding="12,4"

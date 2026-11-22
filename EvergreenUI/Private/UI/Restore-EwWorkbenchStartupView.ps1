@@ -8,14 +8,19 @@ function Restore-EwWorkbenchStartupView {
         [System.Collections.IDictionary]$State
     )
 
-    $views = @('Apps', 'Download', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install', 'Settings', 'About')
+    $views = @('Apps', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install', 'Settings', 'About')
     $saved = if ($State.Settings.Contains('StartupView')) { [string]$State.Settings.StartupView } else { '' }
-    $view = $views | Where-Object { $_ -eq $saved } | Select-Object -First 1
+    $view = if ($saved -eq 'Download') {
+        'Apps'
+    }
+    else {
+        $views | Where-Object { $_ -eq $saved } | Select-Object -First 1
+    }
     if ($null -eq $view) {
         Write-Verbose -Message "EvergreenUI: Startup view '$saved' is not supported; opening Apps"
         $view = 'Apps'
     }
-    else {
+    elseif ($saved -ne 'Download') {
         Write-Verbose -Message "EvergreenUI: Restoring startup view $view"
     }
     $navigation = $State["Nav$view"]

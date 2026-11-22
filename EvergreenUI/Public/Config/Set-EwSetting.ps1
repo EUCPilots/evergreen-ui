@@ -8,10 +8,11 @@ function Set-EwSetting {
     .DESCRIPTION
         Writes a supported setting to the v2 settings file. Secrets are never
         stored. Use Add-EwFavouriteApp and Remove-EwFavouriteApp to change
-        FavouriteApps. StartupView, LastAppName, WindowWidth, WindowHeight and
-        WindowMaximized hold UI state that Start-EvergreenWorkbench saves and
+        FavouriteApps. StartupView, LastAppName, WindowWidth, WindowHeight,
+        DownloadTrayHeight and WindowMaximized hold UI state that Start-EvergreenWorkbench saves and
         restores; StartupView must name a Workbench view, window sizes must be
-        positive whole numbers and WindowMaximized must be True or False.
+        positive whole numbers, DownloadTrayHeight must be between 120 and 600,
+        and WindowMaximized must be True or False.
     .PARAMETER Name
         The setting to change.
     .PARAMETER Value
@@ -32,7 +33,7 @@ function Set-EwSetting {
             'NerdioDefinitionsPath', 'NerdioTenantId', 'NmeHost', 'NmeClientId', 'NmeApiScope',
             'NmeOAuthTokenUrl', 'NmeSubscriptionId', 'NmeResourceGroup', 'NmeStorageAccount', 'NmeContainer',
             'M365DefinitionsPath', 'M365Channel', 'M365CompanyName', 'M365ImportFor',
-            'StartupView', 'LastAppName', 'WindowWidth', 'WindowHeight', 'WindowMaximized'
+            'StartupView', 'LastAppName', 'WindowWidth', 'WindowHeight', 'DownloadTrayHeight', 'WindowMaximized'
         )]
         [string]$Name,
 
@@ -47,7 +48,7 @@ function Set-EwSetting {
     if ($Name -eq 'M365ImportFor' -and $Value -notin @('Single session', 'Multi-session')) {
         throw "M365ImportFor must be 'Single session' or 'Multi-session'."
     }
-    $views = @('Apps', 'Download', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install', 'Settings', 'About')
+    $views = @('Apps', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install', 'Settings', 'About')
     [object]$storedValue = $Value
     switch ($Name) {
         'StartupView' {
@@ -57,9 +58,15 @@ function Set-EwSetting {
             }
             $storedValue = [string]$match
         }
-        { $_ -in @('WindowWidth', 'WindowHeight') } {
+        { $_ -in @('WindowWidth', 'WindowHeight', 'DownloadTrayHeight') } {
             $size = 0
-            if (-not [int]::TryParse($Value, [System.Globalization.NumberStyles]::Integer, [cultureinfo]::InvariantCulture, [ref]$size) -or $size -le 0) {
+            if (-not [int]::TryParse($Value, [System.Globalization.NumberStyles]::Integer, [cultureinfo]::InvariantCulture, [ref]$size)) {
+                throw "$Name must be a whole number."
+            }
+            if ($Name -eq 'DownloadTrayHeight' -and ($size -lt 120 -or $size -gt 600)) {
+                throw 'DownloadTrayHeight must be between 120 and 600.'
+            }
+            if ($Name -in @('WindowWidth', 'WindowHeight') -and $size -le 0) {
                 throw "$Name must be a positive whole number."
             }
             $storedValue = $size

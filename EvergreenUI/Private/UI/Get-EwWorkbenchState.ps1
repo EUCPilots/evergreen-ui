@@ -51,17 +51,24 @@ function Get-EwWorkbenchState {
             ArtifactFiltersPanel = $Window.FindName('ArtifactFiltersPanel')
             ArtifactCountLabel = $Window.FindName('ArtifactCountLabel')
             AppsListView = $Window.FindName('AppsListView')
+            AppsQueueCountBadge = $Window.FindName('AppsQueueCountBadge')
+            AppsQueueCountText = $Window.FindName('AppsQueueCountText')
             AppSearchBox = $Window.FindName('AppSearchBox')
             AppCountLabel = $Window.FindName('AppCountLabel')
             ArtifactsGrid = $Window.FindName('ArtifactsGrid')
             ActivityLog = $Window.FindName('ActivityLog')
             BrowseLibraryPathButton = $Window.FindName('BrowseLibraryPathButton')
-            BrowseOutputPathButton = $Window.FindName('BrowseOutputPathButton')
-            ClearQueueButton = $Window.FindName('ClearQueueButton')
+            EvergreenMenuButton = $Window.FindName('EvergreenMenuButton')
             ClearCompletedQueueButton = $Window.FindName('ClearCompletedQueueButton')
-            DownloadPanel = $Window.FindName('DownloadPanel')
             DownloadQueueListView = $Window.FindName('DownloadQueueListView')
-            FavoriteAppButton = $Window.FindName('FavoriteAppButton')
+            DownloadTrayToggleButton = $Window.FindName('DownloadTrayToggleButton')
+            DownloadTrayContent = $Window.FindName('DownloadTrayContent')
+            DownloadTrayGridSplitter = $Window.FindName('DownloadTrayGridSplitter')
+            DownloadTrayPanel = $Window.FindName('DownloadTrayPanel')
+            DownloadTrayActionButton = $Window.FindName('DownloadTrayActionButton')
+            DownloadDestinationText = $Window.FindName('DownloadDestinationText')
+            ChangeDownloadPathButton = $Window.FindName('ChangeDownloadPathButton')
+            AppsPanel = $Window.FindName('AppsPanel')
             JobProgressBar = $Window.FindName('JobProgressBar')
             LibraryListView = $Window.FindName('LibraryListView')
             LibraryPanel = $Window.FindName('LibraryPanel')
@@ -70,7 +77,6 @@ function Get-EwWorkbenchState {
             LibraryVersionsListView = $Window.FindName('LibraryVersionsListView')
             LoadLibraryButton = $Window.FindName('LoadLibraryButton')
             NavApps = $Window.FindName('NavApps')
-            NavDownload = $Window.FindName('NavDownload')
             NavLibrary = $Window.FindName('NavLibrary')
             NavPackages = $Window.FindName('NavPackages')
             NavIntune = $Window.FindName('NavIntune')
@@ -78,7 +84,6 @@ function Get-EwWorkbenchState {
             NavInstall = $Window.FindName('NavInstall')
             NavSettings = $Window.FindName('NavSettings')
             NavAbout = $Window.FindName('NavAbout')
-            OutputPathBox = $Window.FindName('OutputPathBox')
             PackagesPanel = $Window.FindName('PackagesPanel')
             IntunePanel = $Window.FindName('IntunePanel')
             NerdioPanel = $Window.FindName('NerdioPanel')
@@ -114,18 +119,14 @@ function Get-EwWorkbenchState {
             ResolveInstallVersionsButton = $Window.FindName('ResolveInstallVersionsButton')
             InstallSelectedPackagesButton = $Window.FindName('InstallSelectedPackagesButton')
             QueueDownloadButton = $Window.FindName('QueueDownloadButton')
-            RefreshAppsButton = $Window.FindName('RefreshAppsButton')
-            RemoveQueuedDownloadButton = $Window.FindName('RemoveQueuedDownloadButton')
+            DownloadNowButton = $Window.FindName('DownloadNowButton')
             SetLibraryPathButton = $Window.FindName('SetLibraryPathButton')
-            SetOutputPathButton = $Window.FindName('SetOutputPathButton')
             SelectedAppText = $Window.FindName('SelectedAppText')
-            StartDownloadButton = $Window.FindName('StartDownloadButton')
             StatusLabel = $Window.FindName('StatusLabel')
             SubtitleTextBlock = $Window.FindName('SubtitleTextBlock')
             ThemeCombo = $Window.FindName('ThemeCombo')
             UpdateLibraryButton = $Window.FindName('UpdateLibraryButton')
             ViewTitleText = $Window.FindName('ViewTitleText')
-            AppsPanel = $Window.FindName('AppsPanel')
         })
     foreach ($name in @(
             'NerdioTenantIdBox', 'NmeSubscriptionIdBox', 'UseNerdioDeviceCodeToggle',
@@ -154,7 +155,8 @@ function Get-EwWorkbenchState {
         $state[$name] = $Window.FindName($name)
     }
     foreach ($name in @(
-            'SettingsDownloadPathBox', 'SettingsLibraryPathBox', 'OpenDownloadFolderButton',
+            'SettingsDownloadPathBox', 'SettingsLibraryPathBox', 'BrowseDownloadFolderButton',
+            'BrowseLibraryFolderButton', 'OpenDownloadFolderButton',
             'OpenLibraryFolderButton', 'DownloadFolderStatusLabel', 'LibraryFolderStatusLabel',
             'AboutNameValue', 'AboutVersionValue', 'AboutAuthorValue', 'AboutCompanyValue',
             'AboutCopyrightValue', 'AboutDescriptionValue', 'AboutProjectLink', 'AboutLicenseLink',

@@ -153,5 +153,5 @@ function Invoke-EwWorkbenchArtifactList {
     $State.ArtifactsGrid.ItemsSource = [object[]]$filtered
     $State.ArtifactCountLabel.Text = "Showing $($filtered.Count) of $($State.AllArtifacts.Count) artifacts"
     if ($State.AppsDisplayStale) { $State.ArtifactCountLabel.Text = "STALE: $($State.ArtifactCountLabel.Text)" }
-    $State.QueueDownloadButton.IsEnabled = $State.ArtifactsGrid.SelectedItems.Count -gt 0 -and $null -eq $State.ActiveJobId
+    Show-EwWorkbenchDownloadTray -State $State
 }

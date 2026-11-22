@@ -7,8 +7,13 @@ function Invoke-EwWorkbenchSettingsRefresh {
 
     try {
         $settings = Get-EwSetting -ErrorAction Stop
+        $State.Settings.OutputPath = [string]$settings.OutputPath
+        $State.Settings.LibraryPath = [string]$settings.LibraryPath
         $State.SettingsDownloadPathBox.Text = [string]$settings.OutputPath
         $State.SettingsLibraryPathBox.Text = [string]$settings.LibraryPath
+        $State.DownloadDestinationText.Text = [string]$settings.OutputPath
+        $State.DownloadDestinationText.ToolTip = [string]$settings.OutputPath
+        $State.LibraryPathBox.Text = [string]$settings.LibraryPath
         foreach ($kind in 'Download', 'Library') {
             Invoke-EwWorkbenchFolderCheck -State $State -Kind $kind
         }

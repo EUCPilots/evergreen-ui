@@ -15,13 +15,13 @@ function Invoke-EwWorkbenchBusyState {
             $State.RefreshAppsButton,
             $State.UpdateEvergreenButton,
             $State.ClearWorkbenchCacheButton,
-            $State.FavoriteAppButton,
             $State.QueueDownloadButton,
-            $State.BrowseOutputPathButton,
-            $State.SetOutputPathButton,
-            $State.RemoveQueuedDownloadButton,
+            $State.DownloadNowButton,
+            $State.EvergreenMenuButton,
+            $State.ChangeDownloadPathButton,
+            $State.BrowseDownloadFolderButton,
+            $State.BrowseLibraryFolderButton,
             $State.ClearCompletedQueueButton,
-            $State.StartDownloadButton,
             $State.BrowseLibraryPathButton,
             $State.SetLibraryPathButton,
             $State.LoadLibraryButton,
@@ -45,9 +45,6 @@ function Invoke-EwWorkbenchBusyState {
             $button.IsEnabled = -not $IsBusy
         }
     }
-    if ($null -ne $State.ClearQueueButton) {
-        $State.ClearQueueButton.IsEnabled = -not ($IsBusy -and $State.ActiveJobKind -eq 'Downloads')
-    }
     $State.AppsListView.IsEnabled = -not $IsBusy
     $maintenanceBusy = $IsBusy -and $State.ActiveJobKind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')
     $State.AppSearchBox.IsEnabled = -not $maintenanceBusy
@@ -67,9 +64,6 @@ function Invoke-EwWorkbenchBusyState {
     if (-not $IsBusy) {
         $State.JobProgressBar.IsIndeterminate = $false
         $State.JobProgressBar.Value = 0
-        $State.FavoriteAppButton.IsEnabled = $null -ne $State.AppsListView.SelectedItem
-        $State.QueueDownloadButton.IsEnabled = $State.ArtifactsGrid.SelectedItems.Count -gt 0
-        $State.StartDownloadButton.IsEnabled = @($State.Queue | Where-Object Status -eq 'Pending').Count -gt 0
         $State.LoadPackageDefinitionsButton.IsEnabled = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text)
         $State.UpdatePackageDefinitionsButton.IsEnabled = @($State.PackageDefinitions | Where-Object Status -eq 'Valid').Count -gt 0
         $validInstallDefinitions = @($State.InstallDefinitions | Where-Object DefinitionValid -eq 'Yes')
@@ -85,6 +79,7 @@ function Invoke-EwWorkbenchBusyState {
         $State.RetryIntuneSupersedenceButton.IsEnabled = $connected -and $null -ne $selectedResult -and
             $selectedResult.Status -eq 'Supersedence failed' -and $selectedResult.TenantId -eq $State.IntuneTenantId
     }
+    Show-EwWorkbenchDownloadTray -State $State
     Invoke-EwWorkbenchNerdioBusyState -State $State
     Invoke-EwWorkbenchM365BusyState -State $State
 }

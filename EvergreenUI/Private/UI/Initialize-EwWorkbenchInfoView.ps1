@@ -31,6 +31,31 @@ function Initialize-EwWorkbenchInfoView {
                 OpenAfterCheck = $true
             }
         }.GetNewClosure())
+
+        $browseButton = $State["Browse${kind}FolderButton"]
+        $browseButton.Add_Click({
+            $pathBox = $State["Settings${kind}PathBox"]
+            $dialog = [Microsoft.Win32.OpenFolderDialog]::new()
+            $dialog.Title = "Select the $($kind.ToLowerInvariant()) folder"
+            if (-not [string]::IsNullOrWhiteSpace($pathBox.Text) -and
+                (Test-Path -LiteralPath $pathBox.Text -PathType Container)) {
+                $dialog.InitialDirectory = $pathBox.Text
+            }
+            if (-not $dialog.ShowDialog($State.Window)) {
+                return
+            }
+            try {
+                Set-EwWorkbenchFolderPath -State $State -Kind $kind -Path $dialog.FolderName -Confirm:$false
+            }
+            catch {
+                $message = "Could not save $($kind.ToLowerInvariant()) folder: $($_.Exception.Message)"
+                & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                    State = $State
+                    Message = $message
+                    Level = 'Error'
+                }
+            }
+        }.GetNewClosure())
     }
     $State.RefreshAboutDependenciesButton.Add_Click({
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchAboutRefresh' -Parameters @{ State = $State }
