@@ -10,6 +10,21 @@ function Initialize-EwWorkbenchInstallView {
 
     $State.InstallDefinitions = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
     $State.InstallDefinitionsListView.ItemsSource = $State.InstallDefinitions
+    $State.InstallBatchActive = $false
+    $State.InstallPromptActive = $false
+    $State.InstallReviewQueue = [System.Collections.ArrayList]::new()
+    $State.InstallApprovedItems = @()
+    $State.InstallActiveItems = @()
+    $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($State.InstallDefinitions)
+    $view.Filter = [System.Predicate[object]]({
+        param($item)
+        return -not $State.HideIncompatibleInstallToggle.IsChecked -or
+            $null -eq $item.PSObject.Properties['ArchitectureAssessment'] -or
+            $item.ArchitectureAssessment -ne 'Blocked'
+    }.GetNewClosure())
+    $refreshInstallView = { $view.Refresh() }.GetNewClosure()
+    $State.HideIncompatibleInstallToggle.Add_Checked($refreshInstallView)
+    $State.HideIncompatibleInstallToggle.Add_Unchecked($refreshInstallView)
     $State.InstallSelectedPackagesButton.IsEnabled = $false
     $State.ResolveInstallVersionsButton.IsEnabled = $false
     $State.InstallDefinitionsListView.Add_SelectionChanged({
@@ -35,6 +50,7 @@ function Initialize-EwWorkbenchInstallView {
                 Name = 'Check local package definitions'
                 ScriptBlock = {
                     param($DefinitionPath)
+                    $module = Get-Module -Name EvergreenUI | Select-Object -First 1
                     foreach ($definition in Get-EwDefinition -Path $DefinitionPath) {
                         $detection = if ($definition.Status -eq 'Valid') {
                             Test-EwDetection -DefinitionPath $definition.DefinitionPath
@@ -48,34 +64,41 @@ function Initialize-EwWorkbenchInstallView {
                                 Error = $definition.Error
                             }
                         }
-                        $architecture = ''
-                        $requirementRuleProperty = if ($null -ne $definition.DefinitionObject) {
-                            $definition.DefinitionObject.PSObject.Properties['RequirementRule']
+                        $architecture = if ($definition.Status -eq 'Valid') {
+                            & $module {
+                                param($DefinitionObject)
+                                Get-EwInstallArchitectureCompatibility -DefinitionObject $DefinitionObject
+                            } $definition.DefinitionObject
                         }
-                        if ($null -ne $requirementRuleProperty -and $null -ne $requirementRuleProperty.Value) {
-                            $architecture = [string](Get-EwObjectPropertyValue -Object $requirementRuleProperty.Value -Name Architecture -Default '')
-                        }
-                        $applicationProperty = if ($null -ne $definition.DefinitionObject) {
-                            $definition.DefinitionObject.PSObject.Properties['Application']
-                        }
-                        if ([string]::IsNullOrWhiteSpace($architecture) -and
-                            $null -ne $applicationProperty -and
-                            $null -ne $applicationProperty.Value) {
-                            $architecture = [string](Get-EwObjectPropertyValue -Object $applicationProperty.Value -Name Architecture -Default '')
-                        }
+                        else { $null }
                         [PSCustomObject]@{
                             Name = $definition.Name
                             Publisher = $definition.Publisher
-                            Architecture = $architecture
+                            RequirementArchitecture = if ($null -eq $architecture) { 'Unavailable' }
+                                elseif ([string]::IsNullOrWhiteSpace($architecture.RequirementArchitecture)) { 'Missing' }
+                                else { $architecture.RequirementArchitecture }
+                            ArtifactArchitecture = 'Not checked'
+                            ArchitectureAssessment = if ($null -ne $architecture) { $architecture.Status } else { 'Unavailable' }
+                            ArchitectureStatus = if ($null -eq $architecture) { 'Unavailable' }
+                                elseif ($architecture.Status -eq 'Blocked') { 'Blocked' }
+                                elseif ($architecture.Status -eq 'NeedsApproval') { 'Approval may be required' }
+                                else { 'Artifact not checked' }
+                            ArchitectureError = if ($null -eq $architecture) { '' }
+                                elseif ($architecture.Status -eq 'Blocked') { $architecture.Error }
+                                else { $architecture.Warnings -join ' ' }
                             Version = $definition.Version
                             DefinitionPath = $definition.DefinitionPath
                             DefinitionValid = $definition.DefinitionValid
                             IsInstalled = [bool]$detection.Installed
                             InstalledVersion = [string]$detection.DetectedVersion
                             LatestVersion = ''
-                            InstallStatus = if ($definition.Status -eq 'Valid') { [string]$detection.Status } else { "Invalid definition: $($definition.Status)" }
-                            InstallAction = if ($definition.Status -eq 'Valid') { 'Find latest' } else { 'Unavailable' }
-                            Error = [string]$detection.Error
+                            InstallStatus = if ($definition.Status -ne 'Valid') { "Invalid definition: $($definition.Status)" }
+                                elseif ($architecture.Status -eq 'Blocked') { 'Architecture blocked' }
+                                else { [string]$detection.Status }
+                            InstallAction = if ($definition.Status -ne 'Valid' -or
+                                $architecture.Status -eq 'Blocked') { 'Unavailable' } else { 'Find latest' }
+                            Error = if ($null -ne $architecture -and $architecture.Status -eq 'Blocked') { $architecture.Error }
+                                else { [string]$detection.Error }
                         }
                     }
                 }
@@ -104,8 +127,38 @@ function Initialize-EwWorkbenchInstallView {
                 Name = 'Find latest package versions'
                 ScriptBlock = {
                     param([object[]]$Definitions)
+                    $module = Get-Module -Name EvergreenUI | Select-Object -First 1
                     foreach ($definition in $Definitions) {
-                        $result = Resolve-EwArtifact -DefinitionPath $definition.DefinitionPath
+                        $architecture = $null
+                        try {
+                            $definitionHash = & $module {
+                                param($Path)
+                                Get-EwDefinitionFileHash -DefinitionPath $Path -ErrorAction Stop
+                            } $definition.DefinitionPath
+                            $result = Resolve-EwArtifact -DefinitionPath $definition.DefinitionPath -ErrorAction Stop
+                            if ($result.Succeeded) {
+                                $definitionObject = Get-Content -LiteralPath $definition.DefinitionPath -Raw -ErrorAction Stop |
+                                    ConvertFrom-Json -ErrorAction Stop
+                                $currentHash = & $module {
+                                    param($Path)
+                                    Get-EwDefinitionFileHash -DefinitionPath $Path -ErrorAction Stop
+                                } $definition.DefinitionPath
+                                if ($currentHash -ne $definitionHash) {
+                                    throw 'Definition changed during latest-version lookup. Reload and retry.'
+                                }
+                                $architecture = & $module {
+                                    param($DefinitionObject, $Artifact)
+                                    Get-EwInstallArchitectureCompatibility -DefinitionObject $DefinitionObject -Artifact $Artifact
+                                } $definitionObject $result.ResolvedArtifact
+                            }
+                        }
+                        catch {
+                            $result = [PSCustomObject]@{
+                                Succeeded = $false
+                                Version = ''
+                                Error = "Could not find and assess the latest Artifact: $($_.Exception.Message)"
+                            }
+                        }
                         $installedVersion = [version]::new(0, 0)
                         $isCurrent = $false
                         $latestVersion = [version]::new(0, 0)
@@ -126,6 +179,7 @@ function Initialize-EwWorkbenchInstallView {
                             IsCurrent = $isCurrent
                             IsInstalled = [bool]$definition.IsInstalled
                             VersionsComparable = $versionsComparable
+                            Compatibility = $architecture
                             Error = [string]$result.Error
                         }
                     }
@@ -162,51 +216,30 @@ function Initialize-EwWorkbenchInstallView {
         if (-not $confirmed) {
             return
         }
-        $paths = [string[]]@($definitions | ForEach-Object { [string]$_.DefinitionPath })
-        $workingPath = [string]$State.Settings.OutputPath
-        $argumentList = [object[]]::new(2)
-        $argumentList[0] = $paths
-        $argumentList[1] = $workingPath
+        $State.InstallReviewQueue.Clear()
+        foreach ($definition in $definitions) {
+            $null = $State.InstallReviewQueue.Add([PSCustomObject]@{
+                Name = [string]$definition.Name
+                DefinitionPath = [string]$definition.DefinitionPath
+                Reconfirmations = 0
+            })
+        }
+        $State.InstallApprovedItems = @()
+        $State.InstallBatchCounts = @{ Installed = 0; Failed = 0; Blocked = 0; Skipped = 0; Unknown = 0 }
+        $State.InstallBatchWorkingPath = [string]$State.Settings.OutputPath
+        $State.InstallBatchActive = $true
         try {
-            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallAction' -Parameters @{
                 State = $State
-                Kind = 'InstallPackages'
-                Name = 'Install selected applications'
-                ScriptBlock = {
-                    param([string[]]$DefinitionPaths, [string]$WorkingPath)
-                    foreach ($definitionPath in $DefinitionPaths) {
-                        $definition = $null
-                        try {
-                            $definition = Get-EwDefinition -Path $definitionPath | Select-Object -First 1
-                            $result = Install-EwPackage -DefinitionPath $definitionPath -WorkingPath $WorkingPath -Confirm:$false
-                            [PSCustomObject]@{
-                                Name = if ($null -ne $definition) { [string]$definition.Name } else { [System.IO.Path]::GetFileName((Split-Path -Path $definitionPath -Parent)) }
-                                DefinitionPath = $definitionPath
-                                Succeeded = [bool]$result.Succeeded
-                                DownloadedVersion = [string]$result.DownloadedVersion
-                                ExitCode = [int]$result.ExitCode
-                                Error = [string]$result.Error
-                            }
-                        }
-                        catch {
-                            [PSCustomObject]@{
-                                Name = if ($null -ne $definition) { [string]$definition.Name } else { [System.IO.Path]::GetFileName((Split-Path -Path $definitionPath -Parent)) }
-                                DefinitionPath = $definitionPath
-                                Succeeded = $false
-                                DownloadedVersion = ''
-                                ExitCode = -1
-                                Error = $_.Exception.Message
-                            }
-                        }
-                    }
-                }
-                ArgumentList = $argumentList
+                Action = 'Review'
             }
         }
         catch {
+            $State.InstallBatchActive = $false
+            $State.InstallActionStatusLabel.Text = 'Could not start the installation review.'
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
-                Message = "Could not start selected installations: $($_.Exception.Message)"
+                Message = "Could not start the installation review: $($_.Exception.Message)"
                 Level = 'Error'
             }
         }

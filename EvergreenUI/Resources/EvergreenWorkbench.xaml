@@ -818,6 +818,11 @@
                                    Text="Reload definitions to check local installation status."
                                    VerticalAlignment="Center"
                                    Opacity="0.75" />
+                        <CheckBox x:Name="HideIncompatibleInstallToggle"
+                                  Content="Hide incompatible"
+                                  Margin="18,0,0,0"
+                                  VerticalAlignment="Center"
+                                  IsChecked="False" />
                     </DockPanel>
                     <DataGrid x:Name="InstallDefinitionsListView"
                               Grid.Row="1"
@@ -831,7 +836,16 @@
                               AutomationProperties.Name="Local install definitions">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" />
-                            <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="120" />
+                            <DataGridTextColumn Header="Required architecture" Binding="{Binding RequirementArchitecture}" Width="130" />
+                            <DataGridTextColumn Header="Artifact architecture" Binding="{Binding ArtifactArchitecture}" Width="130" />
+                            <DataGridTextColumn Header="Architecture status" Binding="{Binding ArchitectureStatus}" Width="150">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="ToolTip" Value="{Binding ArchitectureError}" />
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" />
                             <DataGridTextColumn Header="Installed" Binding="{Binding InstalledVersion}" Width="120" />
                             <DataGridTextColumn Header="Latest" Binding="{Binding LatestVersion}" Width="120" />

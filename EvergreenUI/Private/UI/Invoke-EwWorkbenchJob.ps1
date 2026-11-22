@@ -18,6 +18,7 @@ function Invoke-EwWorkbenchJob {
             'DefinitionUpdate',
             'InstallDefinitions',
             'InstallVersions',
+            'InstallReview',
             'InstallPackages',
             'IntuneConnect',
             'IntuneDisconnect',

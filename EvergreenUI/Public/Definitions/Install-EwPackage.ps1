@@ -16,12 +16,18 @@ function Install-EwPackage {
         Optional artifact-resolution cache directory.
     .PARAMETER NoCache
         Forces a fresh Evergreen artifact query.
+    .PARAMETER AllowMissingArchitectureRequirement
+        Explicitly approves installation when the Definition has no architecture requirement.
+    .PARAMETER AllowX64OnArm64
+        Explicitly approves x64 emulation on Arm64.
     .EXAMPLE
         Install-EwPackage -DefinitionPath .\Definitions\Example\App.json -WhatIf
     .OUTPUTS
         System.Management.Automation.PSCustomObject
     .NOTES
-        Supports WhatIf and Confirm. Installer commands execute with the current user's permissions.
+        Supports WhatIf and Confirm. Architecture warnings require separate
+        approval even when Confirm is disabled. Installer commands execute with
+        the current user's permissions.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([PSCustomObject])]
@@ -37,25 +43,49 @@ function Install-EwPackage {
         [string]$CachePath,
 
         [Parameter()]
-        [switch]$NoCache
+        [switch]$NoCache,
+
+        [Parameter()]
+        [switch]$AllowMissingArchitectureRequirement,
+
+        [Parameter()]
+        [switch]$AllowX64OnArm64,
+
+        [Parameter(DontShow)]
+        [ValidatePattern('^[0-9A-Fa-f]{64}$')]
+        [string]$ExpectedReviewFingerprint,
+
+        [Parameter(DontShow)]
+        [switch]$RequireArchitectureOptIn
     )
 
     $fail = {
-        param([string]$Message, [string]$Directory = '', [string]$Version = '')
+        param(
+            [string]$Message,
+            [string]$Directory = '',
+            [string]$Version = '',
+            [string]$Status = 'Failed',
+            [bool]$ReviewChanged = $false
+        )
+        Write-Verbose -Message "EvergreenUI: Local installation returned ${Status}: $Message"
         [PSCustomObject]@{
             Succeeded         = $false
+            Status            = $Status
             ExitCode          = -1
             WorkingDirectory  = $Directory
             DownloadedVersion = $Version
             InstallCommand    = ''
+            ReviewChanged     = $ReviewChanged
             Error             = $Message
         }
     }
 
+    Write-Verbose -Message "EvergreenUI: Preparing local installation from '$DefinitionPath'."
     if (-not (Test-Path -LiteralPath $DefinitionPath -PathType Leaf)) {
         return (& $fail "Definition file was not found: $DefinitionPath")
     }
     try {
+        $initialDefinitionHash = Get-EwDefinitionFileHash -DefinitionPath $DefinitionPath -ErrorAction Stop
         $definition = Get-Content -LiteralPath $DefinitionPath -Raw -ErrorAction Stop |
             ConvertFrom-Json -ErrorAction Stop
     }
@@ -82,16 +112,55 @@ function Install-EwPackage {
         return
     }
 
-    $resolveParameters = @{ DefinitionPath = $DefinitionPath; NoCache = $NoCache }
+    $reviewParameters = @{ DefinitionPath = $DefinitionPath; NoCache = $NoCache }
     if (-not [string]::IsNullOrWhiteSpace($CachePath)) {
-        $resolveParameters.CachePath = $CachePath
+        $reviewParameters.CachePath = $CachePath
     }
-    $latest = Resolve-EwArtifact @resolveParameters
-    if (-not $latest.Succeeded) {
-        return (& $fail "Artifact resolution failed: $($latest.Error)" $sourcePath)
+    $review = Get-EwInstallReview @reviewParameters
+    if ($review.Status -eq 'Changed') {
+        return (& $fail $review.Error $sourcePath '' 'Skipped' $true)
+    }
+    if ($review.Status -in @('Failed', 'Blocked')) {
+        return (& $fail $review.Error $sourcePath '' $review.Status)
+    }
+    if ($initialDefinitionHash -ne $review.DefinitionHash -or
+        (-not [string]::IsNullOrWhiteSpace($ExpectedReviewFingerprint) -and
+            $ExpectedReviewFingerprint -ne $review.Fingerprint)) {
+        return (& $fail 'Definition or Artifact metadata changed after review.' $sourcePath '' 'Skipped' $true)
+    }
+
+    $definition = $review.Definition
+    $latest = $review.Latest
+    $warnings = @(
+        if ($review.Compatibility.RequiresMissingRequirementApproval -and -not $AllowMissingArchitectureRequirement) {
+            $review.Compatibility.MissingRequirementWarning
+        }
+        if ($review.Compatibility.RequiresX64OnArm64Approval -and -not $AllowX64OnArm64) {
+            $review.Compatibility.X64OnArm64Warning
+        }
+    )
+    if ($warnings.Count -gt 0) {
+        if ($RequireArchitectureOptIn) {
+            throw 'Architecture approval is required; specify the matching explicit opt-in before installing.'
+        }
+        if (-not (Confirm-EwInstallArchitecture -Command $PSCmdlet -Name ([string]$definition.Information.DisplayName) `
+                    -Warning $warnings -ErrorAction Stop)) {
+            return (& $fail 'Architecture approval was declined.' $sourcePath '' 'Skipped')
+        }
     }
 
     try {
+        $currentDefinitionHash = Get-EwDefinitionFileHash -DefinitionPath $DefinitionPath -ErrorAction Stop
+    }
+    catch {
+        return (& $fail "Could not recheck definition: $($_.Exception.Message)" $sourcePath)
+    }
+    if ($currentDefinitionHash -ne $review.DefinitionHash) {
+        return (& $fail 'Definition changed after architecture review.' $sourcePath '' 'Skipped' $true)
+    }
+
+    try {
+        Write-Verbose -Message "EvergreenUI: Staging and downloading the installer for '$DefinitionPath'."
         $null = New-Item -Path $sourcePath -ItemType Directory -Force -ErrorAction Stop
         $definitionSource = Join-Path -Path (Split-Path -Path $DefinitionPath -Parent) -ChildPath 'Source'
         if (Test-Path -LiteralPath $definitionSource -PathType Container) {
@@ -129,17 +198,23 @@ function Install-EwPackage {
             throw 'No Install.ps1 or Program.InstallCommand was found.'
         }
 
+        if ((Get-EwDefinitionFileHash -DefinitionPath $DefinitionPath -ErrorAction Stop) -ne $review.DefinitionHash) {
+            return (& $fail 'Definition changed before installation.' $sourcePath $latest.Version 'Skipped' $true)
+        }
         $processResult = Invoke-EwInstallerProcess -WorkingDirectory $sourcePath -ScriptPath $scriptPath -Command $installCommand
         $exitCode = [int]$processResult.ExitCode
         if ($exitCode -notin @(0, 3010)) {
             return (& $fail "Installer exited with code $exitCode." $sourcePath $latest.Version)
         }
+        Write-Verbose -Message "EvergreenUI: Installed '$DefinitionPath' at version '$($latest.Version)' with exit code $exitCode."
         [PSCustomObject]@{
             Succeeded         = $true
+            Status            = 'Installed'
             ExitCode          = $exitCode
             WorkingDirectory  = $sourcePath
             DownloadedVersion = $latest.Version
             InstallCommand    = if (-not [string]::IsNullOrWhiteSpace($scriptPath)) { $scriptPath } else { $installCommand }
+            ReviewChanged     = $false
             Error             = ''
         }
     }

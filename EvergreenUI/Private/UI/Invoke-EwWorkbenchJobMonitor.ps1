@@ -8,6 +8,9 @@ function Invoke-EwWorkbenchJobMonitor {
         [System.Collections.IDictionary]$State
     )
 
+    if ($State.InstallPromptActive) {
+        return
+    }
     Invoke-EwWorkbenchInfoJobMonitor -State $State
     if ($null -eq $State.ActiveJobId) {
         return
@@ -19,6 +22,10 @@ function Invoke-EwWorkbenchJobMonitor {
         Write-EwWorkbenchLog -State $State -Message "Could not read the active job: $($_.Exception.Message)" -Level Error
         if ($State.ActiveJobKind -in @('NerdioPublish', 'M365')) {
             return
+        }
+        if ($State.ActiveJobKind -in @('InstallReview', 'InstallPackages') -and $State.InstallBatchActive) {
+            $unavailableJob = [PSCustomObject]@{ State = 'Unknown'; TerminatingError = $null; Output = @() }
+            $null = Invoke-EwWorkbenchInstallJobResult -State $State -Kind $State.ActiveJobKind -Job $unavailableJob
         }
         $State.ActiveJobId = $null
         $State.ActiveJobKind = ''
@@ -183,6 +190,18 @@ function Invoke-EwWorkbenchJobMonitor {
                         continue
                     }
                     $row.LatestVersion = [string]$versionResult.LatestVersion
+                    if ($null -ne $versionResult.PSObject.Properties['Compatibility'] -and
+                        $null -ne $versionResult.Compatibility) {
+                        Set-EwWorkbenchInstallArchitecture -Row $row -Compatibility $versionResult.Compatibility -ArtifactResolved
+                        if ($versionResult.Compatibility.Status -eq 'Blocked') {
+                            $row.InstallStatus = 'Architecture blocked'
+                            $row.InstallAction = 'Unavailable'
+                            $row.Error = [string]$versionResult.Compatibility.Error
+                            Write-EwWorkbenchLog -State $State -Message "Blocked installation for $($row.Name): $($row.Error)" -Level Warning
+                            continue
+                        }
+                        $row.Error = ''
+                    }
                     if (-not $row.IsInstalled) {
                         $row.InstallStatus = 'Not installed'
                         $row.InstallAction = 'Install'
@@ -200,38 +219,9 @@ function Invoke-EwWorkbenchJobMonitor {
                         $row.InstallAction = 'Update'
                     }
                 }
-                $State.InstallDefinitionsListView.Items.Refresh()
+                [System.Windows.Data.CollectionViewSource]::GetDefaultView($State.InstallDefinitions).Refresh()
                 $State.InstallActionStatusLabel.Text = 'Latest-version lookup complete.'
                 Write-EwWorkbenchLog -State $State -Message 'Latest-version lookup completed.'
-            }
-            'InstallPackages' {
-                foreach ($installResult in $output) {
-                    $row = $State.InstallDefinitions |
-                        Where-Object DefinitionPath -eq $installResult.DefinitionPath |
-                        Select-Object -First 1
-                    if ($null -ne $row) {
-                        if ($installResult.Succeeded) {
-                            $row.IsInstalled = $true
-                            $row.InstalledVersion = [string]$installResult.DownloadedVersion
-                            $row.InstallStatus = 'Installed'
-                            $row.InstallAction = 'Installed'
-                            $row.Error = ''
-                        }
-                        else {
-                            $row.InstallStatus = 'Installation failed'
-                            $row.InstallAction = 'Retry install'
-                            $row.Error = [string]$installResult.Error
-                        }
-                    }
-                    if ($installResult.Succeeded) {
-                        Write-EwWorkbenchLog -State $State -Message "Installed $($installResult.Name) $($installResult.DownloadedVersion)."
-                    }
-                    else {
-                        Write-EwWorkbenchLog -State $State -Message "Installation failed for $($installResult.Name): $($installResult.Error)" -Level Error
-                    }
-                }
-                $State.InstallDefinitionsListView.Items.Refresh()
-                $State.InstallActionStatusLabel.Text = 'Selected installation batch completed.'
             }
             'IntuneConnect' {
                 $result = $output | Select-Object -Last 1
@@ -313,6 +303,10 @@ function Invoke-EwWorkbenchJobMonitor {
         Write-EwWorkbenchLog -State $State -Message "Background operation finished with state '$($job.State)'." -Level Error
     }
 
+    $nextInstallAction = ''
+    if ($kind -in @('InstallReview', 'InstallPackages') -and $State.InstallBatchActive) {
+        $nextInstallAction = Invoke-EwWorkbenchInstallJobResult -State $State -Kind $kind -Job $job
+    }
     $nextNerdioAction = ''
     if ($kind -eq 'M365') {
         Invoke-EwWorkbenchM365JobResult -State $State -Job $job
@@ -333,6 +327,17 @@ function Invoke-EwWorkbenchJobMonitor {
         $State.IntuneCancellation = $null
     }
     Invoke-EwWorkbenchBusyState -State $State -IsBusy $false
+    if ($nextInstallAction) {
+        try {
+            Invoke-EwWorkbenchInstallAction -State $State -Action $nextInstallAction
+        }
+        catch {
+            Write-EwWorkbenchLog -State $State -Message "Could not continue the installation batch: $($_.Exception.Message)" -Level Error
+            $failedJob = [PSCustomObject]@{ State = 'Failed'; TerminatingError = $null; Output = @() }
+            $failedKind = if ($nextInstallAction -eq 'Review') { 'InstallReview' } else { 'InstallPackages' }
+            $null = Invoke-EwWorkbenchInstallJobResult -State $State -Kind $failedKind -Job $failedJob
+        }
+    }
     if ($nextNerdioAction) {
         Invoke-EwWorkbenchNerdioAction -State $State -Action $nextNerdioAction
     }

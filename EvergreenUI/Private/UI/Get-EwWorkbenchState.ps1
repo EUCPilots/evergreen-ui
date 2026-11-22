@@ -99,6 +99,7 @@ function Get-EwWorkbenchState {
             InstallDefinitionsListView = $Window.FindName('InstallDefinitionsListView')
             InstallDefinitionsCountLabel = $Window.FindName('InstallDefinitionsCountLabel')
             InstallActionStatusLabel = $Window.FindName('InstallActionStatusLabel')
+            HideIncompatibleInstallToggle = $Window.FindName('HideIncompatibleInstallToggle')
             ReloadInstallDefinitionsButton = $Window.FindName('ReloadInstallDefinitionsButton')
             ResolveInstallVersionsButton = $Window.FindName('ResolveInstallVersionsButton')
             InstallSelectedPackagesButton = $Window.FindName('InstallSelectedPackagesButton')
