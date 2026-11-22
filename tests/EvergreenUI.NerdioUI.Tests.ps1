@@ -235,4 +235,269 @@ Describe 'Nerdio WPF view' {
             finally { $window.Close() }
         }
     }
+
+    It 'enables standalone pruning only for one matched existing row regardless of publishing eligibility' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $row = [PSCustomObject]@{ RowType = 'Definition'; NerdioAppId = '42'; Eligible = $false }
+                $other = [PSCustomObject]@{ RowType = 'Definition'; NerdioAppId = '43'; Eligible = $false }
+                $state.NerdioPlan = [PSCustomObject]@{ Items = @($row, $other) }
+                $state.NerdioDestination = [PSCustomObject]@{ NmeHost = 'nme.test' }
+                $state.NerdioComparisonListView.ItemsSource = [object[]]@($row, $other)
+                Invoke-EwWorkbenchNerdioBusyState -State $state
+                $state.PruneSelectedNerdioVersionsButton.IsEnabled | Should -BeFalse
+                $state.NerdioComparisonListView.SelectedItem = $row
+                $state.PruneSelectedNerdioVersionsButton.IsEnabled | Should -BeTrue
+                $state.PublishSelectedNerdioButton.IsEnabled | Should -BeFalse
+                $state.NerdioComparisonListView.SelectedItems.Add($other) | Out-Null
+                $state.PruneSelectedNerdioVersionsButton.IsEnabled | Should -BeFalse
+                $state.NerdioComparisonListView.SelectedItems.Remove($other)
+                $row.NerdioAppId = ''
+                Invoke-EwWorkbenchNerdioBusyState -State $state
+                $state.PruneSelectedNerdioVersionsButton.IsEnabled | Should -BeFalse
+                $row.NerdioAppId = '42'
+                $row.RowType = 'Nerdio'
+                Invoke-EwWorkbenchNerdioBusyState -State $state
+                $state.PruneSelectedNerdioVersionsButton.IsEnabled | Should -BeFalse
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'previews and prunes a selected app without a publish offer then refreshes and restores its selection' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $row = [PSCustomObject]@{
+                    RowType = 'Definition'; AppName = 'App'; NerdioAppName = 'App'; NerdioAppId = '42'
+                    DefinitionPath = 'app-path'; Publisher = 'Publisher'; Eligible = $false; VersionCount = 3
+                }
+                $destination = [PSCustomObject]@{ NmeHost = 'nme.test' }
+                $state.NerdioDestination = $destination
+                $state.NerdioPlan = [PSCustomObject]@{ Destination = $destination; Items = @($row) }
+                $state.NerdioComparisonListView.ItemsSource = [object[]]@($row)
+                $state.NerdioComparisonListView.SelectedItem = $row
+                Mock Start-EwJob {
+                    $script:pruneWorker = $ScriptBlock
+                    $script:pruneArguments = $ArgumentList
+                    [PSCustomObject]@{ Id = [guid]::NewGuid() }
+                }
+                Mock Assert-EwNerdioDestination {}
+                Mock Get-EwNerdioShellAppVersion {
+                    @('1.0', '3.0', '2.0') | ForEach-Object { [PSCustomObject]@{ name = $_ } }
+                }
+                Mock Show-EwWorkbenchNerdioPruneDialog {
+                    param($Plans)
+                    $Plans
+                }
+                Mock Remove-EwNerdioShellAppVersion {
+                    [PSCustomObject]@{ Id = '42'; RemovedCount = 2; FailedCount = 0; PendingVersions = @(); UnknownVersions = @() }
+                }
+                $state.PruneSelectedNerdioVersionsButton.RaiseEvent(
+                    [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                $state.ActiveJobKind | Should -Be 'NerdioPrunePreview'
+                $state.PruneSelectedNerdioVersionsButton.IsEnabled | Should -BeFalse
+                $preview = @(& $script:pruneWorker @script:pruneArguments)
+                $preview | Should -HaveCount 1
+                $preview[0].OfferId | Should -BeNullOrEmpty
+                $preview[0].PublishedVersion | Should -BeNullOrEmpty
+                $preview[0].Keep | Should -Be @('3.0')
+                $preview[0].Remove | Should -Be @('2.0', '1.0')
+                $preview[0].Destination | Should -Be $destination
+                $next = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind NerdioPrunePreview `
+                    -Job ([PSCustomObject]@{ State = 'Completed'; Output = $preview; TerminatingError = $null })
+                $next | Should -Be 'PruneSelected'
+                $state.ActiveJobId = $null
+                Invoke-EwWorkbenchNerdioAction -State $state -Action $next
+                $outcomes = @(& $script:pruneWorker @script:pruneArguments)
+                Should -Invoke Remove-EwNerdioShellAppVersion -Exactly 1 -ParameterFilter {
+                    $Id -eq '42' -and $KeepVersions -eq 1 -and -not $OfferId -and -not $Confirm -and
+                    ($ExpectedVersionNames -join ',') -eq '1.0,3.0,2.0' -and
+                    ($ExpectedRemovalVersions -join ',') -eq '2.0,1.0'
+                }
+                Should -Invoke Assert-EwNerdioDestination -Exactly 3 -ParameterFilter { $Destination.NmeHost -eq 'nme.test' }
+                $next = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind NerdioPruneSelected `
+                    -Job ([PSCustomObject]@{ State = 'Completed'; Output = $outcomes; TerminatingError = $null })
+                $next | Should -Be 'Compare'
+                $state.NerdioComparisonListView.Items.Count | Should -Be 0
+                $row.VersionCount = 1
+                $refreshed = [PSCustomObject]@{ Destination = $destination; Items = @($row) }
+                $null = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind NerdioCompare `
+                    -Job ([PSCustomObject]@{ State = 'Completed'; Output = @($refreshed); TerminatingError = $null })
+                $state.NerdioComparisonListView.SelectedItem.NerdioAppId | Should -Be '42'
+                $state.NerdioComparisonListView.SelectedItem.VersionCount | Should -Be 1
+                $state.NerdioPruneSelectionId | Should -BeNullOrEmpty
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'does not delete when the standalone preview is cancelled' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                Mock Show-EwWorkbenchNerdioPruneDialog { @() }
+                Mock Start-EwJob {}
+                $next = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind NerdioPrunePreview `
+                    -Job ([PSCustomObject]@{ State = 'Completed'; Output = @([PSCustomObject]@{ Id = '42' }); TerminatingError = $null })
+                $next | Should -BeNullOrEmpty
+                $state.NerdioSelectedPrunePlans | Should -HaveCount 0
+                Should -Invoke Start-EwJob -Exactly 0
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'blocks standalone preview and execution when recovery is unresolved or unavailable' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $row = [PSCustomObject]@{ RowType = 'Definition'; NerdioAppId = '42'; Eligible = $false }
+                $state.NerdioDestination = [PSCustomObject]@{ NmeHost = 'nme.test' }
+                $state.NerdioPlan = [PSCustomObject]@{ Items = @($row) }
+                $state.NerdioComparisonListView.ItemsSource = [object[]]@($row)
+                $state.NerdioComparisonListView.SelectedItem = $row
+                Mock Start-EwJob {}
+                Mock Sync-EwWorkbenchNerdioRecoveryState {
+                    param($State)
+                    $State.NerdioBlockedOutcomes['unrelated-app'] = [PSCustomObject]@{ Type = 'Delete'; AppId = '43' }
+                    $true
+                }
+                foreach ($action in 'PruneExisting', 'PruneSelected') {
+                    Invoke-EwWorkbenchNerdioAction -State $state -Action $action
+                }
+                Invoke-EwWorkbenchNerdioBusyState -State $state
+                $state.PruneSelectedNerdioVersionsButton.IsEnabled | Should -BeFalse
+                Mock Sync-EwWorkbenchNerdioRecoveryState { $false }
+                foreach ($action in 'PruneExisting', 'PruneSelected') {
+                    Invoke-EwWorkbenchNerdioAction -State $state -Action $action
+                }
+                Should -Invoke Start-EwJob -Exactly 0
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'rejects a changed destination or newly unresolved operation in the deletion worker' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $plan = [PSCustomObject]@{
+                    Id = '42'; OfferId = ''; Eligible = $true; KeepVersions = 1
+                    VersionNames = @('1.0', '2.0'); Remove = @('1.0')
+                    Destination = [PSCustomObject]@{ NmeHost = 'nme.test' }
+                }
+                Mock Start-EwJob {
+                    $script:pruneWorker = $ScriptBlock
+                    $script:pruneArguments = $ArgumentList
+                    [PSCustomObject]@{ Id = [guid]::NewGuid() }
+                }
+                Mock Assert-EwNerdioDestination { throw 'The confirmed Nerdio destination changed.' }
+                Mock Remove-EwNerdioShellAppVersion {}
+                Invoke-EwWorkbenchNerdioAction -State $state -Action PruneSelected -Selection @($plan)
+                { & $script:pruneWorker @script:pruneArguments } | Should -Throw '*destination changed*'
+                Mock Invoke-EwNerdioRecoveryStore { [PSCustomObject]@{ Operations = @([PSCustomObject]@{ AppId = '43' }) } }
+                { & $script:pruneWorker @script:pruneArguments } | Should -Throw '*Review all pending or unknown*'
+                Should -Invoke Remove-EwNerdioShellAppVersion -Exactly 0
+                Should -Invoke Assert-EwNerdioDestination -Exactly 1
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'refreshes comparison after an interrupted standalone deletion without retrying it' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NerdioDestination = [PSCustomObject]@{ NmeHost = 'nme.test' }
+                $state.NerdioPruneSelectionId = '42'
+                Mock Remove-EwNerdioShellAppVersion {}
+                $next = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind NerdioPruneSelected `
+                    -Job ([PSCustomObject]@{ State = 'Failed'; Output = @(); TerminatingError = 'Worker interrupted' })
+                $next | Should -Be 'Compare'
+                $state.NerdioPruneSelectionId | Should -Be '42'
+                Should -Invoke Remove-EwNerdioShellAppVersion -Exactly 0
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'retains the published-version constraint and offer identity for post-publish pruning' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NerdioDestination = [PSCustomObject]@{ NmeHost = 'nme.test' }
+                Invoke-EwNerdioRecoveryStore -Action Update -UpsertOffer ([ordered]@{
+                        Id = 'publish-offer'; Type = 'PruningOffer'
+                        Destination = [ordered]@{ NmeHost = 'nme.test' }
+                        AppId = '42'; Name = 'App'; Publisher = 'Publisher'; DefinitionPath = 'app-path'
+                        PublishedVersion = '2.0'
+                    }) | Out-Null
+                Mock Start-EwJob {
+                    $script:pruneWorker = $ScriptBlock
+                    $script:pruneArguments = $ArgumentList
+                    [PSCustomObject]@{ Id = [guid]::NewGuid() }
+                }
+                Mock Get-EwNerdioSessionContext { [PSCustomObject]@{ NmeHost = 'nme.test' } }
+                Mock Assert-EwNerdioRecoveryDestination {}
+                Mock Get-EwNerdioShellAppVersion {
+                    @('1.0', '2.0') | ForEach-Object { [PSCustomObject]@{ name = $_ } }
+                }
+                Invoke-EwWorkbenchNerdioAction -State $state -Action Prune
+                $preview = @(& $script:pruneWorker @script:pruneArguments)
+                $preview[0].PublishedVersion | Should -Be '2.0'
+                $preview[0].OfferId | Should -Be 'publish-offer'
+                $preview[0].Destination.NmeHost | Should -Be 'nme.test'
+                $state.ActiveJobId = $null
+                Invoke-EwWorkbenchNerdioAction -State $state -Action PruneSelected -Selection $preview
+                $state.NerdioPruneSelectionId | Should -BeNullOrEmpty
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'uses standalone wording and disables no-op retention plans in the shared dialog' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                Mock Get-EwNerdioShellAppVersion {
+                    @('1.0', '2.0') | ForEach-Object { [PSCustomObject]@{ name = $_ } }
+                }
+                $plan = Get-EwNerdioShellAppVersionPrunePlan -Id '42'
+                $plan | Add-Member -NotePropertyName Name -NotePropertyValue 'App'
+                $observed = @{}
+                $window.Show()
+                $window.Dispatcher.BeginInvoke([action]{
+                    $dialog = @($window.OwnedWindows)[0]
+                    try {
+                        $content = $dialog.Content.Children[1]
+                        $observed.Label = $content.Children[0].Children[0].Text
+                        $retention = $content.Children[0].Children[1]
+                        $check = $content.Children[2].Content.Children[0]
+                        $observed.Description = [string]$check.Content
+                        $observed.InitiallyEnabled = $check.IsEnabled
+                        $check.IsChecked = $true
+                        $retention.Text = '2'
+                        $observed.NoOpEnabled = $check.IsEnabled
+                    }
+                    finally { $dialog.Close() }
+                }.GetNewClosure()) | Out-Null
+                @(Show-EwWorkbenchNerdioPruneDialog -Owner $window -Plans @($plan)) | Should -HaveCount 0
+                $observed.Label | Should -Be 'Keep newest versions:'
+                $observed.Description | Should -Not -Match 'published:'
+                $observed.Description | Should -Match 'keep: 2.0; delete: 1.0'
+                $observed.InitiallyEnabled | Should -BeTrue
+                $observed.NoOpEnabled | Should -BeFalse
+            }
+            finally { $window.Close() }
+        }
+    }
 }
