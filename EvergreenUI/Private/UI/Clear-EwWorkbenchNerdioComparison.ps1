@@ -10,6 +10,7 @@ function Clear-EwWorkbenchNerdioComparison {
     )
 
     $State.NerdioPlan = $null
+    $State.NerdioPruneSelectionId = ''
     if ($ConnectionChanged) {
         $State.NerdioDestination = $null
         $script:ewNerdioSession.Context = $null

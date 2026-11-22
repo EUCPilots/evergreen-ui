@@ -133,7 +133,7 @@ function Get-EwWorkbenchState {
             'NerdioApiOnlyToggle',
             'CompareNerdioButton', 'NerdioConnectionStatusLabel', 'NerdioComparisonListView',
             'CancelNerdioBatchButton', 'PublishSelectedNerdioButton', 'NerdioPublishResultsListView',
-            'ReviewNerdioOutcomeButton', 'PruneNerdioVersionsButton'
+            'ReviewNerdioOutcomeButton', 'PruneNerdioVersionsButton', 'PruneSelectedNerdioVersionsButton'
         )) {
         $state[$name] = $Window.FindName($name)
     }

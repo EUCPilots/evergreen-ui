@@ -6,7 +6,7 @@ function Invoke-EwWorkbenchNerdioAction {
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$State,
         [Parameter(Mandatory)]
-        [ValidateSet('AzureConnect', 'Disconnect', 'Storage', 'Containers', 'ApiConnect', 'Compare', 'Publish', 'Cancel', 'Save', 'Browse', 'Review', 'Prune', 'PruneSelected')]
+        [ValidateSet('AzureConnect', 'Disconnect', 'Storage', 'Containers', 'ApiConnect', 'Compare', 'Publish', 'Cancel', 'Save', 'Browse', 'Review', 'Prune', 'PruneExisting', 'PruneSelected')]
         [string]$Action,
 
         [Parameter()]
@@ -74,6 +74,7 @@ function Invoke-EwWorkbenchNerdioAction {
                             -PublishedVersion $offer.PublishedVersion
                         $plan | Add-Member -NotePropertyMembers @{
                             OfferId = [string]$offer.Id
+                            Destination = $offer.Destination
                             Name = [string]$offer.Name
                             Publisher = [string]$offer.Publisher
                             DefinitionPath = [string]$offer.DefinitionPath
@@ -83,8 +84,41 @@ function Invoke-EwWorkbenchNerdioAction {
                 }
                 $arguments = ,([object[]]$offers)
             }
+            'PruneExisting' {
+                if (-not (Sync-EwWorkbenchNerdioRecoveryState -State $State)) {
+                    throw 'Nerdio recovery state is unavailable; pruning is blocked.'
+                }
+                if ($State.NerdioBlockedOutcomes.Count -gt 0) {
+                    throw 'Review all pending or unknown Nerdio outcomes before pruning.'
+                }
+                if ($null -eq $State.NerdioDestination) { throw 'Reconnect to the Nerdio destination before pruning.' }
+                $rows = @($State.NerdioComparisonListView.SelectedItems)
+                if ($null -eq $State.NerdioPlan -or $rows.Count -ne 1 -or
+                    (Get-EwFirstPropertyValue -InputObject $rows[0] -Name 'RowType') -ne 'Definition' -or
+                    [string]::IsNullOrWhiteSpace([string]$rows[0].NerdioAppId)) {
+                    throw 'Compare and select one matched existing Shell App to prune.'
+                }
+                $body = {
+                    param($Row, $Destination)
+                    Assert-EwNerdioDestination -Destination $Destination
+                    $plan = Get-EwNerdioShellAppVersionPrunePlan -Id $Row.NerdioAppId
+                    Assert-EwNerdioDestination -Destination $Destination
+                    $plan | Add-Member -NotePropertyMembers @{
+                        OfferId = ''
+                        Destination = $Destination
+                        Name = [string]$Row.NerdioAppName
+                        Publisher = [string]$Row.Publisher
+                        DefinitionPath = [string]$Row.DefinitionPath
+                    }
+                    $plan
+                }
+                $arguments = @($rows[0], $State.NerdioPlan.Destination)
+            }
             'PruneSelected' {
                 if ($Selection.Count -eq 0) { $Selection = @($State.NerdioSelectedPrunePlans) }
+                if (-not (Sync-EwWorkbenchNerdioRecoveryState -State $State)) {
+                    throw 'Nerdio recovery state is unavailable; pruning is blocked.'
+                }
                 if ($State.NerdioBlockedOutcomes.Count -gt 0) {
                     throw 'Review all pending or unknown Nerdio outcomes before pruning.'
                 }
@@ -95,6 +129,16 @@ function Invoke-EwWorkbenchNerdioAction {
                 $body = {
                     param($Plans)
                     foreach ($plan in $Plans) {
+                        $recovery = Invoke-EwNerdioRecoveryStore -Action Read
+                        if (@($recovery.Operations).Count -gt 0) {
+                            throw 'Review all pending or unknown Nerdio outcomes before pruning.'
+                        }
+                        if ($plan.OfferId) {
+                            Assert-EwNerdioRecoveryDestination -Context (Get-EwNerdioSessionContext) -Destination $plan.Destination
+                        }
+                        else {
+                            Assert-EwNerdioDestination -Destination $plan.Destination
+                        }
                         $result = Remove-EwNerdioShellAppVersion -Id $plan.Id `
                             -KeepVersions $plan.KeepVersions -ExpectedVersionNames $plan.VersionNames `
                             -ExpectedRemovalVersions $plan.Remove -OfferId $plan.OfferId -Confirm:$false
@@ -103,6 +147,9 @@ function Invoke-EwWorkbenchNerdioAction {
                     }
                 }
                 $arguments = ,([object[]]$Selection)
+                $State.NerdioPruneSelectionId = if ($Selection.Count -eq 1 -and -not $Selection[0].OfferId) {
+                    [string]$Selection[0].Id
+                } else { '' }
                 $State.NerdioSelectedPrunePlans = @()
             }
             'AzureConnect' {
@@ -214,7 +261,7 @@ function Invoke-EwWorkbenchNerdioAction {
                 $arguments[3] = $State.NerdioCancellation.Token
             }
         }
-        $kind = if ($Action -eq 'Prune') { 'NerdioPrunePreview' } else { "Nerdio$Action" }
+        $kind = if ($Action -in @('Prune', 'PruneExisting')) { 'NerdioPrunePreview' } else { "Nerdio$Action" }
         Invoke-EwWorkbenchJob -State $State -Kind $kind -Name "Nerdio $Action" -ScriptBlock $body -ArgumentList $arguments
     }
     catch {

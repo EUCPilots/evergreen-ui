@@ -39,4 +39,10 @@ function Invoke-EwWorkbenchNerdioBusyState {
     $State.PruneNerdioVersionsButton.IsEnabled = $idle -and $State.NerdioPruningOffers.Count -gt 0 -and
         $State.NerdioBlockedOutcomes.Count -eq 0 -and [string]::IsNullOrWhiteSpace($State.NerdioRecoveryError) -and
         $null -ne $State.NerdioDestination
+    $pruneTarget = $selection.Count -eq 1 -and
+        (Get-EwFirstPropertyValue -InputObject $selection[0] -Name 'RowType') -eq 'Definition' -and
+        -not [string]::IsNullOrWhiteSpace([string]$selection[0].NerdioAppId)
+    $State.PruneSelectedNerdioVersionsButton.IsEnabled = $idle -and $pruneTarget -and
+        $null -ne $State.NerdioPlan -and $null -ne $State.NerdioDestination -and
+        $State.NerdioBlockedOutcomes.Count -eq 0 -and [string]::IsNullOrWhiteSpace($State.NerdioRecoveryError)
 }

@@ -47,7 +47,9 @@ function Show-EwWorkbenchNerdioPruneDialog {
     $retentionRow.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
     $content.Children.Add($retentionRow) | Out-Null
     $retentionLabel = [System.Windows.Controls.TextBlock]::new()
-    $retentionLabel.Text = 'Keep newest versions (including the newly published version):'
+    $retentionLabel.Text = if (@($Plans | Where-Object { $_.PublishedVersion }).Count -gt 0) {
+        'Keep newest versions (including the newly published version):'
+    } else { 'Keep newest versions:' }
     $retentionLabel.VerticalAlignment = 'Center'
     $retentionRow.Children.Add($retentionLabel) | Out-Null
     $retention = [System.Windows.Controls.TextBox]::new()
@@ -98,7 +100,8 @@ function Show-EwWorkbenchNerdioPruneDialog {
             $check = $row.CheckBox
             $check.IsEnabled = [bool]$plan.Eligible -and @($plan.Remove).Count -gt 0
             $check.Content = if ($plan.Eligible) {
-                "$($plan.Name) ($($plan.Id)); published: $($plan.PublishedVersion); keep: $($plan.Keep -join ', '); delete: $($plan.Remove -join ', ')"
+                $published = if ($plan.PublishedVersion) { "; published: $($plan.PublishedVersion)" } else { '' }
+                "$($plan.Name) ($($plan.Id))$published; keep: $($plan.Keep -join ', '); delete: $($plan.Remove -join ', ')"
             }
             else {
                 "$($plan.Name) ($($plan.Id)); skipped: $($plan.Message)"
@@ -110,7 +113,9 @@ function Show-EwWorkbenchNerdioPruneDialog {
 
     $window.Tag = @()
     $confirm.Add_Click({
-        $selected = @($rows | Where-Object { $_.CheckBox.IsChecked -eq $true } | ForEach-Object Plan)
+        $selected = @($rows | Where-Object {
+                $_.CheckBox.IsChecked -eq $true -and $_.CheckBox.IsEnabled
+            } | ForEach-Object Plan)
         if ($selected.Count -eq 0) {
             [System.Windows.MessageBox]::Show($window, 'Select at least one Shell App with versions to remove.',
                 'No Shell Apps selected', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information) | Out-Null

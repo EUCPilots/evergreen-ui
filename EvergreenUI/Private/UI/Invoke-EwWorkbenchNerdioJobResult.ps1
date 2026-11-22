@@ -95,6 +95,12 @@ function Invoke-EwWorkbenchNerdioJobResult {
                         }
                     }
                     $State.NerdioComparisonListView.ItemsSource = [object[]]$result.Items
+                    if ($State.NerdioPruneSelectionId) {
+                        $selectedRow = $result.Items | Where-Object {
+                            $_.NerdioAppId -eq $State.NerdioPruneSelectionId
+                        } | Select-Object -First 1
+                        if ($null -ne $selectedRow) { $State.NerdioComparisonListView.SelectedItem = $selectedRow }
+                    }
                     Write-EwWorkbenchLog -State $State -Message "Loaded $(@($result.Items).Count) Nerdio comparison rows."
                 }
                 'NerdioDisconnect' {
@@ -114,7 +120,7 @@ function Invoke-EwWorkbenchNerdioJobResult {
                         Write-EwWorkbenchLog -State $State -Message 'No Nerdio pruning previews were returned.' -Level Warning
                     }
                     else {
-                        $selection = Show-EwWorkbenchNerdioPruneDialog -Owner $State.Window -Plans $output
+                        $selection = @(Show-EwWorkbenchNerdioPruneDialog -Owner $State.Window -Plans $output)
                         if ($selection.Count -gt 0) {
                             $State.NerdioSelectedPrunePlans = $selection
                             $next = 'PruneSelected'
@@ -135,6 +141,12 @@ function Invoke-EwWorkbenchNerdioJobResult {
         }
         finally { $State.AllowNerdioEvents = $true }
     }
+    if ($Kind -eq 'NerdioPruneSelected' -and $State.NerdioPruneSelectionId -and $null -ne $State.NerdioDestination) {
+        $State.NerdioPlan = $null
+        $State.NerdioComparisonListView.ItemsSource = @()
+        $next = 'Compare'
+    }
+    if ($Kind -eq 'NerdioCompare') { $State.NerdioPruneSelectionId = '' }
     if ($Kind -in @('NerdioPublish', 'NerdioReview', 'NerdioPrunePreview', 'NerdioPruneSelected')) {
         Sync-EwWorkbenchNerdioRecoveryState -State $State | Out-Null
         Invoke-EwWorkbenchNerdioBusyState -State $State

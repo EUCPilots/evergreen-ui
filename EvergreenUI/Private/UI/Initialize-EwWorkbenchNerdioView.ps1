@@ -16,6 +16,7 @@ function Initialize-EwWorkbenchNerdioView {
     $State.NerdioPruningOffers = @()
     $State.NerdioRecoveryError = ''
     $State.NerdioSelectedPrunePlans = @()
+    $State.NerdioPruneSelectionId = ''
     $State.NerdioSettingControls = @{
         NerdioTenantId = $State.NerdioTenantIdBox
         NmeSubscriptionId = $State.NmeSubscriptionIdBox
@@ -48,6 +49,7 @@ function Initialize-EwWorkbenchNerdioView {
         PublishSelectedNerdioButton = 'Publish'; CancelNerdioBatchButton = 'Cancel'
         ReviewNerdioOutcomeButton = 'Review'
         PruneNerdioVersionsButton = 'Prune'
+        PruneSelectedNerdioVersionsButton = 'PruneExisting'
     }
     foreach ($name in $actions.Keys) {
         $action = $actions[$name]
