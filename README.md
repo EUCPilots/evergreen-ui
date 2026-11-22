@@ -8,9 +8,12 @@ The v1 implementation in `EvergreenUI-v1\` is the reference for the existing
 WPF experience. The v2 preview in `EvergreenUI\` provides headless settings,
 job, Apps, download, Library, definitions, local install, packaging,
 authentication, and publishing commands. Its WPF interface covers
-Apps, Download, Library, Packages, Intune, Nerdio, and Install.
+Apps, Download, Library, Packages, Intune, Nerdio, Install, Settings, and About.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
+
+Use `Start-EwJob -NoModuleImport` for work that does not need Workbench
+commands. A reused worker may still contain modules loaded by earlier jobs.
 
 V2 app workflows use `Get-EwApp` to list the Evergreen catalog or resolve an application's artifacts. `Get-EwFilterableProperty` describes available filters, and `Save-EwArtifact` downloads a resolved artifact. `Get-EwLibrary` reads a local library inventory; `Update-EwLibrary` refreshes an initialized library.
 
@@ -115,6 +118,20 @@ pool. Its Packages view loads and updates shared Intune App.json definitions
 and saves definition and package-output paths. Its Install view reloads those
 definitions, checks local detection, resolves latest versions on request, and
 supports confirmed batch installation with per-application results.
+
+### Settings and About
+
+Settings shows the saved Download and Library paths, including their existing
+defaults. Change the paths in Apps or Library; the Settings view does not
+save edits. Open folder is available only when the folder can be reached.
+Appearance remains available in the sidebar.
+
+About shows Workbench metadata and local dependency status. Installed versions
+are the highest versions discoverable locally; loaded versions are those in
+the Workbench window runspace, which can differ from the caller or a Job.
+Status refreshes when About opens and on request, without interrupting another
+Job or installing, updating, or importing optional dependencies. If a
+refresh fails, the previous results remain visible and are marked stale.
 
 The Intune view connects to Intune and compares saved Definitions. Select
 eligible rows to build and publish them after one confirmation. Existing

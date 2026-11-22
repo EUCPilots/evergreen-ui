@@ -26,6 +26,8 @@
 - Require valid Microsoft 365 configuration IDs and use the Office channel version for package metadata and detection. Stage rolling-channel configurations and reject `DownloadPath`, which requires a pinned version.
 - Add Microsoft 365 build and confirmed publishing tabs for Intune and Nerdio, with separate Office and deployment-tool versions, input and target rechecks, and cooperative cancellation.
 - Preserve partial provider outcomes and require explicit review of uncertain Intune and Nerdio writes; do not retry, roll back or remove provider resources automatically.
+- Add Settings with read-only saved Download and Library paths and checked folder-opening actions.
+- Add About with Workbench metadata and independently refreshed local dependency status, including versions loaded in the window runspace.
 
 ## [1.1.27]
 

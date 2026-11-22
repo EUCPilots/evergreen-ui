@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the v2
 rewrite, requiring PowerShell 7.6 or later. Its public headless commands run
-without WPF; the v2 UI provides Apps, Download, Library, Packages, Intune, Nerdio, and Install
-views.
+without WPF; the v2 UI provides Apps, Download, Library, Packages, Intune,
+Nerdio, Install, Settings, and About views.
 Unless explicitly marked v2, the architecture and conventions below describe
 v1. Read `docs\adr\` before designing v2 changes.
 
@@ -119,14 +119,18 @@ Worker runspaces never access WPF controls.
 
 ### V2 Navigation Views
 
-The v2 shell includes seven RadioButton navigation views: Apps, Download,
-Library, Packages, Intune, Nerdio, and Install. Apps uses `Get-EwApp`,
+The v2 shell includes nine RadioButton navigation views: Apps, Download,
+Library, Packages, Intune, Nerdio, Install, Settings, and About. Apps uses `Get-EwApp`,
 `Get-EwFilterableProperty`, and the favourite commands; Download queues
 artifacts for `Save-EwArtifact`; Library reads and updates an Evergreen library
 and shows selected application versions; Packages loads and updates shared
 Intune App.json definitions and saves definition and output paths; Install
 reloads definitions, checks local detection, resolves latest versions
 separately, and supports confirmed batch installs through `Install-EwPackage`.
+Settings shows saved paths; About captures loaded module versions in the
+window runspace and refreshes local dependency status independently of the
+active UI Job. Its potentially blocking scan uses a separate short-lived
+runspace so closing the window can stop the monitoring Job promptly.
 Intune compares Definitions and builds and publishes confirmed batches through
 `Publish-EwIntuneBatch`. Nerdio owns its staged Azure/API setup and runs confirmed
 publishing plans through `Get-EwNerdioPublishPlan` and `Publish-EwNerdioBatch`.
