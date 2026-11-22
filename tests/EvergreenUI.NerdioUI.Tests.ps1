@@ -42,7 +42,7 @@ Describe 'Nerdio WPF view' {
                     $point = $button.TranslatePoint([System.Windows.Point]::new(0, 0), $state.NerdioPanel)
                     ($point.X + $button.ActualWidth) | Should -BeLessOrEqual $state.NerdioPanel.ActualWidth
                 }
-                $setup = $state.NerdioPanel.Children | Where-Object { $_ -is [System.Windows.Controls.ScrollViewer] }
+                $setup = $window.FindName('NerdioSetupScrollViewer')
                 foreach ($section in $setup.Content.Children) { $section.IsExpanded = $true }
                 $window.UpdateLayout()
                 $state.NerdioComparisonListView.ActualHeight | Should -BeGreaterThan 40

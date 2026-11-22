@@ -173,6 +173,23 @@ Describe 'Provider publishing' {
                 ($Body | ConvertFrom-Json).target.'@odata.type' -eq '#microsoft.graph.allDevicesAssignmentTarget' -and
                 ($Body | ConvertFrom-Json).intent -eq 'required'
             }
+
+            $script:cancelAfterUpload = [System.Threading.CancellationTokenSource]::new()
+            try {
+                Mock Invoke-RestMethod {
+                    if ($Uri -like '*comp=blocklist*') { $script:cancelAfterUpload.Cancel() }
+                }
+                $cancelled = Invoke-EwIntuneGraphWin32Import -DefinitionObject $Definition -IntuneWinPath $Archive `
+                    -SetupFilePath 'Setup.exe' -DownloadedVersion '2.0' -PSPackageFactoryGuid 'guid' `
+                    -CancellationToken $script:cancelAfterUpload.Token -SyncHash @{}
+                $cancelled.Succeeded | Should -BeFalse
+                $cancelled.Cancelled | Should -BeTrue
+                $cancelled.WriteStarted | Should -BeTrue
+                $cancelled.IntuneAppId | Should -Be 'created-id'
+                $cancelled.Error | Should -Match 'after upload'
+                Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter { $Uri -like '*/commit' }
+            }
+            finally { $script:cancelAfterUpload.Dispose() }
         }
     }
 
