@@ -75,7 +75,7 @@ Start-EvergreenWorkbench
 | Authentication | `Connect-EwIntune`, `Disconnect-EwIntune`, `Connect-EwNerdio`, `Disconnect-EwNerdio` | Loads Graph and Azure modules only for the requested provider. |
 | Publishing | `Publish-EwIntuneApp`, `Publish-EwIntuneBatch`, `Publish-EwNerdioApp`, `Publish-EwNerdioBatch`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio. Batches confirm snapshots and preserve partial outcomes. |
 | Favourites | `Add-EwFavouriteApp`, `Remove-EwFavouriteApp` | Stores favourites in settings; `Get-EwApp` lists favourites first. |
-| Dependencies | `Get-EwDependency`, `Update-EwEvergreen` | Reports required and optional module status; refreshes Evergreen manifests and caches. |
+| Dependencies and cache | `Get-EwDependency`, `Update-EwEvergreen`, `Clear-EwCache` | Reports module status, refreshes Evergreen application data, or explicitly clears Workbench caches. |
 | Microsoft 365 | `Get-EwM365Configuration` | Discovers ODT XML configurations with channel, products, and architecture. |
 | Intune compare | `Get-EwIntuneApp`, `Compare-EwIntuneApp` | Lists Win32 apps via Graph and compares them with App.json definitions. |
 | Azure discovery | `Connect-EwAzure`, `Disconnect-EwAzure`, `Get-EwAzureResourceGroup`, `Get-EwAzureStorageAccount`, `Get-EwAzureStorageContainer` | Lists resources for Nerdio storage configuration. |
@@ -141,6 +141,10 @@ automatically. The UI supports Evergreen sources and optional post-publish
 pruning through an exact-version preview and a separate confirmation; ambiguous
 versions are skipped. Recovery state contains no credentials and requires the
 same Nerdio destination to resume. Long-running work uses the shared job pool.
+
+For Apps maintenance or cache changes, read
+`docs\adr\0005-explicit-coordinated-workbench-cache-clearing.md` for ownership
+and in-flight invalidation boundaries.
 
 ### Key Private Functions
 

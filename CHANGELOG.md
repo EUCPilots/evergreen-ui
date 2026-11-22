@@ -29,6 +29,9 @@
 - Preserve partial provider outcomes and require explicit review of uncertain Intune and Nerdio writes; do not retry, roll back or remove provider resources automatically.
 - Add Settings with read-only saved Download and Library paths and checked folder-opening actions.
 - Add About with Workbench metadata and independently refreshed local dependency status, including versions loaded in the window runspace.
+- Add Apps maintenance controls for Evergreen application-data updates, confirmed Workbench cache clearing, and opening the cache folder without upgrading the installed module.
+- Add headless cache clearing with cross-runspace/process invalidation, protection against stale in-flight cache writes, targeted custom paths, and explicit partial outcomes.
+- Refresh Apps after maintenance while preserving valid filters and queued Artifacts; distinguish refresh failures from maintenance outcomes and mark retained data stale.
 
 ## [1.1.27]
 

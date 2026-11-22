@@ -134,6 +134,46 @@ approval; blocked or declined applications are skipped. Changed Definition or
 Artifact metadata is reviewed again, with at most two re-confirmations. This
 check does not hash downloaded bytes or guarantee that an application will run.
 
+### Apps maintenance
+
+Apps provides Update Evergreen, Clear Workbench cache, and Open cache folder.
+Update refreshes Evergreen application data, not the installed PowerShell
+module. It keeps the existing local catalog reset, but does not clear the
+persistent definition-Artifact cache. Cache clearing is a separate, confirmed
+action.
+
+Clear Workbench cache invalidates cached catalogs and clears the default
+definition-Artifact cache in
+`%LOCALAPPDATA%\EvergreenWorkbench\Cache` (with roaming AppData as a fallback).
+It does not remove Evergreen application data, downloaded installers, Library
+contents, settings, or provider recovery records. Open cache folder creates
+the folder if it does not exist. Coordination metadata is retained when
+cached results are cleared.
+
+The headless `Clear-EwCache` command supports WhatIf and Confirm. An explicit
+CachePath targets that definition cache and still invalidates catalog caches;
+other custom cache directories are not searched or cleared.
+
+```powershell
+Update-EwEvergreen
+Clear-EwCache -WhatIf
+Clear-EwCache -CachePath 'C:\WorkbenchCache' -Confirm
+```
+
+Cache invalidation applies across Workbench runspaces and processes sharing
+the cache. Queries already running may finish, but cannot cache results
+started before the clear. Apps continues to query application Artifacts
+directly rather than maintaining a per-app disk cache.
+
+Maintenance runs through the existing background jobs and activity log.
+Update and Clear are unavailable while another UI job is active, and the
+window cannot close during maintenance writes. Apps refreshes afterward,
+including after a partial clear that changed cache state. It preserves valid
+selection, search and filters, and never changes queued download versions.
+Partial failures are reported without automatic retries. If the follow-up
+refresh fails, the maintenance result remains visible and retained data is
+marked stale.
+
 ### Settings and About
 
 Settings shows the saved Download and Library paths, including their existing

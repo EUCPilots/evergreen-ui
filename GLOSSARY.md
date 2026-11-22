@@ -22,6 +22,17 @@ allowed, require approval, or are blocked for installation on the local
 operating system architecture.
 _Avoid_: Architecture match
 
+**Workbench cache**:
+Reusable application catalog and resolved Artifact data retained by Workbench.
+It is separate from Evergreen application data, downloaded Artifacts, Library
+contents, settings and provider recovery records.
+_Avoid_: Library, downloads, Evergreen application data
+
+**Evergreen application data**:
+Application metadata maintained by Evergreen for discovering available
+Artifacts, separate from the installed Evergreen module.
+_Avoid_: Module upgrade, Workbench cache
+
 **Library**:
 The local folder tree of Artifacts maintained by Evergreen's library update.
 _Avoid_: Repository, cache, store
