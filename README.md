@@ -235,6 +235,16 @@ skipped. A pending or unknown delete stops pruning and requires review. Its
 recovery record also blocks publishing to that Shell App until resolved.
 Postponed offers remain available across restarts and later batches.
 
+To prune without publishing, select one matched existing Shell App in the
+comparison list and choose Prune versions. Publishing eligibility is not
+required. The same preview defaults to keeping the newest version and lets
+you change retention before confirming exact deletions. Unmatched rows and
+multiple selections cannot start this action. All unresolved Nerdio outcomes
+or an unavailable recovery store block pruning. V2 rechecks the destination
+and version snapshot before deleting, then refreshes comparison results and
+restores the selected app when possible. Uncertain deletions are never retried
+automatically.
+
 The headless equivalents are `Get-EwNerdioPublishPlan` and
 `Publish-EwNerdioBatch`, `Get-EwNerdioShellAppVersionPrunePlan` and
 `Remove-EwNerdioShellAppVersion`. The removal command accepts

@@ -22,6 +22,7 @@
 - Share Nerdio sessions across Job workers and preserve partial blob, app and job identifiers; block pending or unknown outcomes until reviewed rather than retrying automatically.
 - Persist Nerdio publish and delete attempts before provider writes, restore unresolved outcomes and pruning offers after restart, and require reconnection to the same destination.
 - Add optional post-publish Shell App version pruning with a default retention of one, explicit app selection, exact-version preview and recheck, and separate confirmation.
+- Add standalone version pruning for a selected, matched existing Shell App in the Nerdio view, with the same retention preview, confirmation and recovery safeguards, and automatic comparison refresh.
 - Stop on pending or unknown deletion outcomes, require manual review, and skip apps with duplicate, unorderable or non-newest published versions.
 - Add API-only Nerdio authentication without changing an unrelated Azure context on disconnect.
 - Require valid Microsoft 365 configuration IDs and use the Office channel version for package metadata and detection. Stage rolling-channel configurations and reject `DownloadPath`, which requires a pinned version.
