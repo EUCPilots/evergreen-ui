@@ -99,18 +99,24 @@ Describe 'EvergreenUI v2 foundation' {
         $settings.LastAppName | Should -Be ''
         $settings.WindowWidth | Should -Be 1200
         $settings.WindowHeight | Should -Be 820
+        $settings.DownloadTrayHeight | Should -Be 180
         $settings.WindowMaximized | Should -BeFalse
         Set-EwSetting -Name StartupView -Value 'nerdio'
         Set-EwSetting -Name WindowWidth -Value '1400'
+        Set-EwSetting -Name DownloadTrayHeight -Value '240'
         Set-EwSetting -Name WindowMaximized -Value 'True'
         Set-EwSetting -Name LastAppName -Value 'MicrosoftEdge'
         $settings = Get-EwSetting
         $settings.StartupView | Should -BeExactly 'Nerdio'
         $settings.WindowWidth | Should -Be 1400
+        $settings.DownloadTrayHeight | Should -Be 240
         [string]$settings.WindowWidth | Should -Match '^\d+$'
         $settings.WindowMaximized | Should -BeTrue
         $settings.LastAppName | Should -Be 'MicrosoftEdge'
         { Set-EwSetting -Name StartupView -Value 'Update' } | Should -Throw '*StartupView*'
+        { Set-EwSetting -Name StartupView -Value 'Download' } | Should -Throw
+        { Set-EwSetting -Name DownloadTrayHeight -Value '119' } | Should -Throw '*DownloadTrayHeight*'
+        { Set-EwSetting -Name DownloadTrayHeight -Value '601' } | Should -Throw '*DownloadTrayHeight*'
         { Set-EwSetting -Name WindowHeight -Value '0' } | Should -Throw '*WindowHeight*'
         { Set-EwSetting -Name WindowHeight -Value 'wide' } | Should -Throw '*WindowHeight*'
         { Set-EwSetting -Name WindowMaximized -Value 'maybe' } | Should -Throw '*WindowMaximized*'

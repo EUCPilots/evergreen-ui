@@ -63,13 +63,16 @@ Describe 'Evergreen Workbench WPF shell' {
             $window = Get-EwWorkbenchWindow
             try {
                 foreach ($name in @(
-                        'NavApps', 'NavDownload', 'NavLibrary',
+                        'NavApps', 'NavLibrary',
                         'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall', 'NavSettings', 'NavAbout',
-                        'AppsPanel', 'DownloadPanel', 'LibraryPanel', 'PackagesPanel', 'IntunePanel', 'NerdioPanel', 'InstallPanel',
+                        'AppsPanel', 'DownloadTrayPanel', 'DownloadTrayContent', 'DownloadTrayGridSplitter',
+                        'DownloadTrayToggleButton', 'DownloadTrayActionButton', 'DownloadNowButton',
+                        'LibraryPanel', 'PackagesPanel', 'IntunePanel', 'NerdioPanel', 'InstallPanel',
                         'SettingsPanel', 'AboutPanel', 'SettingsDownloadPathBox', 'SettingsLibraryPathBox',
+                        'BrowseDownloadFolderButton', 'BrowseLibraryFolderButton',
                         'OpenDownloadFolderButton', 'OpenLibraryFolderButton', 'AboutDependenciesListView',
                         'RefreshAboutDependenciesButton', 'AboutProjectLink', 'AboutLicenseLink',
-                        'AppSearchBox', 'AppCountLabel', 'AppsListView', 'ArtifactsGrid', 'ArtifactUriTextBox',
+                        'AppSearchBox', 'AppCountLabel', 'AppsListView', 'ArtifactsGrid',
                         'DownloadQueueListView', 'LibraryListView', 'LibraryVersionsListView',
                         'PackageDefinitionsListView', 'InstallDefinitionsListView',
                         'LoadPackageDefinitionsButton', 'UpdatePackageDefinitionsButton',
@@ -94,8 +97,8 @@ Describe 'Evergreen Workbench WPF shell' {
             $window = Get-EwWorkbenchWindow
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
-                $state.NavDownload.IsChecked = $true
-                $state.DownloadPanel.Visibility.ToString() | Should -Be 'Visible'
+                $state.NavLibrary.IsChecked = $true
+                $state.LibraryPanel.Visibility.ToString() | Should -Be 'Visible'
                 $state.AppsPanel.Visibility.ToString() | Should -Be 'Collapsed'
 
                 $state.AllArtifacts = @(
@@ -163,29 +166,13 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'shows the selected artifact URI outside the compact results table' {
+    It 'offers URI actions in the artifact grid context menu instead of a detail pane' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
-                $state.AllArtifacts = @(
-                    [PSCustomObject]@{
-                        Version = '1.0'
-                        Architecture = 'x64'
-                        Channel = 'Stable'
-                        Release = 'November'
-                        Type = 'exe'
-                        Date = '2026-11-22'
-                        Language = 'en-US'
-                        URI = 'https://example.test/application.exe'
-                    }
-                )
-                Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
-                $window.Show()
-                $state.ArtifactsGrid.SelectedItem = $state.ArtifactsGrid.Items[0]
-                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-
-                $window.FindName('ArtifactUriTextBox').Text | Should -Be 'https://example.test/application.exe'
+                @($state.ArtifactsGrid.ContextMenu.Items | ForEach-Object Header) | Should -Be @('Copy URI', 'Open URI')
+                $window.FindName('ArtifactUriTextBox') | Should -BeNullOrEmpty
             }
             finally {
                 $window.Close()
@@ -201,7 +188,7 @@ Describe 'Evergreen Workbench WPF shell' {
                 foreach ($mode in 'Light', 'Dark', 'Light') {
                     $window.ThemeMode = [System.Windows.ThemeMode]::$mode
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                    foreach ($name in 'NavApps', 'NavDownload', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall', 'NavSettings', 'NavAbout') {
+                    foreach ($name in 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall', 'NavSettings', 'NavAbout') {
                         $window.FindName($name).Foreground.Color |
                             Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
                     }
@@ -284,7 +271,8 @@ Describe 'Evergreen Workbench WPF shell' {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
                 $window.Show()
                 $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                $window.FindName('OutputPathLabel').Target | Should -Be $window.FindName('OutputPathBox')
+                $window.FindName('SettingsDownloadPathBox').IsReadOnly | Should -BeTrue
+                $window.FindName('BrowseDownloadFolderButton') | Should -Not -BeNullOrEmpty
                 $state.NavIntune.IsChecked = $true
                 $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                 $window.FindName('IntuneM365CompanyLabel').Target | Should -Be $window.FindName('IntuneM365CompanyBox')
@@ -801,15 +789,15 @@ Import-Module -Name '$modulePath' -Force
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
                 $state.Settings.PackageOutputPath = ''
-                $state.OutputPathBox.Text = 'C:\Downloads'
                 Mock Set-EwSetting {}
-                $eventArgs = [System.Windows.RoutedEventArgs]::new(
-                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
-                )
-                $state.SetOutputPathButton.RaiseEvent($eventArgs)
+                Mock Invoke-EwWorkbenchFolderCheck {}
+                Set-EwWorkbenchFolderPath -State $state -Kind Download -Path 'C:\Downloads'
                 $state.PackageOutputPathBox.Text | Should -Be 'C:\Downloads'
 
                 $state.PackageOutputPathBox.Text = 'C:\Packages'
+                $eventArgs = [System.Windows.RoutedEventArgs]::new(
+                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                )
                 $state.SavePackageOutputPathButton.RaiseEvent($eventArgs)
                 $state.Settings.PackageOutputPath | Should -Be 'C:\Packages'
                 Should -Invoke Set-EwSetting -Exactly 1 -ParameterFilter { $Name -eq 'OutputPath' }
@@ -1007,9 +995,7 @@ Import-Module -Name '$modulePath' -Force
                         Name = 'Refresh application catalog'
                     }
                 }
-                $eventArgs = [System.Windows.RoutedEventArgs]::new(
-                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
-                )
+                $eventArgs = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent)
                 $state.RefreshAppsButton.RaiseEvent($eventArgs)
                 $state.ActiveJobKind | Should -Be 'Apps'
                 $state.ActiveJobId | Should -BeOfType ([guid])
@@ -1021,31 +1007,42 @@ Import-Module -Name '$modulePath' -Force
         }
     }
 
-    It 'clears the whole queue unless a download job is running and clears completed rows separately' {
+    It 'shows pending work in the navigation badge and hides an empty download tray' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
-                foreach ($status in 'Pending', 'Downloading', 'Downloaded', 'Failed') {
-                    $state.Queue.Add([PSCustomObject]@{ Id = $status; Status = $status; Version = '1.0' })
-                }
-                $click = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)
-                $state.ClearCompletedQueueButton.RaiseEvent($click)
-                @($state.Queue | ForEach-Object Status) | Should -Be @('Pending', 'Downloading')
+                $state.AppsQueueCountBadge.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.Queue.Add([PSCustomObject]@{ Id = 'pending'; Status = 'Pending'; Version = '1.0' })
+                $state.DownloadTrayPanel.Visibility.ToString() | Should -Be 'Visible'
+                $state.DownloadTrayToggleButton.Content | Should -Match '1 pending'
+                $state.AppsQueueCountText.Text | Should -Be '1'
+                $state.DownloadTrayContent.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.DownloadTrayActionButton.IsEnabled | Should -BeTrue
+
+                $state.DownloadTrayToggleButton.IsChecked = $true
+                $state.DownloadTrayContent.Visibility.ToString() | Should -Be 'Visible'
+                $state.DownloadTrayGridSplitter.Visibility.ToString() | Should -Be 'Visible'
+                $state.Queue[0].Status = 'Downloading'
                 $state.ActiveJobId = 'running'
                 $state.ActiveJobKind = 'Downloads'
                 Invoke-EwWorkbenchBusyState -State $state -IsBusy $true
-                $state.ClearQueueButton.IsEnabled | Should -BeFalse
-                $state.ClearQueueButton.RaiseEvent($click)
-                $state.Queue.Count | Should -Be 2
-                $state.ActivityLog.Text | Should -Match 'download is running'
-                $state.ActiveJobKind = 'Apps'
-                Invoke-EwWorkbenchBusyState -State $state -IsBusy $true
-                $state.ClearQueueButton.IsEnabled | Should -BeTrue
-                $state.ClearQueueButton.RaiseEvent($click)
+                $state.DownloadTrayActionButton.Content | Should -Be 'Stop'
+                $state.DownloadTrayActionButton.IsEnabled | Should -BeTrue
+
+                $state.ActiveJobId = $null
+                $state.ActiveJobKind = ''
+                $state.Queue[0].Status = 'Downloaded'
+                Invoke-EwWorkbenchBusyState -State $state -IsBusy $false
+                $state.AppsQueueCountBadge.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.DownloadTrayPanel.Visibility.ToString() | Should -Be 'Visible'
+                $state.ClearCompletedQueueButton.IsEnabled | Should -BeTrue
+                $click = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)
+                $state.ClearCompletedQueueButton.RaiseEvent($click)
                 $state.Queue.Count | Should -Be 0
-                $state.StartDownloadButton.IsEnabled | Should -BeFalse
-                $state.ActivityLog.Text | Should -Match 'Cleared 2 items'
+                $state.DownloadTrayPanel.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.DownloadTrayGridSplitter.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.AppsQueueCountText.Text | Should -Be '0'
             }
             finally {
                 $state.ActiveJobId = $null
@@ -1133,18 +1130,40 @@ Import-Module -Name '$modulePath' -Force
                 $state.NavApps.IsChecked | Should -BeTrue
                 Test-Path -Path $settingsPath | Should -BeFalse
                 $state.ActiveJobId = $null
-                $state.NavDownload.IsChecked = $true
-                (Get-EwSetting).StartupView | Should -Be 'Download'
+                $state.NavLibrary.IsChecked = $true
+                (Get-EwSetting).StartupView | Should -Be 'Library'
 
                 $window = Get-EwWorkbenchWindow
                 $windows.Add($window)
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
-                $state.DownloadPanel.Visibility.ToString() | Should -Be 'Visible'
+                $state.LibraryPanel.Visibility.ToString() | Should -Be 'Visible'
                 $state.AppsPanel.Visibility.ToString() | Should -Be 'Collapsed'
-                $state.NavDownload.IsChecked | Should -BeTrue
+                $state.NavLibrary.IsChecked | Should -BeTrue
             }
             finally {
                 foreach ($item in $windows) { $item.Close() }
+                $env:APPDATA = $originalAppData
+            }
+        }
+    }
+
+    It 'restores a legacy Download startup view as Apps without persisting the migration' {
+        InModuleScope EvergreenUI {
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $settings = Get-EwSetting
+            $settings.StartupView = 'Download'
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $state.AppsPanel.Visibility.ToString() | Should -Be 'Visible'
+                $state.NavApps.IsChecked | Should -BeTrue
+                $state.Settings.StartupView | Should -Be 'Apps'
+                Test-Path -Path (Get-EwSettingsPath) | Should -BeFalse
+                { Set-EwSetting -Name StartupView -Value Download } | Should -Throw
+            }
+            finally {
+                $window.Close()
                 $env:APPDATA = $originalAppData
             }
         }
@@ -1249,7 +1268,7 @@ Describe 'Workbench Settings and About' {
                     [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
                 )
                 $state.RefreshAboutDependenciesButton.RaiseEvent($eventArgs)
-                foreach ($name in 'NavApps', 'NavDownload', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall') {
+                foreach ($name in 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall') {
                     $state[$name].Visibility.ToString() | Should -Be 'Visible'
                 }
                 Should -Invoke Invoke-EwWorkbenchSettingsRefresh -Exactly 1
@@ -1272,13 +1291,14 @@ Describe 'Workbench Settings and About' {
             $window = Get-EwWorkbenchWindow
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
-                $state.OutputPathBox.Text = 'C:\UnsavedDownload'
                 $state.LibraryPathBox.Text = 'C:\UnsavedLibrary'
                 $state.NavSettings.IsChecked = $true
                 & $Wait -State $state -Kind 'Download'
                 & $Wait -State $state -Kind 'Library'
                 $state.SettingsDownloadPathBox.IsReadOnly | Should -BeTrue
                 $state.SettingsLibraryPathBox.IsReadOnly | Should -BeTrue
+                $state.BrowseDownloadFolderButton.IsEnabled | Should -BeTrue
+                $state.BrowseLibraryFolderButton.IsEnabled | Should -BeTrue
                 $state.SettingsDownloadPathBox.Text | Should -Be $download
                 $state.SettingsLibraryPathBox.Text | Should -Be $library
                 $state.OpenDownloadFolderButton.IsEnabled | Should -BeTrue

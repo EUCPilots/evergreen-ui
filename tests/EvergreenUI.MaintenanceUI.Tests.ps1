@@ -46,10 +46,12 @@ Describe 'Apps maintenance' {
         }
 
         It 'wires all three maintenance controls in Apps and updates without confirmation' {
-            foreach ($name in 'UpdateEvergreenButton', 'ClearWorkbenchCacheButton', 'OpenCacheFolderButton', 'AppsMaintenanceStatusLabel') {
-                $window.FindName($name) | Should -Not -BeNullOrEmpty
-            }
-            $state.UpdateEvergreenButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Button]::ClickEvent))
+            @($state.EvergreenMenu.Items |
+                    Where-Object { $_ -is [System.Windows.Controls.MenuItem] } |
+                    ForEach-Object { $_.Header }) |
+                Should -Be @('Refresh catalog', 'Update Evergreen', 'Clear Workbench cache', 'Open cache folder')
+            $window.FindName('AppsMaintenanceStatusLabel') | Should -Not -BeNullOrEmpty
+            $state.UpdateEvergreenButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
             $state.ActiveJobKind | Should -Be 'EvergreenUpdate'
             $state.UpdateEvergreenButton.IsEnabled | Should -BeFalse
             $state.ClearWorkbenchCacheButton.IsEnabled | Should -BeFalse
@@ -61,7 +63,7 @@ Describe 'Apps maintenance' {
         }
 
         It 'declines clear without starting any job' {
-            $state.ClearWorkbenchCacheButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Button]::ClickEvent))
+            $state.ClearWorkbenchCacheButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
             Should -Invoke Confirm-EwWorkbenchCacheClear -Times 1
             Should -Invoke Start-EwJob -Times 0
             $state.MaintenancePromptActive | Should -BeFalse
@@ -295,7 +297,8 @@ Describe 'Apps maintenance' {
             $state.AppSearchBox.Text | Should -Be 'Test'
             $state.CurrentApp | Should -Be $newApp
             $state.AppsListView.SelectedItem | Should -Be $newApp
-            $state.FavoriteAppButton.Content | Should -Be 'Remove favourite'
+            $state.AppsListView.Columns[1] | Should -BeOfType ([System.Windows.Controls.DataGridTemplateColumn])
+            $state.CurrentApp.IsFavourite | Should -BeTrue
             @($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object IsChecked | ForEach-Object Tag) | Should -Be @('x64')
             $state.ArtifactFilterControls['Architecture'].Control.Text | Should -Be 'x64'
             @($state.ArtifactsGrid.ItemsSource).Count | Should -Be 1
@@ -382,7 +385,7 @@ Describe 'Apps maintenance' {
                 & $originalInvoker -Name $Name -Parameters $Parameters
             }.GetNewClosure()
             Mock Start-Process { Test-Path -LiteralPath $FilePath -PathType Container | Should -BeTrue }
-            $state.OpenCacheFolderButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Button]::ClickEvent))
+            $state.OpenCacheFolderButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
             $cachePath | Should -Exist
             Should -Invoke Start-Process -Times 1
             Mock Start-Process { throw 'Explorer unavailable' }
