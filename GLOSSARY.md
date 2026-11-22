@@ -16,6 +16,12 @@ _Avoid_: App.json Definition, Shell App definition
 A resolved installer for a specific version of an application, produced by evaluating a Definition's filter or a Shell App definition's source.
 _Avoid_: Download, installer, result
 
+**Local-install architecture compatibility**:
+The assessment of whether a Definition and its Artifact, when known, are
+allowed, require approval, or are blocked for installation on the local
+operating system architecture.
+_Avoid_: Architecture match
+
 **Library**:
 The local folder tree of Artifacts maintained by Evergreen's library update.
 _Avoid_: Repository, cache, store

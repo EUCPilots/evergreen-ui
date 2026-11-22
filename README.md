@@ -19,6 +19,16 @@ V2 app workflows use `Get-EwApp` to list the Evergreen catalog or resolve an app
 
 V2 definition workflows use `Get-EwDefinition`, `Resolve-EwArtifact`, and `Update-EwDefinition`. Stored `Application.Filter` expressions are parsed by a constrained evaluator rather than executed as PowerShell; only supported Evergreen queries and `Where-Object` predicates resolve. `Test-EwDetection` evaluates File, Registry, and MSI rules, while `Install-EwPackage` stages and runs a local package with `ShouldProcess` support.
 
+Local installation checks the native Windows architecture against the Definition
+requirement and resolved Artifact. Incompatible values are blocked. A missing
+requirement or x64 emulation on Arm64 needs separate approval; x86 is supported
+on x86, x64, and Arm64. Windows 10 on Arm does not support x64 emulation.
+For unattended use, explicitly supply
+`-AllowMissingArchitectureRequirement` and/or `-AllowX64OnArm64` as needed.
+`-Confirm:$false` alone does not approve these warnings, and a non-interactive
+call without the required opt-in throws. Results report `Installed`, `Failed`,
+`Blocked`, or `Skipped`; `-WhatIf` does not resolve or download an Artifact.
+
 `New-EwPackage` builds Intune Win32 packages from App.json definitions or creates Microsoft 365 Apps packages for Intune or Nerdio from ODT XML. Intune package building uses the optional `IntuneWin32App` module. `Connect-EwIntune` and `Connect-EwNerdio` establish provider sessions; publishing commands require their corresponding Microsoft Graph or Azure modules and live provider access. Authentication tokens and secrets are kept in process memory, not settings.
 
 `Connect-EwNerdio -ApiOnly` authenticates without an Azure storage connection.
@@ -117,7 +127,12 @@ downloads, and library updates through the module's bounded background job
 pool. Its Packages view loads and updates shared Intune App.json definitions
 and saves definition and package-output paths. Its Install view reloads those
 definitions, checks local detection, resolves latest versions on request, and
-supports confirmed batch installation with per-application results.
+supports confirmed batch installation with per-application results. It shows
+Definition and Artifact architectures separately and can hide blocked rows for
+the current session. Each affected application needs its own architecture
+approval; blocked or declined applications are skipped. Changed Definition or
+Artifact metadata is reviewed again, with at most two re-confirmations. This
+check does not hash downloaded bytes or guarantee that an application will run.
 
 ### Settings and About
 

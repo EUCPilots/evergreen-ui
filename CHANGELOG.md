@@ -11,6 +11,7 @@
 - `Publish-EwNerdioApp` can now add a version to an existing Shell App and download the package from the definition source when `-PackagePath` is omitted.
 - Add the initial v2 WPF interface for Apps, Download, and Library, with native WPF theme modes and background work through the shared job pool.
 - Expand the v2 WPF shell with Intune Packages setup and local Install views, including shared App.json definitions, local detection, separate latest-version lookup, and confirmed batch installation.
+- Check native Windows architecture before local installs, with per-application approval for missing requirements or x64 emulation on Arm64 and explicit unattended opt-ins. Show and optionally hide incompatible Install rows.
 - Restore metadata-driven artifact filters, show Library version details and queued architecture/URI, and improve path-row sizing and theme contrast.
 - Add the Intune Publish view with connection, comparison, confirmed sequential build-and-publish batches, optional update apps, and supersedence retry.
 - Preserve partial Intune app IDs and Definition update failures, and distinguish linked supersedence chains from ambiguous Intune matches.
