@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the v2
 rewrite, requiring PowerShell 7.6 or later. Its public headless commands run
-without WPF; the v2 UI provides Apps, Download, Library, Packages, Intune,
-Nerdio, Install, Settings, and About views.
+without WPF; the v2 UI provides Apps, Library, Packages, Intune, Nerdio,
+Install, Settings, and About views. Apps combines application discovery and
+downloads in one view.
 Unless explicitly marked v2, the architecture and conventions below describe
 v1. Read `docs\adr\` before designing v2 changes.
 
@@ -64,7 +65,7 @@ Start-EvergreenWorkbench
 
 | Area | Commands | Notes |
 |---|---|---|
-| Settings | `Get-EwSetting`, `Set-EwSetting`, `Reset-EwSetting` | Uses fresh settings at `%APPDATA%\EvergreenWorkbench\settings.json`, including validated UI state (`StartupView`, `LastAppName`, `WindowWidth`, `WindowHeight`, `WindowMaximized`). |
+| Settings | `Get-EwSetting`, `Set-EwSetting`, `Reset-EwSetting` | Uses fresh settings at `%APPDATA%\EvergreenWorkbench\settings.json`, including validated UI state (`StartupView`, `LastAppName`, `WindowWidth`, `WindowHeight`, `DownloadTrayHeight`, `WindowMaximized`). |
 | WPF interface | `Start-EvergreenWorkbench` | Opens the v2 Workbench views; requires Windows and PowerShell 7.6+. |
 | Jobs | `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, `Remove-EwJob` | Runs bounded background work in the module's runspace pool. |
 | Apps and downloads | `Get-EwApp`, `Get-EwFilterableProperty`, `Save-EwArtifact` | Wraps Evergreen catalog, artifact, and download operations. |
@@ -119,18 +120,20 @@ Worker runspaces never access WPF controls.
 
 ### V2 Navigation Views
 
-The v2 shell includes nine RadioButton navigation views: Apps, Download,
-Library, Packages, Intune, Nerdio, Install, Settings, and About. Apps uses `Get-EwApp`,
-`Get-EwFilterableProperty`, and the favourite commands; Download queues
-artifacts for `Save-EwArtifact`; Library reads and updates an Evergreen library
-and shows selected application versions; Packages loads and updates shared
+The v2 shell includes eight RadioButton navigation views: Apps, Library,
+Packages, Intune, Nerdio, Install, Settings, and About. Apps uses `Get-EwApp`,
+`Get-EwFilterableProperty`, and the favourite commands; its collapsible queue
+tray batches artifacts for `Save-EwArtifact` across applications and shows
+download progress. Settings manages saved download and library folders;
+Library reads and updates an Evergreen library and shows selected application
+versions; Packages loads and updates shared
 Intune App.json definitions and saves definition and output paths; Install
 reloads definitions, checks local detection, resolves latest versions
 separately, and supports confirmed batch installs through `Install-EwPackage`.
-Settings shows saved paths; About captures loaded module versions in the
-window runspace and refreshes local dependency status independently of the
-active UI Job. Its potentially blocking scan uses a separate short-lived
-runspace so closing the window can stop the monitoring Job promptly.
+About captures loaded module versions in the window runspace and refreshes
+local dependency status independently of the active UI Job. Its potentially
+blocking scan uses a separate short-lived runspace so closing the window can
+stop the monitoring Job promptly.
 Intune compares Definitions and builds and publishes confirmed batches through
 `Publish-EwIntuneBatch`. Nerdio owns its staged Azure/API setup and runs confirmed
 publishing plans through `Get-EwNerdioPublishPlan` and `Publish-EwNerdioBatch`.
