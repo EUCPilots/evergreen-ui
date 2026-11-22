@@ -15,6 +15,12 @@ AfterAll {
 Describe 'Intune background context' {
     It 'exposes a process-scoped Graph context to a Workbench job' -Skip:(-not $graphAvailable) {
         Import-Module -Name Microsoft.Graph.Authentication -ErrorAction Stop
+        $graphSessionType = 'Microsoft.Graph.PowerShell.Authentication.GraphSession' -as [type]
+        $authContextType = 'Microsoft.Graph.PowerShell.Authentication.AuthContext' -as [type]
+        if ($null -eq $graphSessionType -or $null -eq $authContextType) {
+            Set-ItResult -Skipped -Because 'The installed Microsoft.Graph.Authentication module does not expose the Graph context test types'
+            return
+        }
         $session = [Microsoft.Graph.PowerShell.Authentication.GraphSession]::Instance
         $original = $session.AuthContext
         $context = [Microsoft.Graph.PowerShell.Authentication.AuthContext]::new()
