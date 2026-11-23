@@ -105,10 +105,11 @@ Describe 'Evergreen Workbench WPF shell' {
             try {
                 foreach ($name in @(
                         'NavApps', 'NavLibrary',
-                        'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall', 'NavSettings', 'NavAbout',
+                        'NavPackages', 'NavIntune', 'NavNerdio', 'NavSettings', 'NavAbout',
                         'AppsPanel', 'DownloadTrayPanel', 'DownloadTrayContent', 'DownloadTrayGridSplitter',
                         'DownloadTrayToggleButton', 'DownloadTrayActionButton', 'DownloadNowButton',
                         'LibraryPanel', 'PackagesPanel', 'IntunePanel', 'NerdioPanel', 'InstallPanel',
+                        'PackagesTabControl', 'DefinitionsTab', 'InstallTab',
                         'SettingsPanel', 'AboutPanel', 'SettingsDownloadPathBox', 'SettingsLibraryPathBox',
                         'BrowseDownloadFolderButton', 'BrowseLibraryFolderButton',
                         'OpenDownloadFolderButton', 'OpenLibraryFolderButton', 'AboutDependenciesListView',
@@ -150,10 +151,11 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window.Top = -10000
                 $window.Show()
                 $headerWidth = $null
-                foreach ($pageName in 'NerdioPanel', 'IntunePanel', 'NerdioPanel') {
+                foreach ($pageName in 'NerdioPanel', 'IntunePanel', 'PackagesPanel', 'NerdioPanel') {
                     $window.FindName('AppsPanel').Visibility = 'Collapsed'
                     $window.FindName('IntunePanel').Visibility = 'Collapsed'
                     $window.FindName('NerdioPanel').Visibility = 'Collapsed'
+                    $window.FindName('PackagesPanel').Visibility = 'Collapsed'
                     $page = $window.FindName($pageName)
                     $page.Visibility = 'Visible'
                     $tabs = $page.Children[0]
@@ -1331,7 +1333,7 @@ Describe 'Evergreen Workbench WPF shell' {
                 foreach ($mode in 'Light', 'Dark', 'Light') {
                     $window.ThemeMode = [System.Windows.ThemeMode]::$mode
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                    foreach ($name in 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall', 'NavSettings', 'NavAbout') {
+                    foreach ($name in 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavSettings', 'NavAbout') {
                         $window.FindName($name).Foreground.Color |
                             Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
                     }
@@ -1950,6 +1952,7 @@ Import-Module -Name '$modulePath' -Force
                 $state.InstallDefinitions.Add($definition)
                 $state.InstallDefinitionsListView.SelectedItem = $definition
                 Mock Confirm-EwWorkbenchInstallBatch { $false }
+                $state.InstallDefinitionsStale = $false
                 Mock Start-EwJob {}
                 $eventArgs = [System.Windows.RoutedEventArgs]::new(
                     [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
@@ -1977,6 +1980,7 @@ Import-Module -Name '$modulePath' -Force
                 $state.InstallDefinitions.Add($definition)
                 $state.InstallDefinitionsListView.SelectedItem = $definition
                 Mock Confirm-EwWorkbenchInstallBatch { $true }
+                $state.InstallDefinitionsStale = $false
                 Mock Start-EwJob {
                     [PSCustomObject]@{
                         Id = [guid]::NewGuid()
@@ -2766,7 +2770,7 @@ Describe 'Workbench Settings and About' {
                     [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
                 )
                 $state.RefreshAboutDependenciesButton.RaiseEvent($eventArgs)
-                foreach ($name in 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavInstall') {
+                foreach ($name in 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio') {
                     $state[$name].Visibility.ToString() | Should -Be 'Visible'
                 }
                 Should -Invoke Invoke-EwWorkbenchSettingsRefresh -Exactly 1

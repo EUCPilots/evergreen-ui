@@ -181,6 +181,7 @@ Describe 'Install architecture review in the Workbench' {
                 $row = & $NewRow -Name 'Changing'
                 $row.DefinitionPath = $DefinitionPath
                 $state.InstallDefinitions.Add($row)
+                $state.InstallDefinitionsStale = $false
                 $state.ResolveInstallVersionsButton.IsEnabled = $true
                 Mock Invoke-EwWorkbenchJob { $script:installVersionsWorker = $ScriptBlock }
                 Mock Resolve-EwArtifact {
@@ -447,6 +448,7 @@ Describe 'Install architecture review in the Workbench' {
                 $row.DefinitionPath = $DefinitionPath
                 $state.InstallDefinitions.Add($row)
                 $state.InstallDefinitionsListView.SelectedItem = $row
+                $state.InstallDefinitionsStale = $false
                 Mock Confirm-EwWorkbenchInstallBatch { $true }
                 $eventArgs = [System.Windows.RoutedEventArgs]::new(
                     [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
