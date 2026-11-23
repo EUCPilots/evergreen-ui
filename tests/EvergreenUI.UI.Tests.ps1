@@ -133,6 +133,118 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'keeps provider tab headers equal and content usable in <Mode> mode at width <Width>' -ForEach @(
+        @{ Mode = 'Light'; Width = 1200 }
+        @{ Mode = 'Light'; Width = 960 }
+        @{ Mode = 'Dark'; Width = 1200 }
+        @{ Mode = 'Dark'; Width = 960 }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Mode = $Mode; Width = $Width } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.ThemeMode = [System.Windows.ThemeMode]::$Mode
+                $window.Width = $Width
+                $window.Height = $window.MinHeight
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $headerWidth = $null
+                foreach ($pageName in 'NerdioPanel', 'IntunePanel', 'NerdioPanel') {
+                    $window.FindName('AppsPanel').Visibility = 'Collapsed'
+                    $window.FindName('IntunePanel').Visibility = 'Collapsed'
+                    $window.FindName('NerdioPanel').Visibility = 'Collapsed'
+                    $page = $window.FindName($pageName)
+                    $page.Visibility = 'Visible'
+                    $tabs = $page.Children[0]
+                    foreach ($selectedIndex in 0, 1, 0) {
+                        $tabs.SelectedIndex = $selectedIndex
+                        $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                        $window.UpdateLayout()
+                        foreach ($tab in $tabs.Items) {
+                            $tab.ActualWidth | Should -BeGreaterThan 0
+                            if ($null -eq $headerWidth) { $headerWidth = $tab.ActualWidth }
+                            [Math]::Abs($tab.ActualWidth - $headerWidth) | Should -BeLessOrEqual 0.5
+                            $header = $tab.Template.FindName('HeaderContent', $tab)
+                            $header.Measure([System.Windows.Size]::new([double]::PositiveInfinity, [double]::PositiveInfinity))
+                            $labelWidth = $header.DesiredSize.Width - $header.Margin.Left - $header.Margin.Right
+                            ($header.ActualWidth + 0.5) | Should -BeGreaterOrEqual $labelWidth
+                            $point = $tab.TranslatePoint([System.Windows.Point]::new(0, 0), $page)
+                            ($point.X + $tab.ActualWidth) | Should -BeLessOrEqual $page.ActualWidth
+                            $indicator = $tab.Template.FindName('SelectedIndicator', $tab)
+                            $indicator.Visibility.ToString() | Should -Be $(if ($tab.IsSelected) { 'Visible' } else { 'Collapsed' })
+                            $indicator.Background.Color | Should -Be $window.TryFindResource('AccentFillColorDefaultBrush').Color
+                        }
+                        $host = $tabs.Template.FindName('PART_SelectedContentHost', $tabs)
+                        $host.Content | Should -Be $tabs.SelectedItem.Content
+                        $host.ActualHeight | Should -BeGreaterThan 100
+                        $host.Content.IsVisible | Should -BeTrue
+                        foreach ($tab in $tabs.Items) {
+                            $tab.Content.IsVisible | Should -Be $tab.IsSelected
+                            [System.Windows.Documents.TextElement]::GetFontSize($tab.Content) | Should -Be $tabs.FontSize
+                            [System.Windows.Documents.TextElement]::GetFontWeight($tab.Content) | Should -Be $tabs.FontWeight
+                        }
+                    }
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'preserves provider tab keyboard navigation and focus feedback across theme changes' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                foreach ($mode in 'Light', 'Dark') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    foreach ($pageName in 'IntunePanel', 'NerdioPanel') {
+                        $window.FindName('AppsPanel').Visibility = 'Collapsed'
+                        $window.FindName('IntunePanel').Visibility = 'Collapsed'
+                        $window.FindName('NerdioPanel').Visibility = 'Collapsed'
+                        $page = $window.FindName($pageName)
+                        $page.Visibility = 'Visible'
+                        $tabs = $page.Children[0]
+                        $tabs.SelectedIndex = 0
+                        $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                        $null = $tabs.Items[0].Focus()
+                        foreach ($key in 'Right', 'Home', 'End', 'Left') {
+                            $focusedTab = $tabs.SelectedItem
+                            $focusedTab.IsKeyboardFocused | Should -BeTrue
+                            $border = $focusedTab.Template.FindName('HeaderBorder', $focusedTab)
+                            $border.BorderBrush.Color | Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
+                            if ($key -in 'Right', 'Left') {
+                                $null = $focusedTab.MoveFocus([System.Windows.Input.TraversalRequest]::new(
+                                    [System.Windows.Input.FocusNavigationDirection]::$key
+                                ))
+                            }
+                            else {
+                                $keyArgs = [System.Windows.Input.KeyEventArgs]::new(
+                                    [System.Windows.Input.Keyboard]::PrimaryDevice,
+                                    [System.Windows.PresentationSource]::FromVisual($window),
+                                    0,
+                                    [System.Windows.Input.Key]::$key
+                                )
+                                $keyArgs.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent
+                                $focusedTab.RaiseEvent($keyArgs)
+                            }
+                            $tabs.SelectedIndex | Should -Be $(if ($key -in 'Right', 'End') { 1 } else { 0 })
+                            $tabs.SelectedItem.IsKeyboardFocused | Should -BeTrue
+                        }
+                    }
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'keeps Library path actions on one line at default and minimum window widths' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow

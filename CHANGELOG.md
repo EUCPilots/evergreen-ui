@@ -2,6 +2,7 @@
 
 ## [2.0.0-preview]
 
+- Give Intune and Nerdio tabs a WinUI-style accent underline and matching content-sized header widths.
 - Cache `Get-EvergreenApp` results as one JSON file per application in the Workbench cache folder for 24 hours. `Get-EwApp -Force` and `-NoCache` lookups refresh the cache, Clear Workbench cache and Update Evergreen remove it, and the Apps menu adds Reload selected app versions.
 - Begin the PowerShell 7.6 v2 rewrite with headless settings, bounded background jobs, Apps, downloads, and Library commands.
 - Combine Apps discovery and downloads in one view with a resizable queue tray, inline queue actions, navigation count, and editable saved folders in Settings.
