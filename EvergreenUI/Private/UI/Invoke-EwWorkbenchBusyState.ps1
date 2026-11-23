@@ -13,6 +13,7 @@ function Invoke-EwWorkbenchBusyState {
 
     foreach ($button in @(
             $State.RefreshAppsButton,
+            $State.ReloadAppVersionsButton,
             $State.UpdateEvergreenButton,
             $State.ClearWorkbenchCacheButton,
             $State.QueueDownloadButton,

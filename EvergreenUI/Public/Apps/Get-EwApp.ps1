@@ -8,15 +8,17 @@ function Get-EwApp {
     .DESCRIPTION
         Without Name, returns the cached application catalog with favourites
         listed first. With Name,
-        resolves its artifacts using Evergreen. Filter values are exact
-        case-insensitive matches; each filter value may be one value or a set
-        of alternatives. Use Force to refresh the catalog cache.
+        resolves its artifacts using Evergreen. Resolved artifacts are cached
+        per application for 24 hours in the Workbench cache folder. Filter
+        values are exact case-insensitive matches; each filter value may be one
+        value or a set of alternatives. Use Force to refresh either cache.
     .PARAMETER Name
         The Evergreen application name to resolve. Omit to list applications.
     .PARAMETER Filter
         Property-value constraints to apply to resolved artifacts.
     .PARAMETER Force
-        Bypasses the application catalog cache.
+        Bypasses the application catalog cache, or with Name, the cached
+        artifacts for that application. Fresh results are saved to the cache.
     .EXAMPLE
         Get-EwApp
     .EXAMPLE
@@ -107,7 +109,7 @@ function Get-EwApp {
     }
 
     Write-Verbose -Message "EvergreenUI: Resolving artifacts for '$Name'"
-    $artifacts = @(Get-EwAppVersion -Name $Name)
+    $artifacts = @(Get-EwAppVersion -Name $Name -NoCache:$Force)
     if ($Filter -and $Filter.Count -gt 0) {
         $validProperties = if ($artifacts.Count -gt 0) { @($artifacts[0].PSObject.Properties.Name) } else { @() }
         foreach ($key in $Filter.Keys) {

@@ -5,11 +5,14 @@ function Invoke-EwDefinitionQuery {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [psobject]$Query
+        [psobject]$Query,
+
+        [Parameter()]
+        [switch]$NoCache
     )
 
     if ($Query.CommandName -ieq 'Get-EvergreenApp') {
-        return @(Get-EwAppVersion -Name $Query.AppName -ErrorAction Stop)
+        return @(Get-EwAppVersion -Name $Query.AppName -NoCache:$NoCache -ErrorAction Stop)
     }
 
     return @(Get-EwVcList -ErrorAction Stop)

@@ -6,6 +6,7 @@ function Initialize-EwWorkbenchMaintenanceView {
     param([Parameter(Mandatory)][System.Collections.IDictionary]$State)
 
     foreach ($entry in @(
+            @{ Control = $State.ReloadAppVersionsButton; Action = 'ReloadVersions' },
             @{ Control = $State.UpdateEvergreenButton; Action = 'Update' },
             @{ Control = $State.ClearWorkbenchCacheButton; Action = 'Clear' },
             @{ Control = $State.OpenCacheFolderButton; Action = 'Open' }

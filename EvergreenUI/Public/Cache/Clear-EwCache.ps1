@@ -4,17 +4,20 @@ $ErrorActionPreference = 'Stop'
 function Clear-EwCache {
     <#
     .SYNOPSIS
-        Clears Workbench catalog and definition artifact caches.
+        Clears Workbench catalog, application version, and definition artifact caches.
     .DESCRIPTION
         Invalidates every Workbench catalog and only the selected persistent
         definition cache, including caches in other runspaces and processes.
-        Deletes only definition-artifact-cache.json. Coordination metadata and
+        Deletes definition-artifact-cache.json and the per-application version
+        files in the Apps subfolder. Coordination metadata and
         unrelated files are preserved. Does not update Evergreen or delete its
         application data, downloads, Library, settings, or provider recovery.
         Failed steps are reported without retries.
         DefinitionCacheRemoved reports the payload deletion step separately
         from invalidation. RemovedEntryCount counts deleted definition entries
         when EntryCountKnown is true, not catalogs in other processes.
+        AppCacheInvalidated and AppCacheRemovedCount report the application
+        version cache separately.
     .PARAMETER CachePath
         Explicit definition cache directory. Defaults to the local
         EvergreenWorkbench cache. Other cache directories are not discovered.
@@ -41,6 +44,7 @@ function Clear-EwCache {
             Succeeded = $false; CachePath = $CachePath
             CatalogInvalidated = $false; DefinitionCacheInvalidated = $false
             DefinitionCacheRemoved = $false; RemovedFiles = [string[]]@()
+            AppCacheInvalidated = $false; AppCacheRemovedCount = 0
             RemovedEntryCount = 0; EntryCountKnown = $false; Changed = $false
             Error = $Message; Errors = [string[]]@($Message)
         }
@@ -51,7 +55,7 @@ function Clear-EwCache {
     catch {
         return (& $fail -Message $_.Exception.Message)
     }
-    if (-not $PSCmdlet.ShouldProcess($CachePath, 'Invalidate all Workbench catalogs and clear this definition artifact cache')) {
+    if (-not $PSCmdlet.ShouldProcess($CachePath, 'Invalidate all Workbench catalogs and clear this application version and definition artifact cache')) {
         return
     }
     $ConfirmPreference = 'None'
@@ -65,6 +69,20 @@ function Clear-EwCache {
     }
     catch {
         $errors.Add("Catalog invalidation failed: $($_.Exception.Message)")
+        Write-Verbose -Message "EvergreenUI: $($errors[$errors.Count - 1])"
+    }
+    try {
+        $appClear = Invoke-EwAppVersionCache -Action Clear -CachePath $CachePath -ErrorAction Stop
+        $result.AppCacheInvalidated = $true
+        $result.AppCacheRemovedCount = $appClear.RemovedCount
+        $result.Changed = $true
+        foreach ($appError in @($appClear.Errors)) {
+            $errors.Add("Application version cache file deletion failed: $appError")
+            Write-Verbose -Message "EvergreenUI: $($errors[$errors.Count - 1])"
+        }
+    }
+    catch {
+        $errors.Add("Application version cache invalidation failed: $($_.Exception.Message)")
         Write-Verbose -Message "EvergreenUI: $($errors[$errors.Count - 1])"
     }
     $epochFile = Join-Path -Path $CachePath -ChildPath 'definition-cache-epoch.json'
@@ -122,7 +140,7 @@ function Clear-EwCache {
     }
     $result.Errors = [string[]]$errors.ToArray()
     $result.Error = $result.Errors -join '; '
-    $result.Succeeded = $result.CatalogInvalidated -and $result.DefinitionCacheInvalidated -and $result.DefinitionCacheRemoved
+    $result.Succeeded = $result.CatalogInvalidated -and $result.AppCacheInvalidated -and $result.DefinitionCacheInvalidated -and $result.DefinitionCacheRemoved
     Write-Verbose -Message "EvergreenUI: Workbench cache clear completed; succeeded: $($result.Succeeded)"
     return $result
 }

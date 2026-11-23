@@ -287,9 +287,9 @@
                                   AutoGenerateColumns="False"
                                   IsReadOnly="True"
                                   SelectionMode="Single"
-                                  HeadersVisibility="Column"
+                                  HeadersVisibility="None"
                                   CanUserAddRows="False"
-                                  CanUserSortColumns="True"
+                                  CanUserSortColumns="False"
                                   EnableRowVirtualization="True"
                                   AutomationProperties.Name="Application catalog">
                             <DataGrid.Columns>
@@ -303,13 +303,15 @@
                                             <Button Tag="{Binding}"
                                                     FontFamily="Segoe Fluent Icons"
                                                     FontSize="16"
+                                                    HorizontalAlignment="Center"
                                                     Padding="4,0"
                                                     Background="Transparent"
                                                     BorderThickness="0"
                                                     ToolTip="Toggle favourite"
                                                     AutomationProperties.Name="Toggle favourite">
                                                 <Button.Style>
-                                                    <Style TargetType="{x:Type Button}">
+                                                    <Style TargetType="{x:Type Button}"
+                                                           BasedOn="{StaticResource {x:Type Button}}">
                                                         <Setter Property="Content" Value="&#xE734;" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsFavourite}" Value="True">

@@ -5,7 +5,7 @@ function Invoke-EwWorkbenchMaintenanceAction {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$State,
-        [Parameter(Mandatory)][ValidateSet('Update', 'Clear', 'Open', 'Catalog', 'Artifacts')][string]$Action
+        [Parameter(Mandatory)][ValidateSet('Update', 'Clear', 'Open', 'Catalog', 'Artifacts', 'ReloadVersions')][string]$Action
     )
 
     if ($State.MaintenancePromptActive) { return }
@@ -64,6 +64,18 @@ function Invoke-EwWorkbenchMaintenanceAction {
                 Invoke-EwWorkbenchJob -State $State -Kind 'MaintenanceCatalog' -Name 'Reload catalog after maintenance' -ScriptBlock {
                     Get-EwApp -Force -ErrorAction Stop
                 }
+            }
+            'ReloadVersions' {
+                if ($null -eq $State.CurrentApp) {
+                    $State.AppsMaintenanceStatusLabel.Text = 'Select an application to reload its versions.'
+                    return
+                }
+                $appName = [string]$State.CurrentApp.Name
+                $State.SelectedAppText.Text = "Loading versions for $($State.CurrentApp.FriendlyName)..."
+                Invoke-EwWorkbenchJob -State $State -Kind 'Artifacts' -Name "Reload $appName artifacts" -ScriptBlock {
+                    param($AppName)
+                    Get-EwApp -Name $AppName -Force -ErrorAction Stop
+                } -ArgumentList @($appName)
             }
             'Artifacts' {
                 Invoke-EwWorkbenchJob -State $State -Kind 'MaintenanceArtifacts' -Name 'Reload selected application Artifacts' -ScriptBlock {

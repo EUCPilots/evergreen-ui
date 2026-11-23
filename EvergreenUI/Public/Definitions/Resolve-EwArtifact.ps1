@@ -133,7 +133,7 @@ function Resolve-EwArtifact {
 
     Write-Verbose -Message "EvergreenUI: Definition artifact cache miss or bypass (NoCache: $($NoCache.IsPresent)); querying Evergreen for '$resolvedPath'"
     try {
-        $artifacts = @(Invoke-EwDefinitionQuery -Query $query)
+        $artifacts = @(Invoke-EwDefinitionQuery -Query $query -NoCache:$NoCache)
         if ($null -ne $query.Predicate) {
             $artifacts = @($artifacts | Where-Object {
                 [bool](Get-EwFilterLiteralValue -Expression $query.Predicate -Artifact $_)

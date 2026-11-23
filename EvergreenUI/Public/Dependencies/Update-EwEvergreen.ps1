@@ -7,7 +7,8 @@ function Update-EwEvergreen {
         Updates the Evergreen application manifests and cache.
     .DESCRIPTION
         Runs Update-Evergreen to refresh the local Evergreen apps cache, then
-        clears the Workbench application catalog cache. Information and verbose
+        clears the Workbench application catalog and application version
+        caches. Information and verbose
         output from Evergreen flow through normally.
     .EXAMPLE
         Update-EwEvergreen
@@ -28,6 +29,14 @@ function Update-EwEvergreen {
         Invoke-EwEvergreenUpdate
         $script:ewAppCatalogCache.Items = @()
         $script:ewAppCatalogCache.RetrievedAt = $null
+        try {
+            $appClear = Invoke-EwAppVersionCache -Action Clear -ErrorAction Stop
+            Write-Verbose -Message "EvergreenUI: Application version cache cleared after Evergreen update; removed $($appClear.RemovedCount) files"
+        }
+        catch {
+            # Best effort: the update itself succeeded and cached versions expire after 24 hours.
+            Write-Verbose -Message "EvergreenUI: Application version cache could not be cleared after Evergreen update: $($_.Exception.Message)"
+        }
         Write-Verbose -Message 'EvergreenUI: Evergreen update completed; application catalog cache cleared'
         return [PSCustomObject]@{ Succeeded = $true; Error = '' }
     }

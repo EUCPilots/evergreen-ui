@@ -56,6 +56,8 @@ function Initialize-EwWorkbenchView {
     $State.EvergreenMenu = [System.Windows.Controls.ContextMenu]::new()
     $State.RefreshAppsButton = [System.Windows.Controls.MenuItem]::new()
     $State.RefreshAppsButton.Header = 'Refresh catalog'
+    $State.ReloadAppVersionsButton = [System.Windows.Controls.MenuItem]::new()
+    $State.ReloadAppVersionsButton.Header = 'Reload selected app versions'
     $State.UpdateEvergreenButton = [System.Windows.Controls.MenuItem]::new()
     $State.UpdateEvergreenButton.Header = 'Update Evergreen'
     $State.ClearWorkbenchCacheButton = [System.Windows.Controls.MenuItem]::new()
@@ -63,6 +65,7 @@ function Initialize-EwWorkbenchView {
     $State.OpenCacheFolderButton = [System.Windows.Controls.MenuItem]::new()
     $State.OpenCacheFolderButton.Header = 'Open cache folder'
     $null = $State.EvergreenMenu.Items.Add($State.RefreshAppsButton)
+    $null = $State.EvergreenMenu.Items.Add($State.ReloadAppVersionsButton)
     $null = $State.EvergreenMenu.Items.Add([System.Windows.Controls.Separator]::new())
     $null = $State.EvergreenMenu.Items.Add($State.UpdateEvergreenButton)
     $null = $State.EvergreenMenu.Items.Add($State.ClearWorkbenchCacheButton)
