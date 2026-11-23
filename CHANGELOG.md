@@ -6,6 +6,7 @@
 - Begin the PowerShell 7.6 v2 rewrite with headless settings, bounded background jobs, Apps, downloads, and Library commands.
 - Combine Apps discovery and downloads in one view with a resizable queue tray, inline queue actions, navigation count, and editable saved folders in Settings.
 - Group the Apps queue and download actions on one line, with separators between action groups.
+- Place the Library path and its actions on one line.
 - Add consistent cell spacing and vertically centered text to all v2 data grids.
 - Centre Apps favourite stars and use native Fluent colours in light and dark modes, including while application versions load.
 - Remove the Application and Favourite column headers from the Apps list.

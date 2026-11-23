@@ -531,21 +531,18 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                    <!-- <StackPanel Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock Text="Evergreen library"
                                    Style="{StaticResource SectionHeadingTextBlockStyle}" />
                         <TextBlock Text="Read or update an initialized local Evergreen library."
                                    Margin="0,3,0,0"
                                    Opacity="0.75" />
-                    </StackPanel>
+                    </StackPanel> -->
                     <Grid Grid.Row="1" Margin="0,0,0,12">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Label Grid.Column="0" Content="Library location"
                                Target="{Binding ElementName=LibraryPathBox}"
@@ -556,7 +553,7 @@
                                  Height="32"
                                  VerticalContentAlignment="Center"
                                  ToolTip="Folder containing EvergreenLibrary.json" />
-                        <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
                             <Button x:Name="BrowseLibraryPathButton"
                                     Content="Browse"
                                     Margin="0,0,8,0"
@@ -574,7 +571,7 @@
                                     Style="{DynamicResource AccentButtonStyle}"
                                     Padding="14,4"
                                     FontWeight="SemiBold" />
-                        </WrapPanel>
+                        </StackPanel>
                     </Grid>
                     <DataGrid x:Name="LibraryListView"
                               Grid.Row="2"

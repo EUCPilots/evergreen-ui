@@ -133,6 +133,52 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'keeps Library path actions on one line at default and minimum window widths' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $settings = Get-EwSetting
+                $settings.StartupView = 'Library'
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $elements = @(
+                    $state.LibraryPathBox
+                    $state.BrowseLibraryPathButton
+                    $state.SetLibraryPathButton
+                    $state.LoadLibraryButton
+                    $state.UpdateLibraryButton
+                )
+
+                foreach ($width in 1200, 960) {
+                    $window.Width = $width
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    $previousRight = 0
+                    $center = $null
+                    foreach ($element in $elements) {
+                        $element.IsVisible | Should -BeTrue -Because "the Library controls are visible at width $width"
+                        $element.ActualWidth | Should -BeGreaterThan 0
+                        $position = $element.TranslatePoint([System.Windows.Point]::new(0, 0), $state.LibraryPanel)
+                        [Math]::Round($position.X - $previousRight, 1) | Should -BeGreaterOrEqual 0
+                        $previousRight = $position.X + $element.ActualWidth
+                        [Math]::Round($previousRight - $state.LibraryPanel.ActualWidth, 1) | Should -BeLessOrEqual 0
+                        $elementCenter = $position.Y + ($element.ActualHeight / 2)
+                        if ($null -eq $center) {
+                            $center = $elementCenter
+                        }
+                        [Math]::Abs($elementCenter - $center) | Should -BeLessOrEqual 1
+                    }
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'switches views and filters artifacts using multi-select check box dropdowns' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
