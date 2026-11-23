@@ -62,6 +62,48 @@ Describe 'Apps maintenance' {
             }
         }
 
+        It 'opens the Actions menu with the same themed appearance as the Columns menu' {
+            $window.WindowStartupLocation = 'Manual'
+            $window.Left = -10000
+            $window.Top = -10000
+            $window.Show()
+            $actionsMenu = $state.EvergreenMenu
+            $columnsMenu = $state.ShowArtifactColumnsButton.ContextMenu
+            $actionsMenu.Placement | Should -Be $columnsMenu.Placement
+            $actionsMenu.PlacementTarget | Should -Be $state.EvergreenMenuButton
+            try {
+                foreach ($mode in 'Light', 'Dark') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    $state.EvergreenMenuButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                    ))
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $actionsMenu.IsOpen | Should -BeTrue
+                    $actionsMenu.UpdateLayout()
+                    $actionsMenu.IsOpen = $false
+                    $state.ShowArtifactColumnsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                    ))
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $columnsMenu.UpdateLayout()
+
+                    [object]::ReferenceEquals($actionsMenu.Style, $columnsMenu.Style) | Should -BeTrue
+                    [object]::ReferenceEquals($actionsMenu.Template, $columnsMenu.Template) | Should -BeTrue
+                    $actionsMenu.Background.ToString() | Should -Be $columnsMenu.Background.ToString()
+                    $actionsMenu.Foreground.ToString() | Should -Be $columnsMenu.Foreground.ToString()
+                    $actionsMenu.Padding | Should -Be $columnsMenu.Padding
+                    $columnItem = $columnsMenu.Items | Where-Object Header -eq 'Architecture'
+                    [object]::ReferenceEquals($state.RefreshAppsButton.Template, $columnItem.Template) | Should -BeTrue
+                    $state.RefreshAppsButton.Foreground.ToString() | Should -Be $columnItem.Foreground.ToString()
+                    $columnsMenu.IsOpen = $false
+                }
+            }
+            finally {
+                $actionsMenu.IsOpen = $false
+                $columnsMenu.IsOpen = $false
+            }
+        }
+
         It 'reloads the selected app versions with Force and ignores the request without a selection' {
             $state.ReloadAppVersionsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
             $state.ActiveJobKind | Should -Be 'Artifacts'

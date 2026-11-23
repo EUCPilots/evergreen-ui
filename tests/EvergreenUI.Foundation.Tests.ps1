@@ -94,6 +94,27 @@ Describe 'EvergreenUI v2 foundation' {
         { Set-EwSetting -Name Theme -Value Blue } | Should -Throw '*Theme*'
     }
 
+    It 'persists normalized optional artifact columns and clears the preference' {
+        (Get-EwSetting).ArtifactHiddenColumns | Should -Be ''
+        Set-EwSetting -Name ArtifactHiddenColumns -Value ' architecture, DATE, Architecture '
+        (Get-EwSetting).ArtifactHiddenColumns | Should -BeExactly 'Architecture,Date'
+        Set-EwSetting -Name ArtifactHiddenColumns -Value 'Channel' -WhatIf
+        (Get-EwSetting).ArtifactHiddenColumns | Should -BeExactly 'Architecture,Date'
+        Set-EwSetting -Name ArtifactHiddenColumns -Value ''
+        (Get-EwSetting).ArtifactHiddenColumns | Should -Be ''
+    }
+
+    It 'rejects hiding required or unsupported artifact column <Column>' -ForEach @(
+        @{ Column = 'Version' }
+        @{ Column = 'uri' }
+        @{ Column = 'Unknown' }
+    ) {
+        Set-EwSetting -Name ArtifactHiddenColumns -Value 'Channel'
+        { Set-EwSetting -Name ArtifactHiddenColumns -Value "Date,$Column" } |
+            Should -Throw '*ArtifactHiddenColumns*'
+        (Get-EwSetting).ArtifactHiddenColumns | Should -Be 'Channel'
+    }
+
     It 'defaults, validates and stores typed window and navigation state' {
         $settings = Get-EwSetting
         $settings.StartupView | Should -Be 'Apps'

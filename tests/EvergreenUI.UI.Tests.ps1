@@ -113,7 +113,7 @@ Describe 'Evergreen Workbench WPF shell' {
                         'BrowseDownloadFolderButton', 'BrowseLibraryFolderButton',
                         'OpenDownloadFolderButton', 'OpenLibraryFolderButton', 'AboutDependenciesListView',
                         'RefreshAboutDependenciesButton', 'AboutProjectLink', 'AboutLicenseLink',
-                        'AppSearchBox', 'AppCountLabel', 'AppsListView', 'ArtifactsGrid',
+                        'AppSearchBox', 'AppCountLabel', 'AppsListView', 'ArtifactsGrid', 'ExportArtifactsButton',
                         'DownloadQueueListView', 'LibraryListView', 'LibraryVersionsListView',
                         'PackageDefinitionsListView', 'InstallDefinitionsListView',
                         'LoadPackageDefinitionsButton', 'UpdatePackageDefinitionsButton',
@@ -356,6 +356,422 @@ Describe 'Evergreen Workbench WPF shell' {
             }
             finally {
                 $window.Close()
+            }
+        }
+    }
+
+    Context 'Artifact column visibility' {
+        BeforeEach {
+            $columnTestAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $null = New-Item -Path $env:APPDATA -ItemType Directory -Force
+        }
+
+        AfterEach {
+            $env:APPDATA = $columnTestAppData
+        }
+
+        It 'offers an accessible Columns menu even with no artifacts and locks required columns' {
+            InModuleScope EvergreenUI {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $button = $state.ShowArtifactColumnsButton
+                    $button.IsEnabled | Should -BeTrue
+                    [System.Windows.Automation.AutomationProperties]::GetName($button) |
+                        Should -Be 'Show or hide artifact columns'
+                    @($state.ArtifactsGrid.Items).Count | Should -Be 0
+                    $menu = $button.ContextMenu
+                    @($menu.Items | ForEach-Object Header) |
+                        Should -Be @('Version', 'Architecture', 'Channel', 'Release', 'Type', 'Language', 'Date', 'URI')
+                    $button.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                    ))
+                    $menu.IsOpen | Should -BeTrue
+                    $menu.PlacementTarget | Should -Be $button
+                    foreach ($item in $menu.Items) {
+                        $item.IsChecked | Should -BeTrue
+                        $item.IsCheckable | Should -BeTrue
+                        if ($item.Header -in @('Version', 'URI')) {
+                            $item.IsEnabled | Should -BeFalse
+                            $item.ToolTip | Should -Match 'must remain visible'
+                        }
+                        else { $item.IsEnabled | Should -BeTrue }
+                    }
+                }
+                finally {
+                    $window.FindName('ShowArtifactColumnsButton').ContextMenu.IsOpen = $false
+                    $window.Close()
+                }
+            }
+        }
+
+        It 'places export and Columns buttons to the right of filters at default and minimum widths' {
+            InModuleScope EvergreenUI {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.AllArtifacts = @(
+                        [PSCustomObject]@{ Version = '1'; Architecture = 'x64'; Channel = 'Stable'; Language = 'en'; Type = 'exe'; URI = 'https://example.test/a.exe' }
+                        [PSCustomObject]@{ Version = '2'; Architecture = 'x86'; Channel = 'Preview'; Language = 'fr'; Type = 'msi'; URI = 'https://example.test/b.msi' }
+                    )
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    $window.WindowStartupLocation = 'Manual'
+                    $window.Left = -10000
+                    $window.Top = -10000
+                    $window.Show()
+                    foreach ($width in 1200, 960) {
+                        $window.Width = $width
+                        $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                        $window.UpdateLayout()
+                        $button = $state.ShowArtifactColumnsButton
+                        $exportButton = $state.ExportArtifactsButton
+                        $row = $state.ArtifactFiltersPanel.Parent
+                        $button.IsVisible | Should -BeTrue
+                        $exportButton.IsVisible | Should -BeTrue
+                        $buttonPosition = $button.TranslatePoint([System.Windows.Point]::new(0, 0), $row)
+                        $exportPosition = $exportButton.TranslatePoint([System.Windows.Point]::new(0, 0), $row)
+                        $filterPosition = $state.ArtifactFiltersPanel.TranslatePoint([System.Windows.Point]::new(0, 0), $row)
+                        ($exportPosition.X + 0.5) | Should -BeGreaterOrEqual ($filterPosition.X + $state.ArtifactFiltersPanel.ActualWidth)
+                        ($buttonPosition.X + 0.5) | Should -BeGreaterOrEqual ($exportPosition.X + $exportButton.ActualWidth)
+                        ($buttonPosition.X + $button.ActualWidth) | Should -BeLessOrEqual ($row.ActualWidth + 0.5)
+                        $lastFilter = $state.ArtifactFiltersPanel.Children[$state.ArtifactFiltersPanel.Children.Count - 1]
+                        $filterBottom = $lastFilter.TranslatePoint([System.Windows.Point]::new(0, $lastFilter.ActualHeight), $row).Y
+                        [Math]::Abs(($buttonPosition.Y + $button.ActualHeight) - $filterBottom) | Should -BeLessOrEqual 1
+                        [Math]::Abs(($exportPosition.Y + $exportButton.ActualHeight) - $filterBottom) | Should -BeLessOrEqual 1
+                    }
+                    $state.AllArtifacts = @()
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    $state.ShowArtifactColumnsButton.IsVisible | Should -BeTrue
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'keeps filters and artifact actions usable when the pane is narrow or text is enlarged' {
+            InModuleScope EvergreenUI {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.AllArtifacts = @(
+                        [PSCustomObject]@{ Version = '1'; Architecture = 'x64'; Channel = 'Stable'; Language = 'en'; URI = 'https://example.test/a.exe' }
+                        [PSCustomObject]@{ Version = '2'; Architecture = 'x86'; Channel = 'Preview'; Language = 'fr'; URI = 'https://example.test/b.exe' }
+                    )
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    $window.WindowStartupLocation = 'Manual'
+                    $window.Left = -10000
+                    $window.Top = -10000
+                    $window.Show()
+                    $state.AppsListColumn.Width = [System.Windows.GridLength]::new(700)
+                    foreach ($fontSize in 12, 20) {
+                        $window.FontSize = $fontSize
+                        $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                        $window.UpdateLayout()
+                        $row = $state.ArtifactControlsGrid
+                        [System.Windows.Controls.Grid]::GetRow($state.ArtifactActionsPanel) | Should -Be 1
+                        $actionPosition = $state.ArtifactActionsPanel.TranslatePoint([System.Windows.Point]::new(0, 0), $row)
+                        foreach ($group in $state.ArtifactFiltersPanel.Children) {
+                            $filter = $group.Children[1]
+                            $position = $filter.TranslatePoint([System.Windows.Point]::new(0, 0), $row)
+                            $filter.ActualWidth | Should -BeGreaterOrEqual 120
+                            ($position.X + $filter.ActualWidth) | Should -BeLessOrEqual ($row.ActualWidth + 0.5)
+                            ($position.Y + $filter.ActualHeight) | Should -BeLessOrEqual ($actionPosition.Y + 0.5)
+                        }
+                        $exportPosition = $state.ExportArtifactsButton.TranslatePoint([System.Windows.Point]::new(0, 0), $row)
+                        $columnsPosition = $state.ShowArtifactColumnsButton.TranslatePoint([System.Windows.Point]::new(0, 0), $row)
+                        ($exportPosition.X + $state.ExportArtifactsButton.ActualWidth) | Should -BeLessOrEqual ($columnsPosition.X + 0.5)
+                        ($columnsPosition.X + $state.ShowArtifactColumnsButton.ActualWidth) | Should -BeLessOrEqual ($row.ActualWidth + 0.5)
+                    }
+                    $window.FontSize = 12
+                    $state.AppsListColumn.Width = [System.Windows.GridLength]::new(220)
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    [System.Windows.Controls.Grid]::GetRow($state.ArtifactActionsPanel) | Should -Be 0
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'hides and shows each optional column and restores the choices after reopening' {
+            InModuleScope EvergreenUI {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $optional = @($state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object IsEnabled)
+                    foreach ($item in $optional) {
+                        $item.IsChecked = $false
+                        $item.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+                        $item.Tag.Visibility.ToString() | Should -Be 'Collapsed'
+                    }
+                    (Get-EwSetting).ArtifactHiddenColumns | Should -Be 'Architecture,Channel,Release,Type,Language,Date'
+                    $window.Close()
+                    $window = Get-EwWorkbenchWindow
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    foreach ($item in $state.ShowArtifactColumnsButton.ContextMenu.Items) {
+                        if ($item.IsEnabled) {
+                            $item.IsChecked | Should -BeFalse
+                            $item.Tag.Visibility.ToString() | Should -Be 'Collapsed'
+                            $item.IsChecked = $true
+                            $item.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+                        }
+                        $item.Tag.Visibility.ToString() | Should -Be 'Visible'
+                    }
+                    (Get-EwSetting).ArtifactHiddenColumns | Should -Be ''
+                    $state.Settings.ArtifactHiddenColumns | Should -Be ''
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'preserves hidden columns, artifact data and selection when filtering and changing applications' {
+            InModuleScope EvergreenUI {
+                Set-EwSetting -Name ArtifactHiddenColumns -Value 'Architecture,Channel'
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $artifact = [PSCustomObject]@{ Version = '1.0'; Architecture = 'x64'; Channel = 'Stable'; URI = 'https://example.test/app.exe' }
+                    $state.AllArtifacts = @($artifact)
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    $state.ArtifactsGrid.SelectedItem = $artifact
+                    $item = $state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object Header -eq 'Date'
+                    $item.IsChecked = $false
+                    $item.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+                    $state.ArtifactsGrid.SelectedItem | Should -Be $artifact
+                    $state.ArtifactsGrid.ItemsSource[0] | Should -Be $artifact
+                    ($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object Tag -eq 'x64').IsChecked = $true
+                    $state.ArtifactsGrid.ItemsSource[0] | Should -Be $artifact
+                    Mock Invoke-EwWorkbenchJob {}
+                    $app = [PSCustomObject]@{ Name = 'OtherApp'; FriendlyName = 'Other application' }
+                    $state.AppsListView.ItemsSource = @($app)
+                    $state.AppsListView.SelectedItem = $app
+                    $state.AllArtifacts = @([PSCustomObject]@{ Version = '2.0'; Architecture = 'x86'; URI = 'https://example.test/other.exe' })
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    foreach ($column in $state.ArtifactsGrid.Columns) {
+                        $column.Visibility.ToString() | Should -Be $(if ($column.Header -in @('Architecture', 'Channel', 'Date')) { 'Collapsed' } else { 'Visible' })
+                    }
+                    (Get-EwSetting).ArtifactHiddenColumns | Should -Be 'Architecture,Channel,Date'
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'reports invalid saved columns without allowing required columns to disappear' {
+            InModuleScope EvergreenUI {
+                $settings = Get-EwSetting
+                $settings.ArtifactHiddenColumns = 'Version,uri,Unknown,architecture'
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                    foreach ($column in $state.ArtifactsGrid.Columns) {
+                        $column.Visibility.ToString() | Should -Be $(if ($column.Header -eq 'Architecture') { 'Collapsed' } else { 'Visible' })
+                    }
+                    $state.ActivityLog.Text | Should -Match 'Ignoring invalid saved hidden artifact columns'
+                    $settings.ArtifactHiddenColumns | Should -Be 'Version,uri,Unknown,architecture'
+                }
+                finally { $window.Close() }
+                $settings.ArtifactHiddenColumns = @('Version', 'Date')
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                    @($state.ArtifactsGrid.Columns | Where-Object { $_.Visibility -ne [System.Windows.Visibility]::Visible }).Count | Should -Be 0
+                    $state.ActivityLog.Text | Should -Match 'expected a comma-separated string'
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'reports a failed save and includes earlier live choices in the next save' {
+            InModuleScope EvergreenUI {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    Mock Write-EwSetting { throw 'settings write failed' }
+                    $item = $state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object Header -eq 'Architecture'
+                    $item.IsChecked = $false
+                    $item.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+                    $item.Tag.Visibility.ToString() | Should -Be 'Collapsed'
+                    $state.ActivityLog.Text | Should -Match 'Could not save ArtifactHiddenColumns.*settings write failed'
+                    Mock Write-EwSetting {}
+                    Mock Set-EwSetting {}
+                    $item = $state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object Header -eq 'Channel'
+                    $item.IsChecked = $false
+                    $item.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+                    Should -Invoke Set-EwSetting -Exactly 1 -ParameterFilter {
+                        $Name -eq 'ArtifactHiddenColumns' -and $Value -eq 'Architecture,Channel'
+                    }
+                    $state.Settings.ArtifactHiddenColumns | Should -Be 'Architecture,Channel'
+                }
+                finally { $window.Close() }
+            }
+        }
+    }
+
+    Context 'Artifact CSV export' {
+        BeforeEach {
+            $exportTestAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $null = New-Item -Path $env:APPDATA -ItemType Directory -Force
+        }
+
+        AfterEach {
+            $env:APPDATA = $exportTestAppData
+        }
+
+        It 'enables export only while the grid contains artifacts' {
+            InModuleScope EvergreenUI {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $window.WindowStartupLocation = 'Manual'
+                    $window.Left = -10000
+                    $window.Top = -10000
+                    $window.Show()
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $state.ExportArtifactsButton.IsEnabled | Should -BeFalse
+                    [System.Windows.Automation.AutomationProperties]::GetName($state.ExportArtifactsButton) |
+                        Should -Be 'Export artifacts to CSV'
+                    Mock New-EwWorkbenchArtifactExportDialog {}
+                    Invoke-EwWorkbenchArtifactExport -State $state
+                    Should -Invoke New-EwWorkbenchArtifactExportDialog -Exactly 0
+                    $state.ActivityLog.Text | Should -Match 'There are no artifacts to export'
+
+                    $state.AllArtifacts = @(
+                        [PSCustomObject]@{ Version = '1'; Architecture = 'x64'; Channel = 'Stable'; URI = 'https://example.test/a.exe' }
+                        [PSCustomObject]@{ Version = '2'; Architecture = 'x86'; Channel = 'Preview'; URI = 'https://example.test/b.exe' }
+                    )
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    $state.ExportArtifactsButton.IsEnabled | Should -BeTrue
+                    ($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object Tag -eq 'x64').IsChecked = $true
+                    ($state.ArtifactFilterControls['Channel'].CheckBoxes | Where-Object Tag -eq 'Preview').IsChecked = $true
+                    $state.ArtifactsGrid.Items.Count | Should -Be 0
+                    $state.ExportArtifactsButton.IsEnabled | Should -BeFalse
+                    ($state.ArtifactFilterControls['Channel'].CheckBoxes | Where-Object Tag -eq 'Preview').IsChecked = $false
+                    $state.ExportArtifactsButton.IsEnabled | Should -BeTrue
+                    $state.ArtifactsGrid.ItemsSource = @()
+                    $state.ExportArtifactsButton.IsEnabled | Should -BeFalse
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'exports the filtered sorted grid snapshot with visible columns in display order' {
+            InModuleScope EvergreenUI -Parameters @{ CsvPath = (Join-Path -Path $TestDrive -ChildPath 'artifacts [test].csv') } {
+                param($CsvPath)
+
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $richValue = "caf$([char]0x00e9), `"quoted`"`nnext line"
+                    $state.AllArtifacts = @(
+                        [PSCustomObject]@{ Version = '2'; Architecture = 'x64'; Channel = 'Stable'; Release = $richValue; URI = 'https://example.test/two.exe' }
+                        [PSCustomObject]@{ Version = '1'; Architecture = 'x64'; Channel = 'Preview'; Release = $null; URI = 'https://example.test/one.exe' }
+                        [PSCustomObject]@{ Version = '3'; Architecture = 'x86'; Channel = 'Stable'; Release = $null; URI = 'https://example.test/three.exe' }
+                    )
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    ($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object Tag -eq 'x64').IsChecked = $true
+                    $state.ArtifactsGrid.Items.SortDescriptions.Add([System.ComponentModel.SortDescription]::new(
+                        'Version', [System.ComponentModel.ListSortDirection]::Ascending
+                    ))
+                    $state.ArtifactsGrid.SelectedIndex = 0
+                    ($state.ArtifactsGrid.Columns | Where-Object Header -eq 'URI').DisplayIndex = 0
+                    $channelItem = $state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object Header -eq 'Channel'
+                    $channelItem.IsChecked = $false
+                    $channelItem.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+
+                    $script:artifactExportDialog = [PSCustomObject]@{
+                        FileName = $CsvPath
+                        Owner = $null
+                        Grid = $state.ArtifactsGrid
+                    }
+                    $script:artifactExportDialog | Add-Member -MemberType ScriptMethod -Name ShowDialog -Value {
+                        param($Owner)
+                        $this.Owner = $Owner
+                        $this.Grid.ItemsSource = @([PSCustomObject]@{ Version = '999'; URI = 'https://example.test/new.exe' })
+                        return $true
+                    }
+                    Mock New-EwWorkbenchArtifactExportDialog { $script:artifactExportDialog }
+                    Set-Content -LiteralPath $CsvPath -Value 'previous contents'
+                    $state.ExportArtifactsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                    ))
+
+                    $script:artifactExportDialog.Owner | Should -Be $window
+                    [BitConverter]::ToString((Get-Content -LiteralPath $CsvPath -AsByteStream -TotalCount 3)) | Should -Be 'EF-BB-BF'
+                    $csv = @(Import-Csv -LiteralPath $CsvPath)
+                    $csv.Count | Should -Be 2
+                    @($csv[0].PSObject.Properties.Name) |
+                        Should -Be @('URI', 'Version', 'Architecture', 'Release', 'Type', 'Language', 'Date')
+                    @($csv.Version) | Should -Be @('1', '2')
+                    $csv[0].URI | Should -Be 'https://example.test/one.exe'
+                    $csv[0].Release | Should -Be ''
+                    $csv[1].URI | Should -Be 'https://example.test/two.exe'
+                    $csv[1].Release | Should -BeExactly $richValue
+                    $state.ActivityLog.Text | Should -Match 'Exported 2 artifacts'
+                }
+                finally {
+                    $script:artifactExportDialog = $null
+                    $window.Close()
+                }
+            }
+        }
+
+        It 'offers a CSV save dialog with overwrite confirmation and honours cancellation' {
+            InModuleScope EvergreenUI -Parameters @{ CsvPath = (Join-Path -Path $TestDrive -ChildPath 'cancelled-artifacts.csv') } {
+                param($CsvPath)
+
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $dialog = New-EwWorkbenchArtifactExportDialog
+                    $dialog.Filter | Should -Be 'CSV files (*.csv)|*.csv'
+                    $dialog.DefaultExt | Should -Be 'csv'
+                    $dialog.AddExtension | Should -BeTrue
+                    $dialog.OverwritePrompt | Should -BeTrue
+                    $state.ArtifactsGrid.ItemsSource = @([PSCustomObject]@{ Version = '1'; URI = 'https://example.test/a.exe' })
+                    $script:artifactExportDialog = [PSCustomObject]@{ FileName = $CsvPath }
+                    $script:artifactExportDialog | Add-Member -MemberType ScriptMethod -Name ShowDialog -Value { param($Owner) return $false }
+                    Mock New-EwWorkbenchArtifactExportDialog { $script:artifactExportDialog }
+                    Set-Content -LiteralPath $CsvPath -Value 'previous contents'
+                    $state.ExportArtifactsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                    ))
+                    Should -Invoke New-EwWorkbenchArtifactExportDialog -Exactly 1
+                    (Get-Content -LiteralPath $CsvPath -Raw).Trim() | Should -BeExactly 'previous contents'
+                    $state.ActivityLog.Text | Should -Not -Match 'Exported .* artifacts'
+                }
+                finally {
+                    $script:artifactExportDialog = $null
+                    $window.Close()
+                }
+            }
+        }
+
+        It 'reports file and dialog errors without claiming a successful export' {
+            InModuleScope EvergreenUI -Parameters @{ CsvPath = (Join-Path -Path $TestDrive -ChildPath 'missing-folder\artifacts.csv') } {
+                param($CsvPath)
+
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.ArtifactsGrid.ItemsSource = @([PSCustomObject]@{ Version = '1'; URI = 'https://example.test/a.exe' })
+                    $script:artifactExportDialog = [PSCustomObject]@{ FileName = $CsvPath }
+                    $script:artifactExportDialog | Add-Member -MemberType ScriptMethod -Name ShowDialog -Value { param($Owner) return $true }
+                    Mock New-EwWorkbenchArtifactExportDialog { $script:artifactExportDialog }
+                    $click = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)
+                    $state.ExportArtifactsButton.RaiseEvent($click)
+                    $state.ActivityLog.Text | Should -Match 'Could not export artifacts:'
+                    $state.ActivityLog.Text | Should -Not -Match 'Exported .* artifacts'
+                    $state.StatusLabel.Tag | Should -Be 'Error'
+                    Test-Path -LiteralPath $CsvPath | Should -BeFalse
+
+                    Mock New-EwWorkbenchArtifactExportDialog { throw 'save dialog failed' }
+                    $state.ExportArtifactsButton.RaiseEvent($click)
+                    $state.ActivityLog.Text | Should -Match 'Could not export artifacts: save dialog failed'
+                }
+                finally {
+                    $script:artifactExportDialog = $null
+                    $window.Close()
+                }
             }
         }
     }
