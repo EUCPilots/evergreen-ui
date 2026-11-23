@@ -8,8 +8,9 @@ The v1 implementation in `EvergreenUI-v1\` is the reference for the existing
 WPF experience. The v2 preview in `EvergreenUI\` provides headless settings,
 job, Apps, download, Library, definitions, local install, packaging,
 authentication, and publishing commands. Its WPF interface covers
-Apps, Library, Packages, Intune, Nerdio, Install, Settings, and About. Apps
-combines application discovery and downloads with a collapsible queue tray.
+seven views: Apps, Library, Packages, Intune, Nerdio, Settings, and About.
+Packages contains Definitions and Install tabs. Apps combines application
+discovery and downloads with a collapsible queue tray.
 
 V2 stores fresh settings in `%APPDATA%\EvergreenWorkbench\settings.json` and does not migrate v1 settings. Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script blocks do not capture caller variables; pass values with `-ArgumentList`.
 
@@ -141,9 +142,23 @@ pool. On Windows 11 22H2 and later, its main window and title bar use Mica when
 available. Windows transparency and contrast settings can produce a solid
 background; unsupported systems use the native opaque title bar.
 
-Its Packages view loads and updates shared Intune App.json definitions
-and saves definition and package-output paths. Its Install view reloads those
-definitions, checks local detection, resolves latest versions on request, and
+Open Packages, then use Definitions to load and update shared Intune App.json
+definitions and save definition and package-output paths. Select Install to
+test the installer Artifact resolved from a Definition, not a deployment
+Package. Intune and Nerdio remain separate publishing pages; local installation
+is optional and is not a publishing gate.
+
+Definitions is the default tab. A legacy `StartupView=Install` opens Packages
+with Install selected; tab selection is not saved separately. Each tab keeps
+its own selection, with no automatic transfer. Folder edits and completed
+definition loads or updates invalidate Install rows. Entering Install refreshes
+definitions and local detection, discarding old latest-version and architecture
+assessments while retaining selections for definition paths still present.
+Reload definitions remains available. If another operation is active, refresh
+waits visibly for it to finish and install actions stay disabled until fresh
+results arrive. Editing the folder still requires Save path to persist it.
+
+The Install tab resolves latest versions on request and
 supports confirmed batch installation with per-application results. It shows
 Definition and Artifact architectures separately and can hide blocked rows for
 the current session. Each affected application needs its own architecture

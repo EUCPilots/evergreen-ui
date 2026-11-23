@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `EvergreenUI-v1\` contains the working v1 reference. `EvergreenUI\` is the v2
 rewrite, requiring PowerShell 7.6 or later. Its public headless commands run
 without WPF; the v2 UI provides Apps, Library, Packages, Intune, Nerdio,
-Install, Settings, and About views. Apps combines application discovery and
+Settings, and About views. Packages contains Definitions and Install tabs.
+Apps combines application discovery and
 downloads in one view.
 Unless explicitly marked v2, the architecture and conventions below describe
 v1. Read `docs\adr\` before designing v2 changes.
@@ -120,16 +121,23 @@ Worker runspaces never access WPF controls.
 
 ### V2 Navigation Views
 
-The v2 shell includes eight RadioButton navigation views: Apps, Library,
-Packages, Intune, Nerdio, Install, Settings, and About. Apps uses `Get-EwApp`,
+The v2 shell includes seven RadioButton navigation views: Apps, Library,
+Packages, Intune, Nerdio, Settings, and About. Apps uses `Get-EwApp`,
 `Get-EwFilterableProperty`, and the favourite commands; its collapsible queue
 tray batches artifacts for `Save-EwArtifact` across applications and shows
 download progress. Settings manages saved download and library folders;
 Library reads and updates an Evergreen library and shows selected application
 versions; Packages loads and updates shared
-Intune App.json definitions and saves definition and output paths; Install
+Intune App.json definitions on its Definitions tab and saves definition and
+output paths; its Install tab
 reloads definitions, checks local detection, resolves latest versions
 separately, and supports confirmed batch installs through `Install-EwPackage`.
+Definition folder changes and completed loads or updates invalidate Install
+rows. Entering the Install tab refreshes local detection through the shared
+Job, deferring during another operation and disabling install actions until
+fresh results arrive. Matching definition-path selections survive refresh;
+latest Artifact and architecture assessments do not. Definitions is the default
+tab; legacy `StartupView=Install` selects Packages > Install without new settings.
 About captures loaded module versions in the window runspace and refreshes
 local dependency status independently of the active UI Job. Its potentially
 blocking scan uses a separate short-lived runspace so closing the window can
