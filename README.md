@@ -20,6 +20,11 @@ across properties, and no selection means All. The Apps queue batches downloads
 across applications, shows progress, and lets users remove individual items or
 clear completed rows.
 
+In Apps, open **Columns** above the artifacts grid to show or hide optional
+columns. **Version** and **URI** always remain visible. Column choices apply
+across applications and are remembered between sessions. Select **Export to CSV**
+to save the filtered artifact rows and visible columns in their current order.
+
 Use `Start-EwJob -NoModuleImport` for work that does not need Workbench
 commands. A reused worker may still contain modules loaded by earlier jobs.
 

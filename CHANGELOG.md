@@ -2,6 +2,9 @@
 
 ## [2.0.0-preview]
 
+- Export the current filtered Apps artifact grid and visible columns to CSV.
+- Match the Apps Actions menu to the Columns menu's light and dark styling.
+- Add an Apps Columns menu to hide or show optional artifact columns and remember choices between sessions. Version and URI always remain visible.
 - Give Intune and Nerdio tabs a WinUI-style accent underline and matching content-sized header widths.
 - Cache `Get-EvergreenApp` results as one JSON file per application in the Workbench cache folder for 24 hours. `Get-EwApp -Force` and `-NoCache` lookups refresh the cache, Clear Workbench cache and Update Evergreen remove it, and the Apps menu adds Reload selected app versions.
 - Begin the PowerShell 7.6 v2 rewrite with headless settings, bounded background jobs, Apps, downloads, and Library commands.
