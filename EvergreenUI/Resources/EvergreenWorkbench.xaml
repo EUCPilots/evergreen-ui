@@ -323,7 +323,7 @@
             <DockPanel Grid.Row="0" Margin="0,0,0,18">
                 <Border DockPanel.Dock="Right"
                         Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                        CornerRadius="6"
+                        CornerRadius="8"
                         Padding="10,6"
                         VerticalAlignment="Center"
                         Margin="16,0,0,0">
@@ -333,7 +333,7 @@
                         <TextBlock x:Name="StatusLabel"
                                    Text="Ready"
                                    Tag="Info"
-                                   MaxWidth="300"
+                                   MaxWidth="400"
                                    TextWrapping="Wrap"
                                    AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
@@ -455,10 +455,40 @@
                                        Text="Select an application to view available versions"
                                        FontSize="16"
                                        FontWeight="SemiBold"
+                                       TextWrapping="Wrap"
                                        Margin="0,0,0,10" />
-                            <WrapPanel x:Name="ArtifactFiltersPanel"
-                                       Grid.Row="1"
-                                       Margin="0,0,0,8" />
+                            <Grid x:Name="ArtifactControlsGrid" Grid.Row="1" Margin="0,0,0,8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <!-- Match the filter controls' 120-pixel minimum width and 10-pixel margin. -->
+                                <WrapPanel x:Name="ArtifactFiltersPanel" MinWidth="130" />
+                                <WrapPanel x:Name="ArtifactActionsPanel"
+                                           Grid.Column="1"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Bottom"
+                                           Margin="0,0,0,6">
+                                    <Button x:Name="ExportArtifactsButton"
+                                            Content="Export to CSV"
+                                            Margin="0,0,8,0"
+                                            IsEnabled="{Binding HasItems, ElementName=ArtifactsGrid, FallbackValue=False}"
+                                            ToolTip="Export displayed artifacts and visible columns to CSV"
+                                            AutomationProperties.Name="Export artifacts to CSV" />
+                                    <Button x:Name="ShowArtifactColumnsButton"
+                                            Content="Columns"
+                                            ToolTip="Show or hide artifact columns. Version and URI are always visible."
+                                            AutomationProperties.Name="Show or hide artifact columns">
+                                        <Button.ContextMenu>
+                                            <ContextMenu Placement="Bottom" />
+                                        </Button.ContextMenu>
+                                    </Button>
+                                </WrapPanel>
+                            </Grid>
                             <DataGrid x:Name="ArtifactsGrid"
                                       Grid.Row="2"
                                       AutoGenerateColumns="False"

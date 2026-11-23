@@ -175,10 +175,10 @@ Describe 'Evergreen Workbench WPF shell' {
                             $indicator.Visibility.ToString() | Should -Be $(if ($tab.IsSelected) { 'Visible' } else { 'Collapsed' })
                             $indicator.Background.Color | Should -Be $window.TryFindResource('AccentFillColorDefaultBrush').Color
                         }
-                        $host = $tabs.Template.FindName('PART_SelectedContentHost', $tabs)
-                        $host.Content | Should -Be $tabs.SelectedItem.Content
-                        $host.ActualHeight | Should -BeGreaterThan 100
-                        $host.Content.IsVisible | Should -BeTrue
+                        $host1 = $tabs.Template.FindName('PART_SelectedContentHost', $tabs)
+                        $host1.Content | Should -Be $tabs.SelectedItem.Content
+                        $host1.ActualHeight | Should -BeGreaterThan 100
+                        $host1.Content.IsVisible | Should -BeTrue
                         foreach ($tab in $tabs.Items) {
                             $tab.Content.IsVisible | Should -Be $tab.IsSelected
                             [System.Windows.Documents.TextElement]::GetFontSize($tab.Content) | Should -Be $tabs.FontSize
@@ -716,7 +716,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
 
         It 'offers a CSV save dialog with overwrite confirmation and honours cancellation' {
-            InModuleScope EvergreenUI -Parameters @{ CsvPath = (Join-Path -Path $TestDrive -ChildPath 'cancelled-artifacts.csv') } {
+            InModuleScope EvergreenUI -Parameters @{ CsvPath = (Join-Path -Path $TestDrive -ChildPath 'cancelled-export.csv') } {
                 param($CsvPath)
 
                 $window = Get-EwWorkbenchWindow
@@ -747,7 +747,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
 
         It 'reports file and dialog errors without claiming a successful export' {
-            InModuleScope EvergreenUI -Parameters @{ CsvPath = (Join-Path -Path $TestDrive -ChildPath 'missing-folder\artifacts.csv') } {
+            InModuleScope EvergreenUI -Parameters @{ CsvPath = (Join-Path -Path $TestDrive -ChildPath 'missing-folder\export.csv') } {
                 param($CsvPath)
 
                 $window = Get-EwWorkbenchWindow

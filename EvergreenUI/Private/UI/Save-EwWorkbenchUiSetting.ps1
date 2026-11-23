@@ -10,7 +10,7 @@ function Save-EwWorkbenchUiSetting {
         [Parameter(Mandatory)]
         [ValidateSet(
             'StartupView', 'LastAppName', 'WindowWidth', 'WindowHeight', 'DownloadTrayHeight',
-            'AppsListWidth', 'WindowMaximized'
+            'AppsListWidth', 'ArtifactHiddenColumns', 'WindowMaximized'
         )]
         [string]$Name,
 

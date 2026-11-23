@@ -53,7 +53,35 @@ function Initialize-EwWorkbenchView {
     $State.AppsPanel.Add_SizeChanged({
         & $updateAppsListMaxWidth
     }.GetNewClosure())
+    $updateArtifactControlsLayout = {
+        $width = $State.ArtifactControlsGrid.ActualWidth
+        $actionsWidth = $State.ArtifactActionsPanel.DesiredSize.Width
+        if ($width -le 0 -or $actionsWidth -le 0) {
+            return
+        }
+        $stackActions = $width -lt ($State.ArtifactFiltersPanel.MinWidth + $actionsWidth)
+        $isStacked = [System.Windows.Controls.Grid]::GetRow($State.ArtifactActionsPanel) -eq 1
+        if ($stackActions -eq $isStacked) {
+            return
+        }
+        if ($stackActions) {
+            [System.Windows.Controls.Grid]::SetRow($State.ArtifactActionsPanel, 1)
+            [System.Windows.Controls.Grid]::SetColumn($State.ArtifactActionsPanel, 0)
+            [System.Windows.Controls.Grid]::SetColumnSpan($State.ArtifactActionsPanel, 2)
+            [System.Windows.Controls.Grid]::SetColumnSpan($State.ArtifactFiltersPanel, 2)
+        }
+        else {
+            [System.Windows.Controls.Grid]::SetColumnSpan($State.ArtifactFiltersPanel, 1)
+            [System.Windows.Controls.Grid]::SetColumnSpan($State.ArtifactActionsPanel, 1)
+            [System.Windows.Controls.Grid]::SetColumn($State.ArtifactActionsPanel, 1)
+            [System.Windows.Controls.Grid]::SetRow($State.ArtifactActionsPanel, 0)
+        }
+    }.GetNewClosure()
+    $State.ArtifactControlsGrid.Add_SizeChanged({ & $updateArtifactControlsLayout }.GetNewClosure())
+    $State.ArtifactActionsPanel.Add_SizeChanged({ & $updateArtifactControlsLayout }.GetNewClosure())
     $State.EvergreenMenu = [System.Windows.Controls.ContextMenu]::new()
+    $State.EvergreenMenu.Placement = [System.Windows.Controls.Primitives.PlacementMode]::Bottom
+    $State.EvergreenMenu.PlacementTarget = $State.EvergreenMenuButton
     $State.RefreshAppsButton = [System.Windows.Controls.MenuItem]::new()
     $State.RefreshAppsButton.Header = 'Refresh catalog'
     $State.ReloadAppVersionsButton = [System.Windows.Controls.MenuItem]::new()
@@ -207,6 +235,78 @@ function Initialize-EwWorkbenchView {
                 Level = 'Error'
             }
         }
+    }.GetNewClosure())
+    $State.ExportArtifactsButton.Add_Click({
+        try {
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchArtifactExport' -Parameters @{ State = $State }
+        }
+        catch {
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State
+                Message = "Could not export artifacts: $($_.Exception.Message)"
+                Level = 'Error'
+            }
+        }
+    }.GetNewClosure())
+    $columnMenu = $State.ShowArtifactColumnsButton.ContextMenu
+    $columnMenu.PlacementTarget = $State.ShowArtifactColumnsButton
+    $savedHiddenColumns = if ($State.Settings.Contains('ArtifactHiddenColumns')) {
+        $State.Settings.ArtifactHiddenColumns
+    } else { '' }
+    $hiddenColumns = @()
+    if ($savedHiddenColumns -is [string]) {
+        $hiddenColumns = @($savedHiddenColumns -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        $optionalColumns = @($State.ArtifactsGrid.Columns | Where-Object { [string]$_.Header -notin @('Version', 'URI') } | ForEach-Object { [string]$_.Header })
+        $invalidColumns = @($hiddenColumns | Where-Object { $_ -notin $optionalColumns })
+        if ($invalidColumns.Count -gt 0) {
+            Write-EwWorkbenchLog -State $State -Message "Ignoring invalid saved hidden artifact columns: $($invalidColumns -join ', '). Version and URI must remain visible." -Level Warning
+        }
+    }
+    else {
+        Write-EwWorkbenchLog -State $State -Message 'Invalid saved ArtifactHiddenColumns; expected a comma-separated string. Showing all artifact columns.' -Level Warning
+    }
+    foreach ($column in $State.ArtifactsGrid.Columns) {
+        $required = [string]$column.Header -in @('Version', 'URI')
+        $column.Visibility = if (-not $required -and [string]$column.Header -in $hiddenColumns) {
+            [System.Windows.Visibility]::Collapsed
+        } else { [System.Windows.Visibility]::Visible }
+        $menuItem = [System.Windows.Controls.MenuItem]::new()
+        $menuItem.Header = [string]$column.Header
+        $menuItem.Tag = $column
+        $menuItem.IsCheckable = $true
+        $menuItem.IsChecked = $column.Visibility -eq [System.Windows.Visibility]::Visible
+        $menuItem.StaysOpenOnClick = $true
+        $menuItem.IsEnabled = -not $required
+        if ($required) {
+            $menuItem.ToolTip = "$($column.Header) must remain visible."
+            [System.Windows.Controls.ToolTipService]::SetShowOnDisabled($menuItem, $true)
+        }
+        else {
+            $menuItem.Add_Click({
+                param($eventSource, $clickArgs)
+                $eventSource.Tag.Visibility = if ($eventSource.IsChecked) {
+                    [System.Windows.Visibility]::Visible
+                } else { [System.Windows.Visibility]::Collapsed }
+                $hidden = @($State.ArtifactsGrid.Columns |
+                    Where-Object { $_.Visibility -ne [System.Windows.Visibility]::Visible -and [string]$_.Header -notin @('Version', 'URI') } |
+                    ForEach-Object { [string]$_.Header })
+                & $State.ModuleInvoker -Name 'Save-EwWorkbenchUiSetting' -Parameters @{
+                    State = $State
+                    Name = 'ArtifactHiddenColumns'
+                    Value = $hidden -join ','
+                }
+                $clickArgs.Handled = $true
+            }.GetNewClosure())
+        }
+        $null = $columnMenu.Items.Add($menuItem)
+    }
+    $columnMenu.Add_Opened({
+        foreach ($item in $columnMenu.Items) {
+            $item.IsChecked = $item.Tag.Visibility -eq [System.Windows.Visibility]::Visible
+        }
+    }.GetNewClosure())
+    $State.ShowArtifactColumnsButton.Add_Click({
+        $columnMenu.IsOpen = $true
     }.GetNewClosure())
     $State.ArtifactsGrid.Add_SelectionChanged({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }

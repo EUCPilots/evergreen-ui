@@ -141,7 +141,8 @@ function Invoke-EwWorkbenchJobMonitor {
             }
             'Artifacts' {
                 $State.AllArtifacts = @($output)
-                $State.SelectedAppText.Text = "$($State.CurrentApp.FriendlyName) ($($State.CurrentApp.Name))"
+                # $State.SelectedAppText.Text = "$($State.CurrentApp.FriendlyName) ($($State.CurrentApp.Name))"
+                $State.SelectedAppText.Text = "$($State.CurrentApp.Name)"
                 Invoke-EwWorkbenchArtifactList -State $State -RebuildFilters
                 Write-EwWorkbenchLog -State $State -Message "Loaded $($State.AllArtifacts.Count) artifacts for $($State.CurrentApp.Name)."
             }

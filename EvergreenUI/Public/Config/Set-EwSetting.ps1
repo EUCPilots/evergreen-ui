@@ -14,7 +14,10 @@ function Set-EwSetting {
         a Workbench view, window sizes must be positive whole numbers,
         DownloadTrayHeight must be between 120 and 600 and AppsListWidth must
         be at least 160, both in device-independent pixels. WindowMaximized
-        must be True or False.
+        must be True or False. ArtifactHiddenColumns is a comma-separated list
+        of optional Apps grid columns to hide: Architecture, Channel, Release,
+        Type, Language and Date. An empty value shows all columns; Version and
+        URI cannot be hidden.
     .PARAMETER Name
         The setting to change.
     .PARAMETER Value
@@ -36,7 +39,7 @@ function Set-EwSetting {
             'NmeOAuthTokenUrl', 'NmeSubscriptionId', 'NmeResourceGroup', 'NmeStorageAccount', 'NmeContainer',
             'M365DefinitionsPath', 'M365Channel', 'M365CompanyName', 'M365ImportFor',
             'StartupView', 'LastAppName', 'WindowWidth', 'WindowHeight', 'DownloadTrayHeight',
-            'AppsListWidth', 'WindowMaximized'
+            'AppsListWidth', 'ArtifactHiddenColumns', 'WindowMaximized'
         )]
         [string]$Name,
 
@@ -54,6 +57,23 @@ function Set-EwSetting {
     $views = @('Apps', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install', 'Settings', 'About')
     [object]$storedValue = $Value
     switch ($Name) {
+        'ArtifactHiddenColumns' {
+            $optionalColumns = @('Architecture', 'Channel', 'Release', 'Type', 'Language', 'Date')
+            $hiddenColumns = @(
+                foreach ($columnName in ($Value -split ',')) {
+                    $columnName = $columnName.Trim()
+                    if ([string]::IsNullOrEmpty($columnName)) {
+                        continue
+                    }
+                    $match = $optionalColumns | Where-Object { $_ -eq $columnName } | Select-Object -First 1
+                    if ($null -eq $match) {
+                        throw "ArtifactHiddenColumns cannot hide '$columnName'. Allowed columns: $($optionalColumns -join ', '). Version and URI must remain visible."
+                    }
+                    $match
+                }
+            )
+            $storedValue = ($hiddenColumns | Select-Object -Unique) -join ','
+        }
         'StartupView' {
             $match = $views | Where-Object { $_ -eq $Value } | Select-Object -First 1
             if ($null -eq $match) {

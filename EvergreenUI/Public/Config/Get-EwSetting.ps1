@@ -48,6 +48,7 @@ function Get-EwSetting {
         WindowHeight = 820
         DownloadTrayHeight = 180
         AppsListWidth = 220
+        ArtifactHiddenColumns = ''
         WindowMaximized = $false
     }
     $path = Get-EwSettingsPath

@@ -49,6 +49,8 @@ function Get-EwWorkbenchState {
             UiStateReady = $false
             PendingLastAppName = ''
             ArtifactFiltersPanel = $Window.FindName('ArtifactFiltersPanel')
+            ArtifactControlsGrid = $Window.FindName('ArtifactControlsGrid')
+            ArtifactActionsPanel = $Window.FindName('ArtifactActionsPanel')
             ArtifactCountLabel = $Window.FindName('ArtifactCountLabel')
             AppsListView = $Window.FindName('AppsListView')
             AppsListColumn = $Window.FindName('AppsListColumn')
@@ -60,6 +62,8 @@ function Get-EwWorkbenchState {
             AppSearchBox = $Window.FindName('AppSearchBox')
             AppCountLabel = $Window.FindName('AppCountLabel')
             ArtifactsGrid = $Window.FindName('ArtifactsGrid')
+            ExportArtifactsButton = $Window.FindName('ExportArtifactsButton')
+            ShowArtifactColumnsButton = $Window.FindName('ShowArtifactColumnsButton')
             ActivityLog = $Window.FindName('ActivityLog')
             BrowseLibraryPathButton = $Window.FindName('BrowseLibraryPathButton')
             EvergreenMenuButton = $Window.FindName('EvergreenMenuButton')
