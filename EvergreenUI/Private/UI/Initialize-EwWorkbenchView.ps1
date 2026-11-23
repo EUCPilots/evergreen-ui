@@ -129,9 +129,6 @@ function Initialize-EwWorkbenchView {
     $State.NavNerdio.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Nerdio' }
     }.GetNewClosure())
-    $State.NavInstall.Add_Checked({
-        & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'Install' }
-    }.GetNewClosure())
     Initialize-EwWorkbenchPackageView -State $State
     Initialize-EwWorkbenchPublishView -State $State
     Initialize-EwWorkbenchNerdioView -State $State

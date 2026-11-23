@@ -10,6 +10,11 @@ function Initialize-EwWorkbenchInstallView {
 
     $State.InstallDefinitions = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
     $State.InstallDefinitionsListView.ItemsSource = $State.InstallDefinitions
+    $State.InstallDefinitionsStale = $true
+    $State.InstallDefinitionsRevision = 0
+    $State.InstallRefreshRevision = -1
+    $State.InstallRefreshPending = $false
+    $State.InstallSelectedDefinitionPaths = @()
     $State.InstallBatchActive = $false
     $State.InstallPromptActive = $false
     $State.InstallReviewQueue = [System.Collections.ArrayList]::new()
@@ -30,15 +35,16 @@ function Initialize-EwWorkbenchInstallView {
     $State.InstallDefinitionsListView.Add_SelectionChanged({
         $validSelection = @($State.InstallDefinitionsListView.SelectedItems |
             Where-Object DefinitionValid -eq 'Yes')
-        $State.InstallSelectedPackagesButton.IsEnabled = $validSelection.Count -gt 0 -and $null -eq $State.ActiveJobId
+        $State.InstallSelectedPackagesButton.IsEnabled = $validSelection.Count -gt 0 -and
+            $null -eq $State.ActiveJobId -and -not $State.InstallDefinitionsStale
     }.GetNewClosure())
 
-    $State.ReloadInstallDefinitionsButton.Add_Click({
+    $State.LoadInstallDefinitions = {
         $path = [string]$State.IntuneDefinitionsPathBox.Text
         if ([string]::IsNullOrWhiteSpace($path)) {
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
-                Message = 'Set the Intune definitions folder in Packages before loading install definitions.'
+                Message = 'Set the Intune definitions folder on the Definitions tab before loading install definitions.'
                 Level = 'Warning'
             }
             return
@@ -106,15 +112,33 @@ function Initialize-EwWorkbenchInstallView {
             }
         }
         catch {
+            $State.InstallActionStatusLabel.Text = 'Could not refresh local detection. Reload definitions to retry.'
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
                 Message = "Could not load local install definitions: $($_.Exception.Message)"
                 Level = 'Error'
             }
         }
+    }.GetNewClosure()
+
+    $State.ReloadInstallDefinitionsButton.Add_Click({
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallStale' -Parameters @{ State = $State }
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallRefresh' -Parameters @{ State = $State; Force = $true }
+    }.GetNewClosure())
+    $State.PackagesTabControl.Add_SelectionChanged({
+        if ($args[1].Source -ne $State.PackagesTabControl) {
+            return
+        }
+        if ($State.InstallTab.IsSelected) {
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallStale' -Parameters @{ State = $State }
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallRefresh' -Parameters @{ State = $State }
+        }
     }.GetNewClosure())
 
     $State.ResolveInstallVersionsButton.Add_Click({
+        if ($State.InstallDefinitionsStale -or $null -ne $State.ActiveJobId) {
+            return
+        }
         $definitions = @($State.InstallDefinitions | Where-Object DefinitionValid -eq 'Yes')
         if ($definitions.Count -eq 0) {
             return
@@ -204,6 +228,9 @@ function Initialize-EwWorkbenchInstallView {
     }.GetNewClosure())
 
     $State.InstallSelectedPackagesButton.Add_Click({
+        if ($State.InstallDefinitionsStale -or $null -ne $State.ActiveJobId) {
+            return
+        }
         $definitions = @($State.InstallDefinitionsListView.SelectedItems |
             Where-Object DefinitionValid -eq 'Yes')
         if ($definitions.Count -eq 0) {

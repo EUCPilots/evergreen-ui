@@ -51,6 +51,7 @@ function Invoke-EwWorkbenchBusyState {
     $State.AppSearchBox.IsEnabled = -not $maintenanceBusy
     $State.ArtifactFiltersPanel.IsEnabled = -not $maintenanceBusy
     $State.PackageDefinitionsListView.IsEnabled = -not $IsBusy
+    $State.IntuneDefinitionsPathBox.IsEnabled = -not $IsBusy
     $State.InstallDefinitionsListView.IsEnabled = -not $IsBusy
     $State.IntuneComparisonListView.IsEnabled = -not $IsBusy
     $State.IntuneTenantIdBox.IsEnabled = -not $IsBusy
@@ -68,10 +69,10 @@ function Invoke-EwWorkbenchBusyState {
         $State.LoadPackageDefinitionsButton.IsEnabled = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text)
         $State.UpdatePackageDefinitionsButton.IsEnabled = @($State.PackageDefinitions | Where-Object Status -eq 'Valid').Count -gt 0
         $validInstallDefinitions = @($State.InstallDefinitions | Where-Object DefinitionValid -eq 'Yes')
-        $State.ResolveInstallVersionsButton.IsEnabled = $validInstallDefinitions.Count -gt 0
+        $State.ResolveInstallVersionsButton.IsEnabled = $validInstallDefinitions.Count -gt 0 -and -not $State.InstallDefinitionsStale
         $selectedInstallDefinitions = @($State.InstallDefinitionsListView.SelectedItems |
             Where-Object DefinitionValid -eq 'Yes')
-        $State.InstallSelectedPackagesButton.IsEnabled = $selectedInstallDefinitions.Count -gt 0
+        $State.InstallSelectedPackagesButton.IsEnabled = $selectedInstallDefinitions.Count -gt 0 -and -not $State.InstallDefinitionsStale
         $connected = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)
         $State.DisconnectIntuneButton.IsEnabled = $connected
         $State.CompareIntuneButton.IsEnabled = $connected

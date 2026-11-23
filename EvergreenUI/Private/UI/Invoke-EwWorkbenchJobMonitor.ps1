@@ -13,6 +13,9 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     Invoke-EwWorkbenchInfoJobMonitor -State $State
     if ($null -eq $State.ActiveJobId) {
+        if ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending) {
+            Invoke-EwWorkbenchInstallRefresh -State $State
+        }
         return
     }
     try {
@@ -20,6 +23,11 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     catch {
         Write-EwWorkbenchLog -State $State -Message "Could not read the active job: $($_.Exception.Message)" -Level Error
+        if ($State.ActiveJobKind -eq 'InstallDefinitions' -or
+            ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending)) {
+            $State.InstallActionStatusLabel.Text = 'Local detection refresh pending. Could not read the current operation; waiting for its status.'
+            return
+        }
         if ($State.ActiveJobKind -in @('NerdioPublish', 'M365', 'EvergreenUpdate', 'CacheClear')) {
             return
         }
@@ -95,6 +103,9 @@ function Invoke-EwWorkbenchJobMonitor {
     }
 
     $kind = [string]$State.ActiveJobKind
+    if ($kind -in @('PackageDefinitions', 'DefinitionUpdate')) {
+        Invoke-EwWorkbenchInstallStale -State $State
+    }
     $output = @($job.Output)
     $refreshIntune = $kind -in @('IntunePublish', 'IntuneRetry')
     $nextMaintenanceAction = ''
@@ -213,10 +224,22 @@ function Invoke-EwWorkbenchJobMonitor {
                 $State.UpdatePackageDefinitionsButton.IsEnabled = $validCount -gt 0
             }
             'InstallDefinitions' {
+                if ($State.InstallRefreshRevision -ne $State.InstallDefinitionsRevision) {
+                    Write-Verbose -Message 'EvergreenUI: Discarding local detection from superseded definitions'
+                    break
+                }
                 $State.InstallDefinitions.Clear()
                 foreach ($definition in $output) {
                     $State.InstallDefinitions.Add($definition)
                 }
+                $State.InstallDefinitionsStale = $false
+                $State.InstallRefreshPending = $false
+                foreach ($definition in $State.InstallDefinitions) {
+                    if ($definition.DefinitionPath -in $State.InstallSelectedDefinitionPaths) {
+                        $null = $State.InstallDefinitionsListView.SelectedItems.Add($definition)
+                    }
+                }
+                $State.InstallSelectedDefinitionPaths = @()
                 $validCount = @($State.InstallDefinitions | Where-Object DefinitionValid -eq 'Yes').Count
                 $State.InstallDefinitionsCountLabel.Text = "$($State.InstallDefinitions.Count) definitions ($validCount valid)"
                 $State.InstallActionStatusLabel.Text = 'Local detection complete. Find latest versions separately.'
@@ -376,6 +399,11 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     $State.ActiveJobId = $null
     $State.ActiveJobKind = ''
+    if ($kind -eq 'InstallDefinitions' -and $State.InstallDefinitionsStale -and
+        $State.InstallRefreshRevision -eq $State.InstallDefinitionsRevision) {
+        $State.InstallRefreshPending = $false
+        $State.InstallActionStatusLabel.Text = 'Local detection refresh did not complete. Reload definitions to retry.'
+    }
     if ($kind -eq 'IntunePublish' -and $null -ne $State.IntuneCancellation) {
         $State.IntuneCancellation.Dispose()
         $State.IntuneCancellation = $null
@@ -410,5 +438,8 @@ function Invoke-EwWorkbenchJobMonitor {
         catch {
             Write-EwWorkbenchLog -State $State -Message "Could not refresh the Intune comparison: $($_.Exception.Message)" -Level Error
         }
+    }
+    if ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending) {
+        Invoke-EwWorkbenchInstallRefresh -State $State
     }
 }

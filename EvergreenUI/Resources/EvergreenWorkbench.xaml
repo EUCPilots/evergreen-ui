@@ -293,11 +293,6 @@
                                      Content="Nerdio"
                                      Tag="&#xE968;"
                                      AutomationProperties.Name="Nerdio view" />
-                        <RadioButton x:Name="NavInstall"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Content="Install"
-                                     Tag="&#xE896;"
-                                     AutomationProperties.Name="Install view" />
                         <Border Height="1" Margin="8,12" Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
                         <RadioButton x:Name="NavSettings"
                                      Style="{StaticResource NavigationButtonStyle}"
@@ -752,6 +747,10 @@
                 </Grid>
 
                 <Grid x:Name="PackagesPanel" Visibility="Collapsed">
+                    <TabControl x:Name="PackagesTabControl" SelectedIndex="0"
+                                Style="{StaticResource ProviderTabControlStyle}"
+                                AutomationProperties.Name="Package workflows">
+                        <TabItem x:Name="DefinitionsTab" Header="Definitions">
                     <Grid Margin="0,0,0,8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -763,18 +762,13 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="Intune package definitions"
-                                   Style="{StaticResource SectionHeadingTextBlockStyle}"
-                                   Margin="0,0,0,12" />
-                        <TextBlock Grid.Row="1" Text="These App.json definitions are shared with local Install. Updating definitions writes the latest resolved version and setup file to valid definition files."
-                                   TextWrapping="Wrap"
-                                   Margin="0,0,0,12"
-                                   Opacity="0.75" />
                         <Label Grid.Row="2" Content="Definitions folder" Target="{Binding ElementName=IntuneDefinitionsPathBox}"
                                Padding="0" Margin="0,0,0,5" />
                         <Grid Grid.Row="3" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
@@ -793,21 +787,22 @@
                                     Content="Save path"
                                     Margin="8,0,0,0"
                                     Padding="12,4" />
+                            <Button x:Name="LoadPackageDefinitionsButton"
+                                    Grid.Column="3"
+                                    Content="Load definitions"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                            <Button x:Name="UpdatePackageDefinitionsButton"
+                                    Grid.Column="4"
+                                    Content="Update definitions"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
                         </Grid>
-                        <DockPanel Grid.Row="4" Margin="0,0,0,10">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button x:Name="LoadPackageDefinitionsButton"
-                                        Content="Load definitions"
-                                        Margin="0,0,8,0"
-                                        Padding="12,5" />
-                                <Button x:Name="UpdatePackageDefinitionsButton"
-                                        Content="Update definitions"
-                                        Padding="12,5" />
-                            </StackPanel>
-                            <TextBlock x:Name="PackageDefinitionsCountLabel"
-                                       Text="0 definitions"
-                                       VerticalAlignment="Center" />
-                        </DockPanel>
+                        <TextBlock x:Name="PackageDefinitionsCountLabel"
+                                   Grid.Row="4"
+                                   Text="0 definitions"
+                                   Margin="0,0,0,10"
+                                   VerticalAlignment="Center" />
                         <DataGrid x:Name="PackageDefinitionsListView"
                                   Grid.Row="5"
                                   MinHeight="160"
@@ -850,6 +845,90 @@
                                     Padding="12,4" />
                         </Grid>
                     </Grid>
+                        </TabItem>
+                        <TabItem x:Name="InstallTab" Header="Install">
+                            <Grid x:Name="InstallPanel">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="InstallDefinitionsCountLabel"
+                                               Text="0 definitions"
+                                               VerticalAlignment="Center" />
+                                    <CheckBox x:Name="HideIncompatibleInstallToggle"
+                                              Grid.Column="1"
+                                              Content="Hide incompatible"
+                                              Margin="18,0,0,0"
+                                              VerticalAlignment="Center"
+                                              IsChecked="False" />
+                                    <TextBlock x:Name="InstallActionStatusLabel"
+                                               Grid.Column="2"
+                                               Text="Open Install to refresh definitions and local detection."
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"
+                                               TextWrapping="Wrap"
+                                               Opacity="0.75" />
+                                </Grid>
+                                <DataGrid x:Name="InstallDefinitionsListView"
+                                          Grid.Row="1"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          SelectionMode="Extended"
+                                          SelectionUnit="FullRow"
+                                          HeadersVisibility="Column"
+                                          CanUserAddRows="False"
+                                          EnableRowVirtualization="True"
+                                          AutomationProperties.Name="Local install definitions">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Required architecture" Binding="{Binding RequirementArchitecture}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Artifact architecture" Binding="{Binding ArtifactArchitecture}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Architecture status" Binding="{Binding ArchitectureStatus}" Width="150">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource WorkbenchGridTextStyle}">
+                                                    <Setter Property="ToolTip" Value="{Binding ArchitectureError}" />
+                                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Installed" Binding="{Binding InstalledVersion}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Latest" Binding="{Binding LatestVersion}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Status" Binding="{Binding InstallStatus}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <DockPanel Grid.Row="2" Margin="0,12,0,0">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button x:Name="ReloadInstallDefinitionsButton"
+                                                Content="Reload definitions"
+                                                Margin="0,0,8,0"
+                                                Padding="12,5" />
+                                        <Button x:Name="ResolveInstallVersionsButton"
+                                                Content="Find latest versions"
+                                                Margin="0,0,8,0"
+                                                Padding="12,5"
+                                                IsEnabled="False" />
+                                        <Button x:Name="InstallSelectedPackagesButton"
+                                                Content="Install selected"
+                                                Style="{DynamicResource AccentButtonStyle}"
+                                                Padding="14,5"
+                                                FontWeight="SemiBold"
+                                                IsEnabled="False" />
+                                    </StackPanel>
+                                    <TextBlock Text="Latest-version lookup uses the Evergreen catalog."
+                                               VerticalAlignment="Center"
+                                               Opacity="0.75" />
+                                </DockPanel>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
                 </Grid>
 
                 <Grid x:Name="IntunePanel" Visibility="Collapsed">
@@ -1160,87 +1239,6 @@
                             </ScrollViewer>
                         </TabItem>
                     </TabControl>
-                </Grid>
-
-                <Grid x:Name="InstallPanel" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="InstallDefinitionsCountLabel"
-                                   Text="0 definitions"
-                                   VerticalAlignment="Center" />
-                        <CheckBox x:Name="HideIncompatibleInstallToggle"
-                                  Grid.Column="1"
-                                  Content="Hide incompatible"
-                                  Margin="18,0,0,0"
-                                  VerticalAlignment="Center"
-                                  IsChecked="False" />
-                        <TextBlock x:Name="InstallActionStatusLabel"
-                                   Grid.Column="2"
-                                   Text="Reload definitions to check local installation status."
-                                   VerticalAlignment="Center"
-                                   HorizontalAlignment="Right"
-                                   TextWrapping="Wrap"
-                                   Opacity="0.75" />
-                    </Grid>
-                    <DataGrid x:Name="InstallDefinitionsListView"
-                              Grid.Row="1"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              SelectionMode="Extended"
-                              SelectionUnit="FullRow"
-                              HeadersVisibility="Column"
-                              CanUserAddRows="False"
-                              EnableRowVirtualization="True"
-                              AutomationProperties.Name="Local install definitions">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Required architecture" Binding="{Binding RequirementArchitecture}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Artifact architecture" Binding="{Binding ArtifactArchitecture}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Architecture status" Binding="{Binding ArchitectureStatus}" Width="150">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource WorkbenchGridTextStyle}">
-                                        <Setter Property="ToolTip" Value="{Binding ArchitectureError}" />
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Installed" Binding="{Binding InstalledVersion}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Latest" Binding="{Binding LatestVersion}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Status" Binding="{Binding InstallStatus}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <DockPanel Grid.Row="2" Margin="0,12,0,0">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button x:Name="ReloadInstallDefinitionsButton"
-                                    Content="Reload definitions"
-                                    Margin="0,0,8,0"
-                                    Padding="12,5" />
-                            <Button x:Name="ResolveInstallVersionsButton"
-                                    Content="Find latest versions"
-                                    Margin="0,0,8,0"
-                                    Padding="12,5"
-                                    IsEnabled="False" />
-                            <Button x:Name="InstallSelectedPackagesButton"
-                                    Content="Install selected"
-                                    Style="{DynamicResource AccentButtonStyle}"
-                                    Padding="14,5"
-                                    FontWeight="SemiBold"
-                                    IsEnabled="False" />
-                        </StackPanel>
-                        <TextBlock Text="Latest-version lookup uses the Evergreen catalog."
-                                   VerticalAlignment="Center"
-                                   Opacity="0.75" />
-                    </DockPanel>
                 </Grid>
 
                 <Grid x:Name="SettingsPanel" Visibility="Collapsed">

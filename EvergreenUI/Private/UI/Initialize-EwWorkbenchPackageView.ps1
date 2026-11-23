@@ -14,9 +14,11 @@ function Initialize-EwWorkbenchPackageView {
     $State.UpdatePackageDefinitionsButton.IsEnabled = $false
 
     $State.IntuneDefinitionsPathBox.Add_TextChanged({
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallStale' -Parameters @{ State = $State }
         $State.LoadPackageDefinitionsButton.IsEnabled =
             -not [string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text) -and
             $null -eq $State.ActiveJobId
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallRefresh' -Parameters @{ State = $State }
     }.GetNewClosure())
 
     $State.BrowseIntuneDefinitionsButton.Add_Click({

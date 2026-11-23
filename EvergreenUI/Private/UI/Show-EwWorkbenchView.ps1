@@ -12,7 +12,11 @@ function Show-EwWorkbenchView {
         [string]$View
     )
 
-    foreach ($name in @('Apps', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install', 'Settings', 'About')) {
+    if ($View -eq 'Install') {
+        $State.InstallTab.IsSelected = $true
+        $View = 'Packages'
+    }
+    foreach ($name in @('Apps', 'Library', 'Packages', 'Intune', 'Nerdio', 'Settings', 'About')) {
         $visibility = if ($name -eq $View) {
             [System.Windows.Visibility]::Visible
         }
@@ -28,10 +32,15 @@ function Show-EwWorkbenchView {
     switch ($View) {
         'Apps' { $State.SubtitleTextBlock.Text = 'Discover and download Evergreen applications' }
         'Library' { $State.SubtitleTextBlock.Text = 'Inspect and refresh a local Evergreen library' }
-        'Packages' { $State.SubtitleTextBlock.Text = 'Configure and update Microsoft Intune package definitions' }
+        'Packages' {
+            $State.SubtitleTextBlock.Text = 'Validate and update Intune package definitions. Test with local installation'
+            if ($State.InstallTab.IsSelected -and -not $State.InstallDefinitionsStale) {
+                Invoke-EwWorkbenchInstallStale -State $State
+            }
+            Invoke-EwWorkbenchInstallRefresh -State $State
+        }
         'Intune' { $State.SubtitleTextBlock.Text = 'Compare and publish applications to Intune' }
         'Nerdio' { $State.SubtitleTextBlock.Text = 'Compare and publish Nerdio Manager Shell Apps' }
-        'Install' { $State.SubtitleTextBlock.Text = 'Check and install applications on this device' }
         'Settings' {
             $State.SubtitleTextBlock.Text = 'Manage saved Workbench folders and preferences'
             Invoke-EwWorkbenchSettingsRefresh -State $State

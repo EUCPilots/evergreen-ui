@@ -8,10 +8,14 @@ function Restore-EwWorkbenchStartupView {
         [System.Collections.IDictionary]$State
     )
 
-    $views = @('Apps', 'Library', 'Packages', 'Intune', 'Nerdio', 'Install', 'Settings', 'About')
+    $views = @('Apps', 'Library', 'Packages', 'Intune', 'Nerdio', 'Settings', 'About')
     $saved = if ($State.Settings.Contains('StartupView')) { [string]$State.Settings.StartupView } else { '' }
     $view = if ($saved -eq 'Download') {
         'Apps'
+    }
+    elseif ($saved -eq 'Install') {
+        $State.InstallTab.IsSelected = $true
+        'Packages'
     }
     else {
         $views | Where-Object { $_ -eq $saved } | Select-Object -First 1
