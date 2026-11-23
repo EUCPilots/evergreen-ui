@@ -65,7 +65,7 @@ Start-EvergreenWorkbench
 
 | Area | Commands | Notes |
 |---|---|---|
-| Settings | `Get-EwSetting`, `Set-EwSetting`, `Reset-EwSetting` | Uses fresh settings at `%APPDATA%\EvergreenWorkbench\settings.json`, including validated UI state (`StartupView`, `LastAppName`, `WindowWidth`, `WindowHeight`, `DownloadTrayHeight`, `WindowMaximized`). |
+| Settings | `Get-EwSetting`, `Set-EwSetting`, `Reset-EwSetting` | Uses fresh settings at `%APPDATA%\EvergreenWorkbench\settings.json`, including validated UI state (`StartupView`, `LastAppName`, `WindowWidth`, `WindowHeight`, `DownloadTrayHeight`, `AppsListWidth`, `WindowMaximized`). |
 | WPF interface | `Start-EvergreenWorkbench` | Opens the v2 Workbench views; requires Windows and PowerShell 7.6+. |
 | Jobs | `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, `Remove-EwJob` | Runs bounded background work in the module's runspace pool. |
 | Apps and downloads | `Get-EwApp`, `Get-EwFilterableProperty`, `Save-EwArtifact` | Wraps Evergreen catalog, artifact, and download operations. |

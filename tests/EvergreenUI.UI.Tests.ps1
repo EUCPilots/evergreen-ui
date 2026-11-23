@@ -277,6 +277,174 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'keeps Apps actions aligned at <Width>x<Height>, font <FontSize>, <Theme>, tray <TrayHeight>' -ForEach @(
+        @{ Width = 960; Height = 820; FontSize = 12; TrayHeight = 180; Theme = 'Light' }
+        @{ Width = 1200; Height = 820; FontSize = 12; TrayHeight = 180; Theme = 'Dark' }
+        @{ Width = 960; Height = 820; FontSize = 20; TrayHeight = 180; Theme = 'Light' }
+        @{ Width = 960; Height = 660; FontSize = 12; TrayHeight = 600; Theme = 'Dark' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{
+            WindowWidth = $Width; WindowHeight = $Height; FontSize = $FontSize
+            TrayHeight = $TrayHeight; Theme = $Theme
+        } {
+            param($WindowWidth, $WindowHeight, $FontSize, $TrayHeight, $Theme)
+
+            $window = Get-EwWorkbenchWindow
+            $state = $null
+            try {
+                $settings = Get-EwSetting
+                $settings.StartupView = 'Apps'
+                $settings.DownloadTrayHeight = $TrayHeight
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $window.Width = $WindowWidth
+                $window.Height = $WindowHeight
+                $window.ThemeMode = [System.Windows.ThemeMode]::$Theme
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $buttons = @(
+                    $state.ClearCompletedQueueButton
+                    $state.ChangeDownloadPathButton
+                    $state.DownloadTrayActionButton
+                    $state.QueueDownloadButton
+                    $state.DownloadNowButton
+                )
+                foreach ($button in $buttons) {
+                    $button.FontSize = $FontSize
+                }
+                $state.ArtifactCountLabel.Text = 'Showing 25 of 500 artifacts'
+                $artifact = [PSCustomObject]@{
+                    Version = '1.0'
+                    Architecture = 'x64'
+                    URI = 'https://example.test/installer.exe'
+                }
+                $state.ArtifactsGrid.ItemsSource = @($artifact)
+                $state.ArtifactsGrid.SelectedItem = $artifact
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+
+                $queueSeparator = $window.FindName('QueueActionsSeparator')
+                $artifactSeparator = $window.FindName('ArtifactActionsSeparator')
+                $queueSeparator | Should -BeOfType ([System.Windows.Controls.Border])
+                $artifactSeparator | Should -BeOfType ([System.Windows.Controls.Border])
+                $queueSeparator.Background | Should -Not -BeNullOrEmpty
+                $artifactSeparator.Background | Should -Not -BeNullOrEmpty
+                $elements = @(
+                    $buttons[0]
+                    $queueSeparator
+                    $buttons[1]
+                    $buttons[2]
+                    $artifactSeparator
+                    $buttons[3]
+                    $buttons[4]
+                )
+
+                foreach ($phase in 'Empty', 'Collapsed', 'Expanded', 'Downloading') {
+                    switch ($phase) {
+                        'Empty' {
+                            $state.DownloadTrayPanel.Visibility.ToString() | Should -Be 'Collapsed'
+                            $state.ClearCompletedQueueButton.IsEnabled | Should -BeFalse
+                            $state.DownloadTrayActionButton.IsEnabled | Should -BeFalse
+                            $state.QueueDownloadButton.IsEnabled | Should -BeTrue
+                            $state.DownloadNowButton.IsEnabled | Should -BeTrue
+                        }
+                        'Collapsed' {
+                            foreach ($status in 'Pending', 'Downloaded') {
+                                $state.Queue.Add([PSCustomObject]@{
+                                        Id = $status
+                                        AppName = 'Example'
+                                        Version = '1.0'
+                                        Architecture = 'x64'
+                                        Status = $status
+                                        URI = 'https://example.test/installer.exe'
+                                        SavedPath = ''
+                                    })
+                            }
+                            $state.DownloadTrayContent.Visibility.ToString() | Should -Be 'Collapsed'
+                            $state.ClearCompletedQueueButton.IsEnabled | Should -BeTrue
+                            $state.DownloadTrayActionButton.IsEnabled | Should -BeTrue
+                        }
+                        'Expanded' {
+                            $state.DownloadTrayToggleButton.IsChecked = $true
+                            $state.DownloadTrayContent.Visibility.ToString() | Should -Be 'Visible'
+                        }
+                        'Downloading' {
+                            $state.ActiveJobId = 'running'
+                            $state.ActiveJobKind = 'Downloads'
+                            Invoke-EwWorkbenchBusyState -State $state -IsBusy $true
+                            $state.DownloadTrayActionButton.Content | Should -Be 'Stop'
+                            $state.DownloadTrayActionButton.IsEnabled | Should -BeTrue
+                            $state.QueueDownloadButton.IsEnabled | Should -BeFalse
+                            $state.DownloadNowButton.IsEnabled | Should -BeFalse
+                        }
+                    }
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    $previousRight = 0
+                    $center = $null
+                    foreach ($element in $elements) {
+                        $element.IsVisible | Should -BeTrue -Because "the action row is visible when the queue is $phase"
+                        $element.ActualWidth | Should -BeGreaterThan 0
+                        $position = $element.TranslatePoint([System.Windows.Point]::new(0, 0), $state.AppsPanel)
+                        [Math]::Round($position.X - $previousRight, 1) | Should -BeGreaterOrEqual 0
+                        $previousRight = $position.X + $element.ActualWidth
+                        [Math]::Round($previousRight - $state.AppsPanel.ActualWidth, 1) | Should -BeLessOrEqual 0
+                        [Math]::Round($position.Y, 1) | Should -BeGreaterOrEqual 0
+                        [Math]::Round($position.Y + $element.ActualHeight - $state.AppsPanel.ActualHeight, 1) |
+                            Should -BeLessOrEqual 0
+                        $elementCenter = $position.Y + ($element.ActualHeight / 2)
+                        if ($null -eq $center) {
+                            $center = $elementCenter
+                        }
+                        [Math]::Abs($elementCenter - $center) | Should -BeLessOrEqual 1
+                    }
+
+                    if ($phase -eq 'Collapsed') {
+                        $click = [System.Windows.RoutedEventArgs]::new(
+                            [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                        )
+                        $state.ClearCompletedQueueButton.RaiseEvent($click)
+                        $state.Queue.Count | Should -Be 1
+                        $state.Queue[0].Status | Should -Be 'Pending'
+                    }
+                }
+            }
+            finally {
+                if ($null -ne $state) {
+                    $state.ActiveJobId = $null
+                    $state.ActiveJobKind = ''
+                }
+                $window.Close()
+            }
+        }
+    }
+
+    It 'opens download folder settings from the action row when the queue is empty' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $settings = Get-EwSetting
+                $settings.StartupView = 'Apps'
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $state.UiStateReady = $false
+                Mock Invoke-EwWorkbenchSettingsRefresh {}
+                $opened = @{ Value = $false }
+                $browseButton = [System.Windows.Controls.Button]::new()
+                $browseButton.Add_Click({ $opened.Value = $true }.GetNewClosure())
+                $state.BrowseDownloadFolderButton = $browseButton
+                $click = [System.Windows.RoutedEventArgs]::new(
+                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                )
+                $state.ChangeDownloadPathButton.RaiseEvent($click)
+                $state.NavSettings.IsChecked | Should -BeTrue
+                $opened.Value | Should -BeTrue
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'offers URI actions in the artifact grid context menu instead of a detail pane' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
@@ -1115,6 +1283,186 @@ Import-Module -Name '$modulePath' -Force
                 $window.Close()
             }
         }
+    }
+
+    It 'saves and restores the Apps list width after drag and keyboard resizing' {
+        InModuleScope EvergreenUI {
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $windows = [System.Collections.Generic.List[object]]::new()
+            try {
+                $window = Get-EwWorkbenchWindow
+                $windows.Add($window)
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Width = 1200
+                $window.ShowInTaskbar = $false
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+
+                $splitter = $state.AppsListGridSplitter
+                $splitter.RaiseEvent([System.Windows.Controls.Primitives.DragStartedEventArgs]::new(0, 0))
+                $splitter.RaiseEvent([System.Windows.Controls.Primitives.DragDeltaEventArgs]::new(110, 0))
+                $splitter.RaiseEvent([System.Windows.Controls.Primitives.DragCompletedEventArgs]::new(110, 0, $false))
+                (Get-EwSetting).AppsListWidth | Should -Be 330
+                $state.Settings.AppsListWidth | Should -Be 330
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+
+                $splitter.RaiseEvent([System.Windows.Controls.Primitives.DragStartedEventArgs]::new(0, 0))
+                $splitter.RaiseEvent([System.Windows.Controls.Primitives.DragDeltaEventArgs]::new(-50, 0))
+                $source = [System.Windows.PresentationSource]::FromVisual($splitter)
+                $cancelArgs = [System.Windows.Input.KeyEventArgs]::new(
+                    [System.Windows.Input.Keyboard]::PrimaryDevice, $source, 0, [System.Windows.Input.Key]::Escape
+                )
+                $cancelArgs.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent
+                $splitter.RaiseEvent($cancelArgs)
+                $splitter.RaiseEvent([System.Windows.Controls.Primitives.DragCompletedEventArgs]::new(-50, 0, $true))
+                (Get-EwSetting).AppsListWidth | Should -Be 330
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+
+                foreach ($routedEvent in @(
+                        [System.Windows.Input.Keyboard]::KeyDownEvent,
+                        [System.Windows.Input.Keyboard]::KeyUpEvent
+                    )) {
+                    $keyArgs = [System.Windows.Input.KeyEventArgs]::new(
+                        [System.Windows.Input.Keyboard]::PrimaryDevice, $source, 0, [System.Windows.Input.Key]::Right
+                    )
+                    $keyArgs.RoutedEvent = $routedEvent
+                    $splitter.RaiseEvent($keyArgs)
+                }
+                (Get-EwSetting).AppsListWidth | Should -Be 340
+                $window.Close()
+
+                $window = Get-EwWorkbenchWindow
+                $windows.Add($window)
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Width = 1200
+                $window.ShowInTaskbar = $false
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                [Math]::Abs($state.AppsListColumn.ActualWidth - 340) | Should -BeLessOrEqual 1
+            }
+            finally {
+                foreach ($item in $windows) { $item.Close() }
+                $env:APPDATA = $originalAppData
+            }
+        }
+    }
+
+    It 'fits a saved Apps list width to a narrower window without losing the preference' {
+        InModuleScope EvergreenUI {
+            $originalAppData = $env:APPDATA
+            $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+            $window = $null
+            try {
+                Set-EwSetting -Name AppsListWidth -Value '700'
+                Set-EwSetting -Name StartupView -Value 'Library'
+                $window = Get-EwWorkbenchWindow
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Width = 960
+                $window.ShowInTaskbar = $false
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $state.NavApps.IsChecked = $true
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+
+                $state.AppsListColumn.ActualWidth | Should -BeLessThan 700
+                $state.ArtifactsColumn.ActualWidth | Should -BeGreaterOrEqual 300
+                ($state.AppsListView.Parent.ActualWidth - $state.AppsPanel.ActualWidth) | Should -BeLessOrEqual 1
+                (Get-EwSetting).AppsListWidth | Should -Be 700
+
+                $window.Width = 1600
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                [Math]::Abs($state.AppsListColumn.ActualWidth - 700) | Should -BeLessOrEqual 1
+                (Get-EwSetting).AppsListWidth | Should -Be 700
+
+                $state.NavLibrary.IsChecked = $true
+                $window.Width = 960
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $state.NavApps.IsChecked = $true
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $state.AppsListColumn.ActualWidth | Should -BeLessThan 700
+                $state.ArtifactsColumn.ActualWidth | Should -BeGreaterOrEqual 300
+                ($state.AppsListView.Parent.ActualWidth - $state.AppsPanel.ActualWidth) | Should -BeLessOrEqual 1
+                (Get-EwSetting).AppsListWidth | Should -Be 700
+            }
+            finally {
+                if ($null -ne $window) { $window.Close() }
+                $env:APPDATA = $originalAppData
+            }
+        }
+    }
+
+    It 'reports an invalid saved Apps list width and uses the default' {
+        InModuleScope EvergreenUI {
+            $settings = Get-EwSetting
+            $settings.StartupView = 'Apps'
+            $settings.AppsListWidth = 'wide'
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $state.AppsListColumn.Width.Value | Should -Be 220
+                $state.ActivityLog.Text | Should -Match 'Invalid saved application list width'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'saves the download tray height when the splitter drag completes' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.AppsPanel.RowDefinitions[3].Height = [System.Windows.GridLength]::new(1000)
+                $dragArgs = [System.Windows.Controls.Primitives.DragCompletedEventArgs]::new(0, 0, $false)
+                $state.DownloadTrayGridSplitter.RaiseEvent($dragArgs)
+                $state.AppsPanel.RowDefinitions[3].Height.Value | Should -BeIn @(120, 600)
+                (Get-EwSetting).DownloadTrayHeight | Should -BeIn @(120, 600)
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'routes private helper calls in UI event closures through the module invoker' {
+        $uiRoot = Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI'
+        $privateNames = Get-ChildItem -Path (Join-Path -Path $uiRoot -ChildPath 'Private') -Recurse -Filter '*.ps1' |
+            ForEach-Object -Process { $_.BaseName }
+        $violations = foreach ($file in Get-ChildItem -Path $uiRoot -Recurse -Filter '*.ps1') {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
+            $closures = $ast.FindAll({
+                    param($node)
+                    $node -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and
+                    $node.Member.Value -eq 'GetNewClosure' -and
+                    $node.Expression -is [System.Management.Automation.Language.ScriptBlockExpressionAst]
+                }, $true)
+            foreach ($closure in $closures) {
+                $body = $closure.Expression.ScriptBlock
+                $commands = $body.FindAll({ param($node) $node -is [System.Management.Automation.Language.CommandAst] }, $true)
+                foreach ($command in $commands) {
+                    $owner = $command.Parent
+                    while ($owner -isnot [System.Management.Automation.Language.ScriptBlockAst]) {
+                        $owner = $owner.Parent
+                    }
+                    # Nested blocks run as job workers or through '& $module', which restore module scope.
+                    if ($owner -eq $body -and $command.GetCommandName() -in $privateNames) {
+                        '{0}:{1} {2}' -f $file.Name, $command.Extent.StartLineNumber, $command.GetCommandName()
+                    }
+                }
+            }
+        }
+        $violations | Should -BeNullOrEmpty
     }
 
     It 'retains native chrome when earlier interop types are already loaded' {

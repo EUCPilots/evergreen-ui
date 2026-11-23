@@ -22,6 +22,37 @@ function Initialize-EwWorkbenchView {
     $State.DownloadTrayContent.Visibility = [System.Windows.Visibility]::Collapsed
     $trayHeight = [Math]::Clamp([int]$State.Settings.DownloadTrayHeight, 120, 600)
     $State.Settings.DownloadTrayHeight = $trayHeight
+    $appsListWidth = 0
+    $savedAppsListWidth = if ($State.Settings.Contains('AppsListWidth')) {
+        [string]$State.Settings.AppsListWidth
+    }
+    else {
+        [string]$State.AppsListColumn.Width.Value
+    }
+    if (-not [int]::TryParse(
+            $savedAppsListWidth, [System.Globalization.NumberStyles]::Integer, [cultureinfo]::InvariantCulture, [ref]$appsListWidth
+        ) -or $appsListWidth -lt $State.AppsListColumn.MinWidth) {
+        $appsListWidth = [int]$State.AppsListColumn.Width.Value
+        $message = "Invalid saved application list width '$savedAppsListWidth'; using $appsListWidth."
+        Write-Verbose -Message "EvergreenUI: $message"
+        Write-EwWorkbenchLog -State $State -Message $message -Level Warning
+    }
+    $State.Settings.AppsListWidth = $appsListWidth
+    # Bound the column before layout without discarding the preferred width.
+    $State.AppsListColumn.MaxWidth = $State.AppsListColumn.MinWidth
+    $State.AppsListColumn.Width = [System.Windows.GridLength]::new($appsListWidth)
+    $updateAppsListMaxWidth = {
+        if ($State.AppsPanel.ActualWidth -gt 0) {
+            $State.AppsListColumn.MaxWidth = [Math]::Max(
+                $State.AppsListColumn.MinWidth,
+                $State.AppsPanel.ActualWidth - $State.AppsSplitterColumn.Width.Value - $State.ArtifactsColumn.MinWidth
+            )
+        }
+    }.GetNewClosure()
+    & $updateAppsListMaxWidth
+    $State.AppsPanel.Add_SizeChanged({
+        & $updateAppsListMaxWidth
+    }.GetNewClosure())
     $State.EvergreenMenu = [System.Windows.Controls.ContextMenu]::new()
     $State.RefreshAppsButton = [System.Windows.Controls.MenuItem]::new()
     $State.RefreshAppsButton.Header = 'Refresh catalog'
@@ -231,7 +262,7 @@ function Initialize-EwWorkbenchView {
             return
         }
         try {
-            Open-EwWorkbenchLink -Uri ([uri]$uri)
+            & $State.ModuleInvoker -Name 'Open-EwWorkbenchLink' -Parameters @{ Uri = [uri]$uri }
         }
         catch {
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
@@ -440,11 +471,33 @@ function Initialize-EwWorkbenchView {
         )
         $State.BrowseDownloadFolderButton.RaiseEvent($clickArgs)
     }.GetNewClosure())
+    $saveAppsListWidth = {
+        $width = [int][Math]::Round($State.AppsListColumn.Width.Value)
+        & $State.ModuleInvoker -Name 'Save-EwWorkbenchUiSetting' -Parameters @{
+            State = $State
+            Name = 'AppsListWidth'
+            Value = [string]$width
+        }
+    }.GetNewClosure()
+    $State.AppsListGridSplitter.Add_DragCompleted({
+        if (-not $args[1].Canceled) {
+            & $saveAppsListWidth
+        }
+    }.GetNewClosure())
+    $State.AppsListGridSplitter.Add_KeyUp({
+        if ($args[1].Key -in @([System.Windows.Input.Key]::Left, [System.Windows.Input.Key]::Right)) {
+            & $saveAppsListWidth
+        }
+    }.GetNewClosure())
     $State.DownloadTrayGridSplitter.Add_DragCompleted({
         $height = [int][Math]::Round($State.AppsPanel.RowDefinitions[3].ActualHeight)
         $height = [Math]::Clamp($height, 120, 600)
         $State.AppsPanel.RowDefinitions[3].Height = [System.Windows.GridLength]::new($height)
-        Save-EwWorkbenchUiSetting -State $State -Name 'DownloadTrayHeight' -Value ([string]$height)
+        & $State.ModuleInvoker -Name 'Save-EwWorkbenchUiSetting' -Parameters @{
+            State = $State
+            Name = 'DownloadTrayHeight'
+            Value = [string]$height
+        }
     }.GetNewClosure())
     $State.ClearCompletedQueueButton.Add_Click({
         foreach ($item in @($State.Queue | Where-Object Status -in @('Downloaded', 'Failed'))) {

@@ -74,6 +74,7 @@ Describe 'EvergreenUI v2 foundation' {
         Set-Content -Path (Join-Path -Path $directory -ChildPath 'settings.json') -Value '{"SchemaVersion":1,"Future":"retained"}'
         $settings = Get-EwSetting
         $settings.Theme | Should -Be 'System'
+        $settings.AppsListWidth | Should -Be 220
         Set-EwSetting -Name Theme -Value Light
         (Get-EwSetting).Future | Should -Be 'retained'
     }
@@ -100,16 +101,19 @@ Describe 'EvergreenUI v2 foundation' {
         $settings.WindowWidth | Should -Be 1200
         $settings.WindowHeight | Should -Be 820
         $settings.DownloadTrayHeight | Should -Be 180
+        $settings.AppsListWidth | Should -Be 220
         $settings.WindowMaximized | Should -BeFalse
         Set-EwSetting -Name StartupView -Value 'nerdio'
         Set-EwSetting -Name WindowWidth -Value '1400'
         Set-EwSetting -Name DownloadTrayHeight -Value '240'
+        Set-EwSetting -Name AppsListWidth -Value '330'
         Set-EwSetting -Name WindowMaximized -Value 'True'
         Set-EwSetting -Name LastAppName -Value 'MicrosoftEdge'
         $settings = Get-EwSetting
         $settings.StartupView | Should -BeExactly 'Nerdio'
         $settings.WindowWidth | Should -Be 1400
         $settings.DownloadTrayHeight | Should -Be 240
+        $settings.AppsListWidth | Should -Be 330
         [string]$settings.WindowWidth | Should -Match '^\d+$'
         $settings.WindowMaximized | Should -BeTrue
         $settings.LastAppName | Should -Be 'MicrosoftEdge'
@@ -117,6 +121,10 @@ Describe 'EvergreenUI v2 foundation' {
         { Set-EwSetting -Name StartupView -Value 'Download' } | Should -Throw
         { Set-EwSetting -Name DownloadTrayHeight -Value '119' } | Should -Throw '*DownloadTrayHeight*'
         { Set-EwSetting -Name DownloadTrayHeight -Value '601' } | Should -Throw '*DownloadTrayHeight*'
+        { Set-EwSetting -Name AppsListWidth -Value '159' } | Should -Throw '*AppsListWidth*'
+        { Set-EwSetting -Name AppsListWidth -Value 'wide' } | Should -Throw '*whole number*'
+        Set-EwSetting -Name AppsListWidth -Value '160'
+        (Get-EwSetting).AppsListWidth | Should -Be 160
         { Set-EwSetting -Name WindowHeight -Value '0' } | Should -Throw '*WindowHeight*'
         { Set-EwSetting -Name WindowHeight -Value 'wide' } | Should -Throw '*WindowHeight*'
         { Set-EwSetting -Name WindowMaximized -Value 'maybe' } | Should -Throw '*WindowMaximized*'

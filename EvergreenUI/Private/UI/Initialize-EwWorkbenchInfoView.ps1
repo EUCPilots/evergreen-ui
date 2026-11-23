@@ -45,7 +45,12 @@ function Initialize-EwWorkbenchInfoView {
                 return
             }
             try {
-                Set-EwWorkbenchFolderPath -State $State -Kind $kind -Path $dialog.FolderName -Confirm:$false
+                & $State.ModuleInvoker -Name 'Set-EwWorkbenchFolderPath' -Parameters @{
+                    State = $State
+                    Kind = $kind
+                    Path = $dialog.FolderName
+                    Confirm = $false
+                }
             }
             catch {
                 $message = "Could not save $($kind.ToLowerInvariant()) folder: $($_.Exception.Message)"

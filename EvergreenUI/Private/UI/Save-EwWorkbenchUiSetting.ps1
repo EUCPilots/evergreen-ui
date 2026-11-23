@@ -8,7 +8,10 @@ function Save-EwWorkbenchUiSetting {
         [System.Collections.IDictionary]$State,
 
         [Parameter(Mandatory)]
-        [ValidateSet('StartupView', 'LastAppName', 'WindowWidth', 'WindowHeight', 'DownloadTrayHeight', 'WindowMaximized')]
+        [ValidateSet(
+            'StartupView', 'LastAppName', 'WindowWidth', 'WindowHeight', 'DownloadTrayHeight',
+            'AppsListWidth', 'WindowMaximized'
+        )]
         [string]$Name,
 
         [Parameter(Mandatory)]
@@ -19,7 +22,7 @@ function Save-EwWorkbenchUiSetting {
     # UI state is a convenience; a failed save must never block navigation, selection or closing.
     try {
         Set-EwSetting -Name $Name -Value $Value -Confirm:$false -ErrorAction Stop
-        $State.Settings[$Name] = if ($Name -eq 'DownloadTrayHeight') { [int]$Value } else { $Value }
+        $State.Settings[$Name] = if ($Name -in @('DownloadTrayHeight', 'AppsListWidth')) { [int]$Value } else { $Value }
         Write-Verbose -Message "EvergreenUI: Saved Workbench UI setting $Name"
     }
     catch {

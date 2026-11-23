@@ -47,6 +47,7 @@ function Get-EwSetting {
         WindowWidth = 1200
         WindowHeight = 820
         DownloadTrayHeight = 180
+        AppsListWidth = 220
         WindowMaximized = $false
     }
     $path = Get-EwSettingsPath

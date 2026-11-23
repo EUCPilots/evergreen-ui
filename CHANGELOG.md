@@ -4,7 +4,10 @@
 
 - Begin the PowerShell 7.6 v2 rewrite with headless settings, bounded background jobs, Apps, downloads, and Library commands.
 - Combine Apps discovery and downloads in one view with a resizable queue tray, inline queue actions, navigation count, and editable saved folders in Settings.
+- Group the Apps queue and download actions on one line, with separators between action groups.
 - Add consistent cell spacing and vertically centered text to all v2 data grids.
+- Remember the Apps application list width between sessions, adapting it to smaller windows.
+- Fix errors when resizing the Apps queue tray, opening an artifact URI, or browsing for a folder in Settings.
 - Keep v2 settings separate from v1 and load optional integration modules only when required.
 - Add App.json discovery, constrained filter evaluation, artifact resolution and definition updates, local detection and installation, and Intune/Microsoft 365 package building.
 - Add Intune and Nerdio authentication and publishing APIs, including Intune supersedence and Nerdio Shell App uploads.
