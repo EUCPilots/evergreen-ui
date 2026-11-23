@@ -408,3 +408,103 @@ $artifact = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
         }
     }
 }
+
+Describe 'Application version cache' {
+    BeforeEach {
+        $script:appCacheRoot = Join-Path -Path $cacheTestRoot -ChildPath ([guid]::NewGuid().ToString('N'))
+        InModuleScope EvergreenUI -Parameters @{ Root = $script:appCacheRoot } {
+            $script:testAppCacheRoot = $Root
+            Mock Get-EwCachePath {
+                if ([string]::IsNullOrWhiteSpace($CachePath)) { return $script:testAppCacheRoot }
+                return [System.IO.Path]::GetFullPath($CachePath).TrimEnd('\')
+            }
+            Mock Get-EwSetting { [PSCustomObject]@{ FavouriteApps = @() } }
+            Mock Invoke-EwCatalogCache {}
+            if (-not (Get-Command -Name Get-EvergreenApp -ErrorAction SilentlyContinue)) {
+                function script:Get-EvergreenApp { param([string]$Name) }
+            }
+            Mock Get-EvergreenApp {
+                [PSCustomObject]@{ Version = '1.0'; Architecture = 'x64'; Date = '2026-01-02T03:04:05Z'; URI = "https://example.test/$Name.msi" }
+            }
+        }
+    }
+
+    It 'saves one JSON file per application and serves repeat lookups from it' {
+        InModuleScope EvergreenUI {
+            $first = @(Get-EwApp -Name 'Alpha')
+            $null = Get-EwApp -Name 'Beta'
+            $second = @(Get-EwApp -Name 'Alpha')
+            Should -Invoke Get-EvergreenApp -Exactly 1 -ParameterFilter { $Name -eq 'Alpha' }
+            Should -Invoke Get-EvergreenApp -Exactly 1 -ParameterFilter { $Name -eq 'Beta' }
+            $directory = Join-Path -Path $script:testAppCacheRoot -ChildPath 'Apps'
+            (Join-Path -Path $directory -ChildPath 'Alpha.json') | Should -Exist
+            (Join-Path -Path $directory -ChildPath 'Beta.json') | Should -Exist
+            $payload = Get-Content -LiteralPath (Join-Path -Path $directory -ChildPath 'Alpha.json') -Raw | ConvertFrom-Json -DateKind String
+            $payload.Name | Should -Be 'Alpha'
+            @($payload.Artifacts).Count | Should -Be 1
+            $second[0].URI | Should -Be $first[0].URI
+            $second[0].Date | Should -BeOfType [string]
+            $second[0].Date | Should -Be '2026-01-02T03:04:05Z'
+        }
+    }
+
+    It 'queries Evergreen again when the cached entry is older than 24 hours' {
+        InModuleScope EvergreenUI {
+            $null = Get-EwApp -Name 'Alpha'
+            $file = Join-Path -Path $script:testAppCacheRoot -ChildPath 'Apps\Alpha.json'
+            $payload = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json -DateKind String
+            $payload.RetrievedAt = [DateTimeOffset]::UtcNow.AddHours(-25).ToString('o')
+            Write-EwJsonFile -Path $file -InputObject $payload
+            $null = Get-EwApp -Name 'Alpha'
+            Should -Invoke Get-EvergreenApp -Exactly 2
+            $refreshed = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json -DateKind String
+            ([DateTimeOffset]::UtcNow - [DateTimeOffset]::Parse($refreshed.RetrievedAt)).TotalHours | Should -BeLessThan 1
+        }
+    }
+
+    It 'Force and NoCache bypass the cached entry and save the fresh result' {
+        InModuleScope EvergreenUI {
+            $null = Get-EwApp -Name 'Alpha'
+            Mock Get-EvergreenApp { [PSCustomObject]@{ Version = '2.0'; URI = 'https://example.test/new.msi' } }
+            (Get-EwApp -Name 'Alpha' -Force).Version | Should -Be '2.0'
+            (Get-EwApp -Name 'Alpha').Version | Should -Be '2.0'
+            Should -Invoke Get-EvergreenApp -Exactly 2
+            $null = Invoke-EwDefinitionQuery -Query ([PSCustomObject]@{ CommandName = 'Get-EvergreenApp'; AppName = 'Alpha' }) -NoCache
+            Should -Invoke Get-EvergreenApp -Exactly 3
+        }
+    }
+
+    It 'does not cache unsafe names or empty results' {
+        InModuleScope EvergreenUI {
+            $null = Get-EwAppVersion -Name 'Alpha Beta'
+            $null = Get-EwAppVersion -Name 'Alpha Beta'
+            Should -Invoke Get-EvergreenApp -Exactly 2
+            Mock Get-EvergreenApp {}
+            $null = Get-EwAppVersion -Name 'Empty'
+            $null = Get-EwAppVersion -Name 'Empty'
+            Should -Invoke Get-EvergreenApp -Exactly 2 -ParameterFilter { $Name -eq 'Empty' }
+            $directory = Join-Path -Path $script:testAppCacheRoot -ChildPath 'Apps'
+            @(Get-ChildItem -LiteralPath $directory -Filter '*.json' | Where-Object Name -ne 'app-cache-epoch.json').Count | Should -Be 0
+        }
+    }
+
+    It 'Clear-EwCache removes application payloads and invalidates in-flight lookups' {
+        InModuleScope EvergreenUI {
+            $null = Get-EwApp -Name 'Alpha'
+            $null = Get-EwApp -Name 'Beta'
+            $result = Clear-EwCache -Confirm:$false
+            $result.Succeeded | Should -BeTrue
+            $result.AppCacheInvalidated | Should -BeTrue
+            $result.AppCacheRemovedCount | Should -Be 2
+            $directory = Join-Path -Path $script:testAppCacheRoot -ChildPath 'Apps'
+            (Join-Path -Path $directory -ChildPath 'Alpha.json') | Should -Not -Exist
+            (Join-Path -Path $directory -ChildPath 'app-cache-epoch.json') | Should -Exist
+            Mock Get-EvergreenApp {
+                $null = Invoke-EwAppVersionCache -Action Clear
+                [PSCustomObject]@{ Version = '3.0' }
+            }
+            (Get-EwApp -Name 'Alpha').Version | Should -Be '3.0'
+            (Join-Path -Path $directory -ChildPath 'Alpha.json') | Should -Not -Exist
+        }
+    }
+}

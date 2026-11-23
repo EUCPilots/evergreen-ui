@@ -94,15 +94,17 @@ Describe 'Dependencies' {
         }
     }
 
-    It 'updates Evergreen and clears the catalog cache' {
+    It 'updates Evergreen and clears the catalog and application version caches' {
         InModuleScope EvergreenUI {
             Mock Invoke-EwEvergreenUpdate {}
+            Mock Invoke-EwAppVersionCache { [PSCustomObject]@{ Epoch = 'e'; RemovedCount = 0; Errors = [string[]]@() } }
             $script:ewAppCatalogCache = @{ RetrievedAt = [DateTimeOffset]::UtcNow; Items = @([PSCustomObject]@{ Name = 'Alpha' }) }
             Update-EwEvergreen -WhatIf | Should -BeNullOrEmpty
             Should -Invoke Invoke-EwEvergreenUpdate -Exactly 0
             (Update-EwEvergreen -Confirm:$false).Succeeded | Should -BeTrue
             @($script:ewAppCatalogCache.Items).Count | Should -Be 0
             $script:ewAppCatalogCache.RetrievedAt | Should -BeNullOrEmpty
+            Should -Invoke Invoke-EwAppVersionCache -Exactly 1 -ParameterFilter { $Action -eq 'Clear' }
         }
     }
 }

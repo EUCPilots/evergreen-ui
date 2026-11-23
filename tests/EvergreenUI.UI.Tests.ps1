@@ -459,6 +459,142 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'shows the application catalog without column headers' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $grid = $window.FindName('AppsListView')
+                $grid.HeadersVisibility | Should -Be ([System.Windows.Controls.DataGridHeadersVisibility]::None)
+                $grid.CanUserSortColumns | Should -BeFalse
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'centres both favourite stars in the column when resized' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $grid = $window.FindName('AppsListView')
+                $grid.ItemsSource = @(
+                    [PSCustomObject]@{ Name = 'Example'; FriendlyName = 'Example'; IsFavourite = $false }
+                    [PSCustomObject]@{ Name = 'Favourite'; FriendlyName = 'Favourite'; IsFavourite = $true }
+                )
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                foreach ($width in 72, 100) {
+                    $grid.Columns[1].Width = [System.Windows.Controls.DataGridLength]::new($width)
+                    $window.UpdateLayout()
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    foreach ($index in 0, 1) {
+                        $row = $grid.ItemContainerGenerator.ContainerFromIndex($index)
+                        $content = $grid.Columns[1].GetCellContent($row)
+                        $button = [System.Windows.Media.VisualTreeHelper]::GetChild($content, 0)
+                        $glyph = $button.Template.FindName('ContentPresenter', $button)
+                        $cell = [System.Windows.Media.VisualTreeHelper]::GetParent($content)
+                        while ($cell -isnot [System.Windows.Controls.DataGridCell]) {
+                            $cell = [System.Windows.Media.VisualTreeHelper]::GetParent($cell)
+                        }
+                        $glyph | Should -Not -BeNullOrEmpty
+                        $position = $glyph.TranslatePoint([System.Windows.Point]::new(0, 0), $cell)
+                        $offset = $position.X + ($glyph.ActualWidth / 2) - ($cell.ActualWidth / 2)
+                        [Math]::Abs($offset) | Should -BeLessOrEqual 1 -Because "the star is centred in a $width pixel column"
+                    }
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'keeps favourite <BrushProperty> colours native across themes and loading transitions' -ForEach @(
+        @{ BrushProperty = 'Foreground' }
+        @{ BrushProperty = 'Background' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ BrushProperty = $BrushProperty } {
+            param($BrushProperty)
+
+            function Find-TestVisual {
+                param([System.Windows.DependencyObject]$Parent, [type]$Type)
+
+                if ($Type.IsInstanceOfType($Parent)) { return $Parent }
+                for ($index = 0; $index -lt [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($Parent); $index++) {
+                    $match = Find-TestVisual -Parent ([System.Windows.Media.VisualTreeHelper]::GetChild($Parent, $index)) -Type $Type
+                    if ($null -ne $match) { return $match }
+                }
+            }
+
+            $window = Get-EwWorkbenchWindow
+            try {
+                $settings = Get-EwSetting
+                $settings.StartupView = 'Apps'
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $state.SuppressAppSelection = $true
+                $state.AppsListView.ItemsSource = @(
+                    [PSCustomObject]@{ Name = 'Example'; FriendlyName = 'Example'; IsFavourite = $false }
+                    [PSCustomObject]@{ Name = 'Favourite'; FriendlyName = 'Favourite'; IsFavourite = $true }
+                )
+                $reference = [System.Windows.Controls.Button]::new()
+                $reference.Content = [string][char]0xE734
+                $reference.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe Fluent Icons')
+                $reference.FontSize = 16
+                $reference.Padding = [System.Windows.Thickness]::new(4, 0, 4, 0)
+                $reference.Background = [System.Windows.Media.Brushes]::Transparent
+                $reference.BorderThickness = [System.Windows.Thickness]::new(0)
+                $reference.HorizontalAlignment = 'Right'
+                $reference.VerticalAlignment = 'Bottom'
+                $null = $window.Content.Children.Add($reference)
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+
+                foreach ($mode in 'Light', 'Dark', 'Light') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    foreach ($selected in $false, $true) {
+                        foreach ($busy in $false, $true, $false) {
+                            $state.ActiveJobKind = if ($busy) { 'Artifacts' } else { '' }
+                            Invoke-EwWorkbenchBusyState -State $state -IsBusy $busy
+                            $reference.IsEnabled = -not $busy
+                            foreach ($index in 0, 1) {
+                                $state.AppsListView.SelectedIndex = if ($selected) { $index } else { -1 }
+                                $window.UpdateLayout()
+                                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                                $row = $state.AppsListView.ItemContainerGenerator.ContainerFromIndex($index)
+                                $content = $state.AppsListView.Columns[1].GetCellContent($row)
+                                $button = Find-TestVisual -Parent $content -Type ([System.Windows.Controls.Button])
+                                $button | Should -Not -BeNullOrEmpty
+                                $button.IsEnabled | Should -Be (-not $busy)
+                                [int][char]$button.Content | Should -Be $(if ($index -eq 1) { 0xE735 } else { 0xE734 })
+                                $visualType = if ($BrushProperty -eq 'Foreground') {
+                                    [System.Windows.Controls.TextBlock]
+                                }
+                                else {
+                                    [System.Windows.Controls.Border]
+                                }
+                                $actual = Find-TestVisual -Parent $button -Type $visualType
+                                $expected = Find-TestVisual -Parent $reference -Type $visualType
+                                $actual | Should -Not -BeNullOrEmpty
+                                $expected | Should -Not -BeNullOrEmpty
+                                $actual.$BrushProperty.Color | Should -Be $expected.$BrushProperty.Color -Because (
+                                    "favourite $BrushProperty follows Fluent in $mode mode, busy=$busy, selected=$selected"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'uses theme-aware foreground and accent selection in the sidebar across light and dark modes' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow

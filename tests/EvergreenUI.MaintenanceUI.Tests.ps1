@@ -49,7 +49,7 @@ Describe 'Apps maintenance' {
             @($state.EvergreenMenu.Items |
                     Where-Object { $_ -is [System.Windows.Controls.MenuItem] } |
                     ForEach-Object { $_.Header }) |
-                Should -Be @('Refresh catalog', 'Update Evergreen', 'Clear Workbench cache', 'Open cache folder')
+                Should -Be @('Refresh catalog', 'Reload selected app versions', 'Update Evergreen', 'Clear Workbench cache', 'Open cache folder')
             $window.FindName('AppsMaintenanceStatusLabel') | Should -Not -BeNullOrEmpty
             $state.UpdateEvergreenButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
             $state.ActiveJobKind | Should -Be 'EvergreenUpdate'
@@ -60,6 +60,19 @@ Describe 'Apps maintenance' {
                 $ScriptBlock.ToString() -match 'Update-EwEvergreen -Confirm:\$false' -and
                 $ScriptBlock.ToString() -notmatch 'Update-Module'
             }
+        }
+
+        It 'reloads the selected app versions with Force and ignores the request without a selection' {
+            $state.ReloadAppVersionsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+            $state.ActiveJobKind | Should -Be 'Artifacts'
+            $state.ReloadAppVersionsButton.IsEnabled | Should -BeFalse
+            Should -Invoke Start-EwJob -Times 1 -ParameterFilter {
+                $ScriptBlock.ToString() -match 'Get-EwApp -Name \$AppName -Force' -and $ArgumentList[0] -eq 'TestApp'
+            }
+            $state.ActiveJobId = $null
+            $state.CurrentApp = $null
+            Invoke-EwWorkbenchMaintenanceAction -State $state -Action ReloadVersions
+            Should -Invoke Start-EwJob -Times 1
         }
 
         It 'declines clear without starting any job' {
