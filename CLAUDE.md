@@ -68,7 +68,7 @@ Start-EvergreenWorkbench
 | Settings | `Get-EwSetting`, `Set-EwSetting`, `Reset-EwSetting` | Uses fresh settings at `%APPDATA%\EvergreenWorkbench\settings.json`, including validated UI state (`StartupView`, `LastAppName`, `WindowWidth`, `WindowHeight`, `DownloadTrayHeight`, `AppsListWidth`, `WindowMaximized`). |
 | WPF interface | `Start-EvergreenWorkbench` | Opens the v2 Workbench views; requires Windows and PowerShell 7.6+. |
 | Jobs | `Start-EwJob`, `Get-EwJob`, `Stop-EwJob`, `Remove-EwJob` | Runs bounded background work in the module's runspace pool. |
-| Apps and downloads | `Get-EwApp`, `Get-EwFilterableProperty`, `Save-EwArtifact` | Wraps Evergreen catalog, artifact, and download operations. |
+| Apps and downloads | `Get-EwApp`, `Get-EwFilterableProperty`, `Save-EwArtifact` | Wraps Evergreen catalog, artifact, and download operations. Resolved artifacts are cached per application as `Cache\Apps\{Name}.json` for 24 hours; `-Force` bypasses and refreshes the cache. |
 | Library | `Get-EwLibrary`, `Update-EwLibrary` | Reads or updates a local Evergreen library. |
 | Definitions | `Get-EwDefinition`, `Resolve-EwArtifact`, `Update-EwDefinition` | Supports a constrained `Application.Filter` grammar instead of executing stored PowerShell. |
 | Local install | `Test-EwDetection`, `Install-EwPackage` | Evaluates File, Registry, and MSI rules; installation supports `ShouldProcess`. |
@@ -76,7 +76,7 @@ Start-EvergreenWorkbench
 | Authentication | `Connect-EwIntune`, `Disconnect-EwIntune`, `Connect-EwNerdio`, `Disconnect-EwNerdio` | Loads Graph and Azure modules only for the requested provider. |
 | Publishing | `Publish-EwIntuneApp`, `Publish-EwIntuneBatch`, `Publish-EwNerdioApp`, `Publish-EwNerdioBatch`, `Set-EwIntuneSupersedence` | Publishes through Microsoft Graph or Nerdio. Batches confirm snapshots and preserve partial outcomes. |
 | Favourites | `Add-EwFavouriteApp`, `Remove-EwFavouriteApp` | Stores favourites in settings; `Get-EwApp` lists favourites first. |
-| Dependencies and cache | `Get-EwDependency`, `Update-EwEvergreen`, `Clear-EwCache` | Reports module status, refreshes Evergreen application data, or explicitly clears Workbench caches. |
+| Dependencies and cache | `Get-EwDependency`, `Update-EwEvergreen`, `Clear-EwCache` | Reports module status, refreshes Evergreen application data (also clearing cached application versions), or explicitly clears Workbench caches. |
 | Microsoft 365 | `Get-EwM365Configuration` | Discovers ODT XML configurations with channel, products, and architecture. |
 | Intune compare | `Get-EwIntuneApp`, `Compare-EwIntuneApp` | Lists Win32 apps via Graph and compares them with App.json definitions. |
 | Azure discovery | `Connect-EwAzure`, `Disconnect-EwAzure`, `Get-EwAzureResourceGroup`, `Get-EwAzureStorageAccount`, `Get-EwAzureStorageContainer` | Lists resources for Nerdio storage configuration. |

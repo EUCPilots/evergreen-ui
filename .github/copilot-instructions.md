@@ -34,7 +34,7 @@ To run the v2 preview UI, import `.\EvergreenUI\EvergreenUI.psd1` instead.
 - V2 loads feature-grouped private and public scripts recursively, with private
   scripts first. Settings use
   `%APPDATA%\EvergreenWorkbench\settings.json` without migrating v1 settings.
-  `Get-EwApp` lists the catalog or resolves artifacts;
+  `Get-EwApp` lists the catalog or resolves artifacts (cached per application for 24 hours under `Cache\Apps`);
   `Get-EwFilterableProperty` derives filter metadata; `Save-EwArtifact`
   downloads an artifact. `Get-EwLibrary` reads inventory and
   `Update-EwLibrary` refreshes it. Definition commands validate App.json files,
