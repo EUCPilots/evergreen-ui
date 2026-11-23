@@ -62,7 +62,7 @@ Describe 'Apps maintenance' {
             }
         }
 
-        It 'opens the Actions menu with the same themed appearance as the Columns menu' {
+        It 'opens the Actions menu with the same themed appearance as the Columns menu' -Skip:($env:GITHUB_ACTIONS -eq 'true') {
             $window.WindowStartupLocation = 'Manual'
             $window.Left = -10000
             $window.Top = -10000

@@ -52,6 +52,10 @@ function Show-EwWorkbenchDownloadTray {
     $State.DownloadTrayGridSplitter.Visibility = if ($trayExpanded) {
         [System.Windows.Visibility]::Visible
     }
+    elseif ($State.Queue.Count -gt 0) {
+        # Retain the splitter's spacing above the tray header while the table is hidden.
+        [System.Windows.Visibility]::Hidden
+    }
     else {
         [System.Windows.Visibility]::Collapsed
     }

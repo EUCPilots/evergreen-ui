@@ -332,6 +332,86 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'right-aligns the download queue path and toggle with space above the table' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $settings = Get-EwSetting
+                $settings.StartupView = 'Apps'
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                foreach ($status in 'Pending', 'Downloading', 'Downloaded') {
+                    $state.Queue.Add([PSCustomObject]@{
+                            Id = $status
+                            AppName = 'Example'
+                            Version = '1.0'
+                            Architecture = 'x64'
+                            Status = $status
+                            URI = 'https://example.test/app.exe'
+                            SavedPath = ''
+                        })
+                }
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                foreach ($fontSize in 12, 20) {
+                    $window.FontSize = $fontSize
+                    foreach ($width in 1200, 960) {
+                        $window.Width = $width
+                        foreach ($path in @('C:\Downloads', ('C:\' + ('Long folder name\' * 80)))) {
+                            $state.Settings.OutputPath = $path
+                            Show-EwWorkbenchDownloadTray -State $state
+                            $collapsedTopGap = $null
+                            foreach ($expanded in $false, $true) {
+                                $state.DownloadTrayToggleButton.IsChecked = $expanded
+                                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                                $window.UpdateLayout()
+                                $panel = $state.DownloadTrayPanel
+                                $toggle = $state.DownloadTrayToggleButton
+                                $destination = $state.DownloadDestinationText
+                                $togglePosition = $toggle.TranslatePoint([System.Windows.Point]::new(0, 0), $panel)
+                                $pathPosition = $destination.TranslatePoint([System.Windows.Point]::new(0, 0), $panel)
+                                $toggle.IsVisible | Should -BeTrue
+                                $destination.IsVisible | Should -BeTrue
+                                $pathPosition.X | Should -BeGreaterOrEqual -0.5
+                                $destination.ActualWidth | Should -BeGreaterThan 0
+                                [Math]::Abs(($togglePosition.X + $toggle.ActualWidth) - $panel.ActualWidth) | Should -BeLessOrEqual 1
+                                [Math]::Abs(($pathPosition.X + $destination.ActualWidth + 12) - $togglePosition.X) | Should -BeLessOrEqual 1
+                                [Math]::Abs(($pathPosition.Y + $destination.ActualHeight / 2) - ($togglePosition.Y + $toggle.ActualHeight / 2)) | Should -BeLessOrEqual 1
+                                $destination.Text | Should -BeExactly $path
+                                $destination.ToolTip | Should -BeExactly $path
+                                $destination.TextTrimming.ToString() | Should -Be 'CharacterEllipsis'
+                                $toggle.Content | Should -Match $(if ($expanded) { '^Hide queue' } else { '^Show queue' })
+                                $mainArea = $state.AppsListView.Parent
+                                $mainBottom = $mainArea.TranslatePoint([System.Windows.Point]::new(0, $mainArea.ActualHeight), $state.AppsPanel).Y
+                                $toggleTop = $toggle.TranslatePoint([System.Windows.Point]::new(0, 0), $state.AppsPanel).Y
+                                $topGap = $toggleTop - $mainBottom
+                                if (-not $expanded) {
+                                    $collapsedTopGap = $topGap
+                                }
+                                else {
+                                    [Math]::Abs($topGap - $collapsedTopGap) | Should -BeLessOrEqual 1
+                                }
+                                $topGap | Should -BeGreaterOrEqual 4
+                                if ($expanded) {
+                                    $state.DownloadQueueListView.IsVisible | Should -BeTrue
+                                    $tableTop = $state.DownloadQueueListView.TranslatePoint([System.Windows.Point]::new(0, 0), $panel).Y
+                                    $gap = $tableTop - ($togglePosition.Y + $toggle.ActualHeight)
+                                    $gap | Should -BeGreaterOrEqual 15
+                                    $gap | Should -BeLessOrEqual 17
+                                }
+                                else {
+                                    $state.DownloadTrayContent.Visibility.ToString() | Should -Be 'Collapsed'
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            finally { $window.Close() }
+        }
+    }
+
     It 'places the Packages output folder at the bottom of the view without a large gap' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow

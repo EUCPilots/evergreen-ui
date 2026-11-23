@@ -2,6 +2,7 @@
 
 ## [2.0.0-preview]
 
+- Right-align the download queue toggle and path, with 16 pixels above the queue table and consistent header spacing when the queue is shown or hidden.
 - Export the current filtered Apps artifact grid and visible columns to CSV.
 - Match the Apps Actions menu to the Columns menu's light and dark styling.
 - Add an Apps Columns menu to hide or show optional artifact columns and remember choices between sessions. Version and URI always remain visible.
