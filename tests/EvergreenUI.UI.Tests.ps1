@@ -1,5 +1,10 @@
 #Requires -Version 7.6
 
+BeforeDiscovery {
+    # Hosted GitHub runners do not provide a reliable interactive desktop for window sizing.
+    $isGitHubRunner = $env:GITHUB_ACTIONS -eq 'true'
+}
+
 BeforeAll {
     $script:originalAppData = $env:APPDATA
     $env:APPDATA = Join-Path -Path $TestDrive -ChildPath 'appdata'
@@ -623,7 +628,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'adapts navigation to window width while keeping labels available to automation' {
+    It 'adapts navigation to window width while keeping labels available to automation' -Skip:$isGitHubRunner {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -1025,7 +1030,7 @@ Import-Module -Name '$modulePath' -Force
         }
     }
 
-    It 'honours the closing guard and persists window size through native close' {
+    It 'honours the closing guard and persists window size through native close' -Skip:$isGitHubRunner {
         InModuleScope EvergreenUI {
             $originalAppData = $env:APPDATA
             $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
@@ -1490,7 +1495,7 @@ Import-Module -Name '$modulePath' -Force
         }
     }
 
-    It 'fits a saved Apps list width to a narrower window without losing the preference' {
+    It 'fits a saved Apps list width to a narrower window without losing the preference' -Skip:$isGitHubRunner {
         InModuleScope EvergreenUI {
             $originalAppData = $env:APPDATA
             $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
@@ -1848,7 +1853,7 @@ Import-Module -Name '$modulePath' -Force -ErrorAction Stop
         }
     }
 
-    It 'saves the normal window size and maximised state' {
+    It 'saves the normal window size and maximised state' -Skip:$isGitHubRunner {
         InModuleScope EvergreenUI {
             $originalAppData = $env:APPDATA
             $env:APPDATA = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
