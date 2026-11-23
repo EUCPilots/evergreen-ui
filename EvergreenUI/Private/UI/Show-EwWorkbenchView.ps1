@@ -26,9 +26,9 @@ function Show-EwWorkbenchView {
         Save-EwWorkbenchUiSetting -State $State -Name 'StartupView' -Value $View
     }
     switch ($View) {
-        'Apps' { $State.SubtitleTextBlock.Text = 'Discover and manage Evergreen applications' }
+        'Apps' { $State.SubtitleTextBlock.Text = 'Discover and download Evergreen applications' }
         'Library' { $State.SubtitleTextBlock.Text = 'Inspect and refresh a local Evergreen library' }
-        'Packages' { $State.SubtitleTextBlock.Text = 'Configure and update Intune package definitions' }
+        'Packages' { $State.SubtitleTextBlock.Text = 'Configure and update Microsoft Intune package definitions' }
         'Intune' { $State.SubtitleTextBlock.Text = 'Compare and publish applications to Intune' }
         'Nerdio' { $State.SubtitleTextBlock.Text = 'Compare and publish Nerdio Manager Shell Apps' }
         'Install' { $State.SubtitleTextBlock.Text = 'Check and install applications on this device' }
