@@ -7,6 +7,8 @@
 - Combine Apps discovery and downloads in one view with a resizable queue tray, inline queue actions, navigation count, and editable saved folders in Settings.
 - Group the Apps queue and download actions on one line, with separators between action groups.
 - Place the Library path and its actions on one line.
+- Fix the expanded Apps download queue not scrolling when it contains more rows than fit.
+- Let the Packages definitions list fill the view so the output folder sits directly above the activity log.
 - Add consistent cell spacing and vertically centered text to all v2 data grids.
 - Centre Apps favourite stars and use native Fluent colours in light and dark modes, including while application versions load.
 - Remove the Application and Favourite column headers from the Apps list.

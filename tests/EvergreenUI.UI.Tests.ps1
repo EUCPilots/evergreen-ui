@@ -179,6 +179,75 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'scrolls the expanded download queue when it has more rows than fit' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $settings = Get-EwSetting
+                $settings.StartupView = 'Apps'
+                $settings.DownloadTrayHeight = 180
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                foreach ($index in 1..40) {
+                    $state.Queue.Add([PSCustomObject]@{
+                            Id = "item$index"
+                            AppName = "Example $index"
+                            Version = '1.0'
+                            Architecture = 'x64'
+                            Status = 'Pending'
+                            URI = "https://example.test/app$index.exe"
+                            SavedPath = ''
+                        })
+                }
+                $state.DownloadTrayToggleButton.IsChecked = $true
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+
+                $grid = $state.DownloadQueueListView
+                $grid.IsVisible | Should -BeTrue
+                $grid.ActualHeight | Should -BeLessOrEqual ($state.AppsPanel.RowDefinitions[3].ActualHeight + 1)
+                $border = [System.Windows.Media.VisualTreeHelper]::GetChild($grid, 0)
+                $scroll = [System.Windows.Media.VisualTreeHelper]::GetChild($border, 0)
+                $scroll | Should -BeOfType ([System.Windows.Controls.ScrollViewer])
+                $scroll.ScrollableHeight | Should -BeGreaterThan 0
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'places the Packages output folder at the bottom of the view without a large gap' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $settings = Get-EwSetting
+                $settings.StartupView = 'Packages'
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Height = 1000
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+
+                $panel = $state.PackagesPanel
+                $box = $state.PackageOutputPathBox
+                $panel.IsVisible | Should -BeTrue
+                $boxBottom = $box.TranslatePoint([System.Windows.Point]::new(0, $box.ActualHeight), $panel).Y
+                ($panel.ActualHeight - $boxBottom) | Should -BeLessOrEqual 16
+                $state.PackageDefinitionsListView.ActualHeight | Should -BeGreaterThan 260
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'switches views and filters artifacts using multi-select check box dropdowns' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow

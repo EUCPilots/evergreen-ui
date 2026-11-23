@@ -450,7 +450,7 @@
                           Margin="0,4,0,0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <Grid Grid.Row="0">
                             <Grid.ColumnDefinitions>
@@ -612,96 +612,104 @@
                 </Grid>
 
                 <Grid x:Name="PackagesPanel" Visibility="Collapsed">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="0,0,0,8">
-                            <TextBlock Text="Intune package definitions"
-                                       Style="{StaticResource SectionHeadingTextBlockStyle}"
-                                       Margin="0,0,0,12" />
-                            <TextBlock Text="These App.json definitions are shared with local Install. Updating definitions writes the latest resolved version and setup file to valid definition files."
-                                       TextWrapping="Wrap"
-                                       Margin="0,0,0,12"
-                                       Opacity="0.75" />
-                            <Label Content="Definitions folder" Target="{Binding ElementName=IntuneDefinitionsPathBox}"
-                                   Padding="0" Margin="0,0,0,5" />
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="IntuneDefinitionsPathBox"
-                                         MinWidth="100"
-                                         Height="32"
-                                         VerticalContentAlignment="Center"
-                                         ToolTip="Folder containing Intune App.json definitions" />
-                                <Button x:Name="BrowseIntuneDefinitionsButton"
-                                        Grid.Column="1"
-                                        Content="Browse"
-                                        Margin="8,0,0,0"
-                                        Padding="12,4" />
-                                <Button x:Name="SaveIntuneDefinitionsPathButton"
-                                        Grid.Column="2"
-                                        Content="Save path"
-                                        Margin="8,0,0,0"
-                                        Padding="12,4" />
-                            </Grid>
-                            <DockPanel Margin="0,0,0,10">
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                    <Button x:Name="LoadPackageDefinitionsButton"
-                                            Content="Load definitions"
-                                            Margin="0,0,8,0"
-                                            Padding="12,5" />
-                                    <Button x:Name="UpdatePackageDefinitionsButton"
-                                            Content="Update definitions"
-                                            Padding="12,5" />
-                                </StackPanel>
-                                <TextBlock x:Name="PackageDefinitionsCountLabel"
-                                           Text="0 definitions"
-                                           VerticalAlignment="Center" />
-                            </DockPanel>
-                            <DataGrid x:Name="PackageDefinitionsListView"
-                                      Height="260"
-                                      AutoGenerateColumns="False"
-                                      IsReadOnly="True"
-                                      SelectionMode="Single"
-                                      HeadersVisibility="Column"
-                                      CanUserAddRows="False"
-                                      EnableRowVirtualization="True"
-                                      AutomationProperties.Name="Intune package definitions">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                </DataGrid.Columns>
-                            </DataGrid>
-                            <Label Content="Package output folder" Target="{Binding ElementName=PackageOutputPathBox}"
-                                   Padding="0" Margin="0,18,0,5" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="PackageOutputPathBox"
-                                         MinWidth="100"
-                                         Height="32"
-                                         VerticalContentAlignment="Center"
-                                         ToolTip="Default output folder for future Intune package builds" />
-                                <Button x:Name="BrowsePackageOutputPathButton"
-                                        Grid.Column="1"
-                                        Content="Browse"
-                                        Margin="8,0,0,0"
-                                        Padding="12,4" />
-                                <Button x:Name="SavePackageOutputPathButton"
-                                        Grid.Column="2"
-                                        Content="Save path"
-                                        Margin="8,0,0,0"
-                                        Padding="12,4" />
-                            </Grid>
-                        </StackPanel>
-                    </ScrollViewer>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Intune package definitions"
+                                   Style="{StaticResource SectionHeadingTextBlockStyle}"
+                                   Margin="0,0,0,12" />
+                        <TextBlock Grid.Row="1" Text="These App.json definitions are shared with local Install. Updating definitions writes the latest resolved version and setup file to valid definition files."
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,12"
+                                   Opacity="0.75" />
+                        <Label Grid.Row="2" Content="Definitions folder" Target="{Binding ElementName=IntuneDefinitionsPathBox}"
+                               Padding="0" Margin="0,0,0,5" />
+                        <Grid Grid.Row="3" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="IntuneDefinitionsPathBox"
+                                     MinWidth="100"
+                                     Height="32"
+                                     VerticalContentAlignment="Center"
+                                     ToolTip="Folder containing Intune App.json definitions" />
+                            <Button x:Name="BrowseIntuneDefinitionsButton"
+                                    Grid.Column="1"
+                                    Content="Browse"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                            <Button x:Name="SaveIntuneDefinitionsPathButton"
+                                    Grid.Column="2"
+                                    Content="Save path"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                        </Grid>
+                        <DockPanel Grid.Row="4" Margin="0,0,0,10">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button x:Name="LoadPackageDefinitionsButton"
+                                        Content="Load definitions"
+                                        Margin="0,0,8,0"
+                                        Padding="12,5" />
+                                <Button x:Name="UpdatePackageDefinitionsButton"
+                                        Content="Update definitions"
+                                        Padding="12,5" />
+                            </StackPanel>
+                            <TextBlock x:Name="PackageDefinitionsCountLabel"
+                                       Text="0 definitions"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DataGrid x:Name="PackageDefinitionsListView"
+                                  Grid.Row="5"
+                                  MinHeight="160"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  HeadersVisibility="Column"
+                                  CanUserAddRows="False"
+                                  EnableRowVirtualization="True"
+                                  AutomationProperties.Name="Intune package definitions">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Label Grid.Row="6" Content="Package output folder" Target="{Binding ElementName=PackageOutputPathBox}"
+                               Padding="0" Margin="0,18,0,5" />
+                        <Grid Grid.Row="7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="PackageOutputPathBox"
+                                     MinWidth="100"
+                                     Height="32"
+                                     VerticalContentAlignment="Center"
+                                     ToolTip="Default output folder for future Intune package builds" />
+                            <Button x:Name="BrowsePackageOutputPathButton"
+                                    Grid.Column="1"
+                                    Content="Browse"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                            <Button x:Name="SavePackageOutputPathButton"
+                                    Grid.Column="2"
+                                    Content="Save path"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                        </Grid>
+                    </Grid>
                 </Grid>
 
                 <Grid x:Name="IntunePanel" Visibility="Collapsed">
