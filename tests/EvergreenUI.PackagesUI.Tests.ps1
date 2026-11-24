@@ -89,6 +89,64 @@ Describe 'Packages tabs and local detection freshness' {
         }
     }
 
+    It 'shows Application architecture after a <Kind> job' -ForEach @(
+        @{ Kind = 'PackageDefinitions' }
+        @{ Kind = 'DefinitionUpdate' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Kind = $Kind; Root = $TestDrive } {
+            $root = Join-Path -Path $Root -ChildPath ([guid]::NewGuid().ToString())
+            foreach ($name in 'Specified', 'Missing', 'Invalid') {
+                $directory = Join-Path -Path $root -ChildPath $name
+                $null = New-Item -Path $directory -ItemType Directory -Force
+                $path = Join-Path -Path $directory -ChildPath 'App.json'
+                if ($name -eq 'Invalid') {
+                    Set-Content -LiteralPath $path -Value '{invalid json'
+                    continue
+                }
+                $application = if ($name -eq 'Specified') { @{ Architecture = 'arm64' } } else { @{} }
+                @{
+                    Application = $application
+                    RequirementRule = @{ Architecture = 'x64' }
+                    Information = @{
+                        DisplayName = $name
+                        Publisher = 'Example'
+                        PSPackageFactoryGuid = '9fddd581-f505-4760-9bb3-2365db204b38'
+                    }
+                    PackageInformation = @{ Version = '1.0' }
+                } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path
+            }
+
+            $state = $script:packagesState
+            $state.ActiveJobId = [guid]::NewGuid()
+            $state.ActiveJobKind = $Kind
+            $script:jobOutput = @([PSCustomObject]@{ Items = @(Get-EwDefinition -Path $root); Results = @() })
+            Invoke-EwWorkbenchJobMonitor -State $state
+            $window = $script:packagesWindow
+            $window.WindowStartupLocation = 'Manual'
+            $window.Left = -10000
+            $window.Top = -10000
+            $window.Show()
+            $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+            $window.UpdateLayout()
+
+            $grid = $state.PackageDefinitionsListView
+            $column = @($grid.Columns | Where-Object Header -eq 'Architecture')
+            $column.Count | Should -Be 1
+            foreach ($case in @(
+                    @{ Name = 'Specified'; Expected = 'arm64' }
+                    @{ Name = 'Missing'; Expected = '' }
+                    @{ Name = 'Invalid'; Expected = '' }
+                )) {
+                $row = $state.PackageDefinitions | Where-Object Name -eq $case.Name
+                $row | Should -Not -BeNullOrEmpty
+                $grid.ScrollIntoView($row, $column[0])
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                $column[0].GetCellContent($row).Text | Should -Be $case.Expected
+            }
+        }
+    }
+
     It 'keeps tab selections independent and refreshes matching paths without stale Artifact assessments' {
         InModuleScope EvergreenUI {
             $state = $script:packagesState

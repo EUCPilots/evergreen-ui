@@ -2,6 +2,7 @@
 
 ## [2.0.0-preview]
 
+- Show each definition's application architecture in the Packages Definitions tab.
 - Fix definition updates rejecting `Application.Filter` values that pass literal `-ErrorAction` or `-WarningAction` arguments to `Get-EvergreenApp` or `Get-VcList`.
 - Left-align the Intune and Nerdio Microsoft 365 forms and the Settings and About pages.
 - Centre the Update app check boxes in the Intune Win32 Apps comparison grid.

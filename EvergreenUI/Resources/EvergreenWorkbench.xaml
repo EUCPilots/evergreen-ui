@@ -817,6 +817,7 @@
                                 <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                                 <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                                 <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Architecture" Binding="{Binding DefinitionObject.Application.Architecture}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                                 <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             </DataGrid.Columns>
                         </DataGrid>
