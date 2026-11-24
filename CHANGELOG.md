@@ -2,6 +2,7 @@
 
 ## [2.0.1-preview]
 
+- Make Microsoft 365 form labels follow native light and dark themes in Intune and Nerdio.
 - Use the Evergreen bulb as the Workbench window icon.
 - Show local installer paths in the Library versions table.
 - Add an **Open folder** right-click action to the Library applications and versions tables.

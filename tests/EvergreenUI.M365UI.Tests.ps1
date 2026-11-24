@@ -12,6 +12,97 @@ AfterAll {
 }
 
 Describe 'Microsoft 365 provider views' {
+    It 'uses native label colours in the <Provider> form starting in <InitialTheme> mode' -ForEach @(
+        @{ Provider = 'Intune'; InitialTheme = 'Dark' }
+        @{ Provider = 'Nerdio'; InitialTheme = 'Dark' }
+        @{ Provider = 'Intune'; InitialTheme = 'Light' }
+        @{ Provider = 'Nerdio'; InitialTheme = 'Light' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Provider = $Provider; InitialTheme = $InitialTheme } {
+            function Get-TestFormLabel {
+                param([System.Windows.DependencyObject]$Parent)
+
+                if ($Parent -is [System.Windows.Controls.Label]) { return $Parent }
+                foreach ($child in [System.Windows.LogicalTreeHelper]::GetChildren($Parent)) {
+                    if ($child -is [System.Windows.DependencyObject]) { Get-TestFormLabel -Parent $child }
+                }
+            }
+
+            function Find-TestVisualText {
+                param([System.Windows.DependencyObject]$Parent)
+
+                for ($index = 0; $index -lt [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($Parent); $index++) {
+                    $child = [System.Windows.Media.VisualTreeHelper]::GetChild($Parent, $index)
+                    if ($child -is [System.Windows.Controls.TextBlock]) { return $child }
+                    $match = Find-TestVisualText -Parent $child
+                    if ($null -ne $match) { return $match }
+                }
+            }
+
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.ThemeMode = [System.Windows.ThemeMode]::$InitialTheme
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                foreach ($name in 'AppsPanel', 'IntunePanel', 'NerdioPanel') {
+                    $window.FindName($name).Visibility = 'Collapsed'
+                }
+                $page = $window.FindName("${Provider}Panel")
+                $page.Visibility = 'Visible'
+                $tabs = $page.Children[0]
+                $tabs.SelectedItem = $tabs.Items |
+                    Where-Object { $_.Header -eq 'Microsoft 365 Apps' } |
+                    Select-Object -First 1
+                $form = $window.FindName("${Provider}M365Form")
+                $labels = @(Get-TestFormLabel -Parent $form)
+                $labels.Count | Should -BeGreaterThan 0
+
+                $reference = [System.Windows.Controls.Label]::new()
+                $reference.Content = 'Native label'
+                $null = $form.Children[0].Content.Children.Add($reference)
+                $modes = if ($InitialTheme -eq 'Dark') {
+                    @('Dark', 'Light', 'Dark', 'System')
+                }
+                else {
+                    @('Light', 'Dark', 'Light', 'System')
+                }
+                foreach ($mode in $modes) {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    $form.IsVisible | Should -BeTrue
+                    $referenceText = Find-TestVisualText -Parent $reference
+                    $referenceText | Should -Not -BeNullOrEmpty
+                    $expected = if ([System.Windows.SystemParameters]::HighContrast) {
+                        $referenceText.Foreground.Color
+                    }
+                    else {
+                        $window.TryFindResource('TextFillColorPrimaryBrush').Color
+                    }
+                    foreach ($label in $labels) {
+                        $text = Find-TestVisualText -Parent $label
+                        $text | Should -Not -BeNullOrEmpty
+                        $text.Foreground.Color | Should -Be $expected -Because (
+                            "'$($label.Content)' on the $Provider Microsoft 365 form should follow the $mode theme"
+                        )
+                    }
+
+                    $labels[0].IsEnabled = $false
+                    $reference.IsEnabled = $false
+                    $window.UpdateLayout()
+                    $disabledText = Find-TestVisualText -Parent $labels[0]
+                    $disabledReference = Find-TestVisualText -Parent $reference
+                    $disabledText.Foreground.Color | Should -Be $disabledReference.Foreground.Color
+                    $labels[0].IsEnabled = $true
+                    $reference.IsEnabled = $true
+                }
+            }
+            finally { $window.Close() }
+        }
+    }
+
     It 'shares settings only when saved and defaults selections from configuration' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
