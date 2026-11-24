@@ -134,6 +134,146 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'loads the Workbench window icon independently of the current directory' {
+        InModuleScope EvergreenUI -Parameters @{ TestRoot = $TestDrive } {
+            $originalLocation = Get-Location
+            $window = $null
+            try {
+                Set-Location -LiteralPath $TestRoot
+                $window = Get-EwWorkbenchWindow
+                $expectedPath = Join-Path -Path (Split-Path -Path $script:ewModulePath -Parent) -ChildPath 'Resources\evergreenbulb.png'
+                $window.Icon.UriSource.LocalPath | Should -Be $expectedPath
+                $window.Icon.PixelWidth | Should -BeGreaterThan 0
+                $window.Icon.PixelHeight | Should -BeGreaterThan 0
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
+                [EvergreenUI.WorkbenchCaptionTestNative]::SendMessage(
+                    $handle, 0x007F, [IntPtr]::Zero, [IntPtr]::Zero
+                ) | Should -Not -Be ([IntPtr]::Zero)
+            }
+            finally {
+                Set-Location -LiteralPath $originalLocation.Path
+                if ($null -ne $window) { $window.Close() }
+            }
+        }
+    }
+
+    It 'warns and opens the window when the icon resource is <Condition>' -ForEach @(
+        @{ Condition = 'missing' }
+        @{ Condition = 'invalid' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ TestRoot = $TestDrive; Condition = $Condition } {
+            $originalModulePath = $script:ewModulePath
+            $moduleRoot = Join-Path -Path $TestRoot -ChildPath $Condition
+            $resources = Join-Path -Path $moduleRoot -ChildPath 'Resources'
+            $null = New-Item -Path $resources -ItemType Directory -Force
+            $sourceXaml = Join-Path -Path (Split-Path -Path $originalModulePath -Parent) -ChildPath 'Resources\EvergreenWorkbench.xaml'
+            Copy-Item -LiteralPath $sourceXaml -Destination $resources
+            if ($Condition -eq 'invalid') {
+                Set-Content -LiteralPath (Join-Path -Path $resources -ChildPath 'evergreenbulb.png') -Value 'not a PNG'
+            }
+            $window = $null
+            try {
+                $script:ewModulePath = Join-Path -Path $moduleRoot -ChildPath 'EvergreenUI.psm1'
+                $window = Get-EwWorkbenchWindow -WarningVariable iconWarnings -WarningAction Continue
+                $window | Should -Not -BeNullOrEmpty
+                $window.Icon | Should -BeNullOrEmpty
+                @($iconWarnings).Count | Should -Be 1
+                $iconWarnings[0].Message | Should -Match 'Could not load the Workbench window icon'
+            }
+            finally {
+                $script:ewModulePath = $originalModulePath
+                if ($null -ne $window) { $window.Close() }
+            }
+        }
+    }
+
+    It 'keeps the Intune connection toolbar usable at window width <Width>' -ForEach @(
+        @{ Width = 960; Wraps = $true; Account = 'a-very-long-account-name-for-testing@example.contoso.com' }
+        @{ Width = 1200; Wraps = $false; Account = 'person@example.com' }
+        @{ Width = 1600; Wraps = $false; Account = 'a-very-long-account-name-for-testing@example.contoso.com' }
+    ) -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI -Parameters @{ Width = $Width; Wraps = $Wraps; Account = $Account } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Width = $Width
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.FindName('AppsPanel').Visibility = 'Collapsed'
+                $window.FindName('IntunePanel').Visibility = 'Visible'
+                $window.FindName('IntuneConnectionStatusLabel').Text = $Account
+                $window.FindName('ConnectIntuneButton').Content = 'Disconnect'
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                $toolbar = $window.FindName('IntuneConnectionToolbar')
+                $status = $window.FindName('IntuneConnectionStatusLabel')
+                $separator = $window.FindName('IntuneCompareActionsSeparator')
+                $compare = $window.FindName('CompareIntuneButton')
+                $separator.Parent | Should -Be $compare.Parent
+                $separator.ActualHeight | Should -BeGreaterThan 0
+                foreach ($name in @(
+                        'IntuneConnectionStatusLabel', 'IntuneTenantIdBox', 'UseIntuneDeviceCodeToggle',
+                        'ConnectIntuneButton', 'IntuneCompareActionsSeparator', 'CompareIntuneButton'
+                    )) {
+                    $control = $window.FindName($name)
+                    $point = $control.TranslatePoint([System.Windows.Point]::new(0, 0), $toolbar)
+                    $point.X | Should -BeGreaterOrEqual 0
+                    ($point.X + $control.ActualWidth) | Should -BeLessOrEqual ($toolbar.ActualWidth + 0.5)
+                    ($point.Y + $control.ActualHeight) | Should -BeLessOrEqual ($toolbar.ActualHeight + 0.5)
+                }
+                $statusPoint = $status.TranslatePoint([System.Windows.Point]::new(0, 0), $toolbar)
+                $comparePoint = $compare.TranslatePoint([System.Windows.Point]::new(0, 0), $toolbar)
+                $tenant = $window.FindName('IntuneTenantIdBox')
+                $tenantPoint = $tenant.TranslatePoint([System.Windows.Point]::new(0, 0), $toolbar)
+                $separatorPoint = $separator.TranslatePoint([System.Windows.Point]::new(0, 0), $toolbar)
+                [Math]::Abs($statusPoint.X) | Should -BeLessOrEqual 0.5
+                [Math]::Abs(($comparePoint.X + $compare.ActualWidth) - $toolbar.ActualWidth) |
+                    Should -BeLessOrEqual 0.5
+                ($separatorPoint.X + $separator.ActualWidth) | Should -BeLessThan $comparePoint.X
+                if ($Wraps) {
+                    $tenantPoint.Y | Should -BeGreaterThan $comparePoint.Y
+                    [Math]::Abs(($tenantPoint.X + $tenant.ActualWidth) - $toolbar.ActualWidth) |
+                        Should -BeLessOrEqual 0.5
+                }
+                else {
+                    [Math]::Abs(($comparePoint.Y + $compare.ActualHeight / 2) -
+                        ($statusPoint.Y + $status.ActualHeight / 2)) | Should -BeLessOrEqual 0.5
+                    $tenantPoint.X | Should -BeLessThan $comparePoint.X
+                    foreach ($action in 'Connect', 'Disconnect') {
+                        $window.FindName('ConnectIntuneButton').Content = $action
+                        $window.UpdateLayout()
+                        $previous = $tenant.Parent.Children[0]
+                        foreach ($name in 'IntuneTenantIdBox', 'UseIntuneDeviceCodeToggle', 'ConnectIntuneButton',
+                            'IntuneCompareActionsSeparator', 'CompareIntuneButton') {
+                            $control = $window.FindName($name)
+                            $left = $control.TranslatePoint([System.Windows.Point]::new(0, 0), $toolbar).X
+                            $right = $previous.TranslatePoint([System.Windows.Point]::new(0, 0), $toolbar).X +
+                                $previous.ActualWidth
+                            [Math]::Abs(($left - $right) - 12) | Should -BeLessOrEqual 0.5
+                            $previous = $control
+                        }
+                    }
+                }
+                $null = $tenant.Focus()
+                foreach ($name in 'UseIntuneDeviceCodeToggle', 'ConnectIntuneButton', 'CompareIntuneButton') {
+                    $current = [System.Windows.Input.Keyboard]::FocusedElement
+                    $current.MoveFocus([System.Windows.Input.TraversalRequest]::new(
+                            [System.Windows.Input.FocusNavigationDirection]::Next
+                        )) | Should -BeTrue
+                    [System.Windows.Input.Keyboard]::FocusedElement | Should -Be $window.FindName($name)
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'left-aligns the Microsoft 365, Settings, and About forms at window width <Width>' -ForEach @(
         @{ Width = 960 }
         @{ Width = 1600 }
@@ -2149,6 +2289,7 @@ Import-Module -Name '$modulePath' -Force
                                 Architecture = 'x64'
                                 Type = 'msi'
                                 URI = 'https://example.test/contoso.msi'
+                                Path = 'C:\Library\Contoso App\contoso.msi'
                             }
                         )
                     }
@@ -2159,9 +2300,445 @@ Import-Module -Name '$modulePath' -Force
                 $version = $state.LibraryVersionsListView.ItemsSource[0]
                 $version.Architecture | Should -Be 'x64'
                 $version.URI | Should -Be 'https://example.test/contoso.msi'
+                $version.Location | Should -Be 'C:\Library\Contoso App\contoso.msi'
             }
             finally {
                 $window.Close()
+            }
+        }
+    }
+
+    Context 'Library removal' {
+        BeforeEach {
+            $script:removalRoot = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString('N'))
+            $appPath = Join-Path -Path $removalRoot -ChildPath 'Example'
+            $null = New-Item -Path $appPath -ItemType Directory -Force
+            @{ Applications = @(@{ Name = 'Example' }) } | ConvertTo-Json -Depth 10 |
+                Set-Content -LiteralPath (Join-Path -Path $removalRoot -ChildPath 'EvergreenLibrary.json')
+            $entries = @(
+                @{ Version = '1'; Architecture = 'x64'; Type = 'msi'; Path = 'a.msi' }
+                @{ Version = '1'; Architecture = 'x86'; Type = 'msi'; Path = 'b.msi' }
+                @{ Version = '2'; Architecture = 'x64'; Type = 'exe'; Path = 'c.exe' }
+            )
+            ConvertTo-Json -InputObject $entries -Depth 10 |
+                Set-Content -LiteralPath (Join-Path -Path $appPath -ChildPath 'Example.json')
+            foreach ($file in 'a.msi', 'b.msi', 'c.exe') {
+                Set-Content -LiteralPath (Join-Path -Path $appPath -ChildPath $file) -Value 'test content'
+            }
+        }
+
+        It 'shows local file locations for library versions' {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot } {
+                $manifestPath = Join-Path -Path $Root -ChildPath 'Example\Example.json'
+                $entries = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+                $entries[0].Path = @('a.msi', 'nested\extra.msi')
+                $entries[1].Path = Join-Path -Path $Root -ChildPath 'Example\b.msi'
+                $entries[2].PSObject.Properties.Remove('Path')
+                ConvertTo-Json -InputObject $entries -Depth 10 | Set-Content -LiteralPath $manifestPath
+
+                Push-Location -LiteralPath $Root
+                try { $application = Get-EwLibrary -Path '.' }
+                finally { Pop-Location }
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $settings = Get-EwSetting
+                    $settings.StartupView = 'Library'
+                    $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                    $state.LibraryListView.ItemsSource = @($application)
+                    $state.LibraryListView.SelectedItem = $application
+                    $versions = @($state.LibraryVersionsListView.ItemsSource)
+                    $expected = @(
+                        (Join-Path -Path $Root -ChildPath 'Example\a.msi'),
+                        (Join-Path -Path $Root -ChildPath 'Example\nested\extra.msi')
+                    ) -join '; '
+                    $versions[0].Location | Should -Be $expected
+                    $versions[1].Location | Should -Be (Join-Path -Path $Root -ChildPath 'Example\b.msi')
+                    $versions[2].Location | Should -Be 'Not recorded'
+
+                    $column = $state.LibraryVersionsListView.Columns | Where-Object { $_.Header -eq 'Location' }
+                    $column | Should -Not -BeNullOrEmpty
+                    $window.Show()
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    $cell = $column.GetCellContent($versions[0])
+                    $cell.Text | Should -Be $expected
+                    $cell.ToolTip | Should -Be $expected
+                    $cell.ActualWidth | Should -BeGreaterThan 0
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'opens the library folder from the application and version context menus' {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot } {
+                $manifestPath = Join-Path -Path $Root -ChildPath 'Example\Example.json'
+                $entries = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+                $entries[1].Path = 'nested\b.msi'
+                $entries[2].PSObject.Properties.Remove('Path')
+                ConvertTo-Json -InputObject $entries -Depth 10 | Set-Content -LiteralPath $manifestPath
+                $null = New-Item -Path (Join-Path -Path $Root -ChildPath 'Example\nested') -ItemType Directory -Force
+                $application = Get-EwLibrary -Path $Root
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    Mock Start-Process {}
+                    $state.LibraryListView.ItemsSource = @($application)
+                    $state.LibraryListView.SelectedItem = $application
+                    $openingArgs = {
+                        $eventArgs = [System.Windows.Controls.ContextMenuEventArgs].GetConstructor(
+                            [Reflection.BindingFlags]'NonPublic, Instance', $null, @([object], [bool]), $null
+                        ).Invoke(@($null, $false))
+                        $eventArgs.RoutedEvent = [System.Windows.FrameworkElement]::ContextMenuOpeningEvent
+                        $eventArgs
+                    }
+                    $click = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent)
+
+                    $appMenuItem = $state.LibraryListView.ContextMenu.Items[0]
+                    $appMenuItem.Header | Should -Be 'Open folder'
+                    $state.LibraryListView.RaiseEvent((& $openingArgs))
+                    $appMenuItem.IsEnabled | Should -BeTrue
+                    $appMenuItem.RaiseEvent($click)
+                    $appFolder = Join-Path -Path $Root -ChildPath 'Example'
+                    Should -Invoke Start-Process -Exactly 1 -ParameterFilter {
+                        $FilePath -eq 'explorer.exe' -and $ArgumentList -eq ('"{0}"' -f $appFolder)
+                    }
+
+                    $versionMenuItem = $state.LibraryVersionsListView.ContextMenu.Items[0]
+                    $versionMenuItem.Header | Should -Be 'Open folder'
+                    $versions = @($state.LibraryVersionsListView.ItemsSource)
+                    $state.LibraryVersionsListView.SelectedItem = $versions[1]
+                    $state.LibraryVersionsListView.RaiseEvent((& $openingArgs))
+                    $versionMenuItem.IsEnabled | Should -BeTrue
+                    $versionMenuItem.RaiseEvent($click)
+                    $nestedFolder = Join-Path -Path $appFolder -ChildPath 'nested'
+                    Should -Invoke Start-Process -Exactly 1 -ParameterFilter { $ArgumentList -eq ('"{0}"' -f $nestedFolder) }
+
+                    $state.LibraryVersionsListView.SelectedItem = $versions[2]
+                    $state.LibraryVersionsListView.RaiseEvent((& $openingArgs))
+                    $versionMenuItem.IsEnabled | Should -BeFalse
+
+                    Remove-Item -LiteralPath $nestedFolder -Recurse -Force
+                    $state.LibraryVersionsListView.SelectedItem = $versions[1]
+                    $state.LibraryVersionsListView.RaiseEvent((& $openingArgs))
+                    $versionMenuItem.RaiseEvent($click)
+                    Should -Invoke Start-Process -Exactly 2
+                    $state.ActivityLog.Text | Should -Match 'Could not open the library folder: .*does not exist'
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'reports an invalid library location without hiding other versions' {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot } {
+                $manifestPath = Join-Path -Path $Root -ChildPath 'Example\Example.json'
+                $entries = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+                $entries[0].Path = "invalid$([char]0)path"
+                ConvertTo-Json -InputObject $entries -Depth 10 | Set-Content -LiteralPath $manifestPath
+                $application = Get-EwLibrary -Path $Root
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.LibraryListView.ItemsSource = @($application)
+                    $state.LibraryListView.SelectedItem = $application
+                    $versions = @($state.LibraryVersionsListView.ItemsSource)
+                    $versions | Should -HaveCount 3
+                    $versions[0].Location | Should -Be 'Invalid path'
+                    $versions[1].Location | Should -Be (Join-Path -Path $Root -ChildPath 'Example\b.msi')
+                    $state.ActivityLog.Text | Should -Match 'Could not resolve a library location'
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'shows the removal confirmation using the owner Fluent <Mode> theme' -ForEach @(
+            @{ Mode = 'Light' }, @{ Mode = 'Dark' }, @{ Mode = 'System' }
+        ) {
+            InModuleScope EvergreenUI -Parameters @{ Mode = $Mode; Root = $removalRoot } {
+                $owner = Get-EwWorkbenchWindow
+                $dialog = $null
+                try {
+                    $owner.ThemeMode = [System.Windows.ThemeMode]::$Mode
+                    $owner.Show()
+                    $rows = @(
+                        [PSCustomObject]@{ Version = '1.0'; Architecture = 'x64'; Type = 'msi'; URI = 'https://example.test/a.msi' }
+                        [PSCustomObject]@{ Version = '1.0'; Architecture = 'x86'; Type = 'exe'; URI = 'https://example.test/b.exe' }
+                    )
+                    $dialog = New-EwWorkbenchLibraryRemovalDialog -Owner $owner -Path $Root -Name 'Example & Co' -Row $rows -EntireApplication $false
+                    $dialog.Show()
+                    $dialog.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $dialog.UpdateLayout()
+
+                    $dialog.Owner | Should -Be $owner
+                    $dialog.ThemeMode | Should -Be $owner.ThemeMode
+                    $dialog.WindowStartupLocation | Should -Be ([System.Windows.WindowStartupLocation]::CenterOwner)
+                    $dialog.ShowInTaskbar | Should -BeFalse
+                    $dialog.TryFindResource('ApplicationBackgroundBrush').Color |
+                        Should -Be $owner.TryFindResource('ApplicationBackgroundBrush').Color
+                    $dialog.Foreground.Color | Should -Be $dialog.TryFindResource('TextFillColorPrimaryBrush').Color
+                    $cancel = $dialog.FindName('CancelLibraryRemovalButton')
+                    $cancel.Style | Should -Be $dialog.TryFindResource('AccentButtonStyle')
+                    $cancel.IsDefault | Should -BeTrue
+                    $cancel.IsCancel | Should -BeTrue
+                    $dialog.FindName('ConfirmLibraryRemovalButton').IsDefault | Should -BeFalse
+                    $dialog.FindName('LibraryRemovalApplicationText').Text | Should -Be 'Application: Example & Co'
+                    $dialog.FindName('LibraryRemovalPathText').Text | Should -Be "Library: $Root"
+                    $dialog.FindName('LibraryRemovalArtifactsHeadingText').Text | Should -Be 'Artifacts to remove: 2'
+                    $items = @($dialog.FindName('LibraryRemovalArtifactsList').ItemsSource)
+                    $items.Summary | Should -Be @('1.0 | x64 | msi', '1.0 | x86 | exe')
+                    $items.URI | Should -Be @('https://example.test/a.msi', 'https://example.test/b.exe')
+                }
+                finally {
+                    if ($null -ne $dialog) { $dialog.Close() }
+                    $owner.Close()
+                }
+            }
+        }
+
+        It 'keeps long removal previews scrollable with the actions visible' -Skip:$isGitHubRunner {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot } {
+                $owner = Get-EwWorkbenchWindow
+                $dialog = $null
+                try {
+                    $owner.Height = 660
+                    $owner.FontSize = 20
+                    $owner.Show()
+                    $rows = @(1..80 | ForEach-Object {
+                            [PSCustomObject]@{
+                                Version = "2.0.$_"; Architecture = 'x64'; Type = 'msi'
+                                URI = "https://example.test/$('longsegment' * 8)/$_.msi"
+                            }
+                        })
+                    $longPath = Join-Path -Path $Root -ChildPath ('LongDirectory\' * 15)
+                    $dialog = New-EwWorkbenchLibraryRemovalDialog -Owner $owner -Path $longPath -Name ('Long name ' * 8) -Row $rows -EntireApplication $false
+                    $dialog.Show()
+                    $dialog.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $dialog.UpdateLayout()
+
+                    $dialog.FontSize | Should -Be 20
+                    $dialog.ActualHeight | Should -BeLessOrEqual $dialog.MaxHeight
+                    $dialog.FindName('LibraryRemovalPathText').Text | Should -Be "Library: $longPath"
+                    $dialog.FindName('LibraryRemovalPathText').TextWrapping | Should -Be ([System.Windows.TextWrapping]::Wrap)
+                    $items = @($dialog.FindName('LibraryRemovalArtifactsList').ItemsSource)
+                    $items | Should -HaveCount 80
+                    $items[-1].URI | Should -Be $rows[-1].URI
+                    $scroll = $dialog.FindName('LibraryRemovalDetailsScrollViewer')
+                    $scroll.ScrollableHeight | Should -BeGreaterThan 0
+                    $scroll.ScrollToEnd()
+                    $dialog.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $scroll.VerticalOffset | Should -Be $scroll.ScrollableHeight
+                    $confirm = $dialog.FindName('ConfirmLibraryRemovalButton')
+                    $position = $confirm.TranslatePoint([System.Windows.Point]::new(0, 0), $dialog)
+                    ($position.Y + $confirm.ActualHeight) | Should -BeLessOrEqual $dialog.ActualHeight
+                }
+                finally {
+                    if ($null -ne $dialog) { $dialog.Close() }
+                    $owner.Close()
+                }
+            }
+        }
+
+        It 'shows whole-application wording even when there are no recorded artifacts' {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot } {
+                $owner = Get-EwWorkbenchWindow
+                $dialog = $null
+                try {
+                    $owner.Show()
+                    $dialog = New-EwWorkbenchLibraryRemovalDialog -Owner $owner -Path $Root -Name Example -Row @() -EntireApplication $true
+                    $dialog.FindName('LibraryRemovalHeadingText').Text | Should -Be 'Remove application from the library?'
+                    $dialog.FindName('LibraryRemovalArtifactsHeadingText').Text | Should -Be 'No recorded artifacts'
+                    $dialog.FindName('ConfirmLibraryRemovalButton').Content | Should -Be 'Remove application'
+                    @($dialog.FindName('LibraryRemovalArtifactsList').ItemsSource) | Should -HaveCount 0
+                }
+                finally {
+                    if ($null -ne $dialog) { $dialog.Close() }
+                    $owner.Close()
+                }
+            }
+        }
+
+        It 'returns <Accepted> for <Action> in the modal confirmation' -ForEach @(
+            @{ Action = 'Return'; Accepted = $false }
+            @{ Action = 'Escape'; Accepted = $false }
+            @{ Action = 'Cancel'; Accepted = $false }
+            @{ Action = 'Close'; Accepted = $false }
+            @{ Action = 'Remove'; Accepted = $true }
+        ) {
+            if ($env:GITHUB_ACTIONS -eq 'true' -and $Action -in 'Return', 'Escape') {
+                Set-ItResult -Skipped -Because 'Keyboard focus requires an interactive desktop.'
+                return
+            }
+            InModuleScope EvergreenUI -Parameters @{ Action = $Action; Accepted = $Accepted; Root = $removalRoot } {
+                $owner = Get-EwWorkbenchWindow
+                $observed = @{ Action = $Action; InitiallyFocused = $false; VisibleAfter = $null }
+                try {
+                    $owner.Show()
+                    $owner.Dispatcher.BeginInvoke([action]{
+                        $dialog = @($owner.OwnedWindows)[0]
+                        $cancel = $dialog.FindName('CancelLibraryRemovalButton')
+                        $observed.InitiallyFocused = $cancel.IsKeyboardFocused
+                        if ($observed.Action -in 'Return', 'Escape') {
+                            $key = [System.Windows.Input.Key]::Parse([System.Windows.Input.Key], $observed.Action)
+                            $keyArgs = [System.Windows.Input.KeyEventArgs]::new(
+                                [System.Windows.Input.Keyboard]::PrimaryDevice,
+                                [System.Windows.PresentationSource]::FromVisual($dialog), 0, $key
+                            )
+                            $keyArgs.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent
+                            $null = [System.Windows.Input.InputManager]::Current.ProcessInput($keyArgs)
+                        }
+                        elseif ($observed.Action -in 'Cancel', 'Remove') {
+                            $button = if ($observed.Action -eq 'Cancel') { $cancel } else { $dialog.FindName('ConfirmLibraryRemovalButton') }
+                            $peer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($button)
+                            $provider = $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke)
+                            $provider.Invoke()
+                            $dialog.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                        }
+                        else {
+                            $dialog.Close()
+                        }
+                        $observed.VisibleAfter = $dialog.IsVisible
+                        if ($dialog.IsVisible) { $dialog.Close() }
+                    }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
+                    $rows = @([PSCustomObject]@{ Version = '1'; Architecture = 'x64'; Type = 'msi'; URI = 'https://example.test/a.msi' })
+                    $result = Confirm-EwWorkbenchLibraryRemoval -Window $owner -Path $Root -Name Example -Row $rows -EntireApplication $false
+                    $result | Should -Be $Accepted
+                    if ($env:GITHUB_ACTIONS -ne 'true') { $observed.InitiallyFocused | Should -BeTrue }
+                    $observed.VisibleAfter | Should -BeFalse
+                }
+                finally { $owner.Close() }
+            }
+        }
+
+        It 'requires confirmation for both actions and starts no job when declined' {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot } {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.LibraryPathBox.Text = $Root
+                    Invoke-EwWorkbenchLibraryInventory -State $state -Item @(Get-EwLibrary -Path $Root) -Path $Root -SelectedName Example
+                    $state.LibraryVersionsListView.SelectedItem = $state.LibraryVersionsListView.ItemsSource[0]
+                    Mock Confirm-EwWorkbenchLibraryRemoval { $false }
+                    Mock Start-EwJob { throw 'Unexpected destructive job' }
+                    $click = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)
+                    $state.RemoveLibraryAppButton.RaiseEvent($click)
+                    $state.RemoveLibraryVersionsButton.RaiseEvent($click)
+                    Should -Invoke Confirm-EwWorkbenchLibraryRemoval -Exactly 1 -ParameterFilter { $EntireApplication -and $Row.Count -eq 3 -and $Path -eq $Root }
+                    Should -Invoke Confirm-EwWorkbenchLibraryRemoval -Exactly 1 -ParameterFilter { -not $EntireApplication -and $Row.Count -eq 1 -and $Row[0].Architecture -eq 'x64' }
+                    Should -Invoke Start-EwJob -Exactly 0
+                    (Get-EwLibrary -Path $Root).VersionCount | Should -Be 3
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'supports row multi-selection, bottom-right placement and path and busy guards' {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot } {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $settings = Get-EwSetting
+                    $settings.StartupView = 'Library'
+                    $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                    $state.LibraryPathBox.Text = $Root
+                    Invoke-EwWorkbenchLibraryInventory -State $state -Item @(Get-EwLibrary -Path $Root) -Path $Root -SelectedName Example
+                    $state.LibraryVersionsListView.SelectionMode.ToString() | Should -Be 'Extended'
+                    $state.LibraryVersionsListView.SelectionUnit.ToString() | Should -Be 'FullRow'
+                    $null = $state.LibraryVersionsListView.SelectedItems.Add($state.LibraryVersionsListView.ItemsSource[0])
+                    $null = $state.LibraryVersionsListView.SelectedItems.Add($state.LibraryVersionsListView.ItemsSource[2])
+                    $state.RemoveLibraryVersionsButton.IsEnabled | Should -BeTrue
+                    $state.RemoveLibraryAppButton.IsEnabled | Should -BeTrue
+                    $window.Show()
+                    $window.UpdateLayout()
+                    $buttonPosition = $state.RemoveLibraryVersionsButton.TranslatePoint([System.Windows.Point]::new(0, 0), $state.LibraryPanel)
+                    $tablePosition = $state.LibraryVersionsListView.TranslatePoint([System.Windows.Point]::new(0, 0), $state.LibraryPanel)
+                    $buttonPosition.Y | Should -BeGreaterOrEqual ($tablePosition.Y + $state.LibraryVersionsListView.ActualHeight)
+                    [Math]::Abs($buttonPosition.X + $state.RemoveLibraryVersionsButton.ActualWidth - $state.LibraryPanel.ActualWidth) | Should -BeLessThan 1
+                    Invoke-EwWorkbenchBusyState -State $state -IsBusy $true
+                    $state.RemoveLibraryAppButton.IsEnabled | Should -BeFalse
+                    $state.RemoveLibraryVersionsButton.IsEnabled | Should -BeFalse
+                    Invoke-EwWorkbenchBusyState -State $state -IsBusy $false
+                    $state.LibraryPathBox.Text = "$Root\Other"
+                    $state.RemoveLibraryAppButton.IsEnabled | Should -BeFalse
+                    $state.RemoveLibraryVersionsButton.IsEnabled | Should -BeFalse
+                    $state.LibraryPathBox.Text = $Root
+                    $state.LibraryListView.SelectedItem = $null
+                    $state.LibraryVersionsListView.ItemsSource | Should -BeNullOrEmpty
+                    $state.RemoveLibraryAppButton.IsEnabled | Should -BeFalse
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'removes <Mode> through the shared Job and refreshes or clears selection' -ForEach @(
+            @{ Mode = 'selected rows'; EntireApplication = $false },
+            @{ Mode = 'the application'; EntireApplication = $true }
+        ) {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot; All = $EntireApplication } {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.LibraryPathBox.Text = $Root
+                    Invoke-EwWorkbenchLibraryInventory -State $state -Item @(Get-EwLibrary -Path $Root) -Path $Root -SelectedName Example
+                    $null = $state.LibraryVersionsListView.SelectedItems.Add($state.LibraryVersionsListView.ItemsSource[0])
+                    $null = $state.LibraryVersionsListView.SelectedItems.Add($state.LibraryVersionsListView.ItemsSource[2])
+                    Mock Confirm-EwWorkbenchLibraryRemoval { $true }
+                    Invoke-EwWorkbenchLibraryRemoval -State $state -EntireApplication $All
+                    $state.ActiveJobKind | Should -Be 'LibraryRemoval'
+                    $state.RemoveLibraryAppButton.IsEnabled | Should -BeFalse
+                    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+                    while ($null -ne $state.ActiveJobId -and [DateTime]::UtcNow -lt $deadline) {
+                        Invoke-EwWorkbenchJobMonitor -State $state
+                        Start-Sleep -Milliseconds 50
+                    }
+                    $state.ActiveJobId | Should -BeNullOrEmpty
+                    $state.LoadedLibraryPath | Should -Be $Root
+                    if ($All) {
+                        $state.LibraryListView.ItemsSource | Should -BeNullOrEmpty
+                        $state.LibraryVersionsListView.ItemsSource | Should -BeNullOrEmpty
+                        $state.LibraryListView.SelectedItem | Should -BeNullOrEmpty
+                    }
+                    else {
+                        $state.LibraryListView.SelectedItem.Name | Should -Be 'Example'
+                        $state.LibraryVersionsListView.ItemsSource | Should -HaveCount 1
+                        $state.LibraryVersionsListView.ItemsSource[0].Architecture | Should -Be 'x86'
+                        $state.LibraryVersionsListView.ItemsSource[0].Location | Should -Be (Join-Path -Path $Root -ChildPath 'Example\b.msi')
+                        $state.LibraryVersionsListView.SelectedItems.Count | Should -Be 0
+                        Join-Path -Path $Root -ChildPath 'Example\b.msi' | Should -Exist
+                    }
+                    Join-Path -Path $Root -ChildPath 'Example\a.msi' | Should -Not -Exist
+                    Join-Path -Path $Root -ChildPath 'Example\c.exe' | Should -Not -Exist
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'reports partial outcomes and keeps stale actions disabled after a refresh failure' {
+            InModuleScope EvergreenUI -Parameters @{ Root = $removalRoot } {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.LibraryPathBox.Text = $Root
+                    Invoke-EwWorkbenchLibraryInventory -State $state -Item @(Get-EwLibrary -Path $Root) -Path $Root -SelectedName Example
+                    $state.LibraryRemovalContext = @{ Path = $Root; Name = 'Example' }
+                    $state.LoadedLibraryPath = ''
+                    Mock Write-EwWorkbenchLog {}
+                    $job = [PSCustomObject]@{
+                        State = 'Completed'; TerminatingError = $null
+                        Output = @([PSCustomObject]@{
+                            Result = [PSCustomObject]@{
+                                Succeeded = $false; RemovedCount = 0; RemovedFiles = @('a.msi')
+                                Error = 'locked'; FailedFile = 'b.msi'; UnattemptedFiles = @('c.exe')
+                            }
+                            Items = @(); RefreshError = 'manifest unavailable'
+                        })
+                    }
+                    Invoke-EwWorkbenchLibraryJobResult -State $state -Job $job
+                    Invoke-EwWorkbenchLibraryActionState -State $state
+                    $state.RemoveLibraryAppButton.IsEnabled | Should -BeFalse
+                    $state.RemoveLibraryVersionsButton.IsEnabled | Should -BeFalse
+                    Should -Invoke Write-EwWorkbenchLog -Exactly 1 -ParameterFilter { $Message -like '*refresh failed*manifest unavailable*' -and $Level -eq 'Error' }
+                    Should -Invoke Write-EwWorkbenchLog -Exactly 1 -ParameterFilter { $Message -eq 'Removed: a.msi' }
+                    Should -Invoke Write-EwWorkbenchLog -Exactly 1 -ParameterFilter { $Message -eq 'Not attempted: c.exe' }
+                }
+                finally { $window.Close() }
             }
         }
     }

@@ -13,6 +13,108 @@ AfterAll {
 }
 
 Describe 'Intune Publish view' {
+    It 'toggles the connection action only after successful sign-in and sign-out' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.IntuneTenantIdBox.Text = 'requested-tenant'
+                $state.UseIntuneDeviceCodeToggle.IsChecked = $true
+                $click = [System.Windows.RoutedEventArgs]::new(
+                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                )
+                Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid(); Name = $Name } }
+                Mock Remove-EwJob {}
+
+                $state.ConnectIntuneButton.Content | Should -Be 'Connect'
+                $state.ConnectIntuneButton.RaiseEvent($click)
+                $state.ActiveJobKind | Should -Be 'IntuneConnect'
+                $state.ConnectIntuneButton.IsEnabled | Should -BeFalse
+                Should -Invoke Start-EwJob -Exactly 1 -ParameterFilter {
+                    $Name -eq 'Connect to Intune' -and
+                    $ArgumentList[0] -eq 'requested-tenant' -and $ArgumentList[1] -eq $true
+                }
+
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = 'Completed'; Progress = @(); Information = @(); Errors = @()
+                        TerminatingError = $null
+                        Output = @([PSCustomObject]@{
+                                Succeeded = $true; AccountId = 'person@example.com'; TenantId = 'connected-tenant'
+                            })
+                    }
+                }
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.IntuneTenantId | Should -Be 'connected-tenant'
+                $state.IntuneConnectionStatusLabel.Text | Should -Be 'person@example.com'
+                $state.ConnectIntuneButton.Content | Should -Be 'Disconnect'
+                $state.ConnectIntuneButton.IsEnabled | Should -BeTrue
+                $state.CompareIntuneButton.IsEnabled | Should -BeTrue
+
+                $state.ConnectIntuneButton.RaiseEvent($click)
+                $state.ActiveJobKind | Should -Be 'IntuneDisconnect'
+                $state.ConnectIntuneButton.IsEnabled | Should -BeFalse
+                Should -Invoke Start-EwJob -Exactly 1 -ParameterFilter { $Name -eq 'Disconnect from Intune' }
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = 'Completed'; Progress = @(); Information = @(); Errors = @()
+                        TerminatingError = $null
+                        Output = @([PSCustomObject]@{ Succeeded = $false; Error = 'Disconnect failed' })
+                    }
+                }
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.IntuneTenantId | Should -Be 'connected-tenant'
+                $state.IntuneConnectionStatusLabel.Text | Should -Be 'person@example.com'
+                $state.ConnectIntuneButton.Content | Should -Be 'Disconnect'
+
+                $state.ConnectIntuneButton.RaiseEvent($click)
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = 'Completed'; Progress = @(); Information = @(); Errors = @()
+                        TerminatingError = $null
+                        Output = @([PSCustomObject]@{ Succeeded = $true; Error = '' })
+                    }
+                }
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.IntuneTenantId | Should -BeNullOrEmpty
+                $state.IntuneConnectionStatusLabel.Text | Should -Be 'Not connected'
+                $state.ConnectIntuneButton.Content | Should -Be 'Connect'
+                $state.CompareIntuneButton.IsEnabled | Should -BeFalse
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'keeps the connection action disconnected after sign-in fails' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.ActiveJobId = [guid]::NewGuid()
+                $state.ActiveJobKind = 'IntuneConnect'
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = 'Completed'; Progress = @(); Information = @(); Errors = @()
+                        TerminatingError = $null
+                        Output = @([PSCustomObject]@{ Succeeded = $false; Error = 'Sign-in failed' })
+                    }
+                }
+                Mock Remove-EwJob {}
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.IntuneTenantId | Should -BeNullOrEmpty
+                $state.IntuneConnectionStatusLabel.Text | Should -Be 'Not connected'
+                $state.ConnectIntuneButton.Content | Should -Be 'Connect'
+                $state.ConnectIntuneButton.IsEnabled | Should -BeTrue
+                $state.CompareIntuneButton.IsEnabled | Should -BeFalse
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'starts a confirmed batch and requests cooperative cancellation' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
