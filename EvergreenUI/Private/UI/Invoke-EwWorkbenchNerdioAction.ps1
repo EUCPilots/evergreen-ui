@@ -42,16 +42,19 @@ function Invoke-EwWorkbenchNerdioAction {
                 $result = $State.NerdioPublishResultsListView.SelectedItem
                 if ($null -eq $result -or $result.Status -notin @('Pending', 'Unknown') -or
                     -not $result.RecoveryOperationId) { return }
-                $answer = [System.Windows.MessageBox]::Show($State.Window,
-                    "Nerdio host: $($result.NmeHost)`nApp: $($result.Name)`nApp ID: $($result.AppId)`nJob ID: $($result.JobId)`n`n" +
-                    'Inspect this operation in Nerdio. Choose Yes only if it completed successfully, No only if it failed without completing, or Cancel if it is still unresolved. A success is verified by refreshing Nerdio before it can be pruned.',
-                    'Review Nerdio outcome', [System.Windows.MessageBoxButton]::YesNoCancel,
-                    [System.Windows.MessageBoxImage]::Warning, [System.Windows.MessageBoxResult]::Cancel)
-                if ($answer -eq [System.Windows.MessageBoxResult]::Cancel) { return }
-                $outcome = if ($answer -eq [System.Windows.MessageBoxResult]::Yes) { 'Completed' } else { 'Failed' }
+                $answer = Show-EwWorkbenchNerdioReviewDialog -Owner $State.Window -Result $result
+                switch ($answer) {
+                    ([System.Windows.MessageBoxResult]::Cancel) { return }
+                    ([System.Windows.MessageBoxResult]::Yes) { $outcome = 'Completed' }
+                    ([System.Windows.MessageBoxResult]::No) { $outcome = 'Failed' }
+                    default { throw "Unexpected Nerdio review result: $answer" }
+                }
                 $body = {
                     param($OperationId, $Outcome)
-                    Resolve-EwNerdioOperationReview -OperationId $OperationId -Outcome $Outcome
+                    & (Get-Module -Name EvergreenUI) {
+                        param($OperationId, $Outcome)
+                        Resolve-EwNerdioOperationReview -OperationId $OperationId -Outcome $Outcome
+                    } $OperationId $Outcome
                 }
                 $arguments = @([string]$result.RecoveryOperationId, $outcome)
             }
@@ -67,20 +70,23 @@ function Invoke-EwWorkbenchNerdioAction {
                 if ($offers.Count -eq 0) { throw 'There are no successful Nerdio publishes available to prune.' }
                 $body = {
                     param($Offers)
-                    $context = Get-EwNerdioSessionContext
-                    foreach ($offer in $Offers) {
-                        Assert-EwNerdioRecoveryDestination -Context $context -Destination $offer.Destination
-                        $plan = Get-EwNerdioShellAppVersionPrunePlan -Id $offer.AppId `
-                            -PublishedVersion $offer.PublishedVersion
-                        $plan | Add-Member -NotePropertyMembers @{
-                            OfferId = [string]$offer.Id
-                            Destination = $offer.Destination
-                            Name = [string]$offer.Name
-                            Publisher = [string]$offer.Publisher
-                            DefinitionPath = [string]$offer.DefinitionPath
+                    & (Get-Module -Name EvergreenUI) {
+                        param($Offers)
+                        $context = Get-EwNerdioSessionContext
+                        foreach ($offer in $Offers) {
+                            Assert-EwNerdioRecoveryDestination -Context $context -Destination $offer.Destination
+                            $plan = Get-EwNerdioShellAppVersionPrunePlan -Id $offer.AppId `
+                                -PublishedVersion $offer.PublishedVersion
+                            $plan | Add-Member -NotePropertyMembers @{
+                                OfferId = [string]$offer.Id
+                                Destination = $offer.Destination
+                                Name = [string]$offer.Name
+                                Publisher = [string]$offer.Publisher
+                                DefinitionPath = [string]$offer.DefinitionPath
+                            }
+                            $plan
                         }
-                        $plan
-                    }
+                    } $Offers
                 }
                 $arguments = ,([object[]]$offers)
             }
@@ -100,17 +106,20 @@ function Invoke-EwWorkbenchNerdioAction {
                 }
                 $body = {
                     param($Row, $Destination)
-                    Assert-EwNerdioDestination -Destination $Destination
-                    $plan = Get-EwNerdioShellAppVersionPrunePlan -Id $Row.NerdioAppId
-                    Assert-EwNerdioDestination -Destination $Destination
-                    $plan | Add-Member -NotePropertyMembers @{
-                        OfferId = ''
-                        Destination = $Destination
-                        Name = [string]$Row.NerdioAppName
-                        Publisher = [string]$Row.Publisher
-                        DefinitionPath = [string]$Row.DefinitionPath
-                    }
-                    $plan
+                    & (Get-Module -Name EvergreenUI) {
+                        param($Row, $Destination)
+                        Assert-EwNerdioDestination -Destination $Destination
+                        $plan = Get-EwNerdioShellAppVersionPrunePlan -Id $Row.NerdioAppId
+                        Assert-EwNerdioDestination -Destination $Destination
+                        $plan | Add-Member -NotePropertyMembers @{
+                            OfferId = ''
+                            Destination = $Destination
+                            Name = [string]$Row.NerdioAppName
+                            Publisher = [string]$Row.Publisher
+                            DefinitionPath = [string]$Row.DefinitionPath
+                        }
+                        $plan
+                    } $Row $Destination
                 }
                 $arguments = @($rows[0], $State.NerdioPlan.Destination)
             }
@@ -128,23 +137,26 @@ function Invoke-EwWorkbenchNerdioAction {
                 }
                 $body = {
                     param($Plans)
-                    foreach ($plan in $Plans) {
-                        $recovery = Invoke-EwNerdioRecoveryStore -Action Read
-                        if (@($recovery.Operations).Count -gt 0) {
-                            throw 'Review all pending or unknown Nerdio outcomes before pruning.'
+                    & (Get-Module -Name EvergreenUI) {
+                        param($Plans)
+                        foreach ($plan in $Plans) {
+                            $recovery = Invoke-EwNerdioRecoveryStore -Action Read
+                            if (@($recovery.Operations).Count -gt 0) {
+                                throw 'Review all pending or unknown Nerdio outcomes before pruning.'
+                            }
+                            if ($plan.OfferId) {
+                                Assert-EwNerdioRecoveryDestination -Context (Get-EwNerdioSessionContext) -Destination $plan.Destination
+                            }
+                            else {
+                                Assert-EwNerdioDestination -Destination $plan.Destination
+                            }
+                            $result = Remove-EwNerdioShellAppVersion -Id $plan.Id `
+                                -KeepVersions $plan.KeepVersions -ExpectedVersionNames $plan.VersionNames `
+                                -ExpectedRemovalVersions $plan.Remove -OfferId $plan.OfferId -Confirm:$false
+                            $result
+                            if ($result.PendingVersions.Count -gt 0 -or $result.UnknownVersions.Count -gt 0) { break }
                         }
-                        if ($plan.OfferId) {
-                            Assert-EwNerdioRecoveryDestination -Context (Get-EwNerdioSessionContext) -Destination $plan.Destination
-                        }
-                        else {
-                            Assert-EwNerdioDestination -Destination $plan.Destination
-                        }
-                        $result = Remove-EwNerdioShellAppVersion -Id $plan.Id `
-                            -KeepVersions $plan.KeepVersions -ExpectedVersionNames $plan.VersionNames `
-                            -ExpectedRemovalVersions $plan.Remove -OfferId $plan.OfferId -Confirm:$false
-                        $result
-                        if ($result.PendingVersions.Count -gt 0 -or $result.UnknownVersions.Count -gt 0) { break }
-                    }
+                    } $Plans
                 }
                 $arguments = ,([object[]]$Selection)
                 $State.NerdioPruneSelectionId = if ($Selection.Count -eq 1 -and -not $Selection[0].OfferId) {

@@ -12,7 +12,5 @@ function Confirm-EwWorkbenchNerdioBatch {
     $message = "Nerdio: $($Destination.NmeHost)`nTenant: $($Destination.TenantId)`nSubscription: $($Destination.SubscriptionId)`n" +
         "Storage: $($Destination.ResourceGroupName) / $($Destination.StorageAccountName) / $($Destination.ContainerName)`n`n" +
         ($items -join "`n") + "`n`nDownload and publish these installers? Local definitions will not be changed."
-    [System.Windows.MessageBox]::Show($Window, $message, 'Confirm Nerdio publishing',
-        [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Warning,
-        [System.Windows.MessageBoxResult]::No) -eq [System.Windows.MessageBoxResult]::Yes
+    return Confirm-EwWorkbenchAction -Window $Window -Message $message -Title 'Confirm Nerdio publishing' -DefaultYes $false
 }

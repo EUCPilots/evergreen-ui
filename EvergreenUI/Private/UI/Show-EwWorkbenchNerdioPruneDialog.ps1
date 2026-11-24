@@ -12,74 +12,41 @@ function Show-EwWorkbenchNerdioPruneDialog {
         [object[]]$Plans
     )
 
-    $window = [System.Windows.Window]::new()
-    $window.Title = 'Preview Nerdio Shell App version pruning'
+    $moduleRoot = Split-Path -Path $script:ewModulePath -Parent
+    $xamlPath = Join-Path -Path $moduleRoot -ChildPath 'Resources\NerdioPruneDialog.xaml'
+    Write-Verbose -Message "EvergreenUI: Loading Nerdio pruning dialog from $xamlPath"
+    $reader = [System.Xml.XmlReader]::Create($xamlPath)
+    try {
+        $window = [System.Windows.Markup.XamlReader]::Load($reader)
+    }
+    finally {
+        $reader.Dispose()
+    }
+    if ($window -isnot [System.Windows.Window]) {
+        throw "Nerdio pruning XAML did not create a WPF Window: $xamlPath"
+    }
     $window.Owner = $Owner
-    $window.MinWidth = 560
-    $window.MaxWidth = 920
-    $window.MaxHeight = 640
+    $window.ThemeMode = $Owner.ThemeMode
+    $window.FontFamily = $Owner.FontFamily
+    $window.FontSize = [Math]::Max(14, $Owner.FontSize)
     if ($Owner.ActualWidth -gt 0) {
         $window.MaxWidth = [Math]::Max($window.MinWidth, [Math]::Min(920, $Owner.ActualWidth - 64))
     }
     if ($Owner.ActualHeight -gt 0) {
         $window.MaxHeight = [Math]::Max(240, [Math]::Min(640, $Owner.ActualHeight - 64))
     }
-    $window.SizeToContent = [System.Windows.SizeToContent]::WidthAndHeight
-    $window.ResizeMode = [System.Windows.ResizeMode]::NoResize
-    $window.ShowInTaskbar = $false
-    $window.WindowStartupLocation = 'CenterOwner'
+    Initialize-EwWorkbenchWindowAppearance -Window $window
 
-    $root = [System.Windows.Controls.DockPanel]::new()
-    $root.Margin = [System.Windows.Thickness]::new(16)
-    $window.Content = $root
-    $footer = [System.Windows.Controls.StackPanel]::new()
-    $footer.Orientation = 'Horizontal'
-    $footer.HorizontalAlignment = 'Right'
-    $footer.Margin = [System.Windows.Thickness]::new(0, 12, 0, 0)
-    [System.Windows.Controls.DockPanel]::SetDock($footer, [System.Windows.Controls.Dock]::Bottom)
-    $root.Children.Add($footer) | Out-Null
-    $cancel = [System.Windows.Controls.Button]::new()
-    $cancel.Content = 'Cancel'
-    $cancel.Padding = [System.Windows.Thickness]::new(12, 5, 12, 5)
-    $cancel.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
-    $cancel.IsCancel = $true
-    $footer.Children.Add($cancel) | Out-Null
-    $confirm = [System.Windows.Controls.Button]::new()
-    $confirm.Content = 'Review selected deletions'
-    $confirm.Padding = [System.Windows.Thickness]::new(12, 5, 12, 5)
-    $footer.Children.Add($confirm) | Out-Null
-
-    # The list is the last DockPanel child so it fills the remaining height and scrolls at MaxHeight
-    $content = [System.Windows.Controls.DockPanel]::new()
-    $root.Children.Add($content) | Out-Null
-    $retentionRow = [System.Windows.Controls.StackPanel]::new()
-    $retentionRow.Orientation = 'Horizontal'
-    $retentionRow.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
-    [System.Windows.Controls.DockPanel]::SetDock($retentionRow, [System.Windows.Controls.Dock]::Top)
-    $content.Children.Add($retentionRow) | Out-Null
-    $retentionLabel = [System.Windows.Controls.TextBlock]::new()
+    $retentionLabel = $window.FindName('NerdioPruneRetentionText')
     $retentionLabel.Text = if (@($Plans | Where-Object { $_.PublishedVersion }).Count -gt 0) {
         'Keep newest versions (including the newly published version):'
     } else { 'Keep newest versions:' }
-    $retentionLabel.VerticalAlignment = 'Center'
-    $retentionRow.Children.Add($retentionLabel) | Out-Null
-    $retention = [System.Windows.Controls.TextBox]::new()
-    $retention.Text = '1'
-    $retention.Width = 64
-    $retention.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
-    $retentionRow.Children.Add($retention) | Out-Null
-    $help = [System.Windows.Controls.TextBlock]::new()
-    $help.Text = 'Select apps explicitly. The preview lists every exact version to retain or delete.'
-    $help.TextWrapping = 'Wrap'
-    $help.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
-    [System.Windows.Controls.DockPanel]::SetDock($help, [System.Windows.Controls.Dock]::Top)
-    $content.Children.Add($help) | Out-Null
-    $scroll = [System.Windows.Controls.ScrollViewer]::new()
-    $scroll.VerticalScrollBarVisibility = 'Auto'
-    $scroll.HorizontalScrollBarVisibility = 'Disabled'
-    $list = [System.Windows.Controls.StackPanel]::new()
-    $scroll.Content = $list
-    $content.Children.Add($scroll) | Out-Null
+    $retention = $window.FindName('NerdioPruneRetentionBox')
+    $help = $window.FindName('NerdioPruneHelpText')
+    $list = $window.FindName('NerdioPrunePlansPanel')
+    $confirm = $window.FindName('ReviewNerdioPruneButton')
+    $newConfirmationDialog = Get-Command -Name New-EwWorkbenchConfirmationDialog -CommandType Function -ErrorAction Stop
+    $confirmAction = Get-Command -Name Confirm-EwWorkbenchAction -CommandType Function -ErrorAction Stop
 
     $rows = [System.Collections.Generic.List[object]]::new()
     foreach ($plan in $Plans) {
@@ -87,11 +54,16 @@ function Show-EwWorkbenchNerdioPruneDialog {
         $check = [System.Windows.Controls.CheckBox]::new()
         $check.Tag = $plan
         $check.IsEnabled = [bool]$plan.Eligible -and @($plan.Remove).Count -gt 0
-        $check.Margin = [System.Windows.Thickness]::new(0, 4, 0, 4)
+        $check.HorizontalContentAlignment = 'Stretch'
         $label = [System.Windows.Controls.TextBlock]::new()
         $label.TextWrapping = 'Wrap'
         $check.Content = $label
-        $list.Children.Add($check) | Out-Null
+        $card = [System.Windows.Controls.Border]::new()
+        $card.SetResourceReference([System.Windows.FrameworkElement]::StyleProperty, 'NerdioPruneCardStyle')
+        $card.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
+        $card.Padding = [System.Windows.Thickness]::new(12, 10, 12, 10)
+        $card.Child = $check
+        $list.Children.Add($card) | Out-Null
         $rows.Add([PSCustomObject]@{ Plan = $plan; CheckBox = $check })
     }
 
@@ -133,16 +105,15 @@ function Show-EwWorkbenchNerdioPruneDialog {
                 $_.CheckBox.IsChecked -eq $true -and $_.CheckBox.IsEnabled
             } | ForEach-Object Plan)
         if ($selected.Count -eq 0) {
-            [System.Windows.MessageBox]::Show($window, 'Select at least one Shell App with versions to remove.',
-                'No Shell Apps selected', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information) | Out-Null
+            $notice = & $newConfirmationDialog -Owner $window -Title 'No Shell Apps selected' `
+                -Message 'Select at least one Shell App with versions to remove.' -DefaultYes $true -Buttons OK
+            $null = $notice.ShowDialog()
             return
         }
         $details = @($selected | ForEach-Object { "$($_.Name): $($_.Remove -join ', ')" }) -join "`n"
-        $answer = [System.Windows.MessageBox]::Show($window,
-            "The following exact versions will be deleted:`n`n$details`n`nContinue?",
-            'Confirm Nerdio version pruning', [System.Windows.MessageBoxButton]::YesNo,
-            [System.Windows.MessageBoxImage]::Warning, [System.Windows.MessageBoxResult]::No)
-        if ($answer -eq [System.Windows.MessageBoxResult]::Yes) {
+        $approved = & $confirmAction -Window $window -Title 'Confirm Nerdio version pruning' `
+            -Message "The following exact versions will be deleted:`n`n$details`n`nContinue?" -DefaultYes $false
+        if ($approved) {
             $window.Tag = $selected
             $window.DialogResult = $true
         }

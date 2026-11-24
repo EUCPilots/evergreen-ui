@@ -22,6 +22,289 @@ Describe 'Nerdio WPF view' {
         }
     }
 
+    It 'preserves publishing details and defaults to No in the shared confirmation' {
+        InModuleScope EvergreenUI {
+            $selection = @([PSCustomObject]@{
+                    AppName = 'App & Co'; SourceVersion = '2.0'; Operation = 'Add version'; NerdioAppId = '42'
+                })
+            $destination = [PSCustomObject]@{
+                NmeHost = 'nme.test'; TenantId = 'tenant'; SubscriptionId = 'subscription'
+                ResourceGroupName = 'group'; StorageAccountName = 'storage'; ContainerName = 'container'
+            }
+            Mock Confirm-EwWorkbenchAction { $true }
+            Confirm-EwWorkbenchNerdioBatch -Window ([object]::new()) -Selection $selection -Destination $destination |
+                Should -BeTrue
+            Should -Invoke Confirm-EwWorkbenchAction -Exactly 1 -ParameterFilter {
+                $Title -eq 'Confirm Nerdio publishing' -and -not $DefaultYes -and
+                $Message -match 'Nerdio: nme.test' -and $Message -match 'Tenant: tenant' -and
+                $Message -match 'Subscription: subscription' -and $Message -match 'group / storage / container' -and
+                $Message -match 'App & Co 2.0: Add version 42' -and
+                $Message -match 'Local definitions will not be changed'
+            }
+            Mock Confirm-EwWorkbenchAction { $false }
+            Confirm-EwWorkbenchNerdioBatch -Window ([object]::new()) -Selection $selection -Destination $destination |
+                Should -BeFalse
+        }
+    }
+
+    It 'returns <Expected> from the <Mode> outcome review dialog on <Action>' -ForEach @(
+        @{ Mode = 'Light'; Action = 'Yes'; Expected = 'Yes' }
+        @{ Mode = 'Dark'; Action = 'No'; Expected = 'No' }
+        @{ Mode = 'System'; Action = 'Cancel'; Expected = 'Cancel' }
+        @{ Mode = 'Dark'; Action = 'Close'; Expected = 'Cancel' }
+        @{ Mode = 'Light'; Action = 'Return'; Expected = 'Cancel' }
+        @{ Mode = 'Dark'; Action = 'Escape'; Expected = 'Cancel' }
+    ) {
+        if ($env:GITHUB_ACTIONS -eq 'true' -and $Action -in 'Return', 'Escape') {
+            Set-ItResult -Skipped -Because 'Keyboard focus requires an interactive desktop.'
+        }
+        InModuleScope EvergreenUI -Parameters @{ Mode = $Mode; Action = $Action; Expected = $Expected } {
+            $owner = Get-EwWorkbenchWindow
+            $observed = @{ Action = $Action; Error = ''; InitiallyFocused = $false }
+            try {
+                $owner.ThemeMode = [System.Windows.ThemeMode]::$Mode
+                $owner.Show()
+                $null = $owner.Dispatcher.BeginInvoke([action]{
+                    $dialog = @($owner.OwnedWindows)[0]
+                    try {
+                        $cancel = $dialog.FindName('ConfirmationCancelButton')
+                        $yes = $dialog.FindName('ConfirmationYesButton')
+                        $no = $dialog.FindName('ConfirmationNoButton')
+                        $observed.SafeDefault = $cancel.IsDefault -and $cancel.IsCancel -and
+                            -not $yes.IsDefault -and -not $no.IsDefault -and -not $no.IsCancel
+                        $observed.InitiallyFocused = $cancel.IsKeyboardFocused
+                        $observed.Accent = $cancel.Style -eq $dialog.TryFindResource('AccentButtonStyle')
+                        $observed.Theme = $dialog.ThemeMode
+                        $observed.Background = $dialog.TryFindResource('ApplicationBackgroundBrush').Color
+                        $observed.OwnerBackground = $owner.TryFindResource('ApplicationBackgroundBrush').Color
+                        $observed.Message = $dialog.FindName('ConfirmationMessageText').Text
+                        if ($observed.Action -in 'Return', 'Escape') {
+                            $key = [System.Windows.Input.Key]::Parse([System.Windows.Input.Key], $observed.Action)
+                            $keyArgs = [System.Windows.Input.KeyEventArgs]::new(
+                                [System.Windows.Input.Keyboard]::PrimaryDevice,
+                                [System.Windows.PresentationSource]::FromVisual($dialog), 0, $key
+                            )
+                            $keyArgs.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent
+                            $null = [System.Windows.Input.InputManager]::Current.ProcessInput($keyArgs)
+                        }
+                        elseif ($observed.Action -eq 'Close') { $dialog.Close() }
+                        else {
+                            $button = $dialog.FindName("Confirmation$($observed.Action)Button")
+                            $peer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($button)
+                            $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke).Invoke()
+                            $dialog.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                        }
+                    }
+                    catch { $observed.Error = $_.Exception.ToString() }
+                    finally { if ($dialog.IsVisible) { $dialog.Close() } }
+                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $result = [PSCustomObject]@{ NmeHost = 'nme.test'; Name = 'App'; AppId = '42'; JobId = 'job' }
+                $answer = Show-EwWorkbenchNerdioReviewDialog -Owner $owner -Result $result
+                $observed.Error | Should -BeNullOrEmpty
+                $answer.ToString() | Should -Be $Expected
+                $observed.SafeDefault | Should -BeTrue
+                $observed.Accent | Should -BeTrue
+                $observed.Theme | Should -Be $owner.ThemeMode
+                $observed.Background | Should -Be $observed.OwnerBackground
+                $observed.Message | Should -Match 'Nerdio host: nme.test'
+                $observed.Message | Should -Match 'App ID: 42'
+                if ($env:GITHUB_ACTIONS -ne 'true') { $observed.InitiallyFocused | Should -BeTrue }
+            }
+            finally { $owner.Close() }
+        }
+    }
+
+    It 'maps <Choice> outcome review to <Outcome> without automatic retries' -ForEach @(
+        @{ Choice = 'Yes'; Outcome = 'Completed' }
+        @{ Choice = 'No'; Outcome = 'Failed' }
+        @{ Choice = 'Cancel'; Outcome = '' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Choice = $Choice; Outcome = $Outcome } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $result = [PSCustomObject]@{
+                    Name = 'App'; NmeHost = 'nme.test'; AppId = '42'; JobId = 'job'
+                    Status = 'Unknown'; RecoveryOperationId = 'operation'; OutcomeKey = 'operation'
+                }
+                $state.NerdioResults.Add($result)
+                $state.NerdioPublishResultsListView.SelectedItem = $result
+                switch ($Choice) {
+                    'Yes' { Mock Show-EwWorkbenchNerdioReviewDialog { [System.Windows.MessageBoxResult]::Yes } }
+                    'No' { Mock Show-EwWorkbenchNerdioReviewDialog { [System.Windows.MessageBoxResult]::No } }
+                    'Cancel' { Mock Show-EwWorkbenchNerdioReviewDialog { [System.Windows.MessageBoxResult]::Cancel } }
+                }
+                Mock Invoke-EwWorkbenchJob {}
+                Invoke-EwWorkbenchNerdioAction -State $state -Action Review
+                Should -Invoke Show-EwWorkbenchNerdioReviewDialog -Exactly 1
+                if ($Choice -eq 'Cancel') {
+                    Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
+                }
+                else {
+                    Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter {
+                        $Kind -eq 'NerdioReview' -and $ArgumentList[0] -eq 'operation' -and $ArgumentList[1] -eq $Outcome
+                    }
+                }
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'executes <Choice> outcome review through the real background job with a <Destination> destination' -ForEach @(
+        @{ Choice = 'No'; Destination = 'matching'; Matches = $true }
+        @{ Choice = 'Yes'; Destination = 'different'; Matches = $false }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Choice = $Choice; Matches = $Matches } {
+            $window = Get-EwWorkbenchWindow
+            $state = $null
+            $originalContext = $script:ewNerdioSession.Context
+            try {
+                $destination = [ordered]@{
+                    TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                    ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+                }
+                $context = [PSCustomObject]$destination
+                $context | Add-Member -NotePropertyName TokenExpiresAt -NotePropertyValue ([DateTimeOffset]::UtcNow.AddHours(1))
+                if (-not $Matches) { $context.TenantId = 'other-tenant' }
+                $script:ewNerdioSession.Context = $context
+                $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation ([ordered]@{
+                        Id = 'review-job'; Type = 'Publish'; Status = 'Unknown'; Destination = $destination
+                        Name = 'App'; AppId = '42'; Version = '2.0'; JobId = 'job'
+                    })
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $result = [PSCustomObject]@{
+                    Name = 'App'; NmeHost = 'nme.test'; AppId = '42'; JobId = 'job'
+                    Status = 'Unknown'; RecoveryOperationId = 'review-job'; OutcomeKey = 'review-job'
+                }
+                $state.NerdioResults.Add($result)
+                $state.NerdioPublishResultsListView.SelectedItem = $result
+                if ($Choice -eq 'No') {
+                    Mock Show-EwWorkbenchNerdioReviewDialog { [System.Windows.MessageBoxResult]::No }
+                }
+                else {
+                    Mock Show-EwWorkbenchNerdioReviewDialog { [System.Windows.MessageBoxResult]::Yes }
+                }
+                Mock Invoke-EwWorkbenchBusyState {}
+                Mock Write-EwWorkbenchLog {}
+
+                Invoke-EwWorkbenchNerdioAction -State $state -Action Review
+                $state.ActiveJobKind | Should -Be 'NerdioReview'
+                $state.ActiveJobId | Should -Not -BeNullOrEmpty
+                $handle = $script:ewJobs[$state.ActiveJobId.ToString()].Handle
+                $deadline = [DateTime]::UtcNow.AddSeconds(15)
+                while (-not $handle.IsCompleted -and [DateTime]::UtcNow -lt $deadline) {
+                    Start-Sleep -Milliseconds 50
+                }
+                $handle.IsCompleted | Should -BeTrue
+                $job = Get-EwJob -Id $state.ActiveJobId
+
+                $recovery = Invoke-EwNerdioRecoveryStore -Action Read
+                if ($Matches) {
+                    $job.TerminatingError | Should -BeNullOrEmpty
+                    $job.State | Should -Be 'Completed'
+                    @($job.Errors) | Should -HaveCount 0
+                    $job.Output[0].Succeeded | Should -BeTrue
+                    $job.Output[0].OperationId | Should -Be 'review-job'
+                    $job.Output[0].Outcome | Should -Be 'Failed'
+                    $recovery.Operations | Should -HaveCount 0
+                }
+                else {
+                    $job.TerminatingError | Should -Match 'destination recorded for this operation'
+                    $job.State | Should -Be 'Failed'
+                    $recovery.Operations | Should -HaveCount 1
+                    $recovery.Operations[0].Id | Should -Be 'review-job'
+                }
+                $recovery.PruningOffers | Should -HaveCount 0
+            }
+            finally {
+                if ($null -ne $state -and $null -ne $state.ActiveJobId) {
+                    $job = Get-EwJob -Id $state.ActiveJobId
+                    if ($job.State -notin 'Completed', 'Failed', 'Stopped') {
+                        $null = Stop-EwJob -Id $job.Id
+                    }
+                    Remove-EwJob -Id $job.Id -Confirm:$false
+                }
+                $script:ewNerdioSession.Context = $originalContext
+                $window.Close()
+            }
+        }
+    }
+
+    It 'runs the <Action> pruning worker through the real background job' -ForEach @(
+        @{ Action = 'Prune'; Expected = 'destination recorded for this operation' }
+        @{ Action = 'PruneExisting'; Expected = 'confirmed Nerdio destination changed' }
+        @{ Action = 'PruneSelected'; Expected = 'destination recorded for this operation' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Action = $Action; Expected = $Expected } {
+            $window = Get-EwWorkbenchWindow
+            $state = $null
+            $originalContext = $script:ewNerdioSession.Context
+            try {
+                $destination = [ordered]@{
+                    SessionId = 'session'; TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                    ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+                }
+                $context = [PSCustomObject]$destination
+                $context | Add-Member -NotePropertyName TokenExpiresAt -NotePropertyValue ([DateTimeOffset]::UtcNow.AddHours(1))
+                $context.TenantId = 'other-tenant'
+                $script:ewNerdioSession.Context = $context
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NerdioDestination = $destination
+                Mock Sync-EwWorkbenchNerdioRecoveryState { $true }
+                Mock Invoke-EwWorkbenchBusyState {}
+                Mock Write-EwWorkbenchLog {}
+                $selection = @()
+                switch ($Action) {
+                    'Prune' {
+                        $state.NerdioPruningOffers = @([PSCustomObject]@{
+                                Id = 'offer'; AppId = '42'; PublishedVersion = '2.0'; Destination = $destination
+                                Name = 'App'; Publisher = 'Publisher'; DefinitionPath = 'App'
+                            })
+                    }
+                    'PruneExisting' {
+                        $row = [PSCustomObject]@{
+                            RowType = 'Definition'; NerdioAppId = '42'; NerdioAppName = 'App'; Eligible = $false
+                            Publisher = 'Publisher'; DefinitionPath = 'App'
+                        }
+                        $state.NerdioPlan = [PSCustomObject]@{ Destination = $destination }
+                        $state.NerdioComparisonListView.ItemsSource = @($row)
+                        $state.NerdioComparisonListView.SelectedItems.Add($row)
+                    }
+                    'PruneSelected' {
+                        $selection = @([PSCustomObject]@{
+                                Id = '42'; OfferId = 'offer'; Destination = $destination; Eligible = $true
+                                Remove = @('1.0'); KeepVersions = 1; VersionNames = @('1.0', '2.0')
+                            })
+                    }
+                }
+
+                Invoke-EwWorkbenchNerdioAction -State $state -Action $Action -Selection $selection
+                $state.ActiveJobId | Should -Not -BeNullOrEmpty
+                $handle = $script:ewJobs[$state.ActiveJobId.ToString()].Handle
+                $deadline = [DateTime]::UtcNow.AddSeconds(15)
+                while (-not $handle.IsCompleted -and [DateTime]::UtcNow -lt $deadline) {
+                    Start-Sleep -Milliseconds 50
+                }
+                $handle.IsCompleted | Should -BeTrue
+                $job = Get-EwJob -Id $state.ActiveJobId
+                $job.State | Should -Be 'Failed'
+                $job.TerminatingError | Should -Not -Match 'is not recognized'
+                $job.TerminatingError | Should -Match $Expected
+            }
+            finally {
+                if ($null -ne $state -and $null -ne $state.ActiveJobId) {
+                    $job = Get-EwJob -Id $state.ActiveJobId
+                    if ($job.State -notin 'Completed', 'Failed', 'Stopped') {
+                        $null = Stop-EwJob -Id $job.Id
+                    }
+                    Remove-EwJob -Id $job.Id -Confirm:$false
+                }
+                $script:ewNerdioSession.Context = $originalContext
+                $window.Close()
+            }
+        }
+    }
+
     It 'places provider setup on the Nerdio Settings tab' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
@@ -38,12 +321,66 @@ Describe 'Nerdio WPF view' {
                 $tabs.SelectedIndex | Should -Be 0
                 $setup = $window.FindName('NerdioSetupScrollViewer')
                 $tabs.Items[2].Content | Should -Be $setup.Parent
-                @($setup.Content.Children | ForEach-Object { $_.Header }) |
-                    Should -Be @('Azure storage setup', 'Nerdio API setup', 'Shell App definitions')
+                @($setup.Content.Children | Where-Object { $_ -is [System.Windows.Controls.Expander] } | ForEach-Object { $_.Header }) |
+                    Should -Be @('Azure storage setup', 'Nerdio API setup')
                 $setup.Content.Children[0].Content.Children.Contains($state.NerdioTenantIdBox) | Should -BeTrue
                 $setup.Content.Children[1].Content.Children.Contains($state.NmeHostBox) | Should -BeTrue
-                $setup.Content.Children[2].Content.Children.Contains($state.NerdioDefinitionsPathBox.Parent) | Should -BeTrue
-                $tabs.Items[0].Content | Should -Be $state.NerdioComparisonListView.Parent
+                $setup.Content.Children.Contains($state.SaveNerdioSetupButton) | Should -BeTrue
+                $shellApps = $state.NerdioComparisonListView.Parent
+                $tabs.Items[0].Content | Should -Be $shellApps
+                $pathPanel = $window.FindName('NerdioDefinitionsPathPanel')
+                $pathPanel.Parent | Should -Be $shellApps
+                $pathRow = $pathPanel.Children[1]
+                foreach ($control in $state.NerdioDefinitionsPathBox, $state.BrowseNerdioDefinitionsButton, $state.SaveNerdioSettingsButton) {
+                    $control.Parent | Should -Be $pathRow
+                }
+                [System.Windows.Controls.Grid]::GetRow($pathPanel) |
+                    Should -BeLessThan ([System.Windows.Controls.Grid]::GetRow($state.NerdioComparisonListView))
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'shows pruning actions immediately before review with a divider' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavNerdio.IsChecked = $true
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Width = $window.MinWidth
+                $window.Height = $window.MinHeight
+                $window.Show()
+                $prune = $state.PruneSelectedNerdioVersionsButton
+                $preview = $state.PruneNerdioVersionsButton
+                $review = $state.ReviewNerdioOutcomeButton
+                $actions = $review.Parent
+                $prune.Parent | Should -Be $actions
+                $preview.Parent | Should -Be $actions
+                $divider = $actions.Children[$actions.Children.IndexOf($preview) + 1]
+                $divider | Should -BeOfType [System.Windows.Controls.Border]
+                $actions.Children.IndexOf($review) | Should -Be ($actions.Children.IndexOf($divider) + 1)
+                foreach ($mode in 'Light', 'Dark') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    foreach ($control in $prune, $preview, $divider, $review) {
+                        $control.IsVisible | Should -BeTrue
+                    }
+                    $divider.Background | Should -Not -BeNullOrEmpty
+                    $prunePoint = $prune.TranslatePoint([System.Windows.Point]::new(0, 0), $state.NerdioPanel)
+                    $previewPoint = $preview.TranslatePoint([System.Windows.Point]::new(0, 0), $state.NerdioPanel)
+                    $dividerPoint = $divider.TranslatePoint([System.Windows.Point]::new(0, 0), $state.NerdioPanel)
+                    $reviewPoint = $review.TranslatePoint([System.Windows.Point]::new(0, 0), $state.NerdioPanel)
+                    ($prunePoint.X + $prune.ActualWidth) | Should -BeLessOrEqual $previewPoint.X
+                    ($previewPoint.X + $preview.ActualWidth) | Should -BeLessThan $dividerPoint.X
+                    ($dividerPoint.X + $divider.ActualWidth) | Should -BeLessThan $reviewPoint.X
+                    ($reviewPoint.X + $review.ActualWidth) | Should -BeLessOrEqual $state.NerdioPanel.ActualWidth
+                    $prunePoint.Y | Should -Be $previewPoint.Y
+                    $previewPoint.Y | Should -Be $reviewPoint.Y
+                }
             }
             finally { $window.Close() }
         }
@@ -72,7 +409,9 @@ Describe 'Nerdio WPF view' {
                 $tabs = $state.NerdioPanel.Children[0]
                 $tabs.SelectedIndex = 2
                 $setup = $window.FindName('NerdioSetupScrollViewer')
-                foreach ($section in $setup.Content.Children) { $section.IsExpanded = $true }
+                foreach ($section in $setup.Content.Children) {
+                    if ($section -is [System.Windows.Controls.Expander]) { $section.IsExpanded = $true }
+                }
                 foreach ($mode in 'Light', 'Dark') {
                     $window.ThemeMode = [System.Windows.ThemeMode]::$mode
                     $state.NerdioConnectionStatusLabel.Text = "Connection status in $mode"
@@ -82,9 +421,9 @@ Describe 'Nerdio WPF view' {
                     $setup.ExtentHeight | Should -BeGreaterThan $setup.ViewportHeight
                     $setup.ScrollToBottom()
                     $window.UpdateLayout()
-                    $savePoint = $state.SaveNerdioSettingsButton.TranslatePoint([System.Windows.Point]::new(0, 0), $setup)
+                    $savePoint = $state.SaveNerdioSetupButton.TranslatePoint([System.Windows.Point]::new(0, 0), $setup)
                     $savePoint.Y | Should -BeGreaterOrEqual 0
-                    ($savePoint.Y + $state.SaveNerdioSettingsButton.ActualHeight) | Should -BeLessOrEqual $setup.ActualHeight
+                    ($savePoint.Y + $state.SaveNerdioSetupButton.ActualHeight) | Should -BeLessOrEqual $setup.ActualHeight
                 }
                 $tabs.SelectedIndex = 0
                 $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
@@ -151,6 +490,8 @@ Describe 'Nerdio WPF view' {
                 Should -Invoke Set-EwSetting -Exactly 0
                 $state.SaveNerdioSettingsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
                 Should -Invoke Set-EwSetting -Exactly 10
+                $state.SaveNerdioSetupButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                Should -Invoke Set-EwSetting -Exactly 20
                 Should -Invoke Set-EwSetting -Exactly 0 -ParameterFilter { $Value -eq 'synthetic-secret' }
                 $state.NerdioAzureIdentity = [PSCustomObject]@{ TenantId = 'tenant'; SubscriptionId = 'sub' }
                 $state.AllowNerdioEvents = $false
@@ -508,10 +849,15 @@ Describe 'Nerdio WPF view' {
         }
     }
 
-    It 'uses standalone wording and disables no-op retention plans in the shared dialog' {
-        InModuleScope EvergreenUI {
+    It 'themes standalone pruning in <Mode> mode and disables no-op retention plans' -ForEach @(
+        @{ Mode = 'Light' }
+        @{ Mode = 'Dark' }
+        @{ Mode = 'System' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Mode = $Mode } {
             $window = Get-EwWorkbenchWindow
             try {
+                $window.ThemeMode = [System.Windows.ThemeMode]::$Mode
                 Mock Get-EwNerdioShellAppVersion {
                     @('1.0', '2.0') | ForEach-Object { [PSCustomObject]@{ name = $_ } }
                 }
@@ -522,13 +868,20 @@ Describe 'Nerdio WPF view' {
                 $window.Dispatcher.BeginInvoke([action]{
                     $dialog = @($window.OwnedWindows)[0]
                     try {
-                        $content = $dialog.Content.Children[1]
-                        $observed.Label = $content.Children[0].Children[0].Text
-                        $retention = $content.Children[0].Children[1]
-                        $check = $content.Children[2].Content.Children[0]
+                        $observed.Label = $dialog.FindName('NerdioPruneRetentionText').Text
+                        $retention = $dialog.FindName('NerdioPruneRetentionBox')
+                        $card = $dialog.FindName('NerdioPrunePlansPanel').Children[0]
+                        $check = $card.Child
                         $observed.Description = [string]$check.Content.Text
                         $observed.ResizeMode = $dialog.ResizeMode
                         $observed.SizeToContent = $dialog.SizeToContent
+                        $observed.Theme = $dialog.ThemeMode
+                        $observed.Background = $dialog.TryFindResource('ApplicationBackgroundBrush').Color
+                        $observed.OwnerBackground = $window.TryFindResource('ApplicationBackgroundBrush').Color
+                        $observed.CardBackground = $card.Background
+                        $observed.Accent = $dialog.FindName('ReviewNerdioPruneButton').Style -eq
+                            $dialog.TryFindResource('AccentButtonStyle')
+                        $observed.RetentionTarget = $dialog.FindName('NerdioPruneRetentionText').Parent.Target -eq $retention
                         $observed.InitiallyEnabled = $check.IsEnabled
                         $check.IsChecked = $true
                         $retention.Text = '2'
@@ -540,12 +893,199 @@ Describe 'Nerdio WPF view' {
                 $observed.Label | Should -Be 'Keep newest versions:'
                 $observed.ResizeMode | Should -Be ([System.Windows.ResizeMode]::NoResize)
                 $observed.SizeToContent | Should -Be ([System.Windows.SizeToContent]::WidthAndHeight)
+                $observed.Theme | Should -Be $window.ThemeMode
+                $observed.Background | Should -Be $observed.OwnerBackground
+                $observed.CardBackground | Should -Not -BeNullOrEmpty
+                $observed.Accent | Should -BeTrue
+                $observed.RetentionTarget | Should -BeTrue
                 $observed.Description | Should -Not -Match 'published:'
                 $observed.Description | Should -Match 'keep: 2.0; delete: 1.0'
                 $observed.InitiallyEnabled | Should -BeTrue
                 $observed.NoOpEnabled | Should -BeFalse
             }
             finally { $window.Close() }
+        }
+    }
+
+    It 'shows a themed notice without closing the pruning preview when no apps are selected' {
+        InModuleScope EvergreenUI {
+            $owner = Get-EwWorkbenchWindow
+            $observed = @{ Error = '' }
+            try {
+                $owner.ThemeMode = [System.Windows.ThemeMode]::Dark
+                Mock Get-EwNerdioShellAppVersion {
+                    @('1.0', '2.0') | ForEach-Object { [PSCustomObject]@{ name = $_ } }
+                }
+                $plan = Get-EwNerdioShellAppVersionPrunePlan -Id '42'
+                $plan | Add-Member -NotePropertyName Name -NotePropertyValue 'App'
+                $owner.Show()
+                $null = $owner.Dispatcher.BeginInvoke([action]{
+                    $preview = @($owner.OwnedWindows)[0]
+                    $observed.Preview = $preview
+                    try {
+                        $button = $preview.FindName('ReviewNerdioPruneButton')
+                        $peer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($button)
+                        $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke).Invoke()
+                    }
+                    catch {
+                        $observed.Error = $_.Exception.Message
+                        $preview.Close()
+                    }
+                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $null = $owner.Dispatcher.BeginInvoke([action]{
+                    $preview = $observed.Preview
+                    if (-not $preview.IsVisible) { return }
+                    $notice = @($preview.OwnedWindows)[0]
+                    try {
+                        $ok = $notice.FindName('ConfirmationYesButton')
+                        $observed.Title = $notice.Title
+                        $observed.Message = $notice.FindName('ConfirmationMessageText').Text
+                        $observed.Theme = $notice.ThemeMode
+                        $observed.OK = $ok.Content
+                        $observed.Default = $ok.IsDefault -and $ok.IsCancel
+                        $observed.OtherHidden = $notice.FindName('ConfirmationNoButton').Visibility -eq
+                            [System.Windows.Visibility]::Collapsed
+                        $peer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($ok)
+                        $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke).Invoke()
+                        $notice.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    }
+                    catch { $observed.Error = $_.Exception.Message }
+                    finally { if ($notice.IsVisible) { $notice.Close() } }
+                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $null = $owner.Dispatcher.BeginInvoke([action]{
+                    $observed.PreviewOpen = $observed.Preview.IsVisible
+                    if ($observed.PreviewOpen) { $observed.Preview.Close() }
+                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::SystemIdle)
+                @(Show-EwWorkbenchNerdioPruneDialog -Owner $owner -Plans @($plan)) | Should -HaveCount 0
+                $owner.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::SystemIdle)
+                $observed.Error | Should -BeNullOrEmpty
+                $observed.Title | Should -Be 'No Shell Apps selected'
+                $observed.Message | Should -Match 'Select at least one Shell App'
+                $observed.Theme | Should -Be $owner.ThemeMode
+                $observed.OK | Should -Be 'OK'
+                $observed.Default | Should -BeTrue
+                $observed.OtherHidden | Should -BeTrue
+                $observed.PreviewOpen | Should -BeTrue
+            }
+            finally { $owner.Close() }
+        }
+    }
+
+    It 'requires explicit <Choice> confirmation for exact pruning versions' -ForEach @(
+        @{ Choice = 'No'; Accepted = $false }
+        @{ Choice = 'Yes'; Accepted = $true }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Choice = $Choice; Accepted = $Accepted } {
+            $owner = Get-EwWorkbenchWindow
+            $observed = @{ Choice = $Choice; Error = '' }
+            try {
+                $owner.ThemeMode = [System.Windows.ThemeMode]::Dark
+                Mock Get-EwNerdioShellAppVersion {
+                    @('1.0', '2.0') | ForEach-Object { [PSCustomObject]@{ name = $_ } }
+                }
+                $plan = Get-EwNerdioShellAppVersionPrunePlan -Id '42'
+                $plan | Add-Member -NotePropertyName Name -NotePropertyValue 'App'
+                $owner.Show()
+                $null = $owner.Dispatcher.BeginInvoke([action]{
+                    $preview = @($owner.OwnedWindows)[0]
+                    $observed.Preview = $preview
+                    try {
+                        $preview.FindName('NerdioPrunePlansPanel').Children[0].Child.IsChecked = $true
+                        $button = $preview.FindName('ReviewNerdioPruneButton')
+                        $peer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($button)
+                        $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke).Invoke()
+                    }
+                    catch {
+                        $observed.Error = $_.Exception.Message
+                        $preview.Close()
+                    }
+                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $null = $owner.Dispatcher.BeginInvoke([action]{
+                    $preview = $observed.Preview
+                    if (-not $preview.IsVisible) { return }
+                    $confirmation = @($preview.OwnedWindows)[0]
+                    try {
+                        $observed.Title = $confirmation.Title
+                        $observed.Message = $confirmation.FindName('ConfirmationMessageText').Text
+                        $observed.Theme = $confirmation.ThemeMode
+                        $no = $confirmation.FindName('ConfirmationNoButton')
+                        $observed.SafeDefault = $no.IsDefault -and $no.IsCancel
+                        $button = $confirmation.FindName("Confirmation$($observed.Choice)Button")
+                        $peer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($button)
+                        $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke).Invoke()
+                        $confirmation.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    }
+                    catch { $observed.Error = $_.Exception.Message }
+                    finally { if ($confirmation.IsVisible) { $confirmation.Close() } }
+                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $null = $owner.Dispatcher.BeginInvoke([action]{
+                    $observed.PreviewOpen = $observed.Preview.IsVisible
+                    if ($observed.PreviewOpen) { $observed.Preview.Close() }
+                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::SystemIdle)
+                $selected = @(Show-EwWorkbenchNerdioPruneDialog -Owner $owner -Plans @($plan))
+                $owner.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::SystemIdle)
+                $observed.Error | Should -BeNullOrEmpty
+                $observed.Title | Should -Be 'Confirm Nerdio version pruning'
+                $observed.Message | Should -Match 'App: 1.0'
+                $observed.Theme | Should -Be $owner.ThemeMode
+                $observed.SafeDefault | Should -BeTrue
+                $observed.PreviewOpen | Should -Be (-not $Accepted)
+                $selected.Count | Should -Be ([int]$Accepted)
+                if ($Accepted) { $selected[0].Remove | Should -Be @('1.0') }
+            }
+            finally { $owner.Close() }
+        }
+    }
+
+    It 'keeps long pruning previews scrollable with the actions visible' -Skip:($env:GITHUB_ACTIONS -eq 'true') {
+        InModuleScope EvergreenUI {
+            $owner = Get-EwWorkbenchWindow
+            $observed = @{}
+            try {
+                $owner.Width = $owner.MinWidth
+                $owner.Height = $owner.MinHeight
+                $owner.FontSize = 20
+                $owner.ThemeMode = [System.Windows.ThemeMode]::Dark
+                $plans = @(1..25 | ForEach-Object {
+                        [PSCustomObject]@{
+                            Id = [string]$_; Name = "Application $_ $([string]('long-name-' * 8))"
+                            Eligible = $true; PublishedVersion = '2.0'; KeepVersions = 1
+                            Keep = [string[]]@('2.0'); Remove = [string[]]@('1.0'); Message = ''
+                            VersionDetails = @(
+                                [PSCustomObject]@{ Name = '1.0'; SortKey = 1 }
+                                [PSCustomObject]@{ Name = '2.0'; SortKey = 2 }
+                            )
+                        }
+                    })
+                $owner.Show()
+                $null = $owner.Dispatcher.BeginInvoke([action]{
+                    $dialog = @($owner.OwnedWindows)[0]
+                    try {
+                        $dialog.UpdateLayout()
+                        $scroll = $dialog.FindName('NerdioPruneScrollViewer')
+                        $observed.ScrollableHeight = $scroll.ScrollableHeight
+                        $scroll.ScrollToEnd()
+                        $dialog.UpdateLayout()
+                        $observed.Offset = $scroll.VerticalOffset
+                        $observed.Plans = $dialog.FindName('NerdioPrunePlansPanel').Children.Count
+                        $observed.FontSize = $dialog.FontSize
+                        $observed.Height = $dialog.ActualHeight
+                        $observed.MaxHeight = $dialog.MaxHeight
+                        $button = $dialog.FindName('ReviewNerdioPruneButton')
+                        $point = $button.TranslatePoint([System.Windows.Point]::new(0, 0), $dialog)
+                        $observed.ButtonBottom = $point.Y + $button.ActualHeight
+                    }
+                    finally { $dialog.Close() }
+                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                @(Show-EwWorkbenchNerdioPruneDialog -Owner $owner -Plans $plans) | Should -HaveCount 0
+                $observed.ScrollableHeight | Should -BeGreaterThan 0
+                $observed.Offset | Should -Be $observed.ScrollableHeight
+                $observed.Plans | Should -Be 25
+                $observed.FontSize | Should -Be 20
+                $observed.Height | Should -BeLessOrEqual $observed.MaxHeight
+                $observed.ButtonBottom | Should -BeLessOrEqual $observed.Height
+            }
+            finally { $owner.Close() }
         }
     }
 }

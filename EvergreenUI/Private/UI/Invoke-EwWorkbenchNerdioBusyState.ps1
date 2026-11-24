@@ -8,7 +8,7 @@ function Invoke-EwWorkbenchNerdioBusyState {
     $idle = $null -eq $State.ActiveJobId
     foreach ($control in $State.NerdioSettingControls.Values) { $control.IsEnabled = $idle }
     foreach ($name in 'UseNerdioDeviceCodeToggle', 'NerdioApiOnlyToggle', 'NmeClientSecretBox', 'ConnectNerdioAzureButton',
-        'BrowseNerdioDefinitionsButton', 'SaveNerdioSettingsButton', 'NerdioComparisonListView') {
+        'BrowseNerdioDefinitionsButton', 'SaveNerdioSettingsButton', 'SaveNerdioSetupButton', 'NerdioComparisonListView') {
         $State[$name].IsEnabled = $idle
     }
     $State.NmeResourceGroupCombo.IsEnabled = $idle -and $null -ne $State.NerdioAzureIdentity

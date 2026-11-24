@@ -45,7 +45,7 @@ function Initialize-EwWorkbenchNerdioView {
     $actions = @{
         ConnectNerdioAzureButton = 'AzureConnect'; DisconnectNerdioButton = 'Disconnect'
         ConnectNerdioButton = 'ApiConnect'; CompareNerdioButton = 'Compare'
-        SaveNerdioSettingsButton = 'Save'; BrowseNerdioDefinitionsButton = 'Browse'
+        SaveNerdioSettingsButton = 'Save'; SaveNerdioSetupButton = 'Save'; BrowseNerdioDefinitionsButton = 'Browse'
         PublishSelectedNerdioButton = 'Publish'; CancelNerdioBatchButton = 'Cancel'
         ReviewNerdioOutcomeButton = 'Review'
         PruneNerdioVersionsButton = 'Prune'

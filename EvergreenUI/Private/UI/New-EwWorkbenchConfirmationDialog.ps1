@@ -9,7 +9,8 @@ function New-EwWorkbenchConfirmationDialog {
         [Parameter(Mandatory)][System.Windows.Window]$Owner,
         [Parameter(Mandatory)][string]$Title,
         [Parameter(Mandatory)][string]$Message,
-        [Parameter(Mandatory)][bool]$DefaultYes
+        [Parameter(Mandatory)][bool]$DefaultYes,
+        [Parameter()][ValidateSet('YesNo', 'YesNoCancel', 'OK')][string]$Buttons = 'YesNo'
     )
 
     $moduleRoot = Split-Path -Path $script:ewModulePath -Parent
@@ -41,11 +42,37 @@ function New-EwWorkbenchConfirmationDialog {
     $dialog.FindName('ConfirmationMessageText').Text = $Message
     $yesButton = $dialog.FindName('ConfirmationYesButton')
     $noButton = $dialog.FindName('ConfirmationNoButton')
-    $yesButton.IsDefault = $DefaultYes
-    $noButton.IsDefault = -not $DefaultYes
-    $defaultButton = if ($DefaultYes) { $yesButton } else { $noButton }
+    $cancelButton = $dialog.FindName('ConfirmationCancelButton')
+    switch ($Buttons) {
+        'YesNo' {
+            $yesButton.IsDefault = $DefaultYes
+            $noButton.IsDefault = -not $DefaultYes
+            $defaultButton = if ($DefaultYes) { $yesButton } else { $noButton }
+        }
+        'YesNoCancel' {
+            $dialog.Tag = [System.Windows.MessageBoxResult]::Cancel
+            $noButton.IsCancel = $false
+            $noButton.Add_Click({
+                $dialog.Tag = [System.Windows.MessageBoxResult]::No
+                $dialog.DialogResult = $false
+            }.GetNewClosure())
+            $cancelButton.Visibility = [System.Windows.Visibility]::Visible
+            $cancelButton.IsCancel = $true
+            $cancelButton.IsDefault = $true
+            $defaultButton = $cancelButton
+        }
+        'OK' {
+            $noButton.Visibility = [System.Windows.Visibility]::Collapsed
+            $noButton.IsCancel = $false
+            $yesButton.Content = 'OK'
+            $yesButton.IsCancel = $true
+            $yesButton.IsDefault = $true
+            $defaultButton = $yesButton
+        }
+    }
     $defaultButton.SetResourceReference([System.Windows.FrameworkElement]::StyleProperty, 'AccentButtonStyle')
     $yesButton.Add_Click({
+        if ($Buttons -eq 'YesNoCancel') { $dialog.Tag = [System.Windows.MessageBoxResult]::Yes }
         $dialog.DialogResult = $true
     }.GetNewClosure())
     $dialog.Add_ContentRendered({
