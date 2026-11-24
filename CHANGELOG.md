@@ -2,6 +2,8 @@
 
 ## [2.0.0-preview]
 
+- Left-align the Intune and Nerdio Microsoft 365 forms and the Settings and About pages.
+- Centre the Update app check boxes in the Intune Win32 Apps comparison grid.
 - Combine Packages and local Install into Definitions and Install tabs under one sidebar destination. Refresh local detection after definition changes, defer refresh during active operations, and retain legacy Install startup navigation and installation safeguards.
 - Right-align the download queue toggle and path, with 16 pixels above the queue table and consistent header spacing when the queue is shown or hidden.
 - Export the current filtered Apps artifact grid and visible columns to CSV.

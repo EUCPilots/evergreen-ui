@@ -134,6 +134,88 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'left-aligns the Microsoft 365, Settings, and About forms at window width <Width>' -ForEach @(
+        @{ Width = 960 }
+        @{ Width = 1600 }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Width = $Width } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.Width = $Width
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                foreach ($pageName in 'IntunePanel', 'NerdioPanel', 'SettingsPanel', 'AboutPanel') {
+                    foreach ($name in 'AppsPanel', 'IntunePanel', 'NerdioPanel', 'SettingsPanel', 'AboutPanel') {
+                        $window.FindName($name).Visibility = 'Collapsed'
+                    }
+                    $page = $window.FindName($pageName)
+                    $page.Visibility = 'Visible'
+                    if ($pageName -eq 'SettingsPanel') {
+                        $form = $window.FindName('ThemeCombo').Parent
+                        $scrollViewer = $page.Children[0]
+                    }
+                    elseif ($pageName -eq 'AboutPanel') {
+                        $form = $window.FindName('AboutNameValue').Parent
+                        $scrollViewer = $page.Children[0]
+                    }
+                    else {
+                        $page.Children[0].SelectedIndex = 1
+                        $form = $window.FindName($pageName.Replace('Panel', 'M365Form'))
+                        $scrollViewer = $page.Children[0].SelectedContent
+                    }
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    $presenter = $scrollViewer.Template.FindName('PART_ScrollContentPresenter', $scrollViewer)
+                    $presenter.ActualWidth | Should -BeGreaterThan 0
+                    $offset = $form.TranslatePoint([System.Windows.Point]::new(0, 0), $presenter).X
+                    [Math]::Abs($offset - $form.Margin.Left) | Should -BeLessOrEqual 0.5
+                    $expectedWidth = [Math]::Min($form.MaxWidth, $presenter.ActualWidth - $form.Margin.Left - $form.Margin.Right)
+                    [Math]::Abs($form.ActualWidth - $expectedWidth) | Should -BeLessOrEqual 0.5
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'centres the Intune Update app check boxes in their cells' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $window.FindName('AppsPanel').Visibility = 'Collapsed'
+                $window.FindName('IntunePanel').Visibility = 'Visible'
+                $grid = $window.FindName('IntuneComparisonListView')
+                $grid.ItemsSource = @([PSCustomObject]@{
+                        DefinitionName = 'App'; DefinitionVersion = '1.0'; IntuneVersion = '1.0'
+                        MatchStatus = 'Matched'; ImportAsUpdate = $false
+                    })
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                $column = $grid.Columns | Where-Object { $_.Header -eq 'Update app' }
+                $cell = $column.GetCellContent($grid.Items[0]).Parent
+                $checkBox = $column.GetCellContent($grid.Items[0])
+                $checkBox | Should -BeOfType ([System.Windows.Controls.CheckBox])
+                $point = $checkBox.TranslatePoint([System.Windows.Point]::new(0, 0), $cell)
+                $left = $point.X
+                $right = $cell.ActualWidth - $point.X - $checkBox.ActualWidth
+                $top = $point.Y
+                $bottom = $cell.ActualHeight - $point.Y - $checkBox.ActualHeight
+                [Math]::Abs($left - $right) | Should -BeLessOrEqual 2
+                [Math]::Abs($top - $bottom) | Should -BeLessOrEqual 2
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'keeps provider tab headers equal and content usable in <Mode> mode at width <Width>' -ForEach @(
         @{ Mode = 'Light'; Width = 1200 }
         @{ Mode = 'Light'; Width = 960 }
