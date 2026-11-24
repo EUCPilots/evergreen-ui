@@ -1,10 +1,10 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Width="680"
-        MinWidth="480"
-        MinHeight="300"
+        MinWidth="420"
+        MaxWidth="680"
         MaxHeight="640"
-        SizeToContent="Height"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         ThemeMode="System"
@@ -15,7 +15,7 @@
             <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="CornerRadius" Value="8" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
                     <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />

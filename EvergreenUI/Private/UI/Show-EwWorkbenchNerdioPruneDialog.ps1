@@ -15,10 +15,18 @@ function Show-EwWorkbenchNerdioPruneDialog {
     $window = [System.Windows.Window]::new()
     $window.Title = 'Preview Nerdio Shell App version pruning'
     $window.Owner = $Owner
-    $window.Width = 920
-    $window.Height = 560
-    $window.MinWidth = 720
-    $window.MinHeight = 420
+    $window.MinWidth = 560
+    $window.MaxWidth = 920
+    $window.MaxHeight = 640
+    if ($Owner.ActualWidth -gt 0) {
+        $window.MaxWidth = [Math]::Max($window.MinWidth, [Math]::Min(920, $Owner.ActualWidth - 64))
+    }
+    if ($Owner.ActualHeight -gt 0) {
+        $window.MaxHeight = [Math]::Max(240, [Math]::Min(640, $Owner.ActualHeight - 64))
+    }
+    $window.SizeToContent = [System.Windows.SizeToContent]::WidthAndHeight
+    $window.ResizeMode = [System.Windows.ResizeMode]::NoResize
+    $window.ShowInTaskbar = $false
     $window.WindowStartupLocation = 'CenterOwner'
 
     $root = [System.Windows.Controls.DockPanel]::new()
@@ -27,6 +35,7 @@ function Show-EwWorkbenchNerdioPruneDialog {
     $footer = [System.Windows.Controls.StackPanel]::new()
     $footer.Orientation = 'Horizontal'
     $footer.HorizontalAlignment = 'Right'
+    $footer.Margin = [System.Windows.Thickness]::new(0, 12, 0, 0)
     [System.Windows.Controls.DockPanel]::SetDock($footer, [System.Windows.Controls.Dock]::Bottom)
     $root.Children.Add($footer) | Out-Null
     $cancel = [System.Windows.Controls.Button]::new()
@@ -40,11 +49,13 @@ function Show-EwWorkbenchNerdioPruneDialog {
     $confirm.Padding = [System.Windows.Thickness]::new(12, 5, 12, 5)
     $footer.Children.Add($confirm) | Out-Null
 
-    $content = [System.Windows.Controls.StackPanel]::new()
+    # The list is the last DockPanel child so it fills the remaining height and scrolls at MaxHeight
+    $content = [System.Windows.Controls.DockPanel]::new()
     $root.Children.Add($content) | Out-Null
     $retentionRow = [System.Windows.Controls.StackPanel]::new()
     $retentionRow.Orientation = 'Horizontal'
     $retentionRow.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
+    [System.Windows.Controls.DockPanel]::SetDock($retentionRow, [System.Windows.Controls.Dock]::Top)
     $content.Children.Add($retentionRow) | Out-Null
     $retentionLabel = [System.Windows.Controls.TextBlock]::new()
     $retentionLabel.Text = if (@($Plans | Where-Object { $_.PublishedVersion }).Count -gt 0) {
@@ -61,9 +72,11 @@ function Show-EwWorkbenchNerdioPruneDialog {
     $help.Text = 'Select apps explicitly. The preview lists every exact version to retain or delete.'
     $help.TextWrapping = 'Wrap'
     $help.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
+    [System.Windows.Controls.DockPanel]::SetDock($help, [System.Windows.Controls.Dock]::Top)
     $content.Children.Add($help) | Out-Null
     $scroll = [System.Windows.Controls.ScrollViewer]::new()
     $scroll.VerticalScrollBarVisibility = 'Auto'
+    $scroll.HorizontalScrollBarVisibility = 'Disabled'
     $list = [System.Windows.Controls.StackPanel]::new()
     $scroll.Content = $list
     $content.Children.Add($scroll) | Out-Null
@@ -75,6 +88,9 @@ function Show-EwWorkbenchNerdioPruneDialog {
         $check.Tag = $plan
         $check.IsEnabled = [bool]$plan.Eligible -and @($plan.Remove).Count -gt 0
         $check.Margin = [System.Windows.Thickness]::new(0, 4, 0, 4)
+        $label = [System.Windows.Controls.TextBlock]::new()
+        $label.TextWrapping = 'Wrap'
+        $check.Content = $label
         $list.Children.Add($check) | Out-Null
         $rows.Add([PSCustomObject]@{ Plan = $plan; CheckBox = $check })
     }
@@ -99,7 +115,7 @@ function Show-EwWorkbenchNerdioPruneDialog {
             }
             $check = $row.CheckBox
             $check.IsEnabled = [bool]$plan.Eligible -and @($plan.Remove).Count -gt 0
-            $check.Content = if ($plan.Eligible) {
+            $check.Content.Text = if ($plan.Eligible) {
                 $published = if ($plan.PublishedVersion) { "; published: $($plan.PublishedVersion)" } else { '' }
                 "$($plan.Name) ($($plan.Id))$published; keep: $($plan.Keep -join ', '); delete: $($plan.Remove -join ', ')"
             }

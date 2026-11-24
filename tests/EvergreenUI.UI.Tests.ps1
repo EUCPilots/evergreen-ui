@@ -2472,6 +2472,10 @@ Import-Module -Name '$modulePath' -Force
                     $dialog.ThemeMode | Should -Be $owner.ThemeMode
                     $dialog.WindowStartupLocation | Should -Be ([System.Windows.WindowStartupLocation]::CenterOwner)
                     $dialog.ShowInTaskbar | Should -BeFalse
+                    $dialog.ResizeMode | Should -Be ([System.Windows.ResizeMode]::NoResize)
+                    $dialog.SizeToContent | Should -Be ([System.Windows.SizeToContent]::WidthAndHeight)
+                    $dialog.ActualWidth | Should -BeLessOrEqual $dialog.MaxWidth
+                    $dialog.ActualHeight | Should -BeLessThan $dialog.MaxHeight
                     $dialog.TryFindResource('ApplicationBackgroundBrush').Color |
                         Should -Be $owner.TryFindResource('ApplicationBackgroundBrush').Color
                     $dialog.Foreground.Color | Should -Be $dialog.TryFindResource('TextFillColorPrimaryBrush').Color
@@ -2515,6 +2519,7 @@ Import-Module -Name '$modulePath' -Force
                     $dialog.UpdateLayout()
 
                     $dialog.FontSize | Should -Be 20
+                    $dialog.ActualWidth | Should -BeLessOrEqual $dialog.MaxWidth
                     $dialog.ActualHeight | Should -BeLessOrEqual $dialog.MaxHeight
                     $dialog.FindName('LibraryRemovalPathText').Text | Should -Be "Library: $longPath"
                     $dialog.FindName('LibraryRemovalPathText').TextWrapping | Should -Be ([System.Windows.TextWrapping]::Wrap)

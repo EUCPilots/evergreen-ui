@@ -526,7 +526,9 @@ Describe 'Nerdio WPF view' {
                         $observed.Label = $content.Children[0].Children[0].Text
                         $retention = $content.Children[0].Children[1]
                         $check = $content.Children[2].Content.Children[0]
-                        $observed.Description = [string]$check.Content
+                        $observed.Description = [string]$check.Content.Text
+                        $observed.ResizeMode = $dialog.ResizeMode
+                        $observed.SizeToContent = $dialog.SizeToContent
                         $observed.InitiallyEnabled = $check.IsEnabled
                         $check.IsChecked = $true
                         $retention.Text = '2'
@@ -536,6 +538,8 @@ Describe 'Nerdio WPF view' {
                 }.GetNewClosure()) | Out-Null
                 @(Show-EwWorkbenchNerdioPruneDialog -Owner $window -Plans @($plan)) | Should -HaveCount 0
                 $observed.Label | Should -Be 'Keep newest versions:'
+                $observed.ResizeMode | Should -Be ([System.Windows.ResizeMode]::NoResize)
+                $observed.SizeToContent | Should -Be ([System.Windows.SizeToContent]::WidthAndHeight)
                 $observed.Description | Should -Not -Match 'published:'
                 $observed.Description | Should -Match 'keep: 2.0; delete: 1.0'
                 $observed.InitiallyEnabled | Should -BeTrue

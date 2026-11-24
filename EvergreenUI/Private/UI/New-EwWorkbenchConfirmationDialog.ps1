@@ -33,6 +33,9 @@ function New-EwWorkbenchConfirmationDialog {
     if ($Owner.ActualHeight -gt 0) {
         $dialog.MaxHeight = [Math]::Max($dialog.MinHeight, [Math]::Min(640, $Owner.ActualHeight - 64))
     }
+    if ($Owner.ActualWidth -gt 0) {
+        $dialog.MaxWidth = [Math]::Max($dialog.MinWidth, [Math]::Min(680, $Owner.ActualWidth - 64))
+    }
 
     $dialog.FindName('ConfirmationHeadingText').Text = $Title
     $dialog.FindName('ConfirmationMessageText').Text = $Message

@@ -54,6 +54,10 @@ Describe 'Intune Publish view' {
                 $dialog.ThemeMode | Should -Be $owner.ThemeMode
                 $dialog.WindowStartupLocation | Should -Be ([System.Windows.WindowStartupLocation]::CenterOwner)
                 $dialog.ShowInTaskbar | Should -BeFalse
+                $dialog.ResizeMode | Should -Be ([System.Windows.ResizeMode]::NoResize)
+                $dialog.SizeToContent | Should -Be ([System.Windows.SizeToContent]::WidthAndHeight)
+                $dialog.ActualWidth | Should -BeLessThan $dialog.MaxWidth
+                $dialog.ActualHeight | Should -BeLessThan 300
                 $dialog.TryFindResource('ApplicationBackgroundBrush').Color |
                     Should -Be $owner.TryFindResource('ApplicationBackgroundBrush').Color
                 $dialog.FindName('ConfirmationHeadingText').Text | Should -Be 'Confirm action'
@@ -87,6 +91,8 @@ Describe 'Intune Publish view' {
                 $dialog.UpdateLayout()
 
                 $dialog.FontSize | Should -Be 20
+                $dialog.ActualWidth | Should -BeLessOrEqual $dialog.MaxWidth
+                $dialog.ActualHeight | Should -BeLessOrEqual $dialog.MaxHeight
                 $dialog.FindName('ConfirmationMessageText').Text | Should -Be $message
                 $dialog.FindName('ConfirmationMessageText').TextWrapping | Should -Be ([System.Windows.TextWrapping]::Wrap)
                 $scroll = $dialog.FindName('ConfirmationDetailsScrollViewer')
