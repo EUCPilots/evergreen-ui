@@ -79,14 +79,14 @@ Describe 'Evergreen package definitions' {
                 @(
                     [PSCustomObject]@{ Type = 'intunewin'; Architecture = 'x64'; Language = 'en-US'; Version = '1.2.0'; URI = 'https://example.test/one.intunewin' }
                     [PSCustomObject]@{ Type = 'msi'; Architecture = 'x64'; Language = 'en-US'; Version = '9.0.0'; URI = 'https://example.test/wrong.msi' }
-                    [PSCustomObject]@{ Type = 'intunewin'; Architecture = 'x64'; Language = 'en-US'; Version = '2.0.0'; URI = 'https://example.test/two.intunewin' }
+                    [PSCustomObject]@{ Type = 'intunewin'; Architecture = 'x64'; Language = 'en-US'; Version = '2.0.1'; URI = 'https://example.test/two.intunewin' }
                     [PSCustomObject]@{ Type = 'intunewin'; Architecture = 'x86'; Language = 'en-US'; Version = '3.0.0'; URI = 'https://example.test/wrong-arch.intunewin' }
                 )
             }
             $first = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
             $second = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
             $first.Succeeded | Should -BeTrue
-            $first.Version | Should -Be '2.0.0'
+            $first.Version | Should -Be '2.0.1'
             $first.URI | Should -Be 'https://example.test/two.intunewin'
             $second.IsFromCache | Should -BeTrue
             Should -Invoke Get-EwAppVersion -Exactly 1 -ParameterFilter { $Name -eq 'ExampleApp' }
@@ -105,7 +105,7 @@ Describe 'Evergreen package definitions' {
             Mock Resolve-EwArtifact {
                 [PSCustomObject]@{
                     Succeeded = $true
-                    Version = '2.0.0'
+                    Version = '2.0.1'
                     URI = 'https://example.test/updated%20setup.intunewin'
                     ResolvedArtifact = $null
                     Error = ''
@@ -119,10 +119,10 @@ Describe 'Evergreen package definitions' {
             $result = Update-EwDefinition -DefinitionPath $Definition -CachePath $Cache -Confirm:$false
             $result.Succeeded | Should -BeTrue
             $updated = Get-Content -LiteralPath $Definition -Raw | ConvertFrom-Json
-            $updated.PackageInformation.Version | Should -Be '2.0.0'
+            $updated.PackageInformation.Version | Should -Be '2.0.1'
             $updated.PackageInformation.SetupFile | Should -Be 'updated setup.intunewin'
-            $updated.DetectionRule[0].VersionValue | Should -Be '2.0.0'
-            $updated.DetectionRule[1].Value | Should -Be '2.0.0'
+            $updated.DetectionRule[0].VersionValue | Should -Be '2.0.1'
+            $updated.DetectionRule[1].Value | Should -Be '2.0.1'
         }
     }
 
@@ -132,13 +132,13 @@ Describe 'Evergreen package definitions' {
         Set-Content -LiteralPath (Join-Path -Path $source -ChildPath 'Install.json') -Value '{invalid json'
         InModuleScope EvergreenUI -Parameters @{ Definition = $definitionPath } {
             Mock Resolve-EwArtifact {
-                [PSCustomObject]@{ Succeeded = $true; Version = '2.0.0'; URI = 'https://example.test/setup.exe'; Error = '' }
+                [PSCustomObject]@{ Succeeded = $true; Version = '2.0.1'; URI = 'https://example.test/setup.exe'; Error = '' }
             }
             $result = Update-EwDefinition -DefinitionPath $Definition -Confirm:$false
             $result.Succeeded | Should -BeFalse
             $result.Error | Should -Match 'Failed to update definition'
             $result.ChangedPaths | Should -Contain $Definition
-            (Get-Content -LiteralPath $Definition -Raw | ConvertFrom-Json).PackageInformation.Version | Should -Be '2.0.0'
+            (Get-Content -LiteralPath $Definition -Raw | ConvertFrom-Json).PackageInformation.Version | Should -Be '2.0.1'
         }
     }
 }
