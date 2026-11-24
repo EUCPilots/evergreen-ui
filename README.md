@@ -142,6 +142,30 @@ pool. On Windows 11 22H2 and later, its main window and title bar use Mica when
 available. Windows transparency and contrast settings can produce a solid
 background; unsupported systems use the native opaque title bar.
 
+In Library, the versions table shows recorded local installer paths; hover over
+a location to see its full value. Right-click an application or version and
+choose **Open folder** to open its folder in File Explorer. Select an
+application in the top table and
+choose **Remove application**, or select artifact rows in the bottom table using
+Ctrl or Shift and choose **Remove versions**. Each action asks for confirmation,
+defaulting to Cancel. Version removal targets only the selected rows, not other
+architectures or installer types with the same version. Application removal also
+removes its library registration, so later library updates do not download it
+again.
+
+Removal is independent of Evergreen's retention command. It deletes only
+recorded installer files inside the application's folder and preserves files
+referenced by retained inventory and unrecorded files. Unsafe paths and changed
+manifests abort removal. Failures stop further work, report partial changes and
+reload inventory; destructive work is never retried automatically. Removal
+cannot be undone. If deletion stops before the manifest write, rows can remain
+listed although some installer files were removed; review the reported paths.
+The headless `Remove-EwLibraryApp` command supports `-WhatIf`
+and `-Confirm`; supply `-Index` with zero-based manifest row indexes and the
+`ManifestHash` and `LibraryHash` from `Get-EwLibrary` as
+`-ExpectedManifestHash` and `-ExpectedLibraryHash` for snapshot-checked row
+removal. Omitting `-Index` removes the application.
+
 Open Packages, then use Definitions to load and update shared Intune App.json
 definitions and save definition and package-output paths. Select Install to
 test the installer Artifact resolved from a Definition, not a deployment

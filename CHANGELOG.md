@@ -1,7 +1,20 @@
 # Changelog
 
-## [2.0.0-preview]
+## [2.0.1-preview]
 
+- Use the Evergreen bulb as the Workbench window icon.
+- Show local installer paths in the Library versions table.
+- Add an **Open folder** right-click action to the Library applications and versions tables.
+
+- Add confirmed Library removal for a selected application or selected artifact
+  rows, independently of Evergreen's retention command. Preserve shared and
+  unrecorded files, reject stale selections and unsafe paths, and refresh
+  inventory after full or partial outcomes without automatic retries. The
+  confirmation follows the Workbench's Fluent light, dark and system themes.
+
+- Combine and right-align the Intune Win32 connection and comparison controls,
+  with consistent horizontal spacing, one Connect/Disconnect button and the
+  signed-in UPN on the left.
 - Add icons to the Packages, Intune, and Nerdio tabs while retaining their text labels.
 - Remember the 10 most recently saved Library locations and offer them in a dropdown on the Library page. `Set-EwSetting -Name LibraryPath` records each non-empty path in the new `LibraryPathHistory` setting.
 - Move Nerdio Azure storage, API and Shell App definition setup to a Settings tab.
