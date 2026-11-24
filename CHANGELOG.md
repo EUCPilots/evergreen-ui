@@ -2,6 +2,8 @@
 
 ## [2.0.0-preview]
 
+- Remember the 10 most recently saved Library locations and offer them in a dropdown on the Library page. `Set-EwSetting -Name LibraryPath` records each non-empty path in the new `LibraryPathHistory` setting.
+- Move Nerdio Azure storage, API and Shell App definition setup to a Settings tab.
 - Show each definition's application architecture in the Packages Definitions tab.
 - Fix definition updates rejecting `Application.Filter` values that pass literal `-ErrorAction` or `-WarningAction` arguments to `Get-EvergreenApp` or `Get-VcList`.
 - Left-align the Intune and Nerdio Microsoft 365 forms and the Settings and About pages.

@@ -229,16 +229,18 @@ changes. Supersedence can be retried during the current Workbench session.
 
 ### Nerdio Shell Apps
 
-The Nerdio view has collapsible Azure, API and Shell App definition setup.
-Connect Azure with the tenant and subscription IDs, then select a resource
-group, storage account and blob container. Enter the Nerdio host, client ID,
-API scope and client secret, and connect the API. Use Save setup to persist
-non-secret configuration; the client secret is cleared from the form when
-connecting and is never saved.
+Open the Nerdio view and select Settings for the collapsible Azure, API and
+Shell App definition setup. Connect Azure with the tenant and subscription
+IDs, then select a resource group, storage account and blob container. Enter
+the Nerdio host, client ID, API scope and client secret, and connect the API.
+Under Shell App definitions, use Save setup to persist non-secret
+configuration; the client secret is cleared from the form when connecting
+and is never saved.
 
-Save the Shell App definition folder, then choose Load and compare. Only
-valid Evergreen-backed definitions are publishable: unmatched definitions
-create Shell Apps, and unambiguous matches with newer versions add a version.
+Save the Shell App definition folder, then select Shell Apps and choose Load
+and compare. Only valid Evergreen-backed definitions are publishable:
+unmatched definitions create Shell Apps, and unambiguous matches with newer
+versions add a version.
 Current apps, duplicate matches and unsupported sources are blocked. The
 resolved installer is uploaded directly; local definitions are not changed.
 
