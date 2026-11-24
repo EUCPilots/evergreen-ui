@@ -59,6 +59,17 @@ Describe 'Evergreen package definitions' {
             {
                 ConvertFrom-EwDefinitionFilter -Filter 'Get-EvergreenApp -Name $(Get-Process)'
             } | Should -Throw '*literal -Name*'
+            {
+                ConvertFrom-EwDefinitionFilter -Filter 'Get-EvergreenApp -Name "ExampleApp" -Verbose'
+            } | Should -Throw '*not supported*'
+        }
+    }
+
+    It 'accepts literal -ErrorAction and -WarningAction on the source command' {
+        InModuleScope EvergreenUI {
+            $parsed = ConvertFrom-EwDefinitionFilter -Filter 'Get-EvergreenApp -Name "ExampleApp" -WarningAction "SilentlyContinue" -ErrorAction SilentlyContinue | Select-Object -First 1'
+            $parsed.AppName | Should -Be 'ExampleApp'
+            (ConvertFrom-EwDefinitionFilter -Filter 'Get-VcList -WarningAction:SilentlyContinue').CommandName | Should -Be 'Get-VcList'
         }
     }
 

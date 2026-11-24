@@ -42,23 +42,54 @@ function ConvertFrom-EwDefinitionFilter {
     }
 
     $commandName = [string]$sourceElements[0].Value
+    if ($commandName -inotin @('Get-EvergreenApp', 'Get-VcList')) {
+        throw "Unsupported Application.Filter source command '$commandName'."
+    }
+
+    # Literal -ErrorAction and -WarningAction arguments are accepted and ignored;
+    # the source command is always invoked through a private wrapper.
+    $ignoredParameters = @('ErrorAction', 'EA', 'WarningAction', 'WA')
+    $sourceArguments = @{}
+    $index = 1
+    while ($index -lt $sourceElements.Count) {
+        $element = $sourceElements[$index]
+        if ($element -isnot [System.Management.Automation.Language.CommandParameterAst]) {
+            throw "$commandName arguments in Application.Filter must be named parameters with literal values."
+        }
+
+        $parameterName = [string]$element.ParameterName
+        $isName = $commandName -ieq 'Get-EvergreenApp' -and $parameterName -ieq 'Name'
+        if ((-not $isName -and $parameterName -inotin $ignoredParameters) -or
+            $sourceArguments.ContainsKey($parameterName)) {
+            throw "$commandName parameter '-$parameterName' is not supported in Application.Filter."
+        }
+
+        $value = $element.Argument
+        if ($null -eq $value) {
+            $index++
+            if ($index -ge $sourceElements.Count) {
+                throw "$commandName parameter '-$parameterName' requires a literal value in Application.Filter."
+            }
+            $value = $sourceElements[$index]
+        }
+
+        if ($value -isnot [System.Management.Automation.Language.StringConstantExpressionAst]) {
+            if ($isName) {
+                throw 'Get-EvergreenApp must use a literal -Name value.'
+            }
+            throw "$commandName parameter '-$parameterName' requires a literal value in Application.Filter."
+        }
+
+        $sourceArguments[$parameterName] = [string]$value.Value
+        $index++
+    }
+
     $appName = ''
     if ($commandName -ieq 'Get-EvergreenApp') {
-        if ($sourceElements.Count -ne 3 -or
-            $sourceElements[1] -isnot [System.Management.Automation.Language.CommandParameterAst] -or
-            [string]$sourceElements[1].ParameterName -ine 'Name' -or
-            $sourceElements[2] -isnot [System.Management.Automation.Language.StringConstantExpressionAst]) {
+        if (-not $sourceArguments.ContainsKey('Name') -or [string]::IsNullOrWhiteSpace($sourceArguments['Name'])) {
             throw 'Get-EvergreenApp must use a literal -Name value.'
         }
-        $appName = [string]$sourceElements[2].Value
-    }
-    elseif ($commandName -ieq 'Get-VcList') {
-        if ($sourceElements.Count -ne 1) {
-            throw 'Get-VcList does not accept additional arguments in Application.Filter.'
-        }
-    }
-    else {
-        throw "Unsupported Application.Filter source command '$commandName'."
+        $appName = $sourceArguments['Name']
     }
 
     $predicate = $null
