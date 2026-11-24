@@ -29,6 +29,21 @@ function Get-EwWorkbenchWindow {
         throw "Workbench XAML did not create a WPF Window: $xamlPath"
     }
 
+    $iconPath = Join-Path -Path $moduleRoot -ChildPath 'Resources\evergreenbulb.png'
+    Write-Verbose -Message "EvergreenUI: Loading Workbench window icon from $iconPath"
+    try {
+        $icon = [System.Windows.Media.Imaging.BitmapImage]::new()
+        $icon.BeginInit()
+        $icon.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+        $icon.UriSource = [System.Uri]::new($iconPath, [System.UriKind]::Absolute)
+        $icon.EndInit()
+        $window.Icon = $icon
+        Write-Verbose -Message "EvergreenUI: Loaded Workbench window icon from $iconPath"
+    }
+    catch {
+        Write-Warning -Message "EvergreenUI: Could not load the Workbench window icon from ${iconPath}: $($_.Exception.Message)"
+    }
+
     $navigationColumn = $window.FindName('NavigationColumn')
     $navigationPane = $window.FindName('NavigationPane')
     $navigationBrand = $window.FindName('NavigationBrand')
@@ -63,68 +78,6 @@ function Get-EwWorkbenchWindow {
         }
     }.GetNewClosure())
 
-    $foregroundDescriptor = [System.ComponentModel.DependencyPropertyDescriptor]::FromProperty(
-        [System.Windows.Controls.Control]::ForegroundProperty, [System.Windows.Window]
-    )
-    $backgroundDescriptor = [System.ComponentModel.DependencyPropertyDescriptor]::FromProperty(
-        [System.Windows.Controls.Control]::BackgroundProperty, [System.Windows.Window]
-    )
-    $appearance = @{ Pending = $false; Closed = $false; Source = $null }
-    $setTitleBar = Get-Command -Name Set-EwWorkbenchTitleBar -CommandType Function -ErrorAction Stop
-    $refreshTitleBar = [System.EventHandler]{
-        if ($appearance.Closed -or $appearance.Pending -or $window.Dispatcher.HasShutdownStarted) {
-            return
-        }
-        $appearance.Pending = $true
-        $targetWindow = $window
-        $applyTitleBar = $setTitleBar
-        $appearanceState = $appearance
-        $null = $targetWindow.Dispatcher.InvokeAsync([action]{
-            $appearanceState.Pending = $false
-            if ($appearanceState.Closed) { return }
-            try {
-                & $applyTitleBar -Window $targetWindow
-            }
-            catch {
-                # Title bar styling is cosmetic and must not interrupt the interface.
-                Write-Verbose -Message "EvergreenUI: Could not update the title bar: $($_.Exception.Message)"
-            }
-        }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::Render)
-    }.GetNewClosure()
-    $appearanceHook = [System.Windows.Interop.HwndSourceHook]{
-        if ($args[1] -in 0x001A, 0x031A, 0x031E, 0x031F, 0x0320) {
-            $refreshTitleBar.Invoke($window, [EventArgs]::Empty)
-        }
-        return [IntPtr]::Zero
-    }.GetNewClosure()
-    $window.Add_SourceInitialized({
-        $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
-        $appearance.Source = [System.Windows.Interop.HwndSource]::FromHwnd($handle)
-        if ($null -ne $appearance.Source) {
-            $appearance.Source.AddHook($appearanceHook)
-        }
-        $refreshTitleBar.Invoke($window, [EventArgs]::Empty)
-    }.GetNewClosure())
-    $window.Add_Loaded({
-        param($eventSource, $loadedArgs)
-        $refreshTitleBar.Invoke($eventSource, $loadedArgs)
-    }.GetNewClosure())
-    $foregroundDescriptor.AddValueChanged($window, $refreshTitleBar)
-    $backgroundDescriptor.AddValueChanged($window, $refreshTitleBar)
-    $systemAppearanceChanged = [System.ComponentModel.PropertyChangedEventHandler]{
-        if ($args[1].PropertyName -in 'HighContrast', 'WindowGlassColor', 'WindowGlassBrush') {
-            $refreshTitleBar.Invoke($window, [EventArgs]::Empty)
-        }
-    }.GetNewClosure()
-    [System.Windows.SystemParameters]::add_StaticPropertyChanged($systemAppearanceChanged)
-    $window.Add_Closed({
-        $appearance.Closed = $true
-        if ($null -ne $appearance.Source -and -not $appearance.Source.IsDisposed) {
-            $appearance.Source.RemoveHook($appearanceHook)
-        }
-        $foregroundDescriptor.RemoveValueChanged($window, $refreshTitleBar)
-        $backgroundDescriptor.RemoveValueChanged($window, $refreshTitleBar)
-        [System.Windows.SystemParameters]::remove_StaticPropertyChanged($systemAppearanceChanged)
-    }.GetNewClosure())
+    Initialize-EwWorkbenchWindowAppearance -Window $window
     return $window
 }

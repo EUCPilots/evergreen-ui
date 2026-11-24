@@ -83,6 +83,13 @@ function Get-EwWorkbenchState {
             LibraryPathBox = $Window.FindName('LibraryPathBox')
             LibraryDetailsText = $Window.FindName('LibraryDetailsText')
             LibraryVersionsListView = $Window.FindName('LibraryVersionsListView')
+            RemoveLibraryAppButton = $Window.FindName('RemoveLibraryAppButton')
+            RemoveLibraryVersionsButton = $Window.FindName('RemoveLibraryVersionsButton')
+            LoadedLibraryPath = ''
+            LibraryJobPath = ''
+            LibrarySelectedName = ''
+            LibraryRemovalContext = $null
+            LibraryPromptActive = $false
             LoadLibraryButton = $Window.FindName('LoadLibraryButton')
             NavApps = $Window.FindName('NavApps')
             NavLibrary = $Window.FindName('NavLibrary')
@@ -103,7 +110,6 @@ function Get-EwWorkbenchState {
             IntuneTenantIdBox = $Window.FindName('IntuneTenantIdBox')
             UseIntuneDeviceCodeToggle = $Window.FindName('UseIntuneDeviceCodeToggle')
             ConnectIntuneButton = $Window.FindName('ConnectIntuneButton')
-            DisconnectIntuneButton = $Window.FindName('DisconnectIntuneButton')
             IntuneConnectionStatusLabel = $Window.FindName('IntuneConnectionStatusLabel')
             CompareIntuneButton = $Window.FindName('CompareIntuneButton')
             IntuneComparisonListView = $Window.FindName('IntuneComparisonListView')

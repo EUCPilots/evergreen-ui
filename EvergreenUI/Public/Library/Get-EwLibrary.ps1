@@ -63,6 +63,8 @@ function Get-EwLibrary {
             VersionCount = $versionCount
             Path = Join-Path -Path $Path -ChildPath $appName
             SourceItem = $entry
+            ManifestHash = if ($null -ne $entry.PSObject.Properties['ManifestHash']) { [string]$entry.ManifestHash } else { '' }
+            LibraryHash = if ($null -ne $entry.PSObject.Properties['LibraryHash']) { [string]$entry.LibraryHash } else { '' }
         }
     }
 }
