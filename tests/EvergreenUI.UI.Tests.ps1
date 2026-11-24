@@ -241,7 +241,7 @@ Describe 'Evergreen Workbench WPF shell' {
                     $page = $window.FindName($pageName)
                     $page.Visibility = 'Visible'
                     $tabs = $page.Children[0]
-                    foreach ($selectedIndex in 0, 1, 0) {
+                    foreach ($selectedIndex in @((0..($tabs.Items.Count - 1)) + 0)) {
                         $tabs.SelectedIndex = $selectedIndex
                         $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                         $window.UpdateLayout()
@@ -317,7 +317,13 @@ Describe 'Evergreen Workbench WPF shell' {
                                 $keyArgs.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent
                                 $focusedTab.RaiseEvent($keyArgs)
                             }
-                            $tabs.SelectedIndex | Should -Be $(if ($key -in 'Right', 'End') { 1 } else { 0 })
+                            $expectedIndex = switch ($key) {
+                                'Right' { 1 }
+                                'Home' { 0 }
+                                'End' { $tabs.Items.Count - 1 }
+                                'Left' { $tabs.Items.Count - 2 }
+                            }
+                            $tabs.SelectedIndex | Should -Be $expectedIndex
                             $tabs.SelectedItem.IsKeyboardFocused | Should -BeTrue
                         }
                     }
@@ -2897,6 +2903,36 @@ Describe 'Workbench Settings and About' {
                 $state.SettingsLibraryPathBox.Text | Should -Be ''
                 $state.LibraryFolderStatusLabel.Text | Should -Match 'No library folder is configured'
                 $state.OpenLibraryFolderButton.IsEnabled | Should -BeFalse
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'offers saved library locations as a dropdown and records newly saved ones' {
+        InModuleScope EvergreenUI -Parameters @{ Root = $TestDrive } {
+            param($Root)
+            $first = Join-Path -Path $Root -ChildPath 'Library one'
+            $second = Join-Path -Path $Root -ChildPath 'Library two'
+            $third = Join-Path -Path $Root -ChildPath 'Library three'
+            Set-EwSetting -Name LibraryPath -Value $first
+            Set-EwSetting -Name LibraryPath -Value $second
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.LibraryPathBox.IsEditable | Should -BeTrue
+                $state.LibraryPathBox.Text | Should -Be $second
+                @($state.LibraryPathBox.ItemsSource) | Should -Be @($second, $first)
+
+                $state.LibraryPathBox.SelectedItem = $first
+                $state.LibraryPathBox.Text | Should -Be $first
+
+                $state.LibraryPathBox.Text = $third
+                $state.SetLibraryPathButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                (Get-EwSetting).LibraryPath | Should -Be $third
+                @($state.LibraryPathBox.ItemsSource) | Should -Be @($third, $second, $first)
+                $state.LibraryPathBox.Text | Should -Be $third
             }
             finally {
                 $window.Close()

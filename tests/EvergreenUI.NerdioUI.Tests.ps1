@@ -22,6 +22,33 @@ Describe 'Nerdio WPF view' {
         }
     }
 
+    It 'places provider setup on the Nerdio Settings tab' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavNerdio.IsChecked = $true
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $tabs = $state.NerdioPanel.Children[0]
+                @($tabs.Items | ForEach-Object { $_.Header }) | Should -Be @('Shell Apps', 'Microsoft 365 Apps', 'Settings')
+                $tabs.SelectedIndex | Should -Be 0
+                $setup = $window.FindName('NerdioSetupScrollViewer')
+                $tabs.Items[2].Content | Should -Be $setup.Parent
+                @($setup.Content.Children | ForEach-Object { $_.Header }) |
+                    Should -Be @('Azure storage setup', 'Nerdio API setup', 'Shell App definitions')
+                $setup.Content.Children[0].Content.Children.Contains($state.NerdioTenantIdBox) | Should -BeTrue
+                $setup.Content.Children[1].Content.Children.Contains($state.NmeHostBox) | Should -BeTrue
+                $setup.Content.Children[2].Content.Children.Contains($state.NerdioDefinitionsPathBox.Parent) | Should -BeTrue
+                $tabs.Items[0].Content | Should -Be $state.NerdioComparisonListView.Parent
+            }
+            finally { $window.Close() }
+        }
+    }
+
     It 'keeps comparison and results usable at the minimum window size in both native themes' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
@@ -42,17 +69,28 @@ Describe 'Nerdio WPF view' {
                     $point = $button.TranslatePoint([System.Windows.Point]::new(0, 0), $state.NerdioPanel)
                     ($point.X + $button.ActualWidth) | Should -BeLessOrEqual $state.NerdioPanel.ActualWidth
                 }
+                $tabs = $state.NerdioPanel.Children[0]
+                $tabs.SelectedIndex = 2
                 $setup = $window.FindName('NerdioSetupScrollViewer')
                 foreach ($section in $setup.Content.Children) { $section.IsExpanded = $true }
+                foreach ($mode in 'Light', 'Dark') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    $state.NerdioConnectionStatusLabel.Text = "Connection status in $mode"
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    $window.FindName('NerdioSettingsConnectionStatusLabel').Text | Should -Be "Connection status in $mode"
+                    $setup.ExtentHeight | Should -BeGreaterThan $setup.ViewportHeight
+                    $setup.ScrollToBottom()
+                    $window.UpdateLayout()
+                    $savePoint = $state.SaveNerdioSettingsButton.TranslatePoint([System.Windows.Point]::new(0, 0), $setup)
+                    $savePoint.Y | Should -BeGreaterOrEqual 0
+                    ($savePoint.Y + $state.SaveNerdioSettingsButton.ActualHeight) | Should -BeLessOrEqual $setup.ActualHeight
+                }
+                $tabs.SelectedIndex = 0
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                 $window.UpdateLayout()
-                $state.NerdioComparisonListView.ActualHeight | Should -BeGreaterThan 40
-                $state.NerdioPublishResultsListView.ActualHeight | Should -BeGreaterThan 25
-                $setup.ExtentHeight | Should -BeGreaterThan $setup.ViewportHeight
-                $setup.ScrollToBottom()
-                $window.UpdateLayout()
-                $savePoint = $state.SaveNerdioSettingsButton.TranslatePoint([System.Windows.Point]::new(0, 0), $setup)
-                $savePoint.Y | Should -BeGreaterOrEqual 0
-                ($savePoint.Y + $state.SaveNerdioSettingsButton.ActualHeight) | Should -BeLessOrEqual $setup.ActualHeight
+                $state.NerdioComparisonListView.ActualHeight | Should -BeGreaterThan 100
+                $state.NerdioPublishResultsListView.ActualHeight | Should -BeGreaterThan 60
             }
             finally { $window.Close() }
         }
@@ -94,6 +132,9 @@ Describe 'Nerdio WPF view' {
             $window = Get-EwWorkbenchWindow
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavNerdio.IsChecked = $true
+                $tabs = $state.NerdioPanel.Children[0]
+                $tabs.SelectedIndex = 2
                 Mock Set-EwSetting {}
                 Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid() } }
                 $state.NmeHostBox.Text = 'nme.test'
@@ -104,6 +145,9 @@ Describe 'Nerdio WPF view' {
                 $state.NerdioDefinitionsPathBox.Text = 'changed-definitions'
                 $state.NerdioDestination | Should -Be $destination
                 $state.NerdioPlan | Should -BeNullOrEmpty
+                $tabs.SelectedIndex = 0
+                $tabs.SelectedIndex = 2
+                $state.NmeHostBox.Text | Should -Be 'nme.test'
                 Should -Invoke Set-EwSetting -Exactly 0
                 $state.SaveNerdioSettingsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
                 Should -Invoke Set-EwSetting -Exactly 10

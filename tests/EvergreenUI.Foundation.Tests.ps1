@@ -94,6 +94,23 @@ Describe 'EvergreenUI v2 foundation' {
         { Set-EwSetting -Name Theme -Value Blue } | Should -Throw '*Theme*'
     }
 
+    It 'records distinct library paths most recent first and keeps ten' {
+        (Get-EwSetting).LibraryPathHistory | Should -BeNullOrEmpty
+        foreach ($index in 1..11) {
+            Set-EwSetting -Name LibraryPath -Value "C:\Library$index"
+        }
+        Set-EwSetting -Name LibraryPath -Value 'c:\library5'
+        Set-EwSetting -Name LibraryPath -Value ''
+        $settings = Get-EwSetting
+        $settings.LibraryPath | Should -Be ''
+        $history = @($settings.LibraryPathHistory)
+        $history.Count | Should -Be 10
+        $history[0] | Should -BeExactly 'c:\library5'
+        $history[1] | Should -Be 'C:\Library11'
+        $history | Should -Not -Contain 'C:\Library1'
+        @($history | Where-Object { $_ -eq 'C:\Library5' }).Count | Should -Be 1
+    }
+
     It 'persists normalized optional artifact columns and clears the preference' {
         (Get-EwSetting).ArtifactHiddenColumns | Should -Be ''
         Set-EwSetting -Name ArtifactHiddenColumns -Value ' architecture, DATE, Architecture '
