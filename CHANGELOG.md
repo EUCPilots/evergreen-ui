@@ -2,6 +2,7 @@
 
 ## [2.0.0-preview]
 
+- Add icons to the Packages, Intune, and Nerdio tabs while retaining their text labels.
 - Remember the 10 most recently saved Library locations and offer them in a dropdown on the Library page. `Set-EwSetting -Name LibraryPath` records each non-empty path in the new `LibraryPathHistory` setting.
 - Move Nerdio Azure storage, API and Shell App definition setup to a Settings tab.
 - Show each definition's application architecture in the Packages Definitions tab.

@@ -51,15 +51,26 @@
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     CornerRadius="4">
-                                <ContentPresenter x:Name="HeaderContent"
-                                                  ContentSource="Header"
-                                                  RecognizesAccessKey="True"
-                                                  TextElement.Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                  TextElement.FontSize="14"
-                                                  TextElement.FontWeight="SemiBold"
-                                                  Margin="{TemplateBinding Padding}"
-                                                  HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center" />
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center">
+                                    <TextBlock x:Name="HeaderIcon"
+                                               Text="{TemplateBinding Tag}"
+                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14"
+                                               Foreground="{Binding Path=(TextElement.Foreground), ElementName=HeaderContent}"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False" />
+                                    <ContentPresenter x:Name="HeaderContent"
+                                                      ContentSource="Header"
+                                                      RecognizesAccessKey="True"
+                                                      TextElement.Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                      TextElement.FontSize="14"
+                                                      TextElement.FontWeight="SemiBold"
+                                                      VerticalAlignment="Center" />
+                                </StackPanel>
                             </Border>
                             <Border x:Name="SelectedIndicator"
                                     Width="24"
@@ -71,6 +82,12 @@
                                     Visibility="Collapsed" />
                         </Grid>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="Tag" Value="{x:Null}">
+                                <Setter TargetName="HeaderIcon" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                            <Trigger Property="Tag" Value="">
+                                <Setter TargetName="HeaderIcon" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="HeaderBorder" Property="Background"
                                         Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
@@ -753,7 +770,7 @@
                     <TabControl x:Name="PackagesTabControl" SelectedIndex="0"
                                 Style="{StaticResource ProviderTabControlStyle}"
                                 AutomationProperties.Name="Package workflows">
-                        <TabItem x:Name="DefinitionsTab" Header="Definitions">
+                        <TabItem x:Name="DefinitionsTab" Header="Definitions" Tag="&#xE8A5;">
                     <Grid Margin="0,0,0,8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -850,7 +867,7 @@
                         </Grid>
                     </Grid>
                         </TabItem>
-                        <TabItem x:Name="InstallTab" Header="Install">
+                        <TabItem x:Name="InstallTab" Header="Install" Tag="&#xE896;">
                             <Grid x:Name="InstallPanel">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -937,7 +954,7 @@
 
                 <Grid x:Name="IntunePanel" Visibility="Collapsed">
                     <TabControl Style="{StaticResource ProviderTabControlStyle}">
-                        <TabItem Header="Win32 apps">
+                        <TabItem Header="Win32 apps" Tag="&#xECAA;">
                             <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -1021,7 +1038,7 @@
                     </Grid>
                             </Grid>
                         </TabItem>
-                        <TabItem Header="Microsoft 365 Apps">
+                        <TabItem Header="Microsoft 365 Apps" Tag="&#xE71D;">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1089,7 +1106,7 @@
 
                 <Grid x:Name="NerdioPanel" Visibility="Collapsed">
                     <TabControl Style="{StaticResource ProviderTabControlStyle}">
-                        <TabItem Header="Shell Apps">
+                        <TabItem Header="Shell Apps" Tag="&#xE756;">
                             <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -1154,7 +1171,7 @@
                     </DataGrid>
                             </Grid>
                         </TabItem>
-                        <TabItem Header="Microsoft 365 Apps">
+                        <TabItem Header="Microsoft 365 Apps" Tag="&#xE71D;">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1211,7 +1228,7 @@
                                 </Grid>
                             </ScrollViewer>
                         </TabItem>
-                        <TabItem Header="Settings">
+                        <TabItem Header="Settings" Tag="&#xE713;">
                             <DockPanel>
                                 <TextBlock x:Name="NerdioSettingsConnectionStatusLabel" DockPanel.Dock="Top"
                                            Text="{Binding ElementName=NerdioConnectionStatusLabel, Path=Text, Mode=OneWay}"

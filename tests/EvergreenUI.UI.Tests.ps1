@@ -233,6 +233,11 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window.Top = -10000
                 $window.Show()
                 $headerWidth = $null
+                $expectedGlyphs = @{
+                    PackagesPanel = @{ Definitions = 0xE8A5; Install = 0xE896 }
+                    IntunePanel   = @{ 'Win32 apps' = 0xECAA; 'Microsoft 365 Apps' = 0xE71D }
+                    NerdioPanel   = @{ 'Shell Apps' = 0xE756; 'Microsoft 365 Apps' = 0xE71D; Settings = 0xE713 }
+                }
                 foreach ($pageName in 'NerdioPanel', 'IntunePanel', 'PackagesPanel', 'NerdioPanel') {
                     $window.FindName('AppsPanel').Visibility = 'Collapsed'
                     $window.FindName('IntunePanel').Visibility = 'Collapsed'
@@ -250,6 +255,21 @@ Describe 'Evergreen Workbench WPF shell' {
                             if ($null -eq $headerWidth) { $headerWidth = $tab.ActualWidth }
                             [Math]::Abs($tab.ActualWidth - $headerWidth) | Should -BeLessOrEqual 0.5
                             $header = $tab.Template.FindName('HeaderContent', $tab)
+                            $icon = $tab.Template.FindName('HeaderIcon', $tab)
+                            $icon.Text | Should -Be ([string][char]($expectedGlyphs[$pageName][$tab.Header]))
+                            $icon.IsVisible | Should -BeTrue
+                            $icon.ActualWidth | Should -BeGreaterThan 0
+                            $headerForeground = [System.Windows.Documents.TextElement]::GetForeground($header)
+                            $icon.Foreground.Color | Should -Be $headerForeground.Color
+                            $iconPoint = $icon.TranslatePoint([System.Windows.Point]::new(0, 0), $tab)
+                            $headerPoint = $header.TranslatePoint([System.Windows.Point]::new(0, 0), $tab)
+                            ($iconPoint.X + $icon.ActualWidth) | Should -BeLessOrEqual $headerPoint.X
+                            $hitPoint = $icon.TranslatePoint(
+                                [System.Windows.Point]::new($icon.ActualWidth / 2, $icon.ActualHeight / 2), $tab
+                            )
+                            $hit = $tab.InputHitTest($hitPoint)
+                            $hit | Should -Not -BeNullOrEmpty
+                            $tab.IsAncestorOf($hit) | Should -BeTrue
                             $header.Measure([System.Windows.Size]::new([double]::PositiveInfinity, [double]::PositiveInfinity))
                             $labelWidth = $header.DesiredSize.Width - $header.Margin.Left - $header.Margin.Right
                             ($header.ActualWidth + 0.5) | Should -BeGreaterOrEqual $labelWidth
@@ -268,6 +288,125 @@ Describe 'Evergreen Workbench WPF shell' {
                             [System.Windows.Documents.TextElement]::GetFontSize($tab.Content) | Should -Be $tabs.FontSize
                             [System.Windows.Documents.TextElement]::GetFontWeight($tab.Content) | Should -Be $tabs.FontWeight
                         }
+                    }
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'exposes provider tab labels without decorative icon announcements' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                foreach ($pageName in 'PackagesPanel', 'IntunePanel', 'NerdioPanel') {
+                    foreach ($name in 'AppsPanel', 'PackagesPanel', 'IntunePanel', 'NerdioPanel') {
+                        $window.FindName($name).Visibility = 'Collapsed'
+                    }
+                    $page = $window.FindName($pageName)
+                    $page.Visibility = 'Visible'
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    foreach ($tab in $page.Children[0].Items) {
+                        $icon = $tab.Template.FindName('HeaderIcon', $tab)
+                        $tabPeer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($tab)
+                        $iconPeer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($icon)
+                        $tabPeer.GetName() | Should -Be $tab.Header
+                        $iconPeer.IsControlElement() | Should -BeFalse
+                        $iconPeer.IsContentElement() | Should -BeFalse
+                    }
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'keeps disabled provider tab icons in sync with their labels' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.FindName('AppsPanel').Visibility = 'Collapsed'
+                $window.FindName('PackagesPanel').Visibility = 'Visible'
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $tab = $window.FindName('PackagesTabControl').Items[1]
+                foreach ($mode in 'Light', 'Dark') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    $tab.IsEnabled = $false
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $icon = $tab.Template.FindName('HeaderIcon', $tab)
+                    $header = $tab.Template.FindName('HeaderContent', $tab)
+                    $headerForeground = [System.Windows.Documents.TextElement]::GetForeground($header)
+                    $icon.Foreground.Color | Should -Be $headerForeground.Color
+                    if (-not [System.Windows.SystemParameters]::HighContrast) {
+                        $icon.Foreground.Color | Should -Be $window.TryFindResource('TextFillColorDisabledBrush').Color
+                    }
+                    $tab.IsEnabled = $true
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'omits the provider icon when a tab has no glyph' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $tab = [System.Windows.Controls.TabItem]::new()
+                $tab.Header = 'Plain tab'
+                $tab.Style = $window.FindResource('ProviderTabItemStyle')
+                $null = $tab.ApplyTemplate()
+                $icon = $tab.Template.FindName('HeaderIcon', $tab)
+                $icon.Visibility.ToString() | Should -Be 'Collapsed'
+                $tab.Tag = ''
+                $icon.Visibility.ToString() | Should -Be 'Collapsed'
+                $tab.Tag = [string][char]0xE8A5
+                $icon.Visibility.ToString() | Should -Be 'Visible'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'uses the Windows 10 icon font fallback for provider tab glyphs' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.FindName('AppsPanel').Visibility = 'Collapsed'
+                $window.FindName('PackagesPanel').Visibility = 'Visible'
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $tab = $window.FindName('DefinitionsTab')
+                $icon = $tab.Template.FindName('HeaderIcon', $tab)
+                $icon.FontFamily.Source | Should -Be 'Segoe Fluent Icons, Segoe MDL2 Assets'
+
+                $installed = [System.Windows.Media.Fonts]::SystemFontFamilies |
+                    Where-Object { $_.Source -eq 'Segoe MDL2 Assets' }
+                if (-not $installed) {
+                    Set-ItResult -Skipped -Because 'Segoe MDL2 Assets is not installed on this system'
+                }
+                $typeface = [System.Windows.Media.Typeface]::new('Evergreen Workbench Missing Test Font, Segoe MDL2 Assets')
+                $fallback = $null
+                $typeface.TryGetGlyphTypeface([ref]$fallback) | Should -BeTrue
+                $fallback.Win32FamilyNames.Values | Should -Contain 'Segoe MDL2 Assets'
+                foreach ($pageName in 'PackagesPanel', 'IntunePanel', 'NerdioPanel') {
+                    foreach ($item in $window.FindName($pageName).Children[0].Items) {
+                        $fallback.CharacterToGlyphMap.ContainsKey([int][char]$item.Tag) | Should -BeTrue
                     }
                 }
             }
