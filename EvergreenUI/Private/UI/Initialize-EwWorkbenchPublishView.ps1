@@ -14,7 +14,6 @@ function Initialize-EwWorkbenchPublishView {
     $State.IntuneResults = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
     $State.IntunePublishResultsListView.ItemsSource = $State.IntuneResults
     $State.IntuneCancellation = $null
-    $State.DisconnectIntuneButton.IsEnabled = $false
     $State.CompareIntuneButton.IsEnabled = $false
     $State.IntuneComparisonListView.Add_SelectionChanged({
         $State.PublishSelectedIntuneButton.IsEnabled = $State.IntuneComparisonListView.SelectedItems.Count -gt 0 -and
@@ -28,6 +27,22 @@ function Initialize-EwWorkbenchPublishView {
     }.GetNewClosure())
 
     $State.ConnectIntuneButton.Add_Click({
+        if (-not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)) {
+            try {
+                & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
+                    State = $State
+                    Kind = 'IntuneDisconnect'
+                    Name = 'Disconnect from Intune'
+                    ScriptBlock = { Disconnect-EwIntune }
+                }
+            }
+            catch {
+                & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                    State = $State; Message = "Could not disconnect Intune: $($_.Exception.Message)"; Level = 'Error'
+                }
+            }
+            return
+        }
         try {
             & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
                 State = $State
@@ -43,22 +58,6 @@ function Initialize-EwWorkbenchPublishView {
         catch {
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State; Message = "Could not start Intune sign-in: $($_.Exception.Message)"; Level = 'Error'
-            }
-        }
-    }.GetNewClosure())
-
-    $State.DisconnectIntuneButton.Add_Click({
-        try {
-            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
-                State = $State
-                Kind = 'IntuneDisconnect'
-                Name = 'Disconnect from Intune'
-                ScriptBlock = { Disconnect-EwIntune }
-            }
-        }
-        catch {
-            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $State; Message = "Could not disconnect Intune: $($_.Exception.Message)"; Level = 'Error'
             }
         }
     }.GetNewClosure())

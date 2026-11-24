@@ -8,7 +8,7 @@ function Invoke-EwWorkbenchJobMonitor {
         [System.Collections.IDictionary]$State
     )
 
-    if ($State.InstallPromptActive -or $State.MaintenancePromptActive) {
+    if ($State.InstallPromptActive -or $State.MaintenancePromptActive -or $State.LibraryPromptActive) {
         return
     }
     Invoke-EwWorkbenchInfoJobMonitor -State $State
@@ -28,7 +28,7 @@ function Invoke-EwWorkbenchJobMonitor {
             $State.InstallActionStatusLabel.Text = 'Local detection refresh pending. Could not read the current operation; waiting for its status.'
             return
         }
-        if ($State.ActiveJobKind -in @('NerdioPublish', 'M365', 'EvergreenUpdate', 'CacheClear')) {
+        if ($State.ActiveJobKind -in @('NerdioPublish', 'M365', 'EvergreenUpdate', 'CacheClear', 'LibraryRemoval')) {
             return
         }
         if ($State.ActiveJobKind -in @('MaintenanceCatalog', 'MaintenanceArtifacts')) {
@@ -113,6 +113,9 @@ function Invoke-EwWorkbenchJobMonitor {
     if ($kind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')) {
         $nextMaintenanceAction = Invoke-EwWorkbenchMaintenanceJobResult -State $State -Kind $kind -Job $job
     }
+    elseif ($kind -eq 'LibraryRemoval') {
+        Invoke-EwWorkbenchLibraryJobResult -State $State -Job $job
+    }
     elseif ($null -ne $job.TerminatingError) {
         if ($kind -eq 'Apps') {
             $State.AppsLoading = $false
@@ -176,17 +179,12 @@ function Invoke-EwWorkbenchJobMonitor {
                 $State.DownloadQueueListView.Items.Refresh()
             }
             'Library' {
-                $State.LibraryListView.ItemsSource = [object[]]$output
+                Invoke-EwWorkbenchLibraryInventory -State $State -Item $output -Path $State.LibraryJobPath -SelectedName $State.LibrarySelectedName
                 Write-EwWorkbenchLog -State $State -Message "Loaded $($output.Count) library entries."
             }
             'LibraryUpdate' {
-                $result = $output | Select-Object -Last 1
-                if ($null -ne $result) {
-                    $State.LibraryListView.ItemsSource = [object[]]@($result.Items)
-                    $State.LibraryDetailsText.Text = 'Select an application to view its library versions'
-                    $State.LibraryVersionsListView.ItemsSource = @()
-                    Write-EwWorkbenchLog -State $State -Message "Updated the library and loaded $(@($result.Items).Count) entries."
-                }
+                Invoke-EwWorkbenchLibraryInventory -State $State -Item $output -Path $State.LibraryJobPath -SelectedName $State.LibrarySelectedName
+                Write-EwWorkbenchLog -State $State -Message "Updated the library and loaded $($output.Count) entries."
             }
             'PackageDefinitions' {
                 $result = $output | Select-Object -Last 1
@@ -300,7 +298,7 @@ function Invoke-EwWorkbenchJobMonitor {
                 $result = $output | Select-Object -Last 1
                 if ($null -ne $result -and $result.Succeeded) {
                     $State.IntuneTenantId = [string]$result.TenantId
-                    $State.IntuneConnectionStatusLabel.Text = "Connected: $($result.AccountId) / $($result.TenantId)"
+                    $State.IntuneConnectionStatusLabel.Text = [string]$result.AccountId
                     Write-EwWorkbenchLog -State $State -Message "Connected to Intune tenant $($result.TenantId)."
                 }
                 else {

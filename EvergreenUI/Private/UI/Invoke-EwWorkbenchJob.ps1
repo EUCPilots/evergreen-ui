@@ -18,6 +18,7 @@ function Invoke-EwWorkbenchJob {
             'Downloads',
             'Library',
             'LibraryUpdate',
+            'LibraryRemoval',
             'PackageDefinitions',
             'DefinitionUpdate',
             'InstallDefinitions',

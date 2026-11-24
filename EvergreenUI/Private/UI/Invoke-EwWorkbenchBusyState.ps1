@@ -37,7 +37,6 @@ function Invoke-EwWorkbenchBusyState {
             $State.ResolveInstallVersionsButton,
             $State.InstallSelectedPackagesButton,
             $State.ConnectIntuneButton,
-            $State.DisconnectIntuneButton,
             $State.CompareIntuneButton,
             $State.PublishSelectedIntuneButton,
             $State.RetryIntuneSupersedenceButton
@@ -47,6 +46,10 @@ function Invoke-EwWorkbenchBusyState {
         }
     }
     $State.AppsListView.IsEnabled = -not $IsBusy
+    $State.LibraryListView.IsEnabled = -not $IsBusy
+    $State.LibraryVersionsListView.IsEnabled = -not $IsBusy
+    $State.LibraryPathBox.IsEnabled = -not $IsBusy
+    Invoke-EwWorkbenchLibraryActionState -State $State
     $maintenanceBusy = $IsBusy -and $State.ActiveJobKind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')
     $State.AppSearchBox.IsEnabled = -not $maintenanceBusy
     $State.ArtifactFiltersPanel.IsEnabled = -not $maintenanceBusy
@@ -56,6 +59,8 @@ function Invoke-EwWorkbenchBusyState {
     $State.IntuneComparisonListView.IsEnabled = -not $IsBusy
     $State.IntuneTenantIdBox.IsEnabled = -not $IsBusy
     $State.UseIntuneDeviceCodeToggle.IsEnabled = -not $IsBusy
+    $connected = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)
+    $State.ConnectIntuneButton.Content = if ($connected) { 'Disconnect' } else { 'Connect' }
     $State.CancelIntuneBatchButton.IsEnabled = $IsBusy -and $State.ActiveJobKind -eq 'IntunePublish'
     $State.JobProgressBar.Visibility = if ($IsBusy) {
         [System.Windows.Visibility]::Visible
@@ -73,8 +78,6 @@ function Invoke-EwWorkbenchBusyState {
         $selectedInstallDefinitions = @($State.InstallDefinitionsListView.SelectedItems |
             Where-Object DefinitionValid -eq 'Yes')
         $State.InstallSelectedPackagesButton.IsEnabled = $selectedInstallDefinitions.Count -gt 0 -and -not $State.InstallDefinitionsStale
-        $connected = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)
-        $State.DisconnectIntuneButton.IsEnabled = $connected
         $State.CompareIntuneButton.IsEnabled = $connected
         $State.PublishSelectedIntuneButton.IsEnabled = $connected -and $State.IntuneComparisonListView.SelectedItems.Count -gt 0
         $selectedResult = $State.IntunePublishResultsListView.SelectedItem

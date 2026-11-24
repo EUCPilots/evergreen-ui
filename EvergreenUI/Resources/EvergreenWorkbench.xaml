@@ -682,6 +682,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <!-- <StackPanel Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock Text="Evergreen library"
@@ -737,33 +738,73 @@
                               CanUserAddRows="False"
                               EnableRowVirtualization="True"
                               AutomationProperties.Name="Evergreen library inventory">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Open folder" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Versions" Binding="{Binding VersionCount}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Location" Binding="{Binding Path}" Width="3*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                         </DataGrid.Columns>
                     </DataGrid>
-                    <TextBlock x:Name="LibraryDetailsText"
-                               Grid.Row="3"
-                               Text="Select an application to view its library versions"
-                               FontWeight="SemiBold"
-                               Margin="0,12,0,6" />
+                    <Grid Grid.Row="3" Margin="0,12,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="LibraryDetailsText"
+                                   Text="Select an application to view its library versions"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Button x:Name="RemoveLibraryAppButton"
+                                Grid.Column="1"
+                                Content="Remove application"
+                                HorizontalAlignment="Right"
+                                IsEnabled="False"
+                                Padding="14,4"
+                                ToolTip="Remove the selected application and its recorded installers from this library." />
+                    </Grid>
                     <DataGrid x:Name="LibraryVersionsListView"
                               Grid.Row="4"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
-                              SelectionMode="Single"
+                              SelectionMode="Extended"
+                              SelectionUnit="FullRow"
                               HeadersVisibility="Column"
                               CanUserAddRows="False"
                               EnableRowVirtualization="True"
                               AutomationProperties.Name="Selected application library versions">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Open folder" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource WorkbenchGridTextStyle}">
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                        <Setter Property="ToolTip" Value="{Binding Location}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                         </DataGrid.Columns>
                     </DataGrid>
+                    <Button x:Name="RemoveLibraryVersionsButton"
+                            Grid.Row="5"
+                            Content="Remove versions"
+                            HorizontalAlignment="Right"
+                            Margin="0,10,0,0"
+                            Padding="14,4"
+                            IsEnabled="False"
+                            ToolTip="Remove only the selected artifact rows. Use Ctrl or Shift to select multiple rows." />
                 </Grid>
 
                 <Grid x:Name="PackagesPanel" Visibility="Collapsed">
@@ -958,28 +999,43 @@
                             <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="2*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <WrapPanel Grid.Row="0" Margin="0,0,0,8">
-                        <Label Content="Tenant ID (optional)" Target="{Binding ElementName=IntuneTenantIdBox}"
-                               VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
-                        <TextBox x:Name="IntuneTenantIdBox" Width="220" Height="32"
-                                 VerticalContentAlignment="Center" AutomationProperties.Name="Intune tenant ID" />
-                        <CheckBox x:Name="UseIntuneDeviceCodeToggle" Content="Device code"
-                                  VerticalAlignment="Center" Margin="12,0,0,0" />
-                        <Button x:Name="ConnectIntuneButton" Content="Connect" Margin="12,0,0,0" Padding="12,4" />
-                        <Button x:Name="DisconnectIntuneButton" Content="Disconnect" Margin="8,0,0,0" Padding="12,4" />
-                    </WrapPanel>
-                    <DockPanel Grid.Row="1" Margin="0,0,0,8">
-                        <Button x:Name="CompareIntuneButton" DockPanel.Dock="Right" Content="Compare definitions"
-                                Padding="12,4" />
+                    <Grid x:Name="IntuneConnectionToolbar" Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <TextBlock x:Name="IntuneConnectionStatusLabel" Text="Not connected"
-                                   VerticalAlignment="Center" TextWrapping="Wrap" />
-                    </DockPanel>
-                    <DataGrid x:Name="IntuneComparisonListView" Grid.Row="2"
+                                   VerticalAlignment="Center" MaxWidth="220" Margin="0,0,12,0"
+                                   TextWrapping="Wrap" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                        <!-- Reverse flow keeps wrapped action rows right-aligned. -->
+                        <WrapPanel Grid.Column="1" HorizontalAlignment="Right" FlowDirection="RightToLeft"
+                                   KeyboardNavigation.TabNavigation="Local">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" FlowDirection="LeftToRight">
+                                <Border x:Name="IntuneCompareActionsSeparator" Width="1" Margin="12,4"
+                                        Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                <Button x:Name="CompareIntuneButton" Content="Compare definitions" Padding="12,4"
+                                        KeyboardNavigation.TabIndex="3" />
+                            </StackPanel>
+                            <Button x:Name="ConnectIntuneButton" Content="Connect" Margin="0,0,12,0"
+                                    Padding="12,4" VerticalAlignment="Center" FlowDirection="LeftToRight"
+                                    KeyboardNavigation.TabIndex="2" />
+                            <CheckBox x:Name="UseIntuneDeviceCodeToggle" Content="Device code"
+                                      VerticalAlignment="Center" Margin="0,0,12,0" FlowDirection="LeftToRight"
+                                      KeyboardNavigation.TabIndex="1" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" FlowDirection="LeftToRight">
+                                <Label Content="Tenant ID (optional)" Target="{Binding ElementName=IntuneTenantIdBox}"
+                                       VerticalAlignment="Center" Padding="0" Margin="0,0,12,0" />
+                                <TextBox x:Name="IntuneTenantIdBox" Width="220" Height="32"
+                                         VerticalContentAlignment="Center" AutomationProperties.Name="Intune tenant ID"
+                                         KeyboardNavigation.TabIndex="0" />
+                            </StackPanel>
+                        </WrapPanel>
+                    </Grid>
+                    <DataGrid x:Name="IntuneComparisonListView" Grid.Row="1"
                               AutoGenerateColumns="False" SelectionMode="Extended" SelectionUnit="FullRow"
                               HeadersVisibility="Column" CanUserAddRows="False" EnableRowVirtualization="True"
                               AutomationProperties.Name="Intune comparison">
@@ -1004,7 +1060,7 @@
                             </DataGridCheckBoxColumn>
                         </DataGrid.Columns>
                     </DataGrid>
-                    <DockPanel Grid.Row="3" Margin="0,8">
+                    <DockPanel Grid.Row="2" Margin="0,8">
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button x:Name="CancelIntuneBatchButton" Content="Cancel batch" Margin="0,0,8,0"
                                     Padding="12,4" IsEnabled="False" />
@@ -1014,7 +1070,7 @@
                         <TextBlock Text="Update app assigns to All Devices." VerticalAlignment="Center"
                                    TextWrapping="Wrap" />
                     </DockPanel>
-                    <Grid Grid.Row="4">
+                    <Grid Grid.Row="3">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />

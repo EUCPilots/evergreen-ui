@@ -1,7 +1,7 @@
 #Requires -Version 7.6
 @{
     # Module identity
-    ModuleVersion     = '2.0.0'
+    ModuleVersion     = '2.0.1'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -20,7 +20,7 @@
         'Get-EwSetting', 'Set-EwSetting', 'Reset-EwSetting',
         'Start-EwJob', 'Get-EwJob', 'Stop-EwJob', 'Remove-EwJob',
         'Get-EwApp', 'Get-EwFilterableProperty', 'Save-EwArtifact',
-        'Get-EwLibrary', 'Update-EwLibrary',
+        'Get-EwLibrary', 'Update-EwLibrary', 'Remove-EwLibraryApp',
         'Get-EwDefinition', 'Resolve-EwArtifact', 'Update-EwDefinition',
         'Test-EwDetection', 'Install-EwPackage', 'New-EwPackage',
         'Connect-EwIntune', 'Disconnect-EwIntune', 'Connect-EwNerdio', 'Disconnect-EwNerdio',
