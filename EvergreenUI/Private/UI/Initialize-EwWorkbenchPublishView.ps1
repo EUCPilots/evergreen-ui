@@ -149,11 +149,13 @@ function Initialize-EwWorkbenchPublishView {
         $item = $State.IntunePublishResultsListView.SelectedItem
         if ($null -eq $item -or $item.Status -ne 'Supersedence failed' -or
             $State.IntuneTenantId -ne $item.TenantId) { return }
-        $answer = [System.Windows.MessageBox]::Show($State.Window,
-            "Tenant: $($item.TenantId)`nNew app: $($item.IntuneAppId)`nPrevious app: $($item.PreviousAppId)`n`nRetry the supersedence link?",
-            'Confirm supersedence retry', [System.Windows.MessageBoxButton]::YesNo,
-            [System.Windows.MessageBoxImage]::Warning)
-        if ($answer -ne [System.Windows.MessageBoxResult]::Yes) { return }
+        $answer = & $State.ModuleInvoker -Name 'Confirm-EwWorkbenchAction' -Parameters @{
+            Window = $State.Window
+            Message = "Tenant: $($item.TenantId)`nNew app: $($item.IntuneAppId)`nPrevious app: $($item.PreviousAppId)`n`nRetry the supersedence link?"
+            Title = 'Confirm supersedence retry'
+            DefaultYes = $true
+        }
+        if (-not $answer) { return }
         try {
             & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
                 State = $State; Kind = 'IntuneRetry'; Name = 'Retry Intune supersedence'

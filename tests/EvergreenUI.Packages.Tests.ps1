@@ -300,6 +300,40 @@ Describe 'Evergreen package builds' {
         }
     }
 
+    It 'packages from the nested folder where Evergreen saved the installer' {
+        $workingPath = Join-Path -Path $packageRoot -ChildPath 'NestedOutput'
+        InModuleScope EvergreenUI -Parameters @{ DefinitionPath = $packageDefinition; WorkingPath = $workingPath } {
+            Mock Resolve-EwArtifact {
+                [PSCustomObject]@{
+                    Succeeded = $true
+                    Version = '10.0.15'
+                    ResolvedArtifact = [PSCustomObject]@{ Version = '10.0.15'; URI = 'https://example.test/setup.exe' }
+                    Error = ''
+                }
+            }
+            Mock Invoke-EwArtifactSave {
+                $folder = Join-Path -Path $Path -ChildPath 'LTS\10.0.15\x64'
+                New-Item -Path $folder -ItemType Directory -Force | Out-Null
+                $file = Join-Path -Path $folder -ChildPath 'setup.exe'
+                Set-Content -LiteralPath $file -Value 'setup'
+                Get-Item -LiteralPath $file
+            }
+            Mock Invoke-EwIntunePackageBuilder {
+                $package = Join-Path -Path $OutputFolder -ChildPath 'Example.intunewin'
+                Set-Content -LiteralPath $package -Value 'package'
+                $package
+            }
+            $result = New-EwPackage -DefinitionPath $DefinitionPath -WorkingPath $WorkingPath
+            $result.Succeeded | Should -BeTrue -Because $result.Error
+            $result.SourcePath | Should -BeLike '*\Example\Source\LTS\10.0.15\x64'
+            Test-Path -LiteralPath (Join-Path -Path $result.SourcePath -ChildPath 'Install.ps1') -PathType Leaf | Should -BeTrue
+            Test-Path -LiteralPath (Join-Path -Path $result.SourcePath -ChildPath 'App.json') -PathType Leaf | Should -BeTrue
+            Should -Invoke Invoke-EwIntunePackageBuilder -Exactly 1 -ParameterFilter {
+                $SetupFile -eq 'setup.exe' -and $SourceFolder -like '*\Example\Source\LTS\10.0.15\x64'
+            }
+        }
+    }
+
     It 'does not add the shared installer to PSADT packages' {
         $definitionSource = Join-Path -Path (Split-Path -Path $packageDefinition -Parent) -ChildPath 'Source'
         New-Item -Path $definitionSource -ItemType Directory -Force | Out-Null

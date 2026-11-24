@@ -9,7 +9,5 @@ function Confirm-EwWorkbenchM365Action {
         [Parameter(Mandatory)][string]$Title
     )
 
-    [System.Windows.MessageBox]::Show($Window, $Message, $Title,
-        [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Warning,
-        [System.Windows.MessageBoxResult]::No) -eq [System.Windows.MessageBoxResult]::Yes
+    return Confirm-EwWorkbenchAction -Window $Window -Message $Message -Title $Title -DefaultYes $false
 }

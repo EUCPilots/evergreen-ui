@@ -171,13 +171,34 @@ function New-EwPackage {
         }
         $null = New-Item -Path $sourcePath -ItemType Directory -Force -ErrorAction Stop
         $null = New-Item -Path $outputPath -ItemType Directory -Force -ErrorAction Stop
+        $downloads = @(Invoke-EwArtifactSave -Artifact $latest.ResolvedArtifact -Path $sourcePath -Force)
+        if ($downloads.Count -eq 0) {
+            throw 'Evergreen returned no downloaded installer.'
+        }
+        $downloadedFile = [string]$downloads[0].FullName
+        $setupFile = [System.IO.Path]::GetFileName($downloadedFile)
+        if ([string]::IsNullOrWhiteSpace($setupFile)) {
+            $setupFile = [string]$definition.PackageInformation.SetupFile
+        }
+        # Save-EvergreenApp nests installers under channel, version and architecture
+        # folders, so package from the folder that contains the downloaded installer.
+        $packageSource = $sourcePath
+        if (-not [string]::IsNullOrWhiteSpace($downloadedFile)) {
+            $downloadFolder = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($downloadedFile))
+            if (-not [string]::IsNullOrWhiteSpace($downloadFolder) -and
+                (Test-Path -LiteralPath $downloadFolder -PathType Container)) {
+                $packageSource = $downloadFolder
+            }
+        }
+        Write-Verbose -Message "EvergreenUI: Packaging $folderName from source folder $packageSource"
+
         $definitionSource = Join-Path -Path (Split-Path -Path $DefinitionPath -Parent) -ChildPath 'Source'
         if (Test-Path -LiteralPath $definitionSource -PathType Container) {
             Copy-Item -Path (Join-Path -Path $definitionSource -ChildPath '*') `
-                -Destination $sourcePath -Recurse -Force -ErrorAction Stop
+                -Destination $packageSource -Recurse -Force -ErrorAction Stop
         }
-        $psadtScript = Join-Path -Path $sourcePath -ChildPath 'Invoke-AppDeployToolkit.ps1'
-        $installScript = Join-Path -Path $sourcePath -ChildPath 'Install.ps1'
+        $psadtScript = Join-Path -Path $packageSource -ChildPath 'Invoke-AppDeployToolkit.ps1'
+        $installScript = Join-Path -Path $packageSource -ChildPath 'Install.ps1'
         if (-not (Test-Path -LiteralPath $psadtScript -PathType Leaf) -and
             -not (Test-Path -LiteralPath $installScript -PathType Leaf)) {
             $moduleRoot = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
@@ -187,19 +208,11 @@ function New-EwPackage {
             }
             Copy-Item -LiteralPath $sharedInstallScript -Destination $installScript -ErrorAction Stop
         }
-        $downloads = @(Invoke-EwArtifactSave -Artifact $latest.ResolvedArtifact -Path $sourcePath -Force)
-        if ($downloads.Count -eq 0) {
-            throw 'Evergreen returned no downloaded installer.'
-        }
-        $setupFile = [System.IO.Path]::GetFileName([string]$downloads[0].FullName)
-        if ([string]::IsNullOrWhiteSpace($setupFile)) {
-            $setupFile = [string]$definition.PackageInformation.SetupFile
-        }
         $definition.PackageInformation.Version = $latest.Version
         $definition.PackageInformation.SetupFile = $setupFile
-        Write-EwJsonFile -Path (Join-Path -Path $sourcePath -ChildPath 'App.json') -InputObject $definition
+        Write-EwJsonFile -Path (Join-Path -Path $packageSource -ChildPath 'App.json') -InputObject $definition
 
-        $packagePath = Invoke-EwIntunePackageBuilder -SourceFolder $sourcePath `
+        $packagePath = Invoke-EwIntunePackageBuilder -SourceFolder $packageSource `
             -SetupFile $setupFile -OutputFolder $outputPath
         if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) {
             throw "Expected Intune package was not created: $packagePath"
@@ -210,7 +223,7 @@ function New-EwPackage {
             PackagePath = $packagePath
             SetupFile = $setupFile
             Version = $latest.Version
-            SourcePath = $sourcePath
+            SourcePath = $packageSource
             OutputPath = $outputPath
             Error = ''
         }

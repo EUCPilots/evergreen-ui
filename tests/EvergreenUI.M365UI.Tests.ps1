@@ -12,6 +12,23 @@ AfterAll {
 }
 
 Describe 'Microsoft 365 provider views' {
+    It 'keeps the <Title> confirmation message and No default' -ForEach @(
+        @{ Title = 'Replace package' }
+        @{ Title = 'Confirm Microsoft 365 publishing' }
+        @{ Title = 'Review Intune outcome' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Title = $Title } {
+            $expectedTitle = $Title
+            $expectedMessage = "Tenant: example`nA package may be replaced."
+            Mock Confirm-EwWorkbenchAction { $false }
+            Confirm-EwWorkbenchM365Action -Window ([object]::new()) -Title $expectedTitle -Message $expectedMessage |
+                Should -BeFalse
+            Should -Invoke Confirm-EwWorkbenchAction -Exactly 1 -ParameterFilter {
+                $Title -eq $expectedTitle -and $Message -eq $expectedMessage -and -not $DefaultYes
+            }
+        }
+    }
+
     It 'uses native label colours in the <Provider> form starting in <InitialTheme> mode' -ForEach @(
         @{ Provider = 'Intune'; InitialTheme = 'Dark' }
         @{ Provider = 'Nerdio'; InitialTheme = 'Dark' }
@@ -186,22 +203,26 @@ Describe 'Microsoft 365 provider views' {
         }
     }
 
-    It 'does not start publishing when confirmation is declined' {
-        $xmlPath = Join-Path -Path $TestDrive -ChildPath 'confirm.xml'
+    It 'does not start <Provider> publishing when confirmation is declined' -ForEach @(
+        @{ Provider = 'Intune' }
+        @{ Provider = 'Nerdio' }
+    ) {
+        $xmlPath = Join-Path -Path $TestDrive -ChildPath "confirm-$Provider.xml"
         Set-Content -LiteralPath $xmlPath -Value '<Configuration ID="9fddd581-f505-4760-9bb3-2365db204b38"><Add Channel="Current" OfficeClientEdition="64"><Product ID="O365ProPlusRetail" /></Add></Configuration>'
-        InModuleScope EvergreenUI -Parameters @{ ConfigurationPath = $xmlPath; WorkingPath = $TestDrive } {
+        InModuleScope EvergreenUI -Parameters @{ ConfigurationPath = $xmlPath; WorkingPath = $TestDrive; Provider = $Provider } {
             $window = Get-EwWorkbenchWindow
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
                 $state.Settings.PackageOutputPath = $WorkingPath
-                $state.M365Views.Intune.PublishPlan = [PSCustomObject]@{
+                $view = $state.M365Views[$Provider]
+                $view.PublishPlan = [PSCustomObject]@{
                     BuildPlan = [PSCustomObject]@{ ConfigurationPath = $ConfigurationPath }
                 }
-                $state.IntuneM365PreviewText.Text = 'Confirmed preview'
+                $view.PreviewText.Text = 'Confirmed preview'
                 Mock Confirm-EwWorkbenchM365Action { $false }
                 Mock Start-EwJob {}
-                Invoke-EwWorkbenchM365Action -State $state -Provider Intune -Action Publish
-                $state.IntuneM365ResultText.Text | Should -BeNullOrEmpty
+                Invoke-EwWorkbenchM365Action -State $state -Provider $Provider -Action Publish
+                $view.ResultText.Text | Should -BeNullOrEmpty
                 Should -Invoke Confirm-EwWorkbenchM365Action -Exactly 1 -ParameterFilter {
                     $Title -eq 'Confirm Microsoft 365 publishing' -and $Message -match 'Confirmed preview'
                 }

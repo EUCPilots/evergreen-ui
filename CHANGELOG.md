@@ -2,10 +2,12 @@
 
 ## [2.0.1-preview]
 
+- Apply Fluent styling to Intune and shared Microsoft 365 confirmation dialogs.
 - Make Microsoft 365 form labels follow native light and dark themes in Intune and Nerdio.
 - Use the Evergreen bulb as the Workbench window icon.
 - Show local installer paths in the Library versions table.
 - Add an **Open folder** right-click action to the Library applications and versions tables.
+- Fix Intune package builds failing when Evergreen saves the installer in channel, version or architecture subfolders. Packages are now built from the installer's download folder.
 
 - Add confirmed Library removal for a selected application or selected artifact
   rows, independently of Evergreen's retention command. Preserve shared and

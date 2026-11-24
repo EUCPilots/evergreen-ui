@@ -21,7 +21,5 @@ function Confirm-EwWorkbenchIntuneBatch {
     }
     $message = "Tenant: $TenantId`n`n$($items -join "`n")`n`n" +
         'The selected Definition and Source\Install.json files may be updated on disk. Continue?'
-    [System.Windows.MessageBox]::Show($Window, $message, 'Confirm Intune publishing',
-        [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Warning) -eq
-        [System.Windows.MessageBoxResult]::Yes
+    return Confirm-EwWorkbenchAction -Window $Window -Message $message -Title 'Confirm Intune publishing' -DefaultYes $true
 }
