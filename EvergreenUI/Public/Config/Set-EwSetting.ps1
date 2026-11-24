@@ -17,7 +17,9 @@ function Set-EwSetting {
         must be True or False. ArtifactHiddenColumns is a comma-separated list
         of optional Apps grid columns to hide: Architecture, Channel, Release,
         Type, Language and Date. An empty value shows all columns; Version and
-        URI cannot be hidden.
+        URI cannot be hidden. Saving a non-empty LibraryPath also records it at
+        the top of LibraryPathHistory, which keeps the 10 most recent distinct
+        library paths.
     .PARAMETER Name
         The setting to change.
     .PARAMETER Value
@@ -108,6 +110,15 @@ function Set-EwSetting {
     $settings = Get-EwSetting
     if ($PSCmdlet.ShouldProcess((Get-EwSettingsPath), "Set $Name")) {
         $settings[$Name] = $storedValue
+        if ($Name -eq 'LibraryPath' -and -not [string]::IsNullOrWhiteSpace($Value)) {
+            $path = $Value.Trim()
+            $previous = @($settings['LibraryPathHistory'] | Where-Object {
+                    -not [string]::IsNullOrWhiteSpace([string]$_) -and
+                    -not [string]::Equals(([string]$_).Trim(), $path, [System.StringComparison]::OrdinalIgnoreCase)
+                })
+            $settings['LibraryPathHistory'] = @(@($path) + $previous | Select-Object -First 10)
+            Write-Verbose -Message "EvergreenUI: Recorded library path history ($(@($settings['LibraryPathHistory']).Count) entries)"
+        }
         Write-EwSetting -Settings $settings
     }
 }

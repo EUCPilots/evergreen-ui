@@ -24,7 +24,8 @@ function Set-EwWorkbenchFolderPath {
         }
     }
     else {
-        $State.LibraryPathBox.Text = $Path
+        $State.Settings.LibraryPathHistory = @((Get-EwSetting -ErrorAction Stop).LibraryPathHistory)
+        Update-EwWorkbenchLibraryPathHistory -State $State -Path $Path -Confirm:$false
     }
     Invoke-EwWorkbenchFolderCheck -State $State -Kind $Kind
     Write-EwWorkbenchLog -State $State -Message "$Kind folder saved."

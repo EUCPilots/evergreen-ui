@@ -24,6 +24,7 @@ function Get-EwSetting {
         Theme = 'System'
         OutputPath = Join-Path -Path ([Environment]::GetFolderPath('UserProfile')) -ChildPath 'Downloads'
         LibraryPath = ''
+        LibraryPathHistory = @()
         FavouriteApps = @()
         PackageOutputPath = ''
         IntuneDefinitionsPath = ''

@@ -9,7 +9,7 @@ function Initialize-EwWorkbenchView {
     )
 
     $State.AppSearchBox.Text = ''
-    $State.LibraryPathBox.Text = [string]$State.Settings.LibraryPath
+    Update-EwWorkbenchLibraryPathHistory -State $State -Path ([string]$State.Settings.LibraryPath) -Confirm:$false
     $State.IntuneDefinitionsPathBox.Text = [string]$State.Settings.IntuneDefinitionsPath
     $State.PackageOutputPathBox.Text = if ([string]::IsNullOrWhiteSpace([string]$State.Settings.PackageOutputPath)) {
         [string]$State.Settings.OutputPath
@@ -453,7 +453,12 @@ function Initialize-EwWorkbenchView {
     }.GetNewClosure())
     $State.SetLibraryPathButton.Add_Click({
         try {
-            & $State.ModuleInvoker -Name 'Set-EwSetting' -Parameters @{ Name = 'LibraryPath'; Value = [string]$State.LibraryPathBox.Text }
+            $libraryPath = [string]$State.LibraryPathBox.Text
+            & $State.ModuleInvoker -Name 'Set-EwSetting' -Parameters @{ Name = 'LibraryPath'; Value = $libraryPath }
+            $saved = & $State.ModuleInvoker -Name 'Get-EwSetting' -Parameters @{}
+            $State.Settings.LibraryPath = [string]$saved.LibraryPath
+            $State.Settings.LibraryPathHistory = @($saved.LibraryPathHistory)
+            & $State.ModuleInvoker -Name 'Update-EwWorkbenchLibraryPathHistory' -Parameters @{ State = $State; Path = $libraryPath; Confirm = $false }
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{ State = $State; Message = 'Library location saved.' }
         }
         catch {

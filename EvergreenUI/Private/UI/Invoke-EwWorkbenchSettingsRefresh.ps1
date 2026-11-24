@@ -9,11 +9,12 @@ function Invoke-EwWorkbenchSettingsRefresh {
         $settings = Get-EwSetting -ErrorAction Stop
         $State.Settings.OutputPath = [string]$settings.OutputPath
         $State.Settings.LibraryPath = [string]$settings.LibraryPath
+        $State.Settings.LibraryPathHistory = @($settings.LibraryPathHistory)
         $State.SettingsDownloadPathBox.Text = [string]$settings.OutputPath
         $State.SettingsLibraryPathBox.Text = [string]$settings.LibraryPath
         $State.DownloadDestinationText.Text = [string]$settings.OutputPath
         $State.DownloadDestinationText.ToolTip = [string]$settings.OutputPath
-        $State.LibraryPathBox.Text = [string]$settings.LibraryPath
+        Update-EwWorkbenchLibraryPathHistory -State $State -Path ([string]$settings.LibraryPath) -Confirm:$false
         foreach ($kind in 'Download', 'Library') {
             Invoke-EwWorkbenchFolderCheck -State $State -Kind $kind
         }
