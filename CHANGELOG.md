@@ -21,7 +21,12 @@
   signed-in UPN on the left.
 - Add icons to the Packages, Intune, and Nerdio tabs while retaining their text labels.
 - Remember the 10 most recently saved Library locations and offer them in a dropdown on the Library page. `Set-EwSetting -Name LibraryPath` records each non-empty path in the new `LibraryPathHistory` setting.
-- Move Nerdio Azure storage, API and Shell App definition setup to a Settings tab.
+- Move Nerdio Azure storage and API setup to a Settings tab.
+- Move the Nerdio Shell App definitions folder, Browse and Save setup controls above the Shell Apps table. The Settings tab has its own Save setup button.
+- Show Nerdio version pruning actions beside Review outcome instead of in an expander.
+- Apply Fluent light and dark styling to Nerdio publishing, outcome review and version pruning dialogs.
+- Fix Nerdio Review outcome failing to resolve its private recovery helper in a background job.
+- Fix Nerdio version pruning previews and deletions failing to resolve private destination and recovery helpers in background jobs.
 - Show each definition's application architecture in the Packages Definitions tab.
 - Fix definition updates rejecting `Application.Filter` values that pass literal `-ErrorAction` or `-WarningAction` arguments to `Get-EvergreenApp` or `Get-VcList`.
 - Left-align the Intune and Nerdio Microsoft 365 forms and the Settings and About pages.

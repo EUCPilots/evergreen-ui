@@ -253,15 +253,16 @@ changes. Supersedence can be retried during the current Workbench session.
 
 ### Nerdio Shell Apps
 
-Open the Nerdio view and select Settings for the collapsible Azure, API and
-Shell App definition setup. Connect Azure with the tenant and subscription
+Open the Nerdio view and select Settings for the collapsible Azure and API
+setup. Connect Azure with the tenant and subscription
 IDs, then select a resource group, storage account and blob container. Enter
 the Nerdio host, client ID, API scope and client secret, and connect the API.
-Under Shell App definitions, use Save setup to persist non-secret
+Use Save setup to persist non-secret
 configuration; the client secret is cleared from the form when connecting
 and is never saved.
 
-Save the Shell App definition folder, then select Shell Apps and choose Load
+On the Shell Apps tab, enter or browse to the Shell App definition folder
+above the table and choose Save setup, then choose Load
 and compare. Only valid Evergreen-backed definitions are publishable:
 unmatched definitions create Shell Apps, and unambiguous matches with newer
 versions add a version.
@@ -283,7 +284,7 @@ after confirming failure, or Cancel to leave it unresolved. A claimed publish
 success is not accepted until v2 refreshes the Shell App and verifies the
 published version is uniquely newest.
 
-After a successful publish, choose Preview version pruning to review saved
+After a successful publish, choose Preview published apps to review saved
 pruning offers. The preview selects no apps by default, keeps one version by
 default (including the newly published version), and lists the exact versions
 to keep or delete. You can change the retention count, select specific apps,
@@ -294,7 +295,7 @@ recovery record also blocks publishing to that Shell App until resolved.
 Postponed offers remain available across restarts and later batches.
 
 To prune without publishing, select one matched existing Shell App in the
-comparison list and choose Prune versions. Publishing eligibility is not
+comparison list and choose Prune selected app. Publishing eligibility is not
 required. The same preview defaults to keeping the newest version and lets
 you change retention before confirming exact deletions. Unmatched rows and
 multiple selections cannot start this action. All unresolved Nerdio outcomes
