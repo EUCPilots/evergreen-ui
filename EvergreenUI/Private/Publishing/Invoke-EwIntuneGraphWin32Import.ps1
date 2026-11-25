@@ -1,0 +1,1115 @@
+#Requires -Version 7.6
+<#
+.SYNOPSIS
+    Imports a Win32 app into Microsoft Intune via the Microsoft Graph API using
+    the existing Connect-MgGraph session.
+
+.DESCRIPTION
+    Takes a parsed App.json definition, a .intunewin package, and the resolved
+    version string, then performs the full Graph-based Win32 LobApp upload:
+
+      1. Reads encryption metadata from the .intunewin zip (detection.xml)
+      2. Creates the Win32 app metadata object via POST /mobileApps
+      3. Creates a content version
+      4. Creates a file entry and obtains the Azure Blob SAS upload URI
+      5. Uploads the encrypted inner package (IntunePackage.intunewin) to
+         Azure Blob Storage in 4 MB chunks
+      6. Commits the file with encryption metadata
+      7. Polls until the commit state is 'commitFileSuccess'
+      8. Patches the app to set committedContentVersion
+
+    All calls use Invoke-MgGraphRequest so the existing Connect-MgGraph session
+    is the only auth dependency; Connect-MSIntuneGraph is never called.
+
+.PARAMETER DefinitionObject
+    Parsed App.json object.
+
+.PARAMETER DefinitionPath
+    Full path to App.json (used to build the Notes Date field and for logging).
+
+.PARAMETER IntuneWinPath
+    Full path to the .intunewin file produced by New-IntuneWin32AppPackage.
+
+.PARAMETER SetupFilePath
+    Setup file name used when the .intunewin package was built. When provided,
+    this is used as win32LobApp.setupFilePath to avoid mismatches with
+    PackageInformation.SetupFile in App.json.
+
+.PARAMETER DownloadedVersion
+    Version string of the installer that was packaged (may differ from the
+    version recorded in App.json PackageInformation.Version).
+
+.PARAMETER PSPackageFactoryGuid
+    The PSPackageFactory GUID from App.json Information.PSPackageFactoryGuid.
+
+.PARAMETER ImportAsUpdate
+    When set, imports the app as an update companion: the display name is
+    prefixed with 'Update ', a CustomRequirementRule is auto-generated from
+    DetectionRule when App.json does not already define one, and the app is
+    always assigned to All Devices (required), ignoring App.json Assignments.
+
+.PARAMETER SyncHash
+    The shared UI synchronised hashtable used by Write-UILog.
+
+.OUTPUTS
+    PSCustomObject with:
+        Succeeded    : bool
+        IntuneAppId  : string  - the newly created Intune app ID
+        DisplayName  : string  - the display name used at import time
+        Error        : string  - populated on failure
+#>
+function Invoke-EwIntuneGraphWin32Import {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [PSCustomObject]$DefinitionObject,
+
+        [Parameter(Mandatory)]
+        [string]$IntuneWinPath,
+
+        [Parameter()]
+        [string]$SetupFilePath = '',
+
+        [Parameter(Mandatory)]
+        [string]$DownloadedVersion,
+
+        [Parameter(Mandatory)]
+        [string]$PSPackageFactoryGuid,
+
+        [Parameter()]
+        [string]$DefinitionPath = '',
+
+        [Parameter()]
+        [switch]$ImportAsUpdate,
+
+        [Parameter(Mandatory)]
+        [System.Collections.Hashtable]$SyncHash,
+
+        [Parameter()]
+        [psobject]$M365Plan,
+
+        [Parameter()]
+        [string]$M365PackageHash,
+
+        [Parameter()]
+        [string]$M365DefinitionHash,
+
+        [Parameter()]
+        [System.Threading.CancellationToken]$CancellationToken = [System.Threading.CancellationToken]::None
+    )
+
+    $appId = ''
+    $displayName = ''
+    $createStarted = $false
+    $fail = {
+        param([string]$Msg)
+        return [PSCustomObject]@{
+            Succeeded   = $false
+            IntuneAppId = $appId
+            DisplayName = $displayName
+            Error       = $Msg
+            Cancelled   = $CancellationToken.IsCancellationRequested
+            WriteStarted = $createStarted
+        }
+    }
+
+    # -- Validate prerequisites ------------------------------------------------
+    if (-not (Get-Command -Name 'Invoke-MgGraphRequest' -ErrorAction SilentlyContinue)) {
+        return (& $fail 'Invoke-MgGraphRequest is not available. Ensure Microsoft.Graph.Authentication is imported and Connect-MgGraph has been called.')
+    }
+
+    $mgContext = Get-MgContext -ErrorAction SilentlyContinue
+    if ($null -eq $mgContext) {
+        return (& $fail 'No active Microsoft Graph context. Call Connect-MgGraph first.')
+    }
+
+    if (-not (Test-Path -LiteralPath $IntuneWinPath -PathType Leaf)) {
+        return (& $fail "IntuneWin file not found: $IntuneWinPath")
+    }
+
+    # -- Parse encryption info from the .intunewin zip ------------------------
+    Write-UILog -Message 'Parsing .intunewin package metadata...' -Level Info -SyncHash $SyncHash
+
+    Add-Type -AssemblyName 'System.IO.Compression.FileSystem' -ErrorAction SilentlyContinue
+
+    $encKey             = ''
+    $encMacKey          = ''
+    $encIV              = ''
+    $encMac             = ''
+    $encFileDigest      = ''
+    $encFileDigestAlg   = 'SHA256'
+    $encProfileId       = 'ProfileVersion1'
+    $unencryptedSize    = [long]0
+    $encryptedSize      = [long]0
+    $encryptedFilePath  = ''
+
+    $zipEntry_package   = $null
+    $zipEntry_detection = $null
+
+    try {
+    try {
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($IntuneWinPath)
+        try {
+            foreach ($entry in $zip.Entries) {
+                if ($entry.Name -ieq 'detection.xml')       { $zipEntry_detection = $entry }
+                if ($entry.Name -ieq 'IntunePackage.intunewin') { $zipEntry_package = $entry }
+            }
+
+            if ($null -eq $zipEntry_detection) {
+                return (& $fail 'detection.xml not found inside the .intunewin archive.')
+            }
+            if ($null -eq $zipEntry_package) {
+                return (& $fail 'IntunePackage.intunewin not found inside the .intunewin archive.')
+            }
+
+            # Read detection.xml
+            $detReader = [System.IO.StreamReader]::new($zipEntry_detection.Open())
+            $detXml    = $detReader.ReadToEnd()
+            $detReader.Close()
+            [xml]$xmlDoc = $detXml
+            $appInfo = $xmlDoc.ApplicationInfo
+            $encInfo = $appInfo.EncryptionInfo
+
+            $unencryptedSize  = [long]$appInfo.UnencryptedContentSize
+            $encKey           = [string]$encInfo.EncryptionKey
+            $encMacKey        = [string]$encInfo.MacKey
+            $encIV            = [string]$encInfo.InitializationVector
+            $encMac           = [string]$encInfo.Mac
+            $encFileDigest    = [string]$encInfo.FileDigest
+            $encFileDigestAlg = [string]$encInfo.FileDigestAlgorithm
+            $encProfileId     = [string]$encInfo.ProfileIdentifier
+
+            # Extract the encrypted inner package to a temp file
+            $tempUploadFile  = Join-Path -Path $env:TEMP -ChildPath "IntuneUpload_$([System.Guid]::NewGuid().ToString('N')).intunewin"
+            $encryptedFilePath = $tempUploadFile
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($zipEntry_package, $tempUploadFile, $true)
+            $encryptedSize = ([System.IO.FileInfo]::new($encryptedFilePath)).Length
+        }
+        finally {
+            $zip.Dispose()
+        }
+    }
+    catch {
+        return (& $fail "Failed to parse .intunewin archive: $($_.Exception.Message)")
+    }
+
+    # -- Build Win32 app display name ------------------------------------------
+    $baseDisplayName = [string]$DefinitionObject.Information.DisplayName
+    if ([string]::IsNullOrWhiteSpace($baseDisplayName)) {
+        $baseDisplayName = [string]$DefinitionObject.Application.Name
+    }
+    if ($ImportAsUpdate) {
+        $baseDisplayName = "Update for $baseDisplayName"
+    }
+    # Replace version placeholder: strip existing version and append current
+    $displayName = "$baseDisplayName $DownloadedVersion" -replace '\s+\d[\d\.]+$', ''
+    $displayName = "$baseDisplayName $DownloadedVersion"
+
+    Write-UILog -Message "Creating Win32 app: '$displayName'..." -Level Info -SyncHash $SyncHash
+
+    $definitionFolder = if (-not [string]::IsNullOrWhiteSpace($DefinitionPath)) {
+        Split-Path -Path $DefinitionPath -Parent
+    }
+    else {
+        $null
+    }
+
+    $requirementRules = @()
+
+    $convertToJsonDate = {
+        param([datetime]$DateTimeValue, [bool]$UseLocalTime)
+
+        if ($UseLocalTime) {
+            return $DateTimeValue.ToString('o')
+        }
+
+        return $DateTimeValue.ToUniversalTime().ToString('o')
+    }
+
+    $resolveRelativePath = {
+        param([string]$PathValue)
+
+        if ([string]::IsNullOrWhiteSpace($PathValue)) {
+            return ''
+        }
+
+        if (Test-Path -LiteralPath $PathValue -PathType Leaf) {
+            return $PathValue
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($definitionFolder)) {
+            $candidatePath = Join-Path -Path $definitionFolder -ChildPath $PathValue
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                return $candidatePath
+            }
+
+            $sourceFolder = Join-Path -Path $definitionFolder -ChildPath 'Source'
+            $sourceCandidatePath = Join-Path -Path $sourceFolder -ChildPath $PathValue
+            if (Test-Path -LiteralPath $sourceCandidatePath -PathType Leaf) {
+                return $sourceCandidatePath
+            }
+        }
+
+        return $PathValue
+    }
+
+    # -- Auto-generate an update CustomRequirementRule from DetectionRule when needed --
+    $negateOperator = {
+        param([string]$Operator)
+        switch ($Operator) {
+            'greaterThanOrEqual' { 'lessThan' }
+            'greaterThan'        { 'lessThanOrEqual' }
+            'lessThanOrEqual'    { 'greaterThan' }
+            'lessThan'           { 'greaterThanOrEqual' }
+            'equal'              { 'notEqual' }
+            'notEqual'           { 'equal' }
+            default              { $null }
+        }
+    }
+
+    $buildAutoCustomRequirementRule = {
+        param([object[]]$SourceDetectionRules)
+
+        $generated = [System.Collections.Generic.List[object]]::new()
+
+        foreach ($rule in @($SourceDetectionRules)) {
+            $ruleType = [string]$rule.Type
+            switch ($ruleType) {
+                'File' {
+                    if ($rule.PSObject.Properties.Name -notcontains 'Operator' -or [string]::IsNullOrWhiteSpace([string]$rule.Operator)) {
+                        Write-UILog -Message "Intune update: File DetectionRule for '$([string]$rule.FileOrFolder)' has no comparable Operator - cannot auto-generate an update requirement rule." -Level Warning -SyncHash $SyncHash
+                        continue
+                    }
+
+                    $negated = & $negateOperator ([string]$rule.Operator)
+                    if ($null -eq $negated) {
+                        Write-UILog -Message "Intune update: unsupported Operator '$($rule.Operator)' on File DetectionRule for '$([string]$rule.FileOrFolder)' - skipped." -Level Warning -SyncHash $SyncHash
+                        continue
+                    }
+
+                    $generated.Add([PSCustomObject]@{
+                            Type                 = 'File'
+                            DetectionMethod      = [string]$rule.DetectionMethod
+                            Path                 = [string]$rule.Path
+                            FileOrFolder         = [string]$rule.FileOrFolder
+                            Operator             = $negated
+                            VersionValue         = [string]$rule.VersionValue
+                            Check32BitOn64System = [string]$rule.Check32BitOn64System
+                        })
+                }
+                'Registry' {
+                    if ($rule.PSObject.Properties.Name -notcontains 'Operator' -or [string]::IsNullOrWhiteSpace([string]$rule.Operator)) {
+                        Write-UILog -Message "Intune update: Registry DetectionRule for '$([string]$rule.ValueName)' has no comparable Operator - cannot auto-generate an update requirement rule." -Level Warning -SyncHash $SyncHash
+                        continue
+                    }
+
+                    $negated = & $negateOperator ([string]$rule.Operator)
+                    if ($null -eq $negated) {
+                        Write-UILog -Message "Intune update: unsupported Operator '$($rule.Operator)' on Registry DetectionRule for '$([string]$rule.ValueName)' - skipped." -Level Warning -SyncHash $SyncHash
+                        continue
+                    }
+
+                    # DetectionRule Registry entries may store the comparison value as DetectionValue or Value.
+                    $sourceValue = if ($rule.PSObject.Properties.Name -contains 'DetectionValue') { [string]$rule.DetectionValue } else { [string]$rule.Value }
+                    $requirementMethod = switch -Regex ([string]$rule.DetectionMethod) {
+                        'Version' { 'VersionComparison'; break }
+                        'String'  { 'StringComparison'; break }
+                        'Integer' { 'IntegerComparison'; break }
+                        default   { 'VersionComparison' }
+                    }
+
+                    $generated.Add([PSCustomObject]@{
+                            Type                 = 'Registry'
+                            DetectionMethod      = $requirementMethod
+                            KeyPath              = [string]$rule.KeyPath
+                            ValueName            = [string]$rule.ValueName
+                            Operator             = $negated
+                            Value                = $sourceValue
+                            Check32BitOn64System = [string]$rule.Check32BitOn64System
+                        })
+                }
+                'MSI' {
+                    Write-UILog -Message 'Intune update: MSI DetectionRule cannot be auto-converted to an update requirement rule - skipped.' -Level Warning -SyncHash $SyncHash
+                }
+                default {
+                    Write-UILog -Message "Intune update: DetectionRule type '$ruleType' cannot be auto-converted to an update requirement rule - skipped." -Level Warning -SyncHash $SyncHash
+                }
+            }
+        }
+
+        return $generated.ToArray()
+    }
+
+    $hasExplicitCustomRequirementRule = ($null -ne $DefinitionObject.CustomRequirementRule) -and (@($DefinitionObject.CustomRequirementRule).Count -gt 0)
+    $effectiveCustomRequirementRule = if ($hasExplicitCustomRequirementRule) {
+        $DefinitionObject.CustomRequirementRule
+    }
+    elseif ($ImportAsUpdate) {
+        Write-UILog -Message 'Intune update: no CustomRequirementRule defined in App.json - auto-generating from DetectionRule.' -Level Info -SyncHash $SyncHash
+        & $buildAutoCustomRequirementRule -SourceDetectionRules $DefinitionObject.DetectionRule
+    }
+    else {
+        $null
+    }
+
+    if ($null -ne $effectiveCustomRequirementRule) {
+        foreach ($rule in $effectiveCustomRequirementRule) {
+            switch ([string]$rule.Type) {
+                'File' {
+                    $requirementType = switch ([string]$rule.DetectionMethod) {
+                        'Version'      { 'version' }
+                        'Existence'    { 'exists' }
+                        'Size'         { 'sizeOrDateModified' }
+                        'DateModified' { 'modifiedDate' }
+                        'DateCreated'  { 'createdDate' }
+                        default        { 'version' }
+                    }
+
+                    $requirementBody = [ordered]@{
+                        '@odata.type'          = '#microsoft.graph.win32LobAppFileSystemRequirement'
+                        'path'                 = [string]$rule.Path
+                        'fileOrFolderName'     = [string]$rule.FileOrFolder
+                        'check32BitOn64System' = ([string]$rule.Check32BitOn64System -ieq 'true')
+                        'detectionType'        = $requirementType
+                    }
+
+                    if ($requirementType -ne 'exists') {
+                        $requirementBody['operator'] = [string]$rule.Operator
+
+                        if ($rule.PSObject.Properties.Name -contains 'DateTimeValue') {
+                            $requirementBody['detectionValue'] = & $convertToJsonDate ([datetime]$rule.DateTimeValue) $false
+                        }
+                        elseif ($rule.PSObject.Properties.Name -contains 'VersionValue') {
+                            $requirementBody['detectionValue'] = [string]$rule.VersionValue
+                        }
+                        elseif ($rule.PSObject.Properties.Name -contains 'SizeInMBValue') {
+                            $requirementBody['detectionValue'] = [string]$rule.SizeInMBValue
+                        }
+                    }
+
+                    $requirementRules += $requirementBody
+                }
+                'Registry' {
+                    $requirementType = switch ([string]$rule.DetectionMethod) {
+                        'VersionComparison' { 'version' }
+                        'Existence'         { 'exists' }
+                        'StringComparison'  { 'string' }
+                        'IntegerComparison' { 'integer' }
+                        default             { 'string' }
+                    }
+
+                    $requirementBody = [ordered]@{
+                        '@odata.type'          = '#microsoft.graph.win32LobAppRegistryRequirement'
+                        'keyPath'              = [string]$rule.KeyPath
+                        'valueName'            = [string]$rule.ValueName
+                        'check32BitOn64System' = ([string]$rule.Check32BitOn64System -ieq 'true')
+                        'detectionType'        = $requirementType
+                    }
+
+                    if ($requirementType -ne 'exists') {
+                        $requirementBody['operator'] = [string]$rule.Operator
+                        $requirementBody['detectionValue'] = [string]$rule.Value
+                    }
+
+                    $requirementRules += $requirementBody
+                }
+                'Script' {
+                    $scriptFilePath = & $resolveRelativePath ([string]$rule.ScriptFile)
+                    if (-not (Test-Path -LiteralPath $scriptFilePath -PathType Leaf)) {
+                        return (& $fail "Custom requirement script not found: $scriptFilePath")
+                    }
+
+                    $scriptContent = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content -LiteralPath $scriptFilePath -Raw -Encoding UTF8)))
+                    $requirementType = switch ([string]$rule.DetectionMethod) {
+                        'StringOutput'   { 'string' }
+                        'IntegerOutput'  { 'integer' }
+                        'BooleanOutput'  { 'boolean' }
+                        'DateTimeOutput' { 'dateTime' }
+                        'FloatOutput'    { 'float' }
+                        'VersionOutput'  { 'version' }
+                        default          { 'string' }
+                    }
+
+                    $requirementBody = [ordered]@{
+                        '@odata.type'           = '#microsoft.graph.win32LobAppPowerShellScriptRequirement'
+                        'displayName'           = [System.IO.Path]::GetFileName($scriptFilePath)
+                        'enforceSignatureCheck' = ([string]$rule.EnforceSignatureCheck -ieq 'true')
+                        'runAs32Bit'            = ([string]$rule.RunAs32BitOn64System -ieq 'true')
+                        'runAsAccount'          = [string]$rule.ScriptContext
+                        'scriptContent'         = $scriptContent
+                        'detectionType'         = $requirementType
+                    }
+
+                    switch ($requirementType) {
+                        'string' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                        'integer' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                        'boolean' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                        'dateTime' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = & $convertToJsonDate ([datetime]$rule.Value) $false
+                        }
+                        'float' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                        'version' {
+                            $requirementBody['operator'] = [string]$rule.Operator
+                            $requirementBody['detectionValue'] = [string]$rule.Value
+                        }
+                    }
+
+                    $requirementRules += $requirementBody
+                }
+            }
+        }
+    }
+
+    # -- Build detection rules -------------------------------------------------
+    $detectionRules = @()
+    if ($null -ne $DefinitionObject.DetectionRule) {
+        foreach ($rule in $DefinitionObject.DetectionRule) {
+            $ruleType = [string]$rule.Type
+            switch ($ruleType) {
+                'File' {
+                    $detType = switch ([string]$rule.DetectionMethod) {
+                        'Version'   { 'version' }
+                        'Existence' { 'exists' }
+                        'Size'      { 'sizeOrDateModified' }
+                        'DateModified' { 'modifiedDate' }
+                        default     { 'version' }
+                    }
+                    $graphRule = [ordered]@{
+                        '@odata.type'       = '#microsoft.graph.win32LobAppFileSystemDetection'
+                        'path'              = [string]$rule.Path
+                        'fileOrFolderName'  = [string]$rule.FileOrFolder
+                        'check32BitOn64System' = ([string]$rule.Check32BitOn64System -ieq 'true')
+                        'detectionType'     = $detType
+                    }
+                    if ($detType -ne 'exists') {
+                        $graphRule['operator']       = [string]$rule.Operator
+                        $graphRule['detectionValue'] = [string]$rule.VersionValue
+                    }
+                    $detectionRules += $graphRule
+                }
+                'Registry' {
+                    $detType = switch ([string]$rule.DetectionMethod) {
+                        'Version'   { 'version' }
+                        'VersionComparison' { 'version' }
+                        'Existence' { 'exists' }
+                        'String'    { 'string' }
+                        'StringComparison' { 'string' }
+                        'Integer'   { 'integer' }
+                        'IntegerComparison' { 'integer' }
+                        'Boolean'   { 'boolean' }
+                        default     { 'string' }
+                    }
+                    $graphRule = [ordered]@{
+                        '@odata.type'         = '#microsoft.graph.win32LobAppRegistryDetection'
+                        'keyPath'             = [string]$rule.KeyPath
+                        'valueName'           = [string]$rule.ValueName
+                        'check32BitOn64System' = ([string]$rule.Check32BitOn64System -ieq 'true')
+                        'detectionType'       = $detType
+                    }
+                    if ($detType -ne 'exists') {
+                        $graphRule['operator']       = [string]$rule.Operator
+                        if ($rule.PSObject.Properties.Name -contains 'DetectionValue') {
+                            $graphRule['detectionValue'] = [string]$rule.DetectionValue
+                        }
+                        elseif ($rule.PSObject.Properties.Name -contains 'Value') {
+                            $graphRule['detectionValue'] = [string]$rule.Value
+                        }
+                        else {
+                            return (& $fail 'Registry detection rule is missing its comparison value.')
+                        }
+                    }
+                    $detectionRules += $graphRule
+                }
+                'MSI' {
+                    $detectionRules += [ordered]@{
+                        '@odata.type'             = '#microsoft.graph.win32LobAppProductCodeDetection'
+                        'productCode'             = [string]$rule.ProductCode
+                        'productVersionOperator'  = [string]$rule.ProductVersionOperator
+                        'productVersion'          = [string]$rule.ProductVersion
+                    }
+                }
+            }
+        }
+    }
+
+    # Fallback: create a minimal PowerShell script detection if none present
+    if ($detectionRules.Count -eq 0) {
+        Write-UILog -Message 'No detection rules defined in App.json; skipping detection rule upload.' -Level Warning -SyncHash $SyncHash
+    }
+
+    # -- Build minimum OS version object --------------------------------------
+    $minOsRaw = [string]$DefinitionObject.RequirementRule.MinimumRequiredOperatingSystem
+    $minOsKey = ($minOsRaw -replace '^W', 'v' -replace '^(v10|v11)_', '$1_').ToLowerInvariant()
+    # Map "W10_1809" -> "v10_1809"
+    $minOsKey = $minOsRaw -replace '^W10_', 'v10_' -replace '^W11_', 'v11_'
+
+    $minimumOsObject = [ordered]@{ '@odata.type' = '#microsoft.graph.windowsMinimumOperatingSystem' }
+    if (-not [string]::IsNullOrWhiteSpace($minOsKey)) {
+        $minimumOsObject[$minOsKey] = $true
+    }
+    else {
+        $minimumOsObject['v10_1809'] = $true  # safe default
+    }
+
+    # -- Build allowed architectures string -----------------------------------
+    # The Graph API allowedArchitectures field is a string enum, not an array.
+    # Parse RequirementRule.Architecture (single value or comma-separated list)
+    # and map to the nearest valid Graph enum value:
+    #   x64 only                -> 'x64'         (x64 machines only)
+    #   arm64 only              -> 'arm64'        (arm64 machines only)
+    #   x86 only                -> 'x86'          (x86 machines only)
+    #   x86,x64 or x86,x64,arm64 -> 'x86,x64,arm64' (union spans all machine types)
+    #   null / unspecified      -> 'x86,x64,arm64' (safe default)
+    $archRaw = [string]$DefinitionObject.RequirementRule.Architecture
+    $archList = @(
+        $archRaw -split ',' |
+        ForEach-Object { $_.Trim().ToLower() } |
+        Where-Object { $_ -ne '' }
+    )
+
+    $allowedArchitectures = if ($archList.Count -eq 1) {
+        switch ($archList[0]) {
+            'x64'   { 'x64' }
+            'x86'   { 'x86' }
+            'arm64' { 'arm64' }
+            default { 'x86,x64,arm64' }
+        }
+    }
+    else {
+        'x86,x64,arm64'
+    }
+    Write-UILog -Message "Allowed architectures resolved to '$allowedArchitectures' (RequirementRule.Architecture='$archRaw')." -Level Info -SyncHash $SyncHash
+
+    # -- Build install experience ----------------------------------------------
+    $runAs          = if ([string]$DefinitionObject.Program.InstallExperience -ieq 'user') { 'user' } else { 'system' }
+    $deviceRestart  = [string]$DefinitionObject.Program.DeviceRestartBehavior
+    if ([string]::IsNullOrWhiteSpace($deviceRestart)) { $deviceRestart = 'suppress' }
+
+    # -- Build Notes JSON (PSPackageFactory format) ----------------------------
+    $importDate = (Get-Date).ToUniversalTime().ToString('o')
+    $notesObject = [ordered]@{
+        CreatedBy   = 'PSPackageFactory'
+        Guid        = $PSPackageFactoryGuid
+        Date        = $importDate
+        IsUpdateApp = [bool]$ImportAsUpdate
+    }
+    $notesJson = $notesObject | ConvertTo-Json -Compress
+
+    # -- Build icon (best-effort, skip on failure) -----------------------------
+    $largeIcon = $null
+    $iconUrl   = [string]$DefinitionObject.PackageInformation.IconFile
+    if (-not [string]::IsNullOrWhiteSpace($iconUrl)) {
+        try {
+            $iconBytes    = (Invoke-WebRequest -Uri $iconUrl -UseBasicParsing -ErrorAction Stop).Content
+            $iconMimeType = if ($iconUrl -match '\.png') { 'image/png' } elseif ($iconUrl -match '\.jpg|\.jpeg') { 'image/jpeg' } else { 'image/png' }
+            $largeIcon    = [ordered]@{
+                '@odata.type' = '#microsoft.graph.mimeContent'
+                'type'        = $iconMimeType
+                'value'       = [Convert]::ToBase64String($iconBytes)
+            }
+        }
+        catch {
+            Write-UILog -Message "Icon download skipped (non-fatal): $($_.Exception.Message)" -Level Warning -SyncHash $SyncHash
+        }
+    }
+
+    # -- Build app body --------------------------------------------------------
+    $setupFilePath = ''
+    if (-not [string]::IsNullOrWhiteSpace($SetupFilePath)) {
+        $setupFilePath = [System.IO.Path]::GetFileName($SetupFilePath)
+    }
+    else {
+        $setupFilePath = [System.IO.Path]::GetFileName([string]$DefinitionObject.PackageInformation.SetupFile)
+    }
+
+    if ([string]::IsNullOrWhiteSpace($setupFilePath)) {
+        $setupFilePath = [System.IO.Path]::GetFileName($IntuneWinPath)
+    }
+
+    $appBodyJson = ''
+    $appBody = [ordered]@{
+        '@odata.type'                = '#microsoft.graph.win32LobApp'
+        'displayName'                = $displayName
+        'description'                = [string]$DefinitionObject.Information.Description
+        'publisher'                  = [string]$DefinitionObject.Information.Publisher
+        'informationUrl'             = [string]$DefinitionObject.Information.InformationURL
+        'privacyInformationUrl'      = [string]$DefinitionObject.Information.PrivacyURL
+        'isFeatured'                 = $false
+        'displayVersion'             = $DownloadedVersion
+        'fileName'                   = [System.IO.Path]::GetFileName($IntuneWinPath)
+        'installCommandLine'         = [string]$DefinitionObject.Program.InstallCommand
+        'uninstallCommandLine'       = [string]$DefinitionObject.Program.UninstallCommand
+        'installExperience'          = [ordered]@{
+            'runAsAccount'          = $runAs
+        }
+        'deviceRestartBehavior'      = $deviceRestart
+        'allowAvailableUninstall'    = [bool]$DefinitionObject.Program.AllowAvailableUninstall
+        'setupFilePath'              = $setupFilePath
+        'allowedArchitectures'        = $allowedArchitectures
+        'minimumSupportedOperatingSystem' = $minimumOsObject
+        'detectionRules'             = @($detectionRules)
+        'requirementRules'           = @($requirementRules)
+        'notes'                      = $notesJson
+    }
+
+    if ($null -ne $largeIcon) {
+        $appBody['largeIcon'] = $largeIcon
+    }
+
+    $appBodyJson = $appBody | ConvertTo-Json -Depth 20
+
+    # Log an equivalent Add-IntuneWin32App command line for troubleshooting parity.
+    $logDisplayName = ([string]$displayName).Replace('"', "''")
+    $logSetupFilePath = ([string]$setupFilePath).Replace('"', "''")
+    $logInstallCommand = ([string]$DefinitionObject.Program.InstallCommand).Replace('"', "''")
+    $logUninstallCommand = ([string]$DefinitionObject.Program.UninstallCommand).Replace('"', "''")
+    $logInfoUrl = ([string]$DefinitionObject.Information.InformationURL).Replace('"', "''")
+    $logPrivacyUrl = ([string]$DefinitionObject.Information.PrivacyURL).Replace('"', "''")
+
+    $addIntuneCmdLine = @(
+        'Add-IntuneWin32App'
+        ("-FilePath {0}" -f $IntuneWinPath)
+        ("-DisplayName {0}" -f $logDisplayName)
+        ("-Publisher {0}" -f ([string]$DefinitionObject.Information.Publisher).Replace('"', "''"))
+        ("-Description {0}" -f ([string]$DefinitionObject.Information.Description).Replace('"', "''"))
+        ("-AppVersion {0}" -f $DownloadedVersion)
+        ("-SetupFilePath {0}" -f $logSetupFilePath)
+        ("-InstallCommandLine {0}" -f $logInstallCommand)
+        ("-UninstallCommandLine {0}" -f $logUninstallCommand)
+        ("-InformationURL {0}" -f $logInfoUrl)
+        ("-PrivacyURL {0}" -f $logPrivacyUrl)
+    ) -join ' '
+
+    Write-UILog -Message $addIntuneCmdLine -Level Cmd -SyncHash $SyncHash
+
+    # -- Step 1: Create the app ------------------------------------------------
+    if ($null -ne $M365Plan) {
+        Assert-EwM365IntunePublishPlan -Plan $M365Plan
+        if ((Get-FileHash -LiteralPath $IntuneWinPath -Algorithm SHA256 -ErrorAction Stop).Hash -cne $M365PackageHash -or
+            (Get-FileHash -LiteralPath $DefinitionPath -Algorithm SHA256 -ErrorAction Stop).Hash -cne $M365DefinitionHash) {
+            throw 'The built Microsoft 365 package or staged definition changed before the Intune request.'
+        }
+    }
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before the Intune app request.') }
+    Write-UILog -Message "POST /beta/deviceAppManagement/mobileApps" -Level Cmd -SyncHash $SyncHash
+    $appResponse = $null
+    try {
+        $createStarted = $true
+        $appResponse = Invoke-MgGraphRequest -Method POST `
+            -Uri 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps' `
+            -Body $appBodyJson `
+            -ContentType 'application/json' `
+            -OutputType PSObject -ErrorAction Stop
+    }
+    catch {
+        $errorMessage = $_.Exception.Message
+        $errorDetails = ''
+
+        if ($null -ne $_.ErrorDetails -and -not [string]::IsNullOrWhiteSpace([string]$_.ErrorDetails.Message)) {
+            $errorDetails = [string]$_.ErrorDetails.Message
+        }
+
+        if ([string]::IsNullOrWhiteSpace($errorDetails)) {
+            try {
+                if ($null -ne $_.Exception.Response -and $null -ne $_.Exception.Response.Content) {
+                    $rawResponse = $_.Exception.Response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                    if (-not [string]::IsNullOrWhiteSpace($rawResponse)) {
+                        $errorDetails = $rawResponse
+                    }
+                }
+            }
+            catch {
+                # best-effort - secondary read/parse errors when building diagnostics must not mask the primary error
+                Write-Verbose -Message "EvergreenUI: Could not read Graph error response body (ignored): $($_.Exception.Message)"
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($errorDetails)) {
+            Write-UILog -Message ("Graph create-app response: {0}" -f $errorDetails) -Level Error -SyncHash $SyncHash
+        }
+
+        Write-UILog -Message ("Graph create-app request payload: {0}" -f $appBodyJson) -Level Cmd -SyncHash $SyncHash
+        return (& $fail "Failed to create Win32 app: $errorMessage. The request outcome may be unknown; check Intune before retrying.")
+    }
+
+    $appId = [string]$appResponse.id
+    if ([string]::IsNullOrWhiteSpace($appId)) {
+        return (& $fail 'App creation response did not contain an ID. Check Intune before retrying.')
+    }
+    Write-UILog -Message "Win32 app created: id=$appId" -Level Info -SyncHash $SyncHash
+
+    try {
+    $baseAppUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId/microsoft.graph.win32LobApp"
+
+    # -- Step 2: Create a content version -------------------------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before creating the Intune content version.') }
+    Write-UILog -Message "POST $baseAppUri/contentVersions" -Level Cmd -SyncHash $SyncHash
+    $contentVersionResponse = $null
+    try {
+        $contentVersionResponse = Invoke-MgGraphRequest -Method POST `
+            -Uri "$baseAppUri/contentVersions" `
+            -Body '{}' `
+            -ContentType 'application/json' `
+            -OutputType PSObject -ErrorAction Stop
+    }
+    catch {
+        return (& $fail ("Failed to create content version for app {0} - {1}" -f $appId, $_.Exception.Message))
+    }
+
+    $contentVersionId = [string]$contentVersionResponse.id
+    Write-UILog -Message "Content version created: id=$contentVersionId" -Level Info -SyncHash $SyncHash
+
+    # -- Step 3: Create the file entry -----------------------------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before creating the Intune file entry.') }
+    Write-UILog -Message "POST $baseAppUri/contentVersions/$contentVersionId/files" -Level Cmd -SyncHash $SyncHash
+    $fileBody = [ordered]@{
+        '@odata.type'  = '#microsoft.graph.mobileAppContentFile'
+        'name'         = 'IntunePackage.intunewin'
+        'size'         = $unencryptedSize
+        'sizeEncrypted' = $encryptedSize
+        'isDependency' = $false
+    }
+    $fileEntryResponse = $null
+    try {
+        $fileEntryResponse = Invoke-MgGraphRequest -Method POST `
+            -Uri "$baseAppUri/contentVersions/$contentVersionId/files" `
+            -Body ($fileBody | ConvertTo-Json) `
+            -ContentType 'application/json' `
+            -OutputType PSObject -ErrorAction Stop
+    }
+    catch {
+        return (& $fail "Failed to create file entry: $($_.Exception.Message)")
+    }
+
+    $fileId  = [string]$fileEntryResponse.id
+    $sasUri  = [string]$fileEntryResponse.azureStorageUri
+    Write-UILog -Message "File entry created: id=$fileId" -Level Info -SyncHash $SyncHash
+
+    # Poll for SAS URI to become available if not immediately returned
+    if ([string]::IsNullOrWhiteSpace($sasUri)) {
+        $fileUri = "$baseAppUri/contentVersions/$contentVersionId/files/$fileId"
+        $pollingAttempts = 0
+        $maxPollingAttempts = 20
+        while ([string]::IsNullOrWhiteSpace($sasUri) -and $pollingAttempts -lt $maxPollingAttempts) {
+            if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled while waiting for the Intune upload URI.') }
+            Start-Sleep -Seconds 3
+            if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled while waiting for the Intune upload URI.') }
+            $pollingAttempts++
+            try {
+                $fileStatus = Invoke-MgGraphRequest -Method GET -Uri $fileUri -OutputType PSObject -ErrorAction Stop
+                $sasUri = [string]$fileStatus.azureStorageUri
+            }
+            catch {
+                # best-effort - transient Graph errors during SAS URI polling should not abort the loop
+                $message = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+                Write-UILog -Message "SAS URI poll attempt $pollingAttempts/$maxPollingAttempts failed (retrying): $message" -Level Warning -SyncHash $SyncHash
+            }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($sasUri)) {
+            Write-UILog -Message "SAS URI obtained after $pollingAttempts attempt(s)." -Level Info -SyncHash $SyncHash
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($sasUri)) {
+        return (& $fail 'Azure Blob SAS URI was not returned after polling.')
+    }
+
+    # -- Step 4: Upload encrypted content to Azure Blob ------------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before the Intune content upload.') }
+    Write-UILog -Message "Uploading package to Azure Blob Storage ($('{0:N0}' -f ($encryptedSize / 1MB)) MB)..." -Level Info -SyncHash $SyncHash
+
+    try {
+        $innerFileInfo = [System.IO.FileInfo]::new($encryptedFilePath)
+        $actualSize    = $innerFileInfo.Length
+        if ($encryptedSize -le 0) {
+            $encryptedSize = $actualSize
+        }
+        $chunkSize     = 4 * 1024 * 1024  # 4 MB
+        $blockIds      = [System.Collections.Generic.List[string]]::new()
+        $blockNum      = 0
+        $fileStream    = [System.IO.File]::OpenRead($encryptedFilePath)
+        $buffer        = [byte[]]::new($chunkSize)
+
+        try {
+            while (($bytesRead = $fileStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                # Always upload an exact byte[] slice for this block.
+                # Using range slicing on a byte[] can produce object[] in PowerShell,
+                # which corrupts the payload and causes commitFileFailed.
+                $chunk = [byte[]]::new($bytesRead)
+                [System.Array]::Copy($buffer, 0, $chunk, 0, $bytesRead)
+
+                $blockId = [Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($blockNum.ToString('D8')))
+                $blockIds.Add($blockId)
+
+                $separator = if ($sasUri -match '\?') { '&' } else { '?' }
+                $blockUrl  = "$sasUri${separator}comp=block&blockid=$([Uri]::EscapeDataString($blockId))"
+
+                Invoke-RestMethod -Uri $blockUrl -Method Put `
+                    -Headers @{ 'x-ms-blob-type' = 'BlockBlob' } `
+                    -Body $chunk -ContentType 'application/octet-stream' -ErrorAction Stop | Out-Null
+
+                $blockNum++
+                if ($blockNum % 10 -eq 0) {
+                    $pct = [Math]::Round(($blockNum * $chunkSize / $actualSize) * 100, 0)
+                    Write-UILog -Message "Upload progress: ~$pct%" -Level Info -SyncHash $SyncHash
+                }
+            }
+        }
+        finally {
+            $fileStream.Close()
+        }
+
+        # Finalize: PUT block list
+        $blockListXml = '<?xml version="1.0" encoding="utf-8"?><BlockList>'
+        foreach ($id in $blockIds) { $blockListXml += "<Latest>$id</Latest>" }
+        $blockListXml += '</BlockList>'
+
+        $separator     = if ($sasUri -match '\?') { '&' } else { '?' }
+        $blockListUrl  = "$sasUri${separator}comp=blocklist"
+        Invoke-RestMethod -Uri $blockListUrl -Method Put -ContentType 'application/xml' `
+            -Body $blockListXml -ErrorAction Stop | Out-Null
+
+        Write-UILog -Message 'Upload to Azure Blob Storage complete.' -Level Info -SyncHash $SyncHash
+    }
+    catch {
+        return (& $fail "Azure Blob upload failed: $($_.Exception.Message)")
+    }
+    # -- Step 5: Commit the file ------------------------------------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled after upload and before committing Intune content.') }
+    Write-UILog -Message 'Committing file to Intune...' -Level Info -SyncHash $SyncHash
+    $commitBody = [ordered]@{
+        'fileEncryptionInfo' = [ordered]@{
+            '@odata.type'          = '#microsoft.graph.fileEncryptionInfo'
+            'encryptionKey'       = $encKey
+            'macKey'              = $encMacKey
+            'initializationVector' = $encIV
+            'mac'                 = $encMac
+            'profileIdentifier'   = $encProfileId
+            'fileDigest'          = $encFileDigest
+            'fileDigestAlgorithm' = $encFileDigestAlg
+        }
+    }
+
+    $fileUri = "$baseAppUri/contentVersions/$contentVersionId/files/$fileId"
+    try {
+        Invoke-MgGraphRequest -Method POST `
+            -Uri "$fileUri/commit" `
+            -Body ($commitBody | ConvertTo-Json) `
+            -ContentType 'application/json' -ErrorAction Stop | Out-Null
+    }
+    catch {
+        return (& $fail "File commit failed: $($_.Exception.Message)")
+    }
+
+    # Poll for commit success
+    $commitSuccess  = $false
+    $commitAttempts = 0
+    $maxCommitAttempts = 40
+    while (-not $commitSuccess -and $commitAttempts -lt $maxCommitAttempts) {
+        if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled while waiting for the Intune content commit.') }
+        Start-Sleep -Seconds 5
+        if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled while waiting for the Intune content commit.') }
+        $commitAttempts++
+        try {
+            $fileStatus   = Invoke-MgGraphRequest -Method GET -Uri $fileUri -OutputType PSObject -ErrorAction Stop
+            $uploadState  = [string]$fileStatus.uploadState
+            Write-UILog -Message "Commit state: $uploadState" -Level Info -SyncHash $SyncHash
+            if ($uploadState -ieq 'commitFileSuccess') {
+                $commitSuccess = $true
+            }
+            elseif ($uploadState -imatch 'failed|error') {
+                try {
+                    $failureDetails = ($fileStatus | ConvertTo-Json -Depth 12 -Compress) -replace 'https?://[^"\s]+', '[URL omitted]'
+                    Write-UILog -Message "Commit failure details: $failureDetails" -Level Error -SyncHash $SyncHash
+                }
+                catch {
+                    # best-effort - JSON serialisation of diagnostic details is non-fatal
+                    Write-UILog -Message 'Could not serialise commit failure details for logging.' -Level Warning -SyncHash $SyncHash
+                }
+                return (& $fail "File commit reached failed state: $uploadState")
+            }
+        }
+        catch {
+            $message = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+            Write-UILog -Message "Commit poll error (retrying): $message" -Level Warning -SyncHash $SyncHash
+        }
+    }
+
+    if (-not $commitSuccess) {
+        return (& $fail 'File commit did not reach commitFileSuccess state within the timeout period.')
+    }
+
+    # -- Step 6: Patch app with committed content version ---------------------
+    if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before finalizing Intune content.') }
+    Write-UILog -Message "Updating app '$appId' with committedContentVersion '$contentVersionId'..." -Level Info -SyncHash $SyncHash
+    $patchBody = [ordered]@{
+        '@odata.type'               = '#microsoft.graph.win32LobApp'
+        'committedContentVersion'   = $contentVersionId
+    }
+    try {
+        Invoke-MgGraphRequest -Method PATCH `
+            -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId" `
+            -Body ($patchBody | ConvertTo-Json) `
+            -ContentType 'application/json' -ErrorAction Stop | Out-Null
+    }
+    catch {
+        return (& $fail "Failed to set committedContentVersion on app '$appId': $($_.Exception.Message)")
+    }
+
+    # Update apps are always assigned to All Devices (required); App.json Assignments are ignored.
+    $effectiveAssignments = if ($ImportAsUpdate) {
+        @([PSCustomObject]@{ Type = 'AllDevices'; Intent = 'required'; Notification = 'showAll' })
+    }
+    else {
+        $DefinitionObject.Assignments
+    }
+
+    if ($null -ne $effectiveAssignments) {
+        foreach ($assignment in $effectiveAssignments) {
+            $assignmentType = [string]$assignment.Type
+            $intent = [string]$assignment.Intent
+            $notification = [string](Get-EwObjectPropertyValue -Object $assignment -Name Notification -Default '')
+            if ([string]::IsNullOrWhiteSpace($notification)) {
+                $notification = 'showAll'
+            }
+            $deliveryPriority = [string](Get-EwObjectPropertyValue -Object $assignment -Name DeliveryOptimizationPriority -Default '')
+            if ([string]::IsNullOrWhiteSpace($deliveryPriority)) { $deliveryPriority = 'notConfigured' }
+
+            $settingsBody = [ordered]@{
+                '@odata.type' = '#microsoft.graph.win32LobAppAssignmentSettings'
+                'notifications' = $notification
+                'deliveryOptimizationPriority' = $deliveryPriority
+                'restartSettings' = $null
+                'installTimeSettings' = $null
+            }
+
+            if ($intent -ieq 'available') {
+                $autoUpdate = [string](Get-EwObjectPropertyValue -Object $assignment -Name AutoUpdateSupersededApps -Default '')
+                if ([string]::IsNullOrWhiteSpace($autoUpdate)) { $autoUpdate = 'notConfigured' }
+                $settingsBody['autoUpdateSettings'] = @{
+                    'autoUpdateSupersededAppsState' = $autoUpdate
+                }
+            }
+
+            if ($assignment.PSObject.Properties.Name -contains 'AvailableTime' -or $assignment.PSObject.Properties.Name -contains 'DeadlineTime') {
+                $useLocalTime = ([string](Get-EwObjectPropertyValue -Object $assignment -Name UseLocalTime -Default '') -ieq 'true')
+                $installTimeSettings = [ordered]@{
+                    'useLocalTime' = $useLocalTime
+                    'startDateTime' = $null
+                    'deadlineDateTime' = $null
+                }
+
+                if ($assignment.PSObject.Properties.Name -contains 'AvailableTime' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.AvailableTime)) {
+                    $installTimeSettings['startDateTime'] = & $convertToJsonDate ([datetime]$assignment.AvailableTime) $useLocalTime
+                }
+                if ($assignment.PSObject.Properties.Name -contains 'DeadlineTime' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.DeadlineTime)) {
+                    $installTimeSettings['deadlineDateTime'] = & $convertToJsonDate ([datetime]$assignment.DeadlineTime) $useLocalTime
+                }
+
+                $settingsBody['installTimeSettings'] = $installTimeSettings
+            }
+
+            if ([string](Get-EwObjectPropertyValue -Object $assignment -Name EnableRestartGracePeriod -Default '') -ieq 'true') {
+                if ($deviceRestart -ieq 'basedOnReturnCode') {
+                    $settingsBody['restartSettings'] = @{
+                        'gracePeriodInMinutes' = if ($assignment.PSObject.Properties.Name -contains 'RestartGracePeriod' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.RestartGracePeriod)) { [int]$assignment.RestartGracePeriod } else { 1440 }
+                        'countdownDisplayBeforeRestartInMinutes' = if ($assignment.PSObject.Properties.Name -contains 'RestartCountDownDisplay' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.RestartCountDownDisplay)) { [int]$assignment.RestartCountDownDisplay } else { 15 }
+                        'restartNotificationSnoozeDurationInMinutes' = if ($assignment.PSObject.Properties.Name -contains 'RestartNotificationSnooze' -and -not [string]::IsNullOrWhiteSpace([string]$assignment.RestartNotificationSnooze)) { [int]$assignment.RestartNotificationSnooze } else { 240 }
+                    }
+                }
+                else {
+                    Write-UILog -Message "Restart settings were requested for assignment '$assignmentType', but the app is not configured for 'basedOnReturnCode'." -Level Warning -SyncHash $SyncHash
+                }
+            }
+
+            $targetBody = switch ($assignmentType) {
+                'AllDevices' {
+                    [ordered]@{
+                        '@odata.type' = '#microsoft.graph.allDevicesAssignmentTarget'
+                    }
+                }
+                'AllUsers' {
+                    [ordered]@{
+                        '@odata.type' = '#microsoft.graph.allLicensedUsersAssignmentTarget'
+                    }
+                }
+                'Group' {
+                    if ([string]::IsNullOrWhiteSpace([string]$assignment.GroupID)) {
+                        return (& $fail 'Group assignment is missing GroupID.')
+                    }
+
+                    [ordered]@{
+                        '@odata.type' = '#microsoft.graph.groupAssignmentTarget'
+                        'groupId' = [string]$assignment.GroupID
+                    }
+                }
+                default {
+                    return (& $fail "Unsupported assignment type: $assignmentType")
+                }
+            }
+
+            $assignmentBody = [ordered]@{
+                '@odata.type' = '#microsoft.graph.mobileAppAssignment'
+                'intent' = $intent
+                'source' = 'direct'
+                'target' = $targetBody
+                'settings' = $settingsBody
+            }
+
+            Write-UILog -Message "Creating assignment '$assignmentType' for app '$displayName'..." -Level Info -SyncHash $SyncHash
+            if ($CancellationToken.IsCancellationRequested) { return (& $fail 'Cancelled before the next Intune assignment.') }
+            try {
+                Invoke-MgGraphRequest -Method POST `
+                    -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId/assignments" `
+                    -Body ($assignmentBody | ConvertTo-Json -Depth 20) `
+                    -ContentType 'application/json' -ErrorAction Stop | Out-Null
+            }
+            catch {
+                return (& $fail "Failed to create assignment '$assignmentType' for app '$appId': $($_.Exception.Message)")
+            }
+        }
+    }
+
+    Write-UILog -Message "Import complete. App '$displayName' created with id: $appId" -Level Info -SyncHash $SyncHash
+
+    return [PSCustomObject]@{
+        Succeeded   = $true
+        IntuneAppId = $appId
+        DisplayName = $displayName
+        Error       = ''
+        Cancelled   = $false
+        WriteStarted = $true
+    }
+    }
+    catch {
+        return (& $fail "Intune app '$appId' was created, but publishing failed: $($_.Exception.Message)")
+    }
+    }
+    finally {
+        if (-not [string]::IsNullOrWhiteSpace($encryptedFilePath) -and
+            (Test-Path -LiteralPath $encryptedFilePath -PathType Leaf)) {
+            try {
+                Remove-Item -LiteralPath $encryptedFilePath -Force -ErrorAction Stop
+            }
+            catch {
+                Write-Verbose -Message "EvergreenUI: Could not remove temporary Intune upload file: $($_.Exception.Message)"
+            }
+        }
+    }
+}
+
+

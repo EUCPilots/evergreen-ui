@@ -1,34 +1,52 @@
-#Requires -Version 5.1
+#Requires -Version 7.6
 <#
 .SYNOPSIS
     EvergreenUI - WPF graphical frontend for the Evergreen PowerShell module.
 
 .DESCRIPTION
-    Root module file. Dot-sources all Private helper functions and then all
-    Public functions. Only functions listed in FunctionsToExport in the manifest
-    (Start-EvergreenWorkbench) are exposed to the caller.
+    Root module file. Loads private helpers before public functions.
 
 .NOTES
-    - Windows only. Requires WPF assemblies (PresentationFramework etc.).
-    - Supports PowerShell 5.1 (Desktop) and PowerShell 7+ (Core on Windows).
-    - Do not call Private functions directly; they are implementation details.
+    - Windows only. The headless commands do not load WPF.
 #>
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:ewNerdioSession = [hashtable]::Synchronized(@{ Context = $null; ApiOnly = $false })
+$script:ewOwnsNerdioSession = $true
 
-# Dot-source Private functions
-$privatePath = Join-Path -Path $PSScriptRoot -ChildPath 'Private'
+foreach ($directory in @('Private', 'Public')) {
+    $path = Join-Path -Path $PSScriptRoot -ChildPath $directory
+    if (Test-Path -LiteralPath $path -PathType Container) {
+        Get-ChildItem -LiteralPath $path -Filter '*.ps1' -File -Recurse |
+            Sort-Object -Property FullName |
+            ForEach-Object { . $_.FullName }
+    }
 
-# Themes first - other helpers may reference theme functions
-Get-ChildItem -Path (Join-Path -Path $privatePath -ChildPath 'themes') -Filter '*.ps1' |
-    ForEach-Object { . $_.FullName }
+    $script:ewJobs = @{}
+    $script:ewAppCatalogCache = @{
+        RetrievedAt = $null
+        Items = @()
+    }
+    $script:ewRunspacePool = $null
+    $script:ewModulePath = Join-Path -Path $PSScriptRoot -ChildPath 'EvergreenUI.psd1'
 
-# Remaining private helpers
-Get-ChildItem -Path $privatePath -Filter '*.ps1' |
-    ForEach-Object { . $_.FullName }
-
-# Dot-source Public functions
-$publicPath = Join-Path -Path $PSScriptRoot -ChildPath 'Public'
-Get-ChildItem -Path $publicPath -Filter '*.ps1' |
-    ForEach-Object { . $_.FullName }
+    $ExecutionContext.SessionState.Module.OnRemove = {
+        if ($script:ewOwnsNerdioSession) {
+            $script:ewNerdioSession.Context = $null
+        }
+        foreach ($job in $script:ewJobs.Values) {
+            try {
+                if (-not $job.Handle.IsCompleted) {
+                    $job.PowerShell.Stop()
+                }
+            }
+            finally {
+                $job.PowerShell.Dispose()
+            }
+        }
+        if ($null -ne $script:ewRunspacePool) {
+            $script:ewRunspacePool.Dispose()
+        }
+    }
+}

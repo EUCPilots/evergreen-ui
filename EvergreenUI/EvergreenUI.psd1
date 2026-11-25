@@ -1,7 +1,7 @@
-#Requires -Version 5.1
+#Requires -Version 7.6
 @{
     # Module identity
-    ModuleVersion     = '1.1.27'
+    ModuleVersion     = '2.0.1'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -9,14 +9,34 @@
     Description       = 'EvergreenUI and the Evergreen Workbench is WPF graphical frontend for the Evergreen PowerShell module. Provides a Windows-only GUI for Find-EvergreenApp, Get-EvergreenApp, Save-EvergreenApp, and Evergreen library management cmdlets. The Evergreen Workbench also supports packaging apps for Microsoft Intune and Nerdio Manager Shell Apps, and installing apps locally using Evergreen.'
 
     # Compatibility
-    PowerShellVersion = '5.1'
-    CompatiblePSEditions = @('Desktop', 'Core')
+    PowerShellVersion = '7.6'
+    CompatiblePSEditions = @('Core')
 
     # Root module
     RootModule        = 'EvergreenUI.psm1'
 
-    # Exports - only Start-EvergreenWorkbench is public
-    FunctionsToExport = @('Start-EvergreenWorkbench')
+    # Export only implemented commands
+    FunctionsToExport = @(
+        'Get-EwSetting', 'Set-EwSetting', 'Reset-EwSetting',
+        'Start-EwJob', 'Get-EwJob', 'Stop-EwJob', 'Remove-EwJob',
+        'Get-EwApp', 'Get-EwFilterableProperty', 'Save-EwArtifact',
+        'Get-EwLibrary', 'Update-EwLibrary', 'Remove-EwLibraryApp',
+        'Get-EwDefinition', 'Resolve-EwArtifact', 'Update-EwDefinition',
+        'Test-EwDetection', 'Install-EwPackage', 'New-EwPackage',
+        'Connect-EwIntune', 'Disconnect-EwIntune', 'Connect-EwNerdio', 'Disconnect-EwNerdio',
+        'Publish-EwIntuneApp', 'Publish-EwIntuneBatch', 'Publish-EwNerdioApp', 'Publish-EwNerdioBatch', 'Set-EwIntuneSupersedence',
+        'Add-EwFavouriteApp', 'Remove-EwFavouriteApp',
+        'Get-EwDependency', 'Update-EwEvergreen', 'Clear-EwCache',
+        'Get-EwM365Configuration', 'Get-EwM365BuildPlan', 'Get-EwM365NerdioPublishPlan', 'Publish-EwM365NerdioApp',
+        'Get-EwM365IntunePublishPlan', 'Publish-EwM365IntuneApp', 'Get-EwM365IntuneRecovery', 'Clear-EwM365IntuneRecovery',
+        'Get-EwIntuneApp', 'Compare-EwIntuneApp',
+        'Connect-EwAzure', 'Disconnect-EwAzure', 'Get-EwAzureResourceGroup',
+        'Get-EwAzureStorageAccount', 'Get-EwAzureStorageContainer',
+        'Get-EwNerdioDefinition', 'Get-EwNerdioShellApp', 'Get-EwNerdioShellAppVersion',
+        'Compare-EwNerdioShellApp', 'Get-EwNerdioPublishPlan', 'Get-EwNerdioShellAppVersionPrunePlan',
+        'Remove-EwNerdioShellAppVersion',
+        'Start-EvergreenWorkbench'
+    )
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
@@ -28,45 +48,7 @@
 
     # All files shipped with the module
     FileList = @(
-        'EvergreenUI.psd1'
-        'EvergreenUI.psm1'
-        'en-US\EvergreenUI-help.xml'
-        'Resources\EvergreenUI.xaml'
-        'Resources\NerdioShellApps.psm1'
-        'Resources\m365-app.json'
-        'Resources\evergreenbulb.png'
-        'Public\Start-EvergreenWorkbench.ps1'
-        'Private\Format-LogEntry.ps1'
-        'Private\Get-EvergreenAppList.ps1'
-        'Private\Get-FilterableProperties.ps1'
-        'Private\Get-InstallPackageDefinitions.ps1'
-        'Private\Get-InstallPackageLatestVersion.ps1'
-        'Private\Get-IntunePackageLatestVersion.ps1'
-        'Private\Get-M365AppConfigurations.ps1'
-        'Private\Get-SafeFolderName.ps1'
-        'Private\Get-UIConfig.ps1'
-        'Private\Invoke-AppDownload.ps1'
-        'Private\Invoke-AzureSignIn.ps1'
-        'Private\Invoke-FilterUpdate.ps1'
-        'Private\Invoke-IntuneDefinitionUpdate.ps1'
-        'Private\Invoke-IntuneGraphWin32Import.ps1'
-        'Private\Invoke-IntunePackageBuild.ps1'
-        'Private\Invoke-LibraryUpdate.ps1'
-        'Private\Invoke-LocalPackageInstall.ps1'
-        'Private\Invoke-M365AppPackageBuild.ps1'
-        'Private\Invoke-M365AppShellAppBuild.ps1'
-        'Private\Merge-ConfigSection.ps1'
-        'Private\New-FilterPanel.ps1'
-        'Private\New-WpfRunspace.ps1'
-        'Private\Set-DwmTitleBarColor.ps1'
-        'Private\Set-IntuneGraphWin32Supersedence.ps1'
-        'Private\Set-UIConfig.ps1'
-        'Private\Test-EvergreenModule.ps1'
-        'Private\Test-LocalPackageDetection.ps1'
-        'Private\Write-UILog.ps1'
-        'Private\Write-UpdateOutput.ps1'
-        'Private\themes\Set-DarkTheme.ps1'
-        'Private\themes\Set-LightTheme.ps1'
+
     )
 
     # Module metadata
@@ -75,8 +57,9 @@
             Tags         = @('Evergreen', 'GUI', 'MSI', 'MSIX', 'Windows', 'Intune', 'Nerdio', 'M365')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = 'Add a second import path that creates a companion "Update {Name}" Win32 app in Intune.'
-            Prerelease   = ''
+            ReleaseNotes = ''
+            Prerelease   = 'preview'
+            ExternalModuleDependencies = @('IntuneWin32App', 'Microsoft.Graph.Authentication', 'Az.Accounts', 'Az.Resources', 'Az.Storage')
         }
     }
 }

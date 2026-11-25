@@ -1,0 +1,1626 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        x:Name="MainWindow"
+        Title="Workbench"
+        Width="1200"
+        Height="820"
+        MinWidth="960"
+        MinHeight="660"
+        WindowStartupLocation="CenterScreen"
+        ThemeMode="System"
+        Background="{DynamicResource ApplicationBackgroundBrush}">
+    <Window.Resources>
+        <Style x:Key="WorkbenchGridTextStyle"
+               TargetType="{x:Type TextBlock}"
+               BasedOn="{x:Static DataGridTextColumn.DefaultElementStyle}">
+            <Setter Property="Margin" Value="8,4" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="PageTitleTextBlockStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontSize" Value="28" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="SectionHeadingTextBlockStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="FormLabelStyle" TargetType="{x:Type Label}"
+               BasedOn="{StaticResource {x:Type Label}}">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style x:Key="ProviderTabItemStyle" TargetType="{x:Type TabItem}">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="20,8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="ProviderTabHeader" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="HeaderBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4">
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center">
+                                    <TextBlock x:Name="HeaderIcon"
+                                               Text="{TemplateBinding Tag}"
+                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14"
+                                               Foreground="{Binding Path=(TextElement.Foreground), ElementName=HeaderContent}"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False" />
+                                    <ContentPresenter x:Name="HeaderContent"
+                                                      ContentSource="Header"
+                                                      RecognizesAccessKey="True"
+                                                      TextElement.Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                      TextElement.FontSize="14"
+                                                      TextElement.FontWeight="SemiBold"
+                                                      VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="SelectedIndicator"
+                                    Width="24"
+                                    Height="3"
+                                    CornerRadius="1.5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Bottom"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                    Visibility="Collapsed" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Tag" Value="{x:Null}">
+                                <Setter TargetName="HeaderIcon" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                            <Trigger Property="Tag" Value="">
+                                <Setter TargetName="HeaderIcon" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HeaderBorder" Property="Background"
+                                        Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="HeaderContent" Property="TextElement.Foreground"
+                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <Setter TargetName="SelectedIndicator" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="HeaderBorder" Property="BorderBrush"
+                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="HeaderContent" Property="TextElement.Foreground"
+                                        Value="{DynamicResource TextFillColorDisabledBrush}" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
+                                <Setter TargetName="HeaderContent" Property="TextElement.Foreground"
+                                        Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" />
+                                <Setter TargetName="SelectedIndicator" Property="Background"
+                                        Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True" />
+                                    <Condition Binding="{Binding IsKeyboardFocused, RelativeSource={RelativeSource Self}}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="HeaderBorder" Property="BorderBrush"
+                                        Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" />
+                            </MultiDataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ProviderTabControlStyle" TargetType="{x:Type TabControl}">
+            <Setter Property="ItemContainerStyle" Value="{StaticResource ProviderTabItemStyle}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabControl}">
+                        <Grid KeyboardNavigation.TabNavigation="Local">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TabPanel x:Name="HeaderPanel"
+                                      IsItemsHost="True"
+                                      HorizontalAlignment="Left"
+                                      KeyboardNavigation.TabIndex="1"
+                                      KeyboardNavigation.TabNavigation="Once"
+                                      KeyboardNavigation.DirectionalNavigation="Contained" />
+                            <ContentPresenter x:Name="PART_SelectedContentHost"
+                                              Grid.Row="1"
+                                              Margin="0,8,0,0"
+                                              ContentSource="SelectedContent"
+                                              KeyboardNavigation.TabIndex="2"
+                                              KeyboardNavigation.TabNavigation="Local"
+                                              KeyboardNavigation.DirectionalNavigation="Contained"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="NavigationButtonStyle" TargetType="{x:Type RadioButton}">
+            <Setter Property="GroupName" Value="MainNavigation" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type RadioButton}">
+                        <Border x:Name="NavigationBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="SelectedIndicator"
+                                        Grid.Column="0"
+                                        Margin="0,5,0,5"
+                                        Background="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"
+                                        CornerRadius="2"
+                                        Visibility="Collapsed" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{TemplateBinding Tag}"
+                                           FontFamily="Segoe Fluent Icons"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Opacity="0.8" />
+                                <ContentPresenter x:Name="NavigationLabel"
+                                                  Grid.Column="2"
+                                                  Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavigationBorder"
+                                        Property="Background"
+                                        Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="NavigationBorder"
+                                        Property="Background"
+                                        Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="NavigationBorder"
+                                        Property="Background"
+                                        Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                <Setter TargetName="SelectedIndicator" Property="Visibility" Value="Visible" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="NavigationBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
+                                         Value="True">
+                                <Setter TargetName="NavigationLabel" Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid x:Name="WorkbenchRoot" Grid.IsSharedSizeScope="True">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="NavigationColumn" Width="208" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border x:Name="NavigationPane"
+                Grid.Column="0"
+                Grid.RowSpan="2"
+                Padding="16"
+                BorderThickness="0,0,1,0"
+                BorderBrush="{DynamicResource SubtleFillColorSecondaryBrush}">
+            <DockPanel>
+                <StackPanel x:Name="NavigationBrand" DockPanel.Dock="Top" Margin="4,8,4,20">
+                    <TextBlock Text="Evergreen"
+                               FontSize="20"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="Workbench"
+                               FontSize="14"
+                               Opacity="0.75" />
+                </StackPanel>
+                <ScrollViewer x:Name="NavigationScrollViewer"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <RadioButton x:Name="NavApps"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Tag="&#xE71D;"
+                                     AutomationProperties.Name="Apps view"
+                                     IsChecked="True">
+                            <DockPanel LastChildFill="True">
+                                <Border DockPanel.Dock="Right"
+                                        x:Name="AppsQueueCountBadge"
+                                        Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                        CornerRadius="8"
+                                        Padding="6,1"
+                                        Margin="8,0,0,0"
+                                        Visibility="Collapsed">
+                                    <TextBlock x:Name="AppsQueueCountText"
+                                               Text="0"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"
+                                               AutomationProperties.Name="Pending downloads" />
+                                </Border>
+                                <TextBlock Text="Apps" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="NavLibrary"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Library"
+                                     Tag="&#xE8F1;"
+                                     AutomationProperties.Name="Library view" />
+                        <RadioButton x:Name="NavPackages"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Packages"
+                                     Tag="&#xE7B8;"
+                                     AutomationProperties.Name="Packages view" />
+                        <RadioButton x:Name="NavIntune"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Intune"
+                                     Tag="&#xE753;"
+                                     AutomationProperties.Name="Intune view" />
+                        <RadioButton x:Name="NavNerdio"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Nerdio"
+                                     Tag="&#xE968;"
+                                     AutomationProperties.Name="Nerdio view" />
+                        <Border Height="1" Margin="8,12" Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                        <RadioButton x:Name="NavSettings"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="Settings"
+                                     Tag="&#xE713;"
+                                     AutomationProperties.Name="Settings view" />
+                        <RadioButton x:Name="NavAbout"
+                                     Style="{StaticResource NavigationButtonStyle}"
+                                     Content="About"
+                                     Tag="&#xE946;"
+                                     AutomationProperties.Name="About view" />
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="1" Grid.Row="0" Margin="20,18,20,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <DockPanel Grid.Row="0" Margin="0,0,0,18">
+                <Border DockPanel.Dock="Right"
+                        Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                        CornerRadius="8"
+                        Padding="10,6"
+                        VerticalAlignment="Center"
+                        Margin="16,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Tag, ElementName=StatusLabel}"
+                                   FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock x:Name="StatusLabel"
+                                   Text="Ready"
+                                   Tag="Info"
+                                   MaxWidth="800"
+                                   TextWrapping="Wrap"
+                                   LineStackingStrategy="BlockLineHeight"
+                                   LineHeight="20"
+                                   MaxHeight="40"
+                                   TextTrimming="CharacterEllipsis"
+                                   ClipToBounds="True"
+                                   ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
+                                   AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </Border>
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock x:Name="ViewTitleText"
+                               Text="Apps"
+                               Style="{StaticResource PageTitleTextBlockStyle}" />
+                    <TextBlock x:Name="SubtitleTextBlock"
+                               Text="Discover and download Evergreen applications"
+                               Margin="0,3,0,0"
+                               Opacity="0.75" />
+                </StackPanel>
+            </DockPanel>
+
+            <Grid Grid.Row="1">
+                <Grid x:Name="AppsPanel" Visibility="Visible">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="AppSearchBox"
+                                 MinWidth="220"
+                                 Height="34"
+                                 VerticalContentAlignment="Center"
+                                 Margin="0,0,12,0"
+                                 ToolTip="Search the application catalog"
+                                 AutomationProperties.Name="Search applications" />
+                        <TextBlock x:Name="AppCountLabel"
+                                   Grid.Column="1"
+                                   Text="0 applications"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,12,0" />
+                        <Button x:Name="EvergreenMenuButton"
+                                Grid.Column="2"
+                                Content="Actions..."
+                                Padding="14,5"
+                                ToolTip="Refresh the catalog or manage Evergreen data and the Workbench cache" />
+                    </Grid>
+                    <Grid Grid.Row="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="AppsListColumn" Width="220" MinWidth="160" />
+                            <ColumnDefinition x:Name="AppsSplitterColumn" Width="8" />
+                            <ColumnDefinition x:Name="ArtifactsColumn" Width="*" MinWidth="300" />
+                        </Grid.ColumnDefinitions>
+                        <DataGrid x:Name="AppsListView"
+                                  Grid.Column="0"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  HeadersVisibility="None"
+                                  CanUserAddRows="False"
+                                  CanUserSortColumns="False"
+                                  EnableRowVirtualization="True"
+                                  AutomationProperties.Name="Application catalog">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Application"
+                                                    Binding="{Binding FriendlyName}"
+                                                    ElementStyle="{StaticResource WorkbenchGridTextStyle}"
+                                                    Width="*" />
+                                <DataGridTemplateColumn Header="Favourite" Width="72">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Tag="{Binding}"
+                                                    FontFamily="Segoe Fluent Icons"
+                                                    FontSize="16"
+                                                    HorizontalAlignment="Center"
+                                                    Padding="4,0"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    ToolTip="Toggle favourite"
+                                                    AutomationProperties.Name="Toggle favourite">
+                                                <Button.Style>
+                                                    <Style TargetType="{x:Type Button}"
+                                                           BasedOn="{StaticResource {x:Type Button}}">
+                                                        <Setter Property="Content" Value="&#xE734;" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsFavourite}" Value="True">
+                                                                <Setter Property="Content" Value="&#xE735;" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <GridSplitter x:Name="AppsListGridSplitter"
+                                      Grid.Column="1"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Stretch"
+                                      ResizeDirection="Columns"
+                                      ResizeBehavior="PreviousAndNext"
+                                      Background="Transparent"
+                                      ToolTip="Resize application list"
+                                      AutomationProperties.Name="Resize application list" />
+                        <Grid Grid.Column="2" Margin="4,0,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="SelectedAppText"
+                                       Grid.Row="0"
+                                       Text="Select an application to view available versions"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,10" />
+                            <Grid x:Name="ArtifactControlsGrid" Grid.Row="1" Margin="0,0,0,8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <!-- Match the filter controls' 120-pixel minimum width and 10-pixel margin. -->
+                                <WrapPanel x:Name="ArtifactFiltersPanel" MinWidth="130" />
+                                <WrapPanel x:Name="ArtifactActionsPanel"
+                                           Grid.Column="1"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Bottom"
+                                           Margin="0,0,0,6">
+                                    <Button x:Name="ExportArtifactsButton"
+                                            Content="Export to CSV"
+                                            Margin="0,0,8,0"
+                                            IsEnabled="{Binding HasItems, ElementName=ArtifactsGrid, FallbackValue=False}"
+                                            ToolTip="Export displayed artifacts and visible columns to CSV"
+                                            AutomationProperties.Name="Export artifacts to CSV" />
+                                    <Button x:Name="ShowArtifactColumnsButton"
+                                            Content="Columns"
+                                            ToolTip="Show or hide artifact columns. Version and URI are always visible."
+                                            AutomationProperties.Name="Show or hide artifact columns">
+                                        <Button.ContextMenu>
+                                            <ContextMenu Placement="Bottom" />
+                                        </Button.ContextMenu>
+                                    </Button>
+                                </WrapPanel>
+                            </Grid>
+                            <DataGrid x:Name="ArtifactsGrid"
+                                      Grid.Row="2"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Extended"
+                                      SelectionUnit="FullRow"
+                                      HeadersVisibility="Column"
+                                      CanUserAddRows="False"
+                                      EnableRowVirtualization="True"
+                                      AutomationProperties.Name="Available application artifacts">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Copy URI" />
+                                        <MenuItem Header="Open URI" />
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                            </DataGrid>
+                        </Grid>
+                        <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="ArtifactCountLabel"
+                                       Text="0 artifacts"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button x:Name="ClearCompletedQueueButton"
+                                        Content="Clear completed"
+                                        Padding="10,6"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="False"
+                                        AutomationProperties.HelpText="Remove downloaded and failed items from the queue" />
+                                <Border x:Name="QueueActionsSeparator"
+                                        Width="1"
+                                        Margin="10,4"
+                                        Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                <Button x:Name="ChangeDownloadPathButton"
+                                        Content="Change"
+                                        Padding="10,6"
+                                        VerticalAlignment="Center"
+                                        ToolTip="Change download folder"
+                                        AutomationProperties.Name="Change download folder" />
+                                <Button x:Name="DownloadTrayActionButton"
+                                        Content="Download"
+                                        Style="{DynamicResource AccentButtonStyle}"
+                                        Padding="14,6"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="False" />
+                                <Border x:Name="ArtifactActionsSeparator"
+                                        Width="1"
+                                        Margin="10,4"
+                                        Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                <Button x:Name="QueueDownloadButton"
+                                        Content="Add to queue"
+                                        Style="{DynamicResource AccentButtonStyle}"
+                                        Padding="14,6"
+                                        FontWeight="SemiBold"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="False" />
+                                <Button x:Name="DownloadNowButton"
+                                        Content="Download now"
+                                        Margin="8,0,0,0"
+                                        Padding="14,6"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="False" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                    <GridSplitter x:Name="DownloadTrayGridSplitter"
+                                  Grid.Row="2"
+                                  Height="6"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Center"
+                                  ResizeDirection="Rows"
+                                  ResizeBehavior="PreviousAndNext"
+                                  Background="Transparent"
+                                  Visibility="Collapsed"
+                                  ToolTip="Resize the download queue"
+                                  AutomationProperties.Name="Resize the download queue" />
+                    <Grid x:Name="DownloadTrayPanel"
+                          Grid.Row="3"
+                          Visibility="Collapsed"
+                          Margin="0,4,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="DownloadDestinationText"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="Saved download folder" />
+                            <ToggleButton x:Name="DownloadTrayToggleButton"
+                                          Grid.Column="1"
+                                          Content="Show queue"
+                                          Padding="8,5"
+                                          AutomationProperties.Name="Show or hide the download queue" />
+                        </Grid>
+                        <Grid x:Name="DownloadTrayContent"
+                              Grid.Row="1"
+                              Visibility="Collapsed">
+                    <DataGrid x:Name="DownloadQueueListView"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Extended"
+                              SelectionUnit="FullRow"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False"
+                              EnableRowVirtualization="True"
+                              AutomationProperties.Name="Download queue">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Application" Binding="{Binding AppName}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="3*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Saved file" Binding="{Binding SavedPath}" Width="3*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTemplateColumn Header="Actions" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="x"
+                                                    Tag="{Binding}"
+                                                    Padding="8,1"
+                                                    ToolTip="Remove this queued download"
+                                                    AutomationProperties.Name="Remove queued download" />
+                                            <Button Content="Open folder"
+                                                    Tag="{Binding}"
+                                                    Padding="8,1"
+                                                    Margin="4,0,0,0"
+                                                    ToolTip="Open the folder containing this download"
+                                                    AutomationProperties.Name="Open downloaded file folder">
+                                                <Button.Style>
+                                                    <Style TargetType="{x:Type Button}">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Downloaded">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                        </Grid>
+                    </Grid>
+                </Grid>
+
+                <Grid x:Name="LibraryPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <!-- <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock Text="Evergreen library"
+                                   Style="{StaticResource SectionHeadingTextBlockStyle}" />
+                        <TextBlock Text="Read or update an initialized local Evergreen library."
+                                   Margin="0,3,0,0"
+                                   Opacity="0.75" />
+                    </StackPanel> -->
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Label Grid.Column="0" Content="Library location"
+                               Target="{Binding ElementName=LibraryPathBox}"
+                               VerticalAlignment="Center" Padding="0" Margin="0,0,10,0" />
+                        <ComboBox x:Name="LibraryPathBox"
+                                  Grid.Column="1"
+                                  MinWidth="100"
+                                  Height="32"
+                                  IsEditable="True"
+                                  IsTextSearchEnabled="False"
+                                  VerticalContentAlignment="Center"
+                                  AutomationProperties.Name="Library location"
+                                  ToolTip="Folder containing EvergreenLibrary.json. Select a previously saved location from the list." />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <Button x:Name="BrowseLibraryPathButton"
+                                    Content="Browse"
+                                    Margin="0,0,8,0"
+                                    Padding="12,4" />
+                            <Button x:Name="SetLibraryPathButton"
+                                    Content="Save path"
+                                    Margin="0,0,8,0"
+                                    Padding="12,4" />
+                            <Button x:Name="LoadLibraryButton"
+                                    Content="Load"
+                                    Margin="0,0,8,0"
+                                    Padding="12,4" />
+                            <Button x:Name="UpdateLibraryButton"
+                                    Content="Update library"
+                                    Style="{DynamicResource AccentButtonStyle}"
+                                    Padding="14,4"
+                                    FontWeight="SemiBold" />
+                        </StackPanel>
+                    </Grid>
+                    <DataGrid x:Name="LibraryListView"
+                              Grid.Row="2"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False"
+                              EnableRowVirtualization="True"
+                              AutomationProperties.Name="Evergreen library inventory">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Open folder" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Versions" Binding="{Binding VersionCount}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Location" Binding="{Binding Path}" Width="3*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Grid Grid.Row="3" Margin="0,12,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="LibraryDetailsText"
+                                   Text="Select an application to view its library versions"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Button x:Name="RemoveLibraryAppButton"
+                                Grid.Column="1"
+                                Content="Remove application"
+                                HorizontalAlignment="Right"
+                                IsEnabled="False"
+                                Padding="14,4"
+                                ToolTip="Remove the selected application and its recorded installers from this library." />
+                    </Grid>
+                    <DataGrid x:Name="LibraryVersionsListView"
+                              Grid.Row="4"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Extended"
+                              SelectionUnit="FullRow"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False"
+                              EnableRowVirtualization="True"
+                              AutomationProperties.Name="Selected application library versions">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Open folder" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource WorkbenchGridTextStyle}">
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                        <Setter Property="ToolTip" Value="{Binding Location}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Button x:Name="RemoveLibraryVersionsButton"
+                            Grid.Row="5"
+                            Content="Remove versions"
+                            HorizontalAlignment="Right"
+                            Margin="0,10,0,0"
+                            Padding="14,4"
+                            IsEnabled="False"
+                            ToolTip="Remove only the selected artifact rows. Use Ctrl or Shift to select multiple rows." />
+                </Grid>
+
+                <Grid x:Name="PackagesPanel" Visibility="Collapsed">
+                    <TabControl x:Name="PackagesTabControl" SelectedIndex="0"
+                                Style="{StaticResource ProviderTabControlStyle}"
+                                AutomationProperties.Name="Package workflows">
+                        <TabItem x:Name="DefinitionsTab" Header="Definitions" Tag="&#xE8A5;">
+                    <Grid Margin="0,0,0,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Label Grid.Row="2" Content="Definitions folder" Target="{Binding ElementName=IntuneDefinitionsPathBox}"
+                               Padding="0" Margin="0,0,0,5" />
+                        <Grid Grid.Row="3" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="IntuneDefinitionsPathBox"
+                                     MinWidth="100"
+                                     Height="32"
+                                     VerticalContentAlignment="Center"
+                                     ToolTip="Folder containing Intune App.json definitions" />
+                            <Button x:Name="BrowseIntuneDefinitionsButton"
+                                    Grid.Column="1"
+                                    Content="Browse"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                            <Button x:Name="SaveIntuneDefinitionsPathButton"
+                                    Grid.Column="2"
+                                    Content="Save path"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                            <Button x:Name="LoadPackageDefinitionsButton"
+                                    Grid.Column="3"
+                                    Content="Load definitions"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                            <Button x:Name="UpdatePackageDefinitionsButton"
+                                    Grid.Column="4"
+                                    Content="Update definitions"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                        </Grid>
+                        <TextBlock x:Name="PackageDefinitionsCountLabel"
+                                   Grid.Row="4"
+                                   Text="0 definitions"
+                                   Margin="0,0,0,10"
+                                   VerticalAlignment="Center" />
+                        <DataGrid x:Name="PackageDefinitionsListView"
+                                  Grid.Row="5"
+                                  MinHeight="160"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  HeadersVisibility="Column"
+                                  CanUserAddRows="False"
+                                  EnableRowVirtualization="True"
+                                  AutomationProperties.Name="Intune package definitions">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Architecture" Binding="{Binding DefinitionObject.Application.Architecture}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Label Grid.Row="6" Content="Package output folder" Target="{Binding ElementName=PackageOutputPathBox}"
+                               Padding="0" Margin="0,18,0,5" />
+                        <Grid Grid.Row="7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="PackageOutputPathBox"
+                                     MinWidth="100"
+                                     Height="32"
+                                     VerticalContentAlignment="Center"
+                                     ToolTip="Default output folder for future Intune package builds" />
+                            <Button x:Name="BrowsePackageOutputPathButton"
+                                    Grid.Column="1"
+                                    Content="Browse"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                            <Button x:Name="SavePackageOutputPathButton"
+                                    Grid.Column="2"
+                                    Content="Save path"
+                                    Margin="8,0,0,0"
+                                    Padding="12,4" />
+                        </Grid>
+                    </Grid>
+                        </TabItem>
+                        <TabItem x:Name="InstallTab" Header="Install" Tag="&#xE896;">
+                            <Grid x:Name="InstallPanel">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="InstallDefinitionsCountLabel"
+                                               Text="0 definitions"
+                                               VerticalAlignment="Center" />
+                                    <CheckBox x:Name="HideIncompatibleInstallToggle"
+                                              Grid.Column="1"
+                                              Content="Hide incompatible"
+                                              Margin="18,0,0,0"
+                                              VerticalAlignment="Center"
+                                              IsChecked="False" />
+                                    <TextBlock x:Name="InstallActionStatusLabel"
+                                               Grid.Column="2"
+                                               Text="Open Install to refresh definitions and local detection."
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"
+                                               TextWrapping="Wrap"
+                                               Opacity="0.75" />
+                                </Grid>
+                                <DataGrid x:Name="InstallDefinitionsListView"
+                                          Grid.Row="1"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          SelectionMode="Extended"
+                                          SelectionUnit="FullRow"
+                                          HeadersVisibility="Column"
+                                          CanUserAddRows="False"
+                                          EnableRowVirtualization="True"
+                                          AutomationProperties.Name="Local install definitions">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Required architecture" Binding="{Binding RequirementArchitecture}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Artifact architecture" Binding="{Binding ArtifactArchitecture}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Architecture status" Binding="{Binding ArchitectureStatus}" Width="150">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource WorkbenchGridTextStyle}">
+                                                    <Setter Property="ToolTip" Value="{Binding ArchitectureError}" />
+                                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Installed" Binding="{Binding InstalledVersion}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Latest" Binding="{Binding LatestVersion}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Status" Binding="{Binding InstallStatus}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <DockPanel Grid.Row="2" Margin="0,12,0,0">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button x:Name="ReloadInstallDefinitionsButton"
+                                                Content="Reload definitions"
+                                                Margin="0,0,8,0"
+                                                Padding="12,5" />
+                                        <Button x:Name="ResolveInstallVersionsButton"
+                                                Content="Find latest versions"
+                                                Margin="0,0,8,0"
+                                                Padding="12,5"
+                                                IsEnabled="False" />
+                                        <Button x:Name="InstallSelectedPackagesButton"
+                                                Content="Install selected"
+                                                Style="{DynamicResource AccentButtonStyle}"
+                                                Padding="14,5"
+                                                FontWeight="SemiBold"
+                                                IsEnabled="False" />
+                                    </StackPanel>
+                                    <TextBlock Text="Latest-version lookup uses the Evergreen catalog."
+                                               VerticalAlignment="Center"
+                                               Opacity="0.75" />
+                                </DockPanel>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+
+                <Grid x:Name="IntunePanel" Visibility="Collapsed">
+                    <TabControl Style="{StaticResource ProviderTabControlStyle}">
+                        <TabItem Header="Win32 apps" Tag="&#xECAA;">
+                            <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid x:Name="IntuneConnectionToolbar" Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="IntuneConnectionStatusLabel" Text="Not connected"
+                                   VerticalAlignment="Center" MaxWidth="220" Margin="0,0,12,0"
+                                   TextWrapping="Wrap" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                        <!-- Reverse flow keeps wrapped action rows right-aligned. -->
+                        <WrapPanel Grid.Column="1" HorizontalAlignment="Right" FlowDirection="RightToLeft"
+                                   KeyboardNavigation.TabNavigation="Local">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" FlowDirection="LeftToRight">
+                                <Border x:Name="IntuneCompareActionsSeparator" Width="1" Margin="12,4"
+                                        Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                <Button x:Name="CompareIntuneButton" Content="Compare definitions" Padding="12,4"
+                                        KeyboardNavigation.TabIndex="3" />
+                            </StackPanel>
+                            <Button x:Name="ConnectIntuneButton" Content="Connect" Margin="0,0,12,0"
+                                    Padding="12,4" VerticalAlignment="Center" FlowDirection="LeftToRight"
+                                    KeyboardNavigation.TabIndex="2" />
+                            <CheckBox x:Name="UseIntuneDeviceCodeToggle" Content="Device code"
+                                      VerticalAlignment="Center" Margin="0,0,12,0" FlowDirection="LeftToRight"
+                                      KeyboardNavigation.TabIndex="1" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" FlowDirection="LeftToRight">
+                                <Label Content="Tenant ID (optional)" Target="{Binding ElementName=IntuneTenantIdBox}"
+                                       VerticalAlignment="Center" Padding="0" Margin="0,0,12,0" />
+                                <TextBox x:Name="IntuneTenantIdBox" Width="220" Height="32"
+                                         VerticalContentAlignment="Center" AutomationProperties.Name="Intune tenant ID"
+                                         KeyboardNavigation.TabIndex="0" />
+                            </StackPanel>
+                        </WrapPanel>
+                    </Grid>
+                    <DataGrid x:Name="IntuneComparisonListView" Grid.Row="1"
+                              AutoGenerateColumns="False" SelectionMode="Extended" SelectionUnit="FullRow"
+                              HeadersVisibility="Column" CanUserAddRows="False" EnableRowVirtualization="True"
+                              AutomationProperties.Name="Intune comparison">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Definition" Binding="{Binding DefinitionName}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Saved" Binding="{Binding DefinitionVersion}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Intune" Binding="{Binding IntuneVersion}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding MatchStatus}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridCheckBoxColumn Header="Update app" Binding="{Binding ImportAsUpdate, UpdateSourceTrigger=PropertyChanged}" Width="100">
+                                <DataGridCheckBoxColumn.ElementStyle>
+                                    <Style TargetType="{x:Type CheckBox}" BasedOn="{x:Static DataGridCheckBoxColumn.DefaultElementStyle}">
+                                        <Setter Property="HorizontalAlignment" Value="Center" />
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                    </Style>
+                                </DataGridCheckBoxColumn.ElementStyle>
+                                <DataGridCheckBoxColumn.EditingElementStyle>
+                                    <Style TargetType="{x:Type CheckBox}" BasedOn="{x:Static DataGridCheckBoxColumn.DefaultEditingElementStyle}">
+                                        <Setter Property="HorizontalAlignment" Value="Center" />
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                    </Style>
+                                </DataGridCheckBoxColumn.EditingElementStyle>
+                            </DataGridCheckBoxColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <DockPanel Grid.Row="2" Margin="0,8">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button x:Name="CancelIntuneBatchButton" Content="Cancel batch" Margin="0,0,8,0"
+                                    Padding="12,4" IsEnabled="False" />
+                            <Button x:Name="PublishSelectedIntuneButton" Content="Build and publish selected"
+                                    Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <TextBlock Text="Update app assigns to All Devices." VerticalAlignment="Center"
+                                   TextWrapping="Wrap" />
+                    </DockPanel>
+                    <Grid Grid.Row="3">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <DockPanel Margin="0,0,0,4">
+                            <Button x:Name="RetryIntuneSupersedenceButton" DockPanel.Dock="Right"
+                                    Content="Retry selected link" Padding="12,4" IsEnabled="False" />
+                            <TextBlock Text="Batch results" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DataGrid x:Name="IntunePublishResultsListView" Grid.Row="1" AutoGenerateColumns="False"
+                                  IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
+                                  CanUserAddRows="False" AutomationProperties.Name="Intune publishing results">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Definition" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Result" Binding="{Binding Status}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="New app ID" Binding="{Binding IntuneAppId}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Previous app ID" Binding="{Binding PreviousAppId}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Details" Binding="{Binding Error}" Width="3*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                            </Grid>
+                        </TabItem>
+                        <TabItem Header="Microsoft 365 Apps" Tag="&#xE71D;">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MaxWidth="792" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel x:Name="IntuneM365Form" MaxWidth="760" Margin="16">
+                                        <GroupBox Header="Package configuration" Margin="0,0,0,12">
+                                            <StackPanel Margin="8">
+                                                <Label Content="Configuration folder" Target="{Binding ElementName=IntuneM365PathBox}" Style="{StaticResource FormLabelStyle}" />
+                                                <DockPanel Margin="0,3,0,8">
+                                                    <Button x:Name="IntuneM365BrowseButton" DockPanel.Dock="Right" Content="Browse" Padding="12,4" Margin="8,0,0,0" />
+                                                    <TextBox x:Name="IntuneM365PathBox" AutomationProperties.Name="Intune Microsoft 365 configuration folder" />
+                                                </DockPanel>
+                                                <WrapPanel Margin="0,0,0,8">
+                                                    <Button x:Name="IntuneM365LoadButton" Content="Load configurations" Padding="12,4" Margin="0,0,8,0" />
+                                                    <Button x:Name="IntuneM365SaveButton" Content="Save shared settings" Padding="12,4" />
+                                                </WrapPanel>
+                                                <Label Content="Configuration" Target="{Binding ElementName=IntuneM365ConfigurationCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="IntuneM365ConfigurationCombo" DisplayMemberPath="FileName" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 configuration" />
+                                                <Label Content="Channel" Target="{Binding ElementName=IntuneM365ChannelCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="IntuneM365ChannelCombo" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 channel" />
+                                                <Label x:Name="IntuneM365CompanyLabel" Content="Company name" Target="{Binding ElementName=IntuneM365CompanyBox}" Style="{StaticResource FormLabelStyle}" />
+                                                <TextBox x:Name="IntuneM365CompanyBox" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 company" />
+                                                <Label Content="Session type" Target="{Binding ElementName=IntuneM365SessionCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="IntuneM365SessionCombo" Margin="0,3,0,8" AutomationProperties.Name="Intune Microsoft 365 session type" />
+                                                <WrapPanel Margin="0,0,0,8">
+                                                    <Button x:Name="IntuneM365TargetsButton" Content="Load matching Intune apps" Padding="12,4" />
+                                                </WrapPanel>
+                                                <Label Content="Optional app to supersede (update relationship)" Target="{Binding ElementName=IntuneM365TargetCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="IntuneM365TargetCombo" DisplayMemberPath="Name" Margin="0,3,0,0" AutomationProperties.Name="Intune app to supersede" />
+                                            </StackPanel>
+                                        </GroupBox>
+                                        <GroupBox Header="Build and publish" Margin="0,0,0,12">
+                                            <StackPanel Margin="8">
+                                                <WrapPanel Margin="0,0,0,8">
+                                                    <Button x:Name="IntuneM365PreviewBuildButton" Content="Preview build" Padding="12,4" Margin="0,0,8,0" />
+                                                    <Button x:Name="IntuneM365PreviewPublishButton" Content="Preview publishing" Padding="12,4" />
+                                                </WrapPanel>
+                                                <TextBlock x:Name="IntuneM365PreviewText" Text="Select a configuration and preview the operation." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                                <WrapPanel Margin="0,0,0,8">
+                                                    <Button x:Name="IntuneM365BuildButton" Content="Build only" Padding="12,4" Margin="0,0,8,0" />
+                                                    <Button x:Name="IntuneM365PublishButton" Content="Build and publish" Style="{DynamicResource AccentButtonStyle}" Padding="12,4" Margin="0,0,8,0" FontWeight="SemiBold" />
+                                                    <Button x:Name="IntuneM365CancelButton" Content="Cancel" Padding="12,4" />
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </GroupBox>
+                                        <Expander Header="Recovery" IsExpanded="False" Margin="0,0,0,12">
+                                            <StackPanel Margin="8">
+                                                <TextBlock Text="Inspect an unknown outcome in Intune before acknowledging it." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                                <ComboBox x:Name="IntuneM365RecoveryCombo" DisplayMemberPath="Id" Margin="0,0,0,8" AutomationProperties.Name="Intune Microsoft 365 recovery outcome" />
+                                                <WrapPanel>
+                                                    <Button x:Name="IntuneM365RecoveryLoadButton" Content="Load recovery records" Padding="12,4" Margin="0,0,8,0" />
+                                                    <Button x:Name="IntuneM365ReviewButton" Content="Acknowledge reviewed outcome" Padding="12,4" />
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </Expander>
+                                        <TextBlock x:Name="IntuneM365ResultText" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+
+                <Grid x:Name="NerdioPanel" Visibility="Collapsed">
+                    <TabControl Style="{StaticResource ProviderTabControlStyle}">
+                        <TabItem Header="Shell Apps" Tag="&#xE756;">
+                            <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="3*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel x:Name="NerdioDefinitionsPathPanel" Grid.Row="0" Margin="0,4,0,4">
+                        <Label Content="Folder containing Definition.json files and scripts" Target="{Binding ElementName=NerdioDefinitionsPathBox}" Padding="0" Margin="0,0,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="NerdioDefinitionsPathBox" MinWidth="100" AutomationProperties.Name="Nerdio definitions folder" />
+                            <Button x:Name="BrowseNerdioDefinitionsButton" Grid.Column="1" Content="Browse" Margin="8,0,0,0" Padding="12,4" />
+                            <Button x:Name="SaveNerdioSettingsButton" Grid.Column="2" Content="Save setup" Margin="8,0,0,0" Padding="12,4" />
+                        </Grid>
+                    </StackPanel>
+                    <DockPanel Grid.Row="1" Margin="0,4,0,8" LastChildFill="True">
+                        <Button x:Name="CompareNerdioButton" DockPanel.Dock="Right" Content="Load and compare" Padding="12,4" Margin="8,0,0,0" />
+                        <TextBlock x:Name="NerdioConnectionStatusLabel" Text="Azure and Nerdio not connected" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <DataGrid x:Name="NerdioComparisonListView" Grid.Row="2" AutoGenerateColumns="False"
+                              IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow"
+                              CanUserAddRows="False" EnableRowVirtualization="True" HeadersVisibility="Column"
+                              AutomationProperties.Name="Nerdio Shell App comparison">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Local app" Binding="{Binding AppName}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Nerdio app" Binding="{Binding NerdioAppName}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Source" Binding="{Binding SourceVersion}" Width="85" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Nerdio" Binding="{Binding NerdioVersion}" Width="85" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Versions" Binding="{Binding VersionCount}" Width="65" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Operation" Binding="{Binding Operation}" Width="100" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding MatchStatus}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Details" Binding="{Binding Message}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <WrapPanel Grid.Row="3" Margin="0,8" HorizontalAlignment="Right">
+                        <Button x:Name="PruneSelectedNerdioVersionsButton" Content="Prune selected app" Margin="0,0,8,0"
+                                Padding="12,4" IsEnabled="False"
+                                ToolTip="Preview exact versions for one selected, matched existing Shell App without publishing." />
+                        <Button x:Name="PruneNerdioVersionsButton" Content="Preview published apps"
+                                Padding="12,4" IsEnabled="False"
+                                ToolTip="Preview exact versions for successfully published Shell Apps. No app is selected by default." />
+                        <Border Width="1" Height="20" Margin="8,0" VerticalAlignment="Center"
+                                Background="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                        <Button x:Name="ReviewNerdioOutcomeButton" Content="Review outcome" Margin="0,0,8,0"
+                                Padding="12,4" IsEnabled="False" ToolTip="After inspecting the selected pending or unknown result in Nerdio, record its final outcome. This does not retry or delete anything." />
+                        <Button x:Name="CancelNerdioBatchButton" Content="Cancel batch" Margin="0,0,8,0" Padding="12,4" IsEnabled="False" />
+                        <Button x:Name="PublishSelectedNerdioButton" Content="Publish selected" Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold" />
+                    </WrapPanel>
+                    <DataGrid x:Name="NerdioPublishResultsListView" Grid.Row="4" AutoGenerateColumns="False"
+                              IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column"
+                              AutomationProperties.Name="Nerdio publishing results">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="App" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="85" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Result" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="App ID" Binding="{Binding AppId}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Job ID" Binding="{Binding JobId}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Blob" Binding="{Binding BlobName}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Details" Binding="{Binding Error}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                            </Grid>
+                        </TabItem>
+                        <TabItem Header="Microsoft 365 Apps" Tag="&#xE71D;">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MaxWidth="792" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel x:Name="NerdioM365Form" MaxWidth="760" Margin="16">
+                                        <GroupBox Header="Package configuration" Margin="0,0,0,12">
+                                            <StackPanel Margin="8">
+                                                <Label Content="Configuration folder" Target="{Binding ElementName=NerdioM365PathBox}" Style="{StaticResource FormLabelStyle}" />
+                                                <DockPanel Margin="0,3,0,8">
+                                                    <Button x:Name="NerdioM365BrowseButton" DockPanel.Dock="Right" Content="Browse" Padding="12,4" Margin="8,0,0,0" />
+                                                    <TextBox x:Name="NerdioM365PathBox" AutomationProperties.Name="Nerdio Microsoft 365 configuration folder" />
+                                                </DockPanel>
+                                                <WrapPanel Margin="0,0,0,8">
+                                                    <Button x:Name="NerdioM365LoadButton" Content="Load configurations" Padding="12,4" Margin="0,0,8,0" />
+                                                    <Button x:Name="NerdioM365SaveButton" Content="Save shared settings" Padding="12,4" />
+                                                </WrapPanel>
+                                                <Label Content="Configuration" Target="{Binding ElementName=NerdioM365ConfigurationCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="NerdioM365ConfigurationCombo" DisplayMemberPath="FileName" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 configuration" />
+                                                <Label Content="Channel" Target="{Binding ElementName=NerdioM365ChannelCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="NerdioM365ChannelCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 channel" />
+                                                <Label Content="Company name" Target="{Binding ElementName=NerdioM365CompanyBox}" Style="{StaticResource FormLabelStyle}" />
+                                                <TextBox x:Name="NerdioM365CompanyBox" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 company" />
+                                                <Label Content="Session type" Target="{Binding ElementName=NerdioM365SessionCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="NerdioM365SessionCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 session type" />
+                                                <Label Content="Publish operation" Target="{Binding ElementName=NerdioM365OperationCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="NerdioM365OperationCombo" Margin="0,3,0,8" AutomationProperties.Name="Nerdio Microsoft 365 publish operation" />
+                                                <Label Content="New Shell App name" Target="{Binding ElementName=NerdioM365NameBox}" Style="{StaticResource FormLabelStyle}" />
+                                                <TextBox x:Name="NerdioM365NameBox" Margin="0,3,0,8" AutomationProperties.Name="New Microsoft 365 Shell App name" />
+                                                <Button x:Name="NerdioM365TargetsButton" Content="Load Nerdio Shell Apps" HorizontalAlignment="Left" Padding="12,4" Margin="0,0,0,8" />
+                                                <Label Content="Existing Shell App for add version" Target="{Binding ElementName=NerdioM365TargetCombo}" Style="{StaticResource FormLabelStyle}" />
+                                                <ComboBox x:Name="NerdioM365TargetCombo" DisplayMemberPath="Name" Margin="0,3,0,8" AutomationProperties.Name="Existing Nerdio Shell App" />
+                                                <CheckBox x:Name="NerdioM365AttestToggle" Content="I confirm the configuration changed if this Office version already exists." Margin="0,0,0,8" />
+                                                <TextBlock Text="Nerdio cannot compare the remote configuration and may reject a duplicate version." TextWrapping="Wrap" Margin="0,0,0,0" />
+                                            </StackPanel>
+                                        </GroupBox>
+                                        <GroupBox Header="Build and publish" Margin="0,0,0,12">
+                                            <StackPanel Margin="8">
+                                                <WrapPanel Margin="0,0,0,8">
+                                                    <Button x:Name="NerdioM365PreviewBuildButton" Content="Preview build" Padding="12,4" Margin="0,0,8,0" />
+                                                    <Button x:Name="NerdioM365PreviewPublishButton" Content="Preview publishing" Padding="12,4" />
+                                                </WrapPanel>
+                                                <TextBlock x:Name="NerdioM365PreviewText" Text="Select a configuration and preview the operation." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                                <WrapPanel>
+                                                    <Button x:Name="NerdioM365BuildButton" Content="Build only" Padding="12,4" Margin="0,0,8,0" />
+                                                    <Button x:Name="NerdioM365PublishButton" Content="Build and publish" Style="{DynamicResource AccentButtonStyle}" Padding="12,4" Margin="0,0,8,0" FontWeight="SemiBold" />
+                                                    <Button x:Name="NerdioM365CancelButton" Content="Cancel" Padding="12,4" />
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </GroupBox>
+                                        <TextBlock x:Name="NerdioM365ResultText" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="Settings" Tag="&#xE713;">
+                            <DockPanel>
+                                <TextBlock x:Name="NerdioSettingsConnectionStatusLabel" DockPanel.Dock="Top"
+                                           Text="{Binding ElementName=NerdioConnectionStatusLabel, Path=Text, Mode=OneWay}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8" />
+                                <ScrollViewer x:Name="NerdioSetupScrollViewer" VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel>
+                                        <Expander Header="Azure storage setup" IsExpanded="False" Margin="0,0,0,6">
+                                            <StackPanel Margin="0,8">
+                                                <Label Content="Azure tenant ID" Target="{Binding ElementName=NerdioTenantIdBox}" Padding="0" />
+                                                <TextBox x:Name="NerdioTenantIdBox" AutomationProperties.Name="Nerdio Azure tenant ID" Margin="0,2,0,6" />
+                                                <Label Content="Azure subscription ID" Target="{Binding ElementName=NmeSubscriptionIdBox}" Padding="0" />
+                                                <TextBox x:Name="NmeSubscriptionIdBox" AutomationProperties.Name="Nerdio Azure subscription ID" Margin="0,2,0,6" />
+                                                <WrapPanel Margin="0,0,0,6">
+                                                    <CheckBox x:Name="UseNerdioDeviceCodeToggle" Content="Device authentication" VerticalAlignment="Center" />
+                                                    <Button x:Name="ConnectNerdioAzureButton" Content="Connect Azure" Margin="12,0,0,0" Padding="12,4" />
+                                                    <Button x:Name="DisconnectNerdioButton" Content="Disconnect Azure and Nerdio" Margin="8,0,0,0" Padding="12,4" />
+                                                </WrapPanel>
+                                                <Label Content="Resource group" Target="{Binding ElementName=NmeResourceGroupCombo}" Padding="0" />
+                                                <ComboBox x:Name="NmeResourceGroupCombo" AutomationProperties.Name="Nerdio resource group" Margin="0,2,0,6" />
+                                                <Label Content="Storage account" Target="{Binding ElementName=NmeStorageAccountCombo}" Padding="0" />
+                                                <ComboBox x:Name="NmeStorageAccountCombo" AutomationProperties.Name="Nerdio storage account" Margin="0,2,0,6" />
+                                                <Label Content="Blob container" Target="{Binding ElementName=NmeContainerCombo}" Padding="0" />
+                                                <ComboBox x:Name="NmeContainerCombo" AutomationProperties.Name="Nerdio blob container" Margin="0,2,0,6" />
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander Header="Nerdio API setup" IsExpanded="True" Margin="0,0,0,6">
+                                            <StackPanel Margin="0,8">
+                                                <Label Content="Nerdio HTTPS host" Target="{Binding ElementName=NmeHostBox}" Padding="0" />
+                                                <TextBox x:Name="NmeHostBox" AutomationProperties.Name="Nerdio host" Margin="0,2,0,6" />
+                                                <Label Content="Application client ID" Target="{Binding ElementName=NmeClientIdBox}" Padding="0" />
+                                                <TextBox x:Name="NmeClientIdBox" AutomationProperties.Name="Nerdio client ID" Margin="0,2,0,6" />
+                                                <Label Content="API scope" Target="{Binding ElementName=NmeApiScopeBox}" Padding="0" />
+                                                <TextBox x:Name="NmeApiScopeBox" AutomationProperties.Name="Nerdio API scope" Margin="0,2,0,6" />
+                                                <Label Content="OAuth token URL (optional)" Target="{Binding ElementName=NmeOAuthTokenUrlBox}" Padding="0" />
+                                                <TextBox x:Name="NmeOAuthTokenUrlBox" AutomationProperties.Name="Nerdio OAuth token URL" Margin="0,2,0,6" />
+                                                <Label Content="Client secret (not saved)" Target="{Binding ElementName=NmeClientSecretBox}" Padding="0" />
+                                                <PasswordBox x:Name="NmeClientSecretBox" AutomationProperties.Name="Nerdio client secret" Margin="0,2,0,6" />
+                                                <CheckBox x:Name="NerdioApiOnlyToggle" Content="API only (Microsoft 365 build only)" Margin="0,0,0,6" />
+                                                <Button x:Name="ConnectNerdioButton" Content="Connect Nerdio API" HorizontalAlignment="Left" Padding="12,4" />
+                                            </StackPanel>
+                                        </Expander>
+                                        <Button x:Name="SaveNerdioSetupButton" Content="Save setup" HorizontalAlignment="Left" Padding="12,4" Margin="0,6,0,6" />
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+
+                <Grid x:Name="SettingsPanel" Visibility="Collapsed">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MaxWidth="760" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel MaxWidth="760" Margin="0,0,0,8">
+                                <TextBlock Text="Appearance"
+                                           Style="{StaticResource SectionHeadingTextBlockStyle}"
+                                           Margin="0,0,0,8" />
+                                <Label Content="Color theme" Target="{Binding ElementName=ThemeCombo}" Padding="0" Margin="0,0,0,5" />
+                                <ComboBox x:Name="ThemeCombo"
+                                          SelectedIndex="0"
+                                          HorizontalAlignment="Left"
+                                          MinWidth="180"
+                                          Margin="0,0,0,24"
+                                          ToolTip="Choose the Workbench color theme"
+                                          AutomationProperties.Name="Color theme">
+                                    <sys:String>System</sys:String>
+                                    <sys:String>Light</sys:String>
+                                    <sys:String>Dark</sys:String>
+                                </ComboBox>
+                                <TextBlock Text="Saved folders"
+                                           Style="{StaticResource SectionHeadingTextBlockStyle}"
+                                           Margin="0,0,0,8" />
+                                <TextBlock Text="Use Browse to change a saved folder. Workflow views also have their own path controls."
+                                           TextWrapping="Wrap"
+                                           Opacity="0.75"
+                                           Margin="0,0,0,16" />
+                                <Label Content="Download folder" Target="{Binding ElementName=SettingsDownloadPathBox}" Padding="0" Margin="0,0,0,5" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SettingsDownloadPathBox"
+                                             IsReadOnly="True"
+                                             Height="32"
+                                             VerticalContentAlignment="Center"
+                                             AutomationProperties.Name="Saved download folder" />
+                                    <Button x:Name="BrowseDownloadFolderButton"
+                                            Grid.Column="1"
+                                            Content="Browse"
+                                            Margin="8,0,0,0"
+                                            Padding="12,4"
+                                            AutomationProperties.Name="Browse for download folder" />
+                                    <Button x:Name="OpenDownloadFolderButton"
+                                            Grid.Column="2"
+                                            Content="Open folder"
+                                            Margin="8,0,0,0"
+                                            Padding="12,4"
+                                            IsEnabled="False"
+                                            AutomationProperties.Name="Open download folder" />
+                                </Grid>
+                                <TextBlock x:Name="DownloadFolderStatusLabel"
+                                           Text="Folder has not been checked."
+                                           TextWrapping="Wrap"
+                                           Opacity="0.75"
+                                           Margin="0,5,0,16" />
+                                <Label Content="Library folder" Target="{Binding ElementName=SettingsLibraryPathBox}" Padding="0" Margin="0,0,0,5" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SettingsLibraryPathBox"
+                                             IsReadOnly="True"
+                                             Height="32"
+                                             VerticalContentAlignment="Center"
+                                             AutomationProperties.Name="Saved library folder" />
+                                    <Button x:Name="BrowseLibraryFolderButton"
+                                            Grid.Column="1"
+                                            Content="Browse"
+                                            Margin="8,0,0,0"
+                                            Padding="12,4"
+                                            AutomationProperties.Name="Browse for library folder" />
+                                    <Button x:Name="OpenLibraryFolderButton"
+                                            Grid.Column="2"
+                                            Content="Open folder"
+                                            Margin="8,0,0,0"
+                                            Padding="12,4"
+                                            IsEnabled="False"
+                                            AutomationProperties.Name="Open library folder" />
+                                </Grid>
+                                <TextBlock x:Name="LibraryFolderStatusLabel"
+                                           Text="Folder has not been checked."
+                                           TextWrapping="Wrap"
+                                           Opacity="0.75"
+                                           Margin="0,5,0,16" />
+                                <Label Content="Packages definitions folder" Target="{Binding ElementName=SettingsPackageDefinitionsPathBox}" Padding="0" Margin="0,0,0,5" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SettingsPackageDefinitionsPathBox"
+                                             IsReadOnly="True" Height="32" VerticalContentAlignment="Center"
+                                             AutomationProperties.Name="Saved Packages definitions folder" />
+                                    <Button x:Name="BrowsePackageDefinitionsFolderButton" Grid.Column="1"
+                                            Content="Browse" Margin="8,0,0,0" Padding="12,4"
+                                            AutomationProperties.Name="Browse for Packages definitions folder" />
+                                    <Button x:Name="OpenPackageDefinitionsFolderButton" Grid.Column="2"
+                                            Content="Open folder" Margin="8,0,0,0" Padding="12,4" IsEnabled="False"
+                                            AutomationProperties.Name="Open Packages definitions folder" />
+                                </Grid>
+                                <TextBlock x:Name="PackageDefinitionsFolderStatusLabel"
+                                           Text="Folder has not been checked." TextWrapping="Wrap" Opacity="0.75"
+                                           Margin="0,5,0,16" />
+                                <Label Content="Microsoft 365 Apps configurations folder" Target="{Binding ElementName=SettingsM365ConfigurationsPathBox}" Padding="0" Margin="0,0,0,5" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SettingsM365ConfigurationsPathBox"
+                                             IsReadOnly="True" Height="32" VerticalContentAlignment="Center"
+                                             AutomationProperties.Name="Saved Microsoft 365 Apps configurations folder" />
+                                    <Button x:Name="BrowseM365ConfigurationsFolderButton" Grid.Column="1"
+                                            Content="Browse" Margin="8,0,0,0" Padding="12,4"
+                                            AutomationProperties.Name="Browse for Microsoft 365 Apps configurations folder" />
+                                    <Button x:Name="OpenM365ConfigurationsFolderButton" Grid.Column="2"
+                                            Content="Open folder" Margin="8,0,0,0" Padding="12,4" IsEnabled="False"
+                                            AutomationProperties.Name="Open Microsoft 365 Apps configurations folder" />
+                                </Grid>
+                                <TextBlock x:Name="M365ConfigurationsFolderStatusLabel"
+                                           Text="Folder has not been checked." TextWrapping="Wrap" Opacity="0.75"
+                                           Margin="0,5,0,16" />
+                                <Label Content="Nerdio Manager Shell Apps directory" Target="{Binding ElementName=SettingsNerdioDefinitionsPathBox}" Padding="0" Margin="0,0,0,5" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SettingsNerdioDefinitionsPathBox"
+                                             IsReadOnly="True" Height="32" VerticalContentAlignment="Center"
+                                             AutomationProperties.Name="Saved Nerdio Manager Shell Apps directory" />
+                                    <Button x:Name="BrowseNerdioDefinitionsFolderButton" Grid.Column="1"
+                                            Content="Browse" Margin="8,0,0,0" Padding="12,4"
+                                            AutomationProperties.Name="Browse for Nerdio Manager Shell Apps directory" />
+                                    <Button x:Name="OpenNerdioDefinitionsFolderButton" Grid.Column="2"
+                                            Content="Open folder" Margin="8,0,0,0" Padding="12,4" IsEnabled="False"
+                                            AutomationProperties.Name="Open Nerdio Manager Shell Apps directory" />
+                                </Grid>
+                                <TextBlock x:Name="NerdioDefinitionsFolderStatusLabel"
+                                           Text="Folder has not been checked."
+                                           TextWrapping="Wrap"
+                                           Opacity="0.75"
+                                           Margin="0,5,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+
+                <Grid x:Name="AboutPanel" Visibility="Collapsed">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MaxWidth="900" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel MaxWidth="900" Margin="0,0,0,8">
+                                <TextBlock x:Name="AboutNameValue"
+                                           Style="{StaticResource SectionHeadingTextBlockStyle}"
+                                           Margin="0,0,0,8" />
+                                <TextBlock x:Name="AboutVersionValue" Margin="0,0,0,4" />
+                                <TextBlock x:Name="AboutAuthorValue" Margin="0,0,0,4" />
+                                <TextBlock x:Name="AboutCompanyValue" Margin="0,0,0,4" />
+                                <TextBlock x:Name="AboutCopyrightValue"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8" />
+                                <TextBlock x:Name="AboutDescriptionValue"
+                                           TextWrapping="Wrap"
+                                           Opacity="0.75"
+                                           Margin="0,0,0,8" />
+                                <TextBlock Margin="0,0,0,18">
+                                    <Hyperlink x:Name="AboutProjectLink">Project website</Hyperlink>
+                                    <Run Text="    " />
+                                    <Hyperlink x:Name="AboutLicenseLink">License</Hyperlink>
+                                </TextBlock>
+                                <TextBlock x:Name="AboutLinkStatusLabel"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8" />
+                                <TextBlock Text="Dependencies"
+                                           Style="{StaticResource SectionHeadingTextBlockStyle}"
+                                           Margin="0,0,0,8" />
+                                <TextBlock Text="Installed is the highest discoverable version. Loaded versions are for the Workbench window runspace; background Jobs and the caller can differ."
+                                           TextWrapping="Wrap"
+                                           Opacity="0.75"
+                                           Margin="0,0,0,8" />
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button x:Name="RefreshAboutDependenciesButton"
+                                            DockPanel.Dock="Right"
+                                            Content="Refresh"
+                                            Padding="12,4"
+                                            AutomationProperties.Name="Refresh dependency status" />
+                                    <TextBlock x:Name="AboutDependencyStatusLabel"
+                                               Text="Dependency status has not been checked."
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+                                </DockPanel>
+                                <DataGrid x:Name="AboutDependenciesListView"
+                                          Height="220"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          SelectionMode="Single"
+                                          HeadersVisibility="Column"
+                                          CanUserAddRows="False"
+                                          EnableRowVirtualization="True"
+                                          AutomationProperties.Name="Workbench dependency status">
+                                    <DataGrid.Resources>
+                                        <Style x:Key="DependencyCellStyle" TargetType="{x:Type TextBlock}"
+                                               BasedOn="{StaticResource WorkbenchGridTextStyle}">
+                                            <Setter Property="TextWrapping" Value="Wrap" />
+                                        </Style>
+                                    </DataGrid.Resources>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Module" Binding="{Binding Name}"
+                                                            Width="150" ElementStyle="{StaticResource DependencyCellStyle}" />
+                                        <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="80" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Installed" Binding="{Binding InstalledVersion}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Loaded (window)" Binding="{Binding LoadedVersions}"
+                                                            Width="150" ElementStyle="{StaticResource DependencyCellStyle}" />
+                                        <DataGridTextColumn Header="Minimum" Binding="{Binding MinimumVersion}" Width="100" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                        <DataGridTextColumn Header="Purpose" Binding="{Binding Purpose}"
+                                                            Width="220" ElementStyle="{StaticResource DependencyCellStyle}" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+
+            <DockPanel Grid.Row="2" Margin="0,12,0,0">
+                <TextBlock x:Name="AppsMaintenanceStatusLabel"
+                           DockPanel.Dock="Top"
+                           Text="Maintenance ready"
+                           TextWrapping="Wrap"
+                           Visibility="{Binding Visibility, ElementName=AppsPanel}"
+                           Margin="0,0,0,6" />
+                <ProgressBar x:Name="JobProgressBar"
+                             Height="6"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Visibility="Collapsed" />
+            </DockPanel>
+        </Grid>
+
+        <Expander Grid.Column="1"
+                  Grid.Row="1"
+                  Header="Activity log"
+                  IsExpanded="False"
+                  Margin="24,0,24,12">
+            <StackPanel>
+                <Thumb x:Name="ActivityLogResizeThumb"
+                       Height="8"
+                       Cursor="SizeNS"
+                       Focusable="True"
+                       ToolTip="Drag or use the up and down arrow keys to resize the activity log"
+                       AutomationProperties.Name="Resize activity log" />
+                <TextBox x:Name="ActivityLog"
+                     Height="140"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     AutomationProperties.Name="Workbench activity log" />
+            </StackPanel>
+        </Expander>
+    </Grid>
+</Window>

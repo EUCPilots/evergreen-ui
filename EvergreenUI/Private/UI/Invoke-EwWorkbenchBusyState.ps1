@@ -1,0 +1,93 @@
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+function Invoke-EwWorkbenchBusyState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary]$State,
+
+        [Parameter(Mandatory)]
+        [bool]$IsBusy
+    )
+
+    foreach ($button in @(
+            $State.RefreshAppsButton,
+            $State.ReloadAppVersionsButton,
+            $State.UpdateEvergreenButton,
+            $State.ClearWorkbenchCacheButton,
+            $State.QueueDownloadButton,
+            $State.DownloadNowButton,
+            $State.EvergreenMenuButton,
+            $State.ChangeDownloadPathButton,
+            $State.BrowseDownloadFolderButton,
+            $State.BrowseLibraryFolderButton,
+            $State.BrowsePackageDefinitionsFolderButton,
+            $State.BrowseM365ConfigurationsFolderButton,
+            $State.BrowseNerdioDefinitionsFolderButton,
+            $State.ClearCompletedQueueButton,
+            $State.BrowseLibraryPathButton,
+            $State.SetLibraryPathButton,
+            $State.LoadLibraryButton,
+            $State.UpdateLibraryButton,
+            $State.BrowseIntuneDefinitionsButton,
+            $State.SaveIntuneDefinitionsPathButton,
+            $State.LoadPackageDefinitionsButton,
+            $State.UpdatePackageDefinitionsButton,
+            $State.BrowsePackageOutputPathButton,
+            $State.SavePackageOutputPathButton,
+            $State.ReloadInstallDefinitionsButton,
+            $State.ResolveInstallVersionsButton,
+            $State.InstallSelectedPackagesButton,
+            $State.ConnectIntuneButton,
+            $State.CompareIntuneButton,
+            $State.PublishSelectedIntuneButton,
+            $State.RetryIntuneSupersedenceButton
+        )) {
+        if ($null -ne $button) {
+            $button.IsEnabled = -not $IsBusy
+        }
+    }
+    $State.AppsListView.IsEnabled = -not $IsBusy
+    $State.LibraryListView.IsEnabled = -not $IsBusy
+    $State.LibraryVersionsListView.IsEnabled = -not $IsBusy
+    $State.LibraryPathBox.IsEnabled = -not $IsBusy
+    Invoke-EwWorkbenchLibraryActionState -State $State
+    $maintenanceBusy = $IsBusy -and $State.ActiveJobKind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')
+    $State.AppSearchBox.IsEnabled = -not $maintenanceBusy
+    $State.ArtifactFiltersPanel.IsEnabled = -not $maintenanceBusy
+    $State.PackageDefinitionsListView.IsEnabled = -not $IsBusy
+    $State.IntuneDefinitionsPathBox.IsEnabled = -not $IsBusy
+    $State.InstallDefinitionsListView.IsEnabled = -not $IsBusy
+    $State.IntuneComparisonListView.IsEnabled = -not $IsBusy
+    $State.IntuneTenantIdBox.IsEnabled = -not $IsBusy
+    $State.UseIntuneDeviceCodeToggle.IsEnabled = -not $IsBusy
+    $connected = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)
+    $State.ConnectIntuneButton.Content = if ($connected) { 'Disconnect' } else { 'Connect' }
+    $State.CancelIntuneBatchButton.IsEnabled = $IsBusy -and $State.ActiveJobKind -eq 'IntunePublish'
+    $State.JobProgressBar.Visibility = if ($IsBusy) {
+        [System.Windows.Visibility]::Visible
+    }
+    else {
+        [System.Windows.Visibility]::Collapsed
+    }
+    if (-not $IsBusy) {
+        $State.JobProgressBar.IsIndeterminate = $false
+        $State.JobProgressBar.Value = 0
+        $State.LoadPackageDefinitionsButton.IsEnabled = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text)
+        $State.UpdatePackageDefinitionsButton.IsEnabled = @($State.PackageDefinitions | Where-Object Status -eq 'Valid').Count -gt 0
+        $validInstallDefinitions = @($State.InstallDefinitions | Where-Object DefinitionValid -eq 'Yes')
+        $State.ResolveInstallVersionsButton.IsEnabled = $validInstallDefinitions.Count -gt 0 -and -not $State.InstallDefinitionsStale
+        $selectedInstallDefinitions = @($State.InstallDefinitionsListView.SelectedItems |
+            Where-Object DefinitionValid -eq 'Yes')
+        $State.InstallSelectedPackagesButton.IsEnabled = $selectedInstallDefinitions.Count -gt 0 -and -not $State.InstallDefinitionsStale
+        $State.CompareIntuneButton.IsEnabled = $connected
+        $State.PublishSelectedIntuneButton.IsEnabled = $connected -and $State.IntuneComparisonListView.SelectedItems.Count -gt 0
+        $selectedResult = $State.IntunePublishResultsListView.SelectedItem
+        $State.RetryIntuneSupersedenceButton.IsEnabled = $connected -and $null -ne $selectedResult -and
+            $selectedResult.Status -eq 'Supersedence failed' -and $selectedResult.TenantId -eq $State.IntuneTenantId
+    }
+    Show-EwWorkbenchDownloadTray -State $State
+    Invoke-EwWorkbenchNerdioBusyState -State $State
+    Invoke-EwWorkbenchM365BusyState -State $State
+}

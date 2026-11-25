@@ -1,0 +1,107 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Confirm library removal"
+        MinWidth="420"
+        MaxWidth="680"
+        MaxHeight="640"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ThemeMode="System"
+        Background="{DynamicResource ApplicationBackgroundBrush}"
+        Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <Window.Resources>
+        <Style x:Key="RemovalCardStyle" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="RemovalFooterStyle" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{DynamicResource LayerFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <ScrollViewer x:Name="LibraryRemovalDetailsScrollViewer"
+                      Grid.Row="0"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Focusable="True"
+                      AutomationProperties.Name="Library removal details">
+            <StackPanel Margin="24,20,24,20">
+                <TextBlock x:Name="LibraryRemovalHeadingText"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap" />
+                <TextBlock x:Name="LibraryRemovalApplicationText"
+                           Margin="0,16,0,0"
+                           TextWrapping="Wrap" />
+                <TextBlock x:Name="LibraryRemovalPathText"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap" />
+                <TextBlock Margin="0,16,0,0"
+                           Text="This deletes recorded installer files. Unselected artifacts, shared files and unrecorded files are preserved. This cannot be undone."
+                           TextWrapping="Wrap" />
+                <TextBlock x:Name="LibraryRemovalArtifactsHeadingText"
+                           Margin="0,16,0,8"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap" />
+                <ItemsControl x:Name="LibraryRemovalArtifactsList"
+                              AutomationProperties.Name="Artifacts to remove">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource RemovalCardStyle}"
+                                    Margin="0,0,0,6"
+                                    Padding="12,8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Summary}"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding URI}"
+                                               Margin="0,4,0,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="1"
+                Style="{StaticResource RemovalFooterStyle}"
+                Padding="24,14">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="CancelLibraryRemovalButton"
+                        Content="Cancel"
+                        Style="{DynamicResource AccentButtonStyle}"
+                        IsDefault="True"
+                        IsCancel="True"
+                        MinWidth="100"
+                        Padding="14,6"
+                        Margin="0,0,8,0" />
+                <Button x:Name="ConfirmLibraryRemovalButton"
+                        MinWidth="120"
+                        Padding="14,6" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
