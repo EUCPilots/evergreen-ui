@@ -2,6 +2,9 @@ name: 'Pester tests'
 
 on:
   push:
+    paths:
+      - 'EvergreenUI/**'
+      - 'tests/**'
 
 permissions:
   contents: read
