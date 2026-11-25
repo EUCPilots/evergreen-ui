@@ -6,6 +6,8 @@ Evergreen Workbench ships as a separate PowerShell module so it never modifies
 the core Evergreen module. The current preview is in `EvergreenUI\`, targets
 Windows, and requires **PowerShell 7.6+**.
 
+![Evergreen Workbench UI](docs/workbench.png)
+
 ## Current implementation
 
 The module exposes a headless PowerShell API and a WPF desktop interface.
