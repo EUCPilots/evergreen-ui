@@ -6,7 +6,7 @@ function Set-EwSetting {
     .SYNOPSIS
         Changes an Evergreen Workbench setting.
     .DESCRIPTION
-        Writes a supported setting to the v2 settings file. Secrets are never
+        Writes a supported setting to the Workbench settings file. Secrets are never
         stored. Use Add-EwFavouriteApp and Remove-EwFavouriteApp to change
         FavouriteApps. StartupView, LastAppName, WindowWidth, WindowHeight,
         DownloadTrayHeight, AppsListWidth and WindowMaximized hold UI state
@@ -29,7 +29,7 @@ function Set-EwSetting {
     .OUTPUTS
         None.
     .NOTES
-        Supports WhatIf and does not read v1 settings.
+        Supports WhatIf.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

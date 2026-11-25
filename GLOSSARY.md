@@ -58,7 +58,7 @@ Removal of older Shell App versions while retaining a selected number of version
 _Avoid_: Version cleanup, version purge
 
 **Publish**:
-Upload an Artifact or Package and its metadata to a Provider. Replaces the v1 term "Import".
+Upload an Artifact or Package and its metadata to a Provider.
 _Avoid_: Import, deploy, push
 
 **Intune update app**:

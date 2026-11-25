@@ -6,7 +6,7 @@ function Get-EwSetting {
     .SYNOPSIS
         Gets Evergreen Workbench settings.
     .DESCRIPTION
-        Reads v2 settings without accessing or migrating the v1 settings file.
+        Reads settings from the Workbench settings file.
         Missing settings receive defaults; invalid settings are reported.
     .EXAMPLE
         Get-EwSetting

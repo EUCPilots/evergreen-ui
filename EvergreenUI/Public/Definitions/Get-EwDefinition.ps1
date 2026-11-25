@@ -17,7 +17,7 @@ function Get-EwDefinition {
     .OUTPUTS
         System.Management.Automation.PSCustomObject
     .NOTES
-        Definitions are validated using the v1 PSPackageFactory GUID requirement.
+        Definitions are validated using the PSPackageFactory GUID requirement.
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]

@@ -39,25 +39,25 @@ Describe 'EvergreenUI v2 foundation' {
         Get-Command -Name Remove-EwJob -Module EvergreenUI | Should -Not -BeNullOrEmpty
     }
 
-    It 'uses fresh defaults without reading v1 settings or writing a file' {
-        $v1Path = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
-        New-Item -Path $v1Path -ItemType Directory -Force | Out-Null
-        Set-Content -Path (Join-Path -Path $v1Path -ChildPath 'settings.json') -Value '{"Theme":"Dark"}'
+    It 'uses defaults without reading other settings or writing a file' {
+        $otherSettingsPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI'
+        New-Item -Path $otherSettingsPath -ItemType Directory -Force | Out-Null
+        Set-Content -Path (Join-Path -Path $otherSettingsPath -ChildPath 'settings.json') -Value '{"Theme":"Dark"}'
         $settings = Get-EwSetting
         $settings.Theme | Should -Be 'System'
         $settings.SchemaVersion | Should -Be 1
         Test-Path -Path (Join-Path -Path $env:APPDATA -ChildPath 'EvergreenWorkbench\settings.json') | Should -BeFalse
     }
 
-    It 'persists changes and resets v2 without removing v1 settings' {
-        $v1Path = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI\settings.json'
-        New-Item -Path (Split-Path -Path $v1Path -Parent) -ItemType Directory -Force | Out-Null
-        Set-Content -Path $v1Path -Value '{"Theme":"Light"}'
+    It 'persists changes and resets without removing other settings' {
+        $otherSettingsPath = Join-Path -Path $env:APPDATA -ChildPath 'EvergreenUI\settings.json'
+        New-Item -Path (Split-Path -Path $otherSettingsPath -Parent) -ItemType Directory -Force | Out-Null
+        Set-Content -Path $otherSettingsPath -Value '{"Theme":"Light"}'
         Set-EwSetting -Name Theme -Value Dark
         (Get-EwSetting).Theme | Should -Be 'Dark'
         Reset-EwSetting -Confirm:$false
         (Get-EwSetting).Theme | Should -Be 'System'
-        Test-Path -Path $v1Path | Should -BeTrue
+        Test-Path -Path $otherSettingsPath | Should -BeTrue
     }
 
     It 'does not write or reset when WhatIf is specified' {

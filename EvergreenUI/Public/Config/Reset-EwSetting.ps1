@@ -6,13 +6,13 @@ function Reset-EwSetting {
     .SYNOPSIS
         Resets Evergreen Workbench settings.
     .DESCRIPTION
-        Removes the v2 settings file so defaults are used on the next read.
+        Removes the Workbench settings file so defaults are used on the next read.
     .EXAMPLE
         Reset-EwSetting -Confirm
     .OUTPUTS
         None.
     .NOTES
-        Does not alter the v1 settings file.
+        Only removes the Workbench settings file.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     param()
