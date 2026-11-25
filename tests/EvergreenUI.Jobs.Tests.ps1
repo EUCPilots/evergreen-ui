@@ -61,6 +61,31 @@ Describe 'Workbench jobs' {
         Remove-EwJob -Id $job.Id
     }
 
+    It 'reports <InvocationState> as <Expected> until the job handle completes' -ForEach @(
+        @{ InvocationState = 'Completed'; Expected = 'Running' }
+        @{ InvocationState = 'Stopped'; Expected = 'Stopping' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ InvocationState = $InvocationState } {
+            $job = @{
+                Id = [guid]::NewGuid()
+                Name = 'race test'
+                PowerShell = [PSCustomObject]@{
+                    InvocationStateInfo = [PSCustomObject]@{ State = $InvocationState }
+                }
+                Handle = [PSCustomObject]@{ IsCompleted = $false }
+                Finalized = $false
+                Output = @()
+                Errors = @()
+                Progress = @()
+                Information = @()
+                TerminatingError = $null
+            }
+            $snapshot = Get-EwJobSnapshot -Job $job
+            $job.Finalized | Should -BeFalse
+            $snapshot.State
+        } | Should -Be $Expected
+    }
+
     It 'allows progress and log records to be read while the job is running' {
         $ready = [System.Threading.ManualResetEventSlim]::new($false)
         $gate = [System.Threading.ManualResetEventSlim]::new($false)

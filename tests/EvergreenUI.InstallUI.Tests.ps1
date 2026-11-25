@@ -458,12 +458,32 @@ Describe 'Install architecture review in the Workbench' {
                 $deadline = [DateTime]::UtcNow.AddSeconds(30)
                 do {
                     Start-Sleep -Milliseconds 50
-                    Invoke-EwWorkbenchJobMonitor -State $state
+                    $job = Get-EwJob -Id $state.ActiveJobId
+                    if ($job.State -notin @('NotStarted', 'Running', 'Stopping')) {
+                        Invoke-EwWorkbenchJobMonitor -State $state
+                    }
                 } while ($null -ne $state.ActiveJobId -and [DateTime]::UtcNow -lt $deadline)
-                $state.ActiveJobId | Should -BeNullOrEmpty
-                $row.InstallStatus | Should -Be 'Architecture blocked'
-                $row.Error | Should -Match 'invalid'
-                $state.InstallBatchCounts.Blocked | Should -Be 1
+                $diagnostics = ''
+                if ($null -ne $state.ActiveJobId -or $row.InstallStatus -ne 'Architecture blocked' -or
+                    $row.Error -notmatch 'invalid' -or $state.InstallBatchCounts.Blocked -ne 1) {
+                    $diagnostics = [PSCustomObject]@{
+                        RowError = $row.Error
+                        JobState = [string]$job.State
+                        TerminatingError = [string]$job.TerminatingError
+                        Errors = @($job.Errors | Select-Object -First 3 | ForEach-Object { [string]$_ })
+                        Reviews = @($job.Output | Select-Object -First 3 | ForEach-Object {
+                            [PSCustomObject]@{
+                                Name = $_.Item.Name
+                                Status = $_.Review.Status
+                                Error = $_.Review.Error
+                            }
+                        })
+                    } | ConvertTo-Json -Depth 4 -Compress
+                }
+                $state.ActiveJobId | Should -BeNullOrEmpty -Because $diagnostics
+                $row.InstallStatus | Should -Be 'Architecture blocked' -Because $diagnostics
+                $row.Error | Should -Match 'invalid' -Because $diagnostics
+                $state.InstallBatchCounts.Blocked | Should -Be 1 -Because $diagnostics
             }
             finally {
                 if ($null -ne $state -and $null -ne $state.ActiveJobId) {

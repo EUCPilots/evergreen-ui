@@ -3,6 +3,7 @@
 ## [2.0.1-preview]
 
 - Remove the obsolete test suite and update project guidance.
+- Fix background jobs occasionally reporting completion before their results were available, which could mark install reviews as failed.
 - Show all properties returned for the selected app in the Apps version table, with app-specific columns supported by column visibility preferences and CSV export.
 - Manage the Packages definitions, Microsoft 365 configurations, and Nerdio Shell App definitions folders in Settings.
 - Limit header status messages to two wrapped lines with an ellipsis and show the full message in a tooltip.
