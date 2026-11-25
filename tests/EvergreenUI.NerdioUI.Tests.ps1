@@ -400,6 +400,8 @@ Describe 'Nerdio WPF view' {
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                     $state.NerdioComparisonListView.ActualHeight | Should -BeGreaterThan 100
                     $state.NerdioPublishResultsListView.ActualHeight | Should -BeGreaterThan 60
+                    $state.NerdioPublishResultsListView.ActualHeight |
+                        Should -BeLessThan ($state.NerdioComparisonListView.ActualHeight / 2)
                     $state.NerdioComparisonListView.ActualWidth | Should -BeGreaterThan 500
                     $state.NerdioConnectionStatusLabel.Foreground.Color | Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
                     $button = $state.PublishSelectedNerdioButton
@@ -430,6 +432,13 @@ Describe 'Nerdio WPF view' {
                 $window.UpdateLayout()
                 $state.NerdioComparisonListView.ActualHeight | Should -BeGreaterThan 100
                 $state.NerdioPublishResultsListView.ActualHeight | Should -BeGreaterThan 60
+                $minimumResultsHeight = $state.NerdioPublishResultsListView.ActualHeight
+                $window.Height = 820
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                $state.NerdioPublishResultsListView.ActualHeight | Should -BeGreaterThan $minimumResultsHeight
+                $state.NerdioPublishResultsListView.ActualHeight |
+                    Should -BeLessThan ($state.NerdioComparisonListView.ActualHeight / 2)
             }
             finally { $window.Close() }
         }

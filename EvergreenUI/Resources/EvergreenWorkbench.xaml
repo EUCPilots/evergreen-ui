@@ -1042,6 +1042,7 @@
                               AutomationProperties.Name="Intune comparison">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Definition" Binding="{Binding DefinitionName}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Saved" Binding="{Binding DefinitionVersion}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Intune" Binding="{Binding IntuneVersion}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Status" Binding="{Binding MatchStatus}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
@@ -1170,7 +1171,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="3*" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <StackPanel x:Name="NerdioDefinitionsPathPanel" Grid.Row="0" Margin="0,4,0,4">
                         <Label Content="Folder containing Definition.json files and scripts" Target="{Binding ElementName=NerdioDefinitionsPathBox}" Padding="0" Margin="0,0,0,4" />

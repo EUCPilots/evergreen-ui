@@ -2,6 +2,7 @@
 
 ## [2.0.1-preview]
 
+- Show the publisher beside each definition in the Intune Win32 Apps comparison table.
 - Apply Fluent styling to Intune and shared Microsoft 365 confirmation dialogs.
 - Make Microsoft 365 form labels follow native light and dark themes in Intune and Nerdio.
 - Use the Evergreen bulb as the Workbench window icon.
@@ -23,6 +24,7 @@
 - Remember the 10 most recently saved Library locations and offer them in a dropdown on the Library page. `Set-EwSetting -Name LibraryPath` records each non-empty path in the new `LibraryPathHistory` setting.
 - Move Nerdio Azure storage and API setup to a Settings tab.
 - Move the Nerdio Shell App definitions folder, Browse and Save setup controls above the Shell Apps table. The Settings tab has its own Save setup button.
+- Reduce the height of Nerdio publishing results to give the Shell Apps table more space.
 - Show Nerdio version pruning actions beside Review outcome instead of in an expander.
 - Apply Fluent light and dark styling to Nerdio publishing, outcome review and version pruning dialogs.
 - Fix Nerdio Review outcome failing to resolve its private recovery helper in a background job.

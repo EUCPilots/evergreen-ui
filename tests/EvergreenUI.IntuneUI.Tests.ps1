@@ -13,6 +13,43 @@ AfterAll {
 }
 
 Describe 'Intune Publish view' {
+    It 'shows Publisher immediately after Definition in the Win32 apps comparison' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $window.FindName('AppsPanel').Visibility = 'Collapsed'
+                $window.FindName('IntunePanel').Visibility = 'Visible'
+                $grid = $window.FindName('IntuneComparisonListView')
+                $rows = @(
+                    [PSCustomObject]@{ DefinitionName = 'Matched'; Publisher = 'Intune Publisher'; ImportAsUpdate = $false }
+                    [PSCustomObject]@{ DefinitionName = 'Local'; Publisher = 'Definition Publisher'; ImportAsUpdate = $false }
+                    [PSCustomObject]@{ DefinitionName = 'Unknown'; Publisher = ''; ImportAsUpdate = $false }
+                )
+                $grid.ItemsSource = $rows
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+
+                $grid.Columns[0].Header | Should -Be 'Definition'
+                $column = $grid.Columns[1]
+                $column.Header | Should -Be 'Publisher'
+                $column.IsReadOnly | Should -BeTrue
+                foreach ($row in $rows) {
+                    $grid.ScrollIntoView($row, $column)
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    $column.GetCellContent($row).Text | Should -Be $row.Publisher
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'preserves batch confirmation details for new and update apps' {
         InModuleScope EvergreenUI {
             $selection = @(
