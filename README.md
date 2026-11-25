@@ -3,20 +3,47 @@
 A WPF-based graphical frontend and headless API for the [Evergreen](https://eucpilots.com/evergreen/) PowerShell module.
 
 Evergreen Workbench ships as a separate PowerShell module so it never modifies
-the core Evergreen module. The preview targets Windows and requires
-**PowerShell 7.6+**.
+the core Evergreen module. The current preview is in `EvergreenUI\`, targets
+Windows, and requires **PowerShell 7.6+**.
 
-The module in `EvergreenUI\` provides headless settings,
-job, Apps, download, Library, definitions, local install, packaging,
-authentication, and publishing commands. Its WPF interface covers
-seven views: Apps, Library, Packages, Intune, Nerdio, Settings, and About.
-Packages contains Definitions and Install tabs. Apps combines application
-discovery and downloads with a collapsible queue tray.
+## Current implementation
 
-Workbench stores settings in `%APPDATA%\EvergreenWorkbench\settings.json`.
-Jobs run in a shared pool of up to four runspaces. Use `Start-EwJob`,
-`Get-EwJob`, `Stop-EwJob`, and `Remove-EwJob` to manage them. Job script
-blocks do not capture caller variables; pass values with `-ArgumentList`.
+The module exposes a headless PowerShell API and a WPF desktop interface.
+Importing `EvergreenUI.psd1` loads the feature-grouped PowerShell commands but
+does not load WPF. `Start-EvergreenWorkbench` loads WPF on demand and hosts the
+window on a dedicated single-threaded apartment (STA) runspace when needed.
+The interface calls the same public commands available to scripts.
+
+| Workbench view | What it does |
+|---|---|
+| Apps | Browse Evergreen applications, inspect and filter available artifacts, and queue downloads across applications. |
+| Library | Read, update, inspect, and selectively remove applications or artifacts in a local Evergreen library. |
+| Packages | Load App.json definitions, update them, check local detection, resolve installers, and install packages locally. |
+| Intune | Compare definitions with Intune Win32 apps, build and publish packages, and manage supersedence. |
+| Nerdio | Connect Azure and Nerdio, compare Shell Apps, publish versions, and preview or prune retained versions. |
+| Settings | Save download, library, package, Microsoft 365, and Nerdio folder and connection settings. |
+| About | Review Workbench metadata and local dependency status. |
+
+Packages contains Definitions and Install tabs. Intune and Nerdio each have
+Microsoft 365 Apps workflows. Optional provider and packaging modules load only
+when their related commands are used.
+
+Public commands are grouped by feature and cover settings, jobs, Apps and
+downloads, Library, definitions, local installation, package builds,
+authentication, publishing, dependencies, and cache maintenance. The required
+Evergreen module supplies catalog, artifact, download, and library operations.
+
+Long-running commands use `Start-EwJob` and a shared in-process runspace pool
+of up to four workers. `Get-EwJob` reports state, progress, information,
+errors, and output; `Stop-EwJob` requests cancellation, and `Remove-EwJob`
+releases completed jobs. The WPF interface polls job state and applies results
+on the UI thread; worker runspaces never access WPF controls. Job script blocks
+are recreated in workers and do not capture caller variables, so pass inputs
+with `-ArgumentList`.
+
+User settings and saved interface state are stored in
+`%APPDATA%\EvergreenWorkbench\settings.json`. Jobs and settings can also be
+used without starting the WPF interface.
 
 The interface restores its window size and maximised state, last viewed page,
 last selected application, and download tray height at startup. Apps artifact
@@ -56,7 +83,12 @@ For unattended use, explicitly supply
 call without the required opt-in throws. Results report `Installed`, `Failed`,
 `Blocked`, or `Skipped`; `-WhatIf` does not resolve or download an Artifact.
 
-`New-EwPackage` builds Intune Win32 packages from App.json definitions or creates Microsoft 365 Apps packages for Intune or Nerdio from ODT XML. Intune package building uses the optional `IntuneWin32App` module. `Connect-EwIntune` and `Connect-EwNerdio` establish provider sessions; publishing commands require their corresponding Microsoft Graph or Azure modules and live provider access. Authentication tokens and secrets are kept in process memory, not settings.
+`New-EwPackage` builds Intune Win32 packages from App.json definitions or
+Microsoft 365 Apps packages from ODT XML for Intune or Nerdio. Intune package
+building uses the optional `IntuneWin32App` module. `Connect-EwIntune` and
+`Connect-EwNerdio` establish provider sessions; publishing requires the
+corresponding Microsoft Graph or Azure modules and live provider access.
+Authentication tokens and secrets are kept in process memory, not settings.
 
 `Connect-EwNerdio -ApiOnly` authenticates without an Azure storage connection.
 A full connection with Azure storage remains required for Nerdio publishing.
@@ -153,7 +185,7 @@ test the installer Artifact resolved from a Definition, not a deployment
 Package. Intune and Nerdio remain separate publishing pages; local installation
 is optional and is not a publishing gate.
 
-Definitions is the default tab. A legacy `StartupView=Install` opens Packages
+Definitions is the default tab. A saved `StartupView=Install` opens Packages
 with Install selected; tab selection is not saved separately. Each tab keeps
 its own selection, with no automatic transfer. Folder edits and completed
 definition loads or updates invalidate Install rows. Entering Install refreshes
