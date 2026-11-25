@@ -21,8 +21,12 @@ across properties, and no selection means All. The Apps queue batches downloads
 across applications, shows progress, and lets users remove individual items or
 clear completed rows.
 
-In Apps, open **Columns** above the artifacts grid to show or hide optional
-columns. **Version** and **URI** always remain visible. Column choices apply
+The Apps version table shows the properties returned for the selected
+application, including properties present only on some version rows. Familiar
+columns appear first, followed by app-specific properties, with **URI** last.
+Missing values are blank. In Apps, open **Columns** above the artifacts grid
+to show or hide optional columns. **Version** and **URI** cannot be hidden
+when present. Column choices apply
 across applications and are remembered between sessions. Select **Export to CSV**
 to save the filtered artifact rows and visible columns in their current order.
 

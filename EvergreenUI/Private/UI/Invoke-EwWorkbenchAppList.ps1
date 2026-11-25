@@ -42,6 +42,7 @@ function Invoke-EwWorkbenchAppList {
             $State.ArtifactFilterControls = @{}
             $State.ArtifactFiltersPanel.Children.Clear()
             $State.ArtifactsGrid.ItemsSource = @()
+            Invoke-EwWorkbenchArtifactColumn -State $State
             $State.ArtifactCountLabel.Text = '0 artifacts'
             $State.SelectedAppText.Text = 'Select an application to view available versions'
         }

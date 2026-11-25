@@ -15,8 +15,8 @@ function Set-EwSetting {
         DownloadTrayHeight must be between 120 and 600 and AppsListWidth must
         be at least 160, both in device-independent pixels. WindowMaximized
         must be True or False. ArtifactHiddenColumns is a comma-separated list
-        of optional Apps grid columns to hide: Architecture, Channel, Release,
-        Type, Language and Date. An empty value shows all columns; Version and
+        of optional Apps grid property names to hide, including app-specific
+        properties. An empty value shows all columns; Version and
         URI cannot be hidden. Saving a non-empty LibraryPath also records it at
         the top of LibraryPathHistory, which keeps the 10 most recent distinct
         library paths.
@@ -61,20 +61,23 @@ function Set-EwSetting {
     switch ($Name) {
         'ArtifactHiddenColumns' {
             $optionalColumns = @('Architecture', 'Channel', 'Release', 'Type', 'Language', 'Date')
+            $seenColumns = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
             $hiddenColumns = @(
                 foreach ($columnName in ($Value -split ',')) {
                     $columnName = $columnName.Trim()
                     if ([string]::IsNullOrEmpty($columnName)) {
                         continue
                     }
-                    $match = $optionalColumns | Where-Object { $_ -eq $columnName } | Select-Object -First 1
-                    if ($null -eq $match) {
-                        throw "ArtifactHiddenColumns cannot hide '$columnName'. Allowed columns: $($optionalColumns -join ', '). Version and URI must remain visible."
+                    if ($columnName -in @('Version', 'URI')) {
+                        throw "ArtifactHiddenColumns cannot hide '$columnName'. Version and URI must remain visible."
                     }
-                    $match
+                    $match = $optionalColumns | Where-Object { $_ -eq $columnName } | Select-Object -First 1
+                    if ($seenColumns.Add($columnName)) {
+                        if ($null -ne $match) { $match } else { $columnName }
+                    }
                 }
             )
-            $storedValue = ($hiddenColumns | Select-Object -Unique) -join ','
+            $storedValue = $hiddenColumns -join ','
         }
         'StartupView' {
             $match = $views | Where-Object { $_ -eq $Value } | Select-Object -First 1

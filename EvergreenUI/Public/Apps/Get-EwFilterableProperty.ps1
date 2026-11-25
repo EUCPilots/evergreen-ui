@@ -62,7 +62,9 @@ function Get-EwFilterableProperty {
         $result = foreach ($propertyName in $properties) {
             $values = @(
                 foreach ($item in $artifacts) {
-                    $value = $item.PSObject.Properties[$propertyName].Value
+                    $property = $item.PSObject.Properties[$propertyName]
+                    if ($null -eq $property) { continue }
+                    $value = $property.Value
                     if ($null -ne $value) {
                         [string]$value
                     }
@@ -84,7 +86,9 @@ function Get-EwFilterableProperty {
         if (-not $hasType -and $hasUri) {
             $types = @(
                 foreach ($item in $artifacts) {
-                    $extension = [System.IO.Path]::GetExtension([string]$item.URI).TrimStart('.').ToLowerInvariant()
+                    $uri = $item.PSObject.Properties['URI']
+                    if ($null -eq $uri) { continue }
+                    $extension = [System.IO.Path]::GetExtension([string]$uri.Value).TrimStart('.').ToLowerInvariant()
                     if ($extension) {
                         $extension
                     }

@@ -831,6 +831,12 @@ Describe 'Evergreen Workbench WPF shell' {
                         Should -Be 'Show or hide artifact columns'
                     @($state.ArtifactsGrid.Items).Count | Should -Be 0
                     $menu = $button.ContextMenu
+                    $menu.Items.Count | Should -Be 0
+                    $state.AllArtifacts = @([PSCustomObject]@{
+                        Version = '1'; Architecture = 'x64'; Channel = 'Stable'; Release = 'Current'
+                        Type = 'exe'; Language = 'en'; Date = '2026-11-25'; URI = 'https://example.test/a.exe'
+                    })
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                     @($menu.Items | ForEach-Object Header) |
                         Should -Be @('Version', 'Architecture', 'Channel', 'Release', 'Type', 'Language', 'Date', 'URI')
                     $button.RaiseEvent([System.Windows.RoutedEventArgs]::new(
@@ -852,6 +858,99 @@ Describe 'Evergreen Workbench WPF shell' {
                     $window.FindName('ShowArtifactColumnsButton').ContextMenu.IsOpen = $false
                     $window.Close()
                 }
+            }
+        }
+
+        It 'shows the union of returned properties with real values and blank missing cells' {
+            InModuleScope EvergreenUI {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $first = [PSCustomObject]@{
+                        Size = 0; URI = 'https://example.test/a.exe'; Version = '1'
+                        Architecture = 'x64'; IsLatest = $false
+                    }
+                    $second = [PSCustomObject]@{
+                        Version = '2'; Architecture = 'x86'; SIZE = 42; Sha256 = 'abc123'
+                        Date = $null; URI = 'https://example.test/b.exe'
+                    }
+                    $state.AllArtifacts = @($first, $second)
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    @($state.ArtifactsGrid.Columns | ForEach-Object Header) |
+                        Should -Be @('Version', 'Architecture', 'Date', 'Size', 'IsLatest', 'Sha256', 'URI')
+                    @($state.ShowArtifactColumnsButton.ContextMenu.Items | ForEach-Object Header) |
+                        Should -Be @('Version', 'Architecture', 'Date', 'Size', 'IsLatest', 'Sha256', 'URI')
+                    [object]::ReferenceEquals($state.ArtifactsGrid.ItemsSource[0], $first) | Should -BeTrue
+                    $window.WindowStartupLocation = 'Manual'
+                    $window.Left = -10000
+                    $window.Top = -10000
+                    $window.Show()
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+                    $size = $state.ArtifactsGrid.Columns | Where-Object Header -eq 'Size'
+                    $hash = $state.ArtifactsGrid.Columns | Where-Object Header -eq 'Sha256'
+                    $date = $state.ArtifactsGrid.Columns | Where-Object Header -eq 'Date'
+                    $flag = $state.ArtifactsGrid.Columns | Where-Object Header -eq 'IsLatest'
+                    $size.GetCellContent($first).Text | Should -Be '0'
+                    $size.GetCellContent($second).Text | Should -Be '42'
+                    $hash.GetCellContent($first).Text | Should -Be ''
+                    $hash.GetCellContent($second).Text | Should -Be 'abc123'
+                    $date.GetCellContent($second).Text | Should -Be ''
+                    $flag.GetCellContent($first).Text | Should -Be 'False'
+
+                    ($state.ArtifactFilterControls['Architecture'].CheckBoxes | Where-Object Tag -eq 'x86').IsChecked = $true
+                    ($state.ArtifactFilterControls['IsLatest'].CheckBoxes | Where-Object Tag -eq 'False').IsChecked = $true
+                    $state.ArtifactsGrid.Items.Count | Should -Be 0
+                    [object]::ReferenceEquals(($state.ArtifactsGrid.Columns | Where-Object Header -eq 'Sha256'), $hash) |
+                        Should -BeTrue
+                }
+                finally { $window.Close() }
+            }
+        }
+
+        It 'refreshes app schemas and remembers app-specific choices across apps reloads and sessions' {
+            InModuleScope EvergreenUI {
+                $window = Get-EwWorkbenchWindow
+                try {
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.AllArtifacts = @([PSCustomObject]@{ Version = '1'; Size = 42; URI = 'https://example.test/a.exe' })
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    $item = $state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object Header -eq 'Size'
+                    $item.IsChecked = $false
+                    $item.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+                    (Get-EwSetting).ArtifactHiddenColumns | Should -Be 'Size'
+                    Mock Invoke-EwWorkbenchJob {}
+                    $state.AppsListView.ItemsSource = @([PSCustomObject]@{ Name = 'Other'; FriendlyName = 'Other app' })
+                    $state.AppsListView.SelectedIndex = 0
+                    $state.ArtifactsGrid.Columns.Count | Should -Be 0
+                    $state.ShowArtifactColumnsButton.ContextMenu.Items.Count | Should -Be 0
+                    $state.AllArtifacts = @([PSCustomObject]@{ Version = '2'; Publisher = 'Example' })
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    @($state.ArtifactsGrid.Columns | ForEach-Object Header) | Should -Be @('Version', 'Publisher')
+                    $item = $state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object Header -eq 'Publisher'
+                    $item.IsChecked = $false
+                    $item.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+                    (Get-EwSetting).ArtifactHiddenColumns | Should -Be 'Size,Publisher'
+                    $window.Close()
+
+                    $window = Get-EwWorkbenchWindow
+                    $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.AllArtifacts = @([PSCustomObject]@{ Version = '3'; Size = 84; URI = 'https://example.test/a.exe' })
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    ($state.ArtifactsGrid.Columns | Where-Object Header -eq 'Size').Visibility.ToString() | Should -Be 'Collapsed'
+                    $state.AllArtifacts = @([PSCustomObject]@{ Version = '4'; Size = 85; Sha256 = 'new' })
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    @($state.ArtifactsGrid.Columns | ForEach-Object Header) | Should -Be @('Version', 'Size', 'Sha256')
+                    $item = $state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object Header -eq 'Size'
+                    $item.IsChecked = $true
+                    $item.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent))
+                    (Get-EwSetting).ArtifactHiddenColumns | Should -Be 'Publisher'
+                    $state.AllArtifacts = @()
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
+                    $state.ArtifactsGrid.Columns.Count | Should -Be 0
+                    $state.ShowArtifactColumnsButton.ContextMenu.Items.Count | Should -Be 0
+                }
+                finally { $window.Close() }
             }
         }
 
@@ -946,6 +1045,12 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window = Get-EwWorkbenchWindow
                 try {
                     $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $artifacts = @([PSCustomObject]@{
+                        Version = '1'; Architecture = 'x64'; Channel = 'Stable'; Release = 'Current'
+                        Type = 'exe'; Language = 'en'; Date = '2026-11-25'; URI = 'https://example.test/a.exe'
+                    })
+                    $state.AllArtifacts = $artifacts
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                     $optional = @($state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object IsEnabled)
                     foreach ($item in $optional) {
                         $item.IsChecked = $false
@@ -956,6 +1061,8 @@ Describe 'Evergreen Workbench WPF shell' {
                     $window.Close()
                     $window = Get-EwWorkbenchWindow
                     $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.AllArtifacts = $artifacts
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                     foreach ($item in $state.ShowArtifactColumnsButton.ContextMenu.Items) {
                         if ($item.IsEnabled) {
                             $item.IsChecked | Should -BeFalse
@@ -978,7 +1085,7 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window = Get-EwWorkbenchWindow
                 try {
                     $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
-                    $artifact = [PSCustomObject]@{ Version = '1.0'; Architecture = 'x64'; Channel = 'Stable'; URI = 'https://example.test/app.exe' }
+                    $artifact = [PSCustomObject]@{ Version = '1.0'; Architecture = 'x64'; Channel = 'Stable'; Date = $null; URI = 'https://example.test/app.exe' }
                     $state.AllArtifacts = @($artifact)
                     Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                     $state.ArtifactsGrid.SelectedItem = $artifact
@@ -998,6 +1105,7 @@ Describe 'Evergreen Workbench WPF shell' {
                     foreach ($column in $state.ArtifactsGrid.Columns) {
                         $column.Visibility.ToString() | Should -Be $(if ($column.Header -in @('Architecture', 'Channel', 'Date')) { 'Collapsed' } else { 'Visible' })
                     }
+                    @($state.ArtifactsGrid.Columns | ForEach-Object Header) | Should -Be @('Version', 'Architecture', 'URI')
                     (Get-EwSetting).ArtifactHiddenColumns | Should -Be 'Architecture,Channel,Date'
                 }
                 finally { $window.Close() }
@@ -1011,6 +1119,8 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window = Get-EwWorkbenchWindow
                 try {
                     $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                    $state.AllArtifacts = @([PSCustomObject]@{ Version = '1'; Architecture = 'x64'; URI = 'https://example.test/a.exe' })
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                     foreach ($column in $state.ArtifactsGrid.Columns) {
                         $column.Visibility.ToString() | Should -Be $(if ($column.Header -eq 'Architecture') { 'Collapsed' } else { 'Visible' })
                     }
@@ -1034,6 +1144,8 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window = Get-EwWorkbenchWindow
                 try {
                     $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                    $state.AllArtifacts = @([PSCustomObject]@{ Version = '1'; Architecture = 'x64'; Channel = 'Stable'; URI = 'https://example.test/a.exe' })
+                    Invoke-EwWorkbenchArtifactList -State $state -RebuildFilters
                     Mock Write-EwSetting { throw 'settings write failed' }
                     $item = $state.ShowArtifactColumnsButton.ContextMenu.Items | Where-Object Header -eq 'Architecture'
                     $item.IsChecked = $false
@@ -1112,7 +1224,7 @@ Describe 'Evergreen Workbench WPF shell' {
                     $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
                     $richValue = "caf$([char]0x00e9), `"quoted`"`nnext line"
                     $state.AllArtifacts = @(
-                        [PSCustomObject]@{ Version = '2'; Architecture = 'x64'; Channel = 'Stable'; Release = $richValue; URI = 'https://example.test/two.exe' }
+                        [PSCustomObject]@{ Version = '2'; Architecture = 'x64'; Channel = 'Stable'; Release = $richValue; Size = 12345; URI = 'https://example.test/two.exe' }
                         [PSCustomObject]@{ Version = '1'; Architecture = 'x64'; Channel = 'Preview'; Release = $null; URI = 'https://example.test/one.exe' }
                         [PSCustomObject]@{ Version = '3'; Architecture = 'x86'; Channel = 'Stable'; Release = $null; URI = 'https://example.test/three.exe' }
                     )
@@ -1149,12 +1261,14 @@ Describe 'Evergreen Workbench WPF shell' {
                     $csv = @(Import-Csv -LiteralPath $CsvPath)
                     $csv.Count | Should -Be 2
                     @($csv[0].PSObject.Properties.Name) |
-                        Should -Be @('URI', 'Version', 'Architecture', 'Release', 'Type', 'Language', 'Date')
+                        Should -Be @('URI', 'Version', 'Architecture', 'Release', 'Size')
                     @($csv.Version) | Should -Be @('1', '2')
                     $csv[0].URI | Should -Be 'https://example.test/one.exe'
                     $csv[0].Release | Should -Be ''
                     $csv[1].URI | Should -Be 'https://example.test/two.exe'
                     $csv[1].Release | Should -BeExactly $richValue
+                    $csv[0].Size | Should -Be ''
+                    $csv[1].Size | Should -Be '12345'
                     $state.ActivityLog.Text | Should -Match 'Exported 2 artifacts'
                 }
                 finally {

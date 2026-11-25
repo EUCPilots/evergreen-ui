@@ -16,6 +16,7 @@ function Invoke-EwWorkbenchArtifactList {
     )
 
     if ($RebuildFilters) {
+        Invoke-EwWorkbenchArtifactColumn -State $State
         $State.AllowFilterEvents = $false
         $State.ArtifactFiltersPanel.Children.Clear()
         $State.ArtifactFilterControls = @{}

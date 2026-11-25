@@ -174,6 +174,7 @@ function Initialize-EwWorkbenchView {
         $State.SelectedAppText.Text = "Loading versions for $($selectedApp.FriendlyName)..."
         $State.AllArtifacts = @()
         $State.ArtifactsGrid.ItemsSource = @()
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchArtifactColumn' -Parameters @{ State = $State }
         $State.ArtifactFiltersPanel.Children.Clear()
         $State.ArtifactCountLabel.Text = 'Loading artifacts'
         try {
@@ -247,56 +248,7 @@ function Initialize-EwWorkbenchView {
     }.GetNewClosure())
     $columnMenu = $State.ShowArtifactColumnsButton.ContextMenu
     $columnMenu.PlacementTarget = $State.ShowArtifactColumnsButton
-    $savedHiddenColumns = if ($State.Settings.Contains('ArtifactHiddenColumns')) {
-        $State.Settings.ArtifactHiddenColumns
-    } else { '' }
-    $hiddenColumns = @()
-    if ($savedHiddenColumns -is [string]) {
-        $hiddenColumns = @($savedHiddenColumns -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-        $optionalColumns = @($State.ArtifactsGrid.Columns | Where-Object { [string]$_.Header -notin @('Version', 'URI') } | ForEach-Object { [string]$_.Header })
-        $invalidColumns = @($hiddenColumns | Where-Object { $_ -notin $optionalColumns })
-        if ($invalidColumns.Count -gt 0) {
-            Write-EwWorkbenchLog -State $State -Message "Ignoring invalid saved hidden artifact columns: $($invalidColumns -join ', '). Version and URI must remain visible." -Level Warning
-        }
-    }
-    else {
-        Write-EwWorkbenchLog -State $State -Message 'Invalid saved ArtifactHiddenColumns; expected a comma-separated string. Showing all artifact columns.' -Level Warning
-    }
-    foreach ($column in $State.ArtifactsGrid.Columns) {
-        $required = [string]$column.Header -in @('Version', 'URI')
-        $column.Visibility = if (-not $required -and [string]$column.Header -in $hiddenColumns) {
-            [System.Windows.Visibility]::Collapsed
-        } else { [System.Windows.Visibility]::Visible }
-        $menuItem = [System.Windows.Controls.MenuItem]::new()
-        $menuItem.Header = [string]$column.Header
-        $menuItem.Tag = $column
-        $menuItem.IsCheckable = $true
-        $menuItem.IsChecked = $column.Visibility -eq [System.Windows.Visibility]::Visible
-        $menuItem.StaysOpenOnClick = $true
-        $menuItem.IsEnabled = -not $required
-        if ($required) {
-            $menuItem.ToolTip = "$($column.Header) must remain visible."
-            [System.Windows.Controls.ToolTipService]::SetShowOnDisabled($menuItem, $true)
-        }
-        else {
-            $menuItem.Add_Click({
-                param($eventSource, $clickArgs)
-                $eventSource.Tag.Visibility = if ($eventSource.IsChecked) {
-                    [System.Windows.Visibility]::Visible
-                } else { [System.Windows.Visibility]::Collapsed }
-                $hidden = @($State.ArtifactsGrid.Columns |
-                    Where-Object { $_.Visibility -ne [System.Windows.Visibility]::Visible -and [string]$_.Header -notin @('Version', 'URI') } |
-                    ForEach-Object { [string]$_.Header })
-                & $State.ModuleInvoker -Name 'Save-EwWorkbenchUiSetting' -Parameters @{
-                    State = $State
-                    Name = 'ArtifactHiddenColumns'
-                    Value = $hidden -join ','
-                }
-                $clickArgs.Handled = $true
-            }.GetNewClosure())
-        }
-        $null = $columnMenu.Items.Add($menuItem)
-    }
+    Invoke-EwWorkbenchArtifactColumn -State $State
     $columnMenu.Add_Opened({
         foreach ($item in $columnMenu.Items) {
             $item.IsChecked = $item.Tag.Visibility -eq [System.Windows.Visibility]::Visible

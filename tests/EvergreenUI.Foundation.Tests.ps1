@@ -121,10 +121,14 @@ Describe 'EvergreenUI v2 foundation' {
         (Get-EwSetting).ArtifactHiddenColumns | Should -Be ''
     }
 
-    It 'rejects hiding required or unsupported artifact column <Column>' -ForEach @(
+    It 'persists app-specific hidden properties without case-insensitive duplicates' {
+        Set-EwSetting -Name ArtifactHiddenColumns -Value 'Sha256, Size, SHA256'
+        (Get-EwSetting).ArtifactHiddenColumns | Should -BeExactly 'Sha256,Size'
+    }
+
+    It 'rejects hiding required artifact column <Column>' -ForEach @(
         @{ Column = 'Version' }
         @{ Column = 'uri' }
-        @{ Column = 'Unknown' }
     ) {
         Set-EwSetting -Name ArtifactHiddenColumns -Value 'Channel'
         { Set-EwSetting -Name ArtifactHiddenColumns -Value "Date,$Column" } |

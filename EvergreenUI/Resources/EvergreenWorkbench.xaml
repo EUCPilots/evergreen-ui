@@ -524,16 +524,6 @@
                                         <MenuItem Header="Open URI" />
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Architecture" Binding="{Binding Architecture}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Channel" Binding="{Binding Channel}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Release" Binding="{Binding Release}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Language" Binding="{Binding Language}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="120" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                    <DataGridTextColumn Header="URI" Binding="{Binding URI}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                </DataGrid.Columns>
                             </DataGrid>
                         </Grid>
                         <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0">

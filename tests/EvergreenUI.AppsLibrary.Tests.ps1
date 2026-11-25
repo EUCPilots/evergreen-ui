@@ -88,6 +88,16 @@ Describe 'Artifact filter metadata' {
         ($properties | Where-Object Name -eq '_DerivedType').UniqueValues | Should -Be @('exe', 'msi')
     }
 
+    It 'derives metadata when later artifact rows lack a filter property or URI' {
+        $artifacts = @(
+            [PSCustomObject]@{ Version = '1'; URI = 'https://example.test/a.msi'; Architecture = 'x64' }
+            [PSCustomObject]@{ Version = '2'; Sha256 = 'abc123' }
+        )
+        $properties = Get-EwFilterableProperty -Artifact $artifacts
+        ($properties | Where-Object Name -eq 'Architecture').UniqueValues | Should -Be @('x64')
+        ($properties | Where-Object Name -eq '_DerivedType').UniqueValues | Should -Be @('msi')
+    }
+
     It 'selects control type from value cardinality and handles empty data' {
         $small = @(1..6 | ForEach-Object { [PSCustomObject]@{ Architecture = "arch$_" } })
         $medium = @(1..7 | ForEach-Object { [PSCustomObject]@{ Architecture = "arch$_" } })
