@@ -348,6 +348,12 @@
                                    Tag="Info"
                                    MaxWidth="800"
                                    TextWrapping="Wrap"
+                                   LineStackingStrategy="BlockLineHeight"
+                                   LineHeight="20"
+                                   MaxHeight="40"
+                                   TextTrimming="CharacterEllipsis"
+                                   ClipToBounds="True"
+                                   ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
                                    AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                 </Border>
@@ -1370,7 +1376,7 @@
                                 <TextBlock Text="Saved folders"
                                            Style="{StaticResource SectionHeadingTextBlockStyle}"
                                            Margin="0,0,0,8" />
-                                <TextBlock Text="Use Browse to change a saved folder. The Library view also has its own path controls."
+                                <TextBlock Text="Use Browse to change a saved folder. Workflow views also have their own path controls."
                                            TextWrapping="Wrap"
                                            Opacity="0.75"
                                            Margin="0,0,0,16" />
@@ -1432,6 +1438,68 @@
                                             AutomationProperties.Name="Open library folder" />
                                 </Grid>
                                 <TextBlock x:Name="LibraryFolderStatusLabel"
+                                           Text="Folder has not been checked."
+                                           TextWrapping="Wrap"
+                                           Opacity="0.75"
+                                           Margin="0,5,0,16" />
+                                <Label Content="Packages definitions folder" Target="{Binding ElementName=SettingsPackageDefinitionsPathBox}" Padding="0" Margin="0,0,0,5" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SettingsPackageDefinitionsPathBox"
+                                             IsReadOnly="True" Height="32" VerticalContentAlignment="Center"
+                                             AutomationProperties.Name="Saved Packages definitions folder" />
+                                    <Button x:Name="BrowsePackageDefinitionsFolderButton" Grid.Column="1"
+                                            Content="Browse" Margin="8,0,0,0" Padding="12,4"
+                                            AutomationProperties.Name="Browse for Packages definitions folder" />
+                                    <Button x:Name="OpenPackageDefinitionsFolderButton" Grid.Column="2"
+                                            Content="Open folder" Margin="8,0,0,0" Padding="12,4" IsEnabled="False"
+                                            AutomationProperties.Name="Open Packages definitions folder" />
+                                </Grid>
+                                <TextBlock x:Name="PackageDefinitionsFolderStatusLabel"
+                                           Text="Folder has not been checked." TextWrapping="Wrap" Opacity="0.75"
+                                           Margin="0,5,0,16" />
+                                <Label Content="Microsoft 365 Apps configurations folder" Target="{Binding ElementName=SettingsM365ConfigurationsPathBox}" Padding="0" Margin="0,0,0,5" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SettingsM365ConfigurationsPathBox"
+                                             IsReadOnly="True" Height="32" VerticalContentAlignment="Center"
+                                             AutomationProperties.Name="Saved Microsoft 365 Apps configurations folder" />
+                                    <Button x:Name="BrowseM365ConfigurationsFolderButton" Grid.Column="1"
+                                            Content="Browse" Margin="8,0,0,0" Padding="12,4"
+                                            AutomationProperties.Name="Browse for Microsoft 365 Apps configurations folder" />
+                                    <Button x:Name="OpenM365ConfigurationsFolderButton" Grid.Column="2"
+                                            Content="Open folder" Margin="8,0,0,0" Padding="12,4" IsEnabled="False"
+                                            AutomationProperties.Name="Open Microsoft 365 Apps configurations folder" />
+                                </Grid>
+                                <TextBlock x:Name="M365ConfigurationsFolderStatusLabel"
+                                           Text="Folder has not been checked." TextWrapping="Wrap" Opacity="0.75"
+                                           Margin="0,5,0,16" />
+                                <Label Content="Nerdio Manager Shell Apps directory" Target="{Binding ElementName=SettingsNerdioDefinitionsPathBox}" Padding="0" Margin="0,0,0,5" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SettingsNerdioDefinitionsPathBox"
+                                             IsReadOnly="True" Height="32" VerticalContentAlignment="Center"
+                                             AutomationProperties.Name="Saved Nerdio Manager Shell Apps directory" />
+                                    <Button x:Name="BrowseNerdioDefinitionsFolderButton" Grid.Column="1"
+                                            Content="Browse" Margin="8,0,0,0" Padding="12,4"
+                                            AutomationProperties.Name="Browse for Nerdio Manager Shell Apps directory" />
+                                    <Button x:Name="OpenNerdioDefinitionsFolderButton" Grid.Column="2"
+                                            Content="Open folder" Margin="8,0,0,0" Padding="12,4" IsEnabled="False"
+                                            AutomationProperties.Name="Open Nerdio Manager Shell Apps directory" />
+                                </Grid>
+                                <TextBlock x:Name="NerdioDefinitionsFolderStatusLabel"
                                            Text="Folder has not been checked."
                                            TextWrapping="Wrap"
                                            Opacity="0.75"

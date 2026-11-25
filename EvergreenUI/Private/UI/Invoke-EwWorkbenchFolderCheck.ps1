@@ -5,7 +5,7 @@ function Invoke-EwWorkbenchFolderCheck {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$State,
-        [Parameter(Mandatory)][ValidateSet('Download', 'Library')][string]$Kind,
+        [Parameter(Mandatory)][ValidateSet('Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions')][string]$Kind,
         [switch]$OpenAfterCheck
     )
 
@@ -14,12 +14,13 @@ function Invoke-EwWorkbenchFolderCheck {
     $button = $State["Open${Kind}FolderButton"]
     $status = $State["${Kind}FolderStatusLabel"]
     $path = [string]$pathBox.Text
+    $label = [regex]::Replace($Kind, '(?<=[a-z0-9])(?=[A-Z])', ' ').ToLowerInvariant()
     $button.IsEnabled = $false
     if ([string]::IsNullOrWhiteSpace($path)) {
         $slot.Generation = [int]$slot.Generation + 1
         $slot.Pending = $null
         Invoke-EwWorkbenchInfoJobCleanup -State $State -Kind $Kind
-        $status.Text = "No $($Kind.ToLowerInvariant()) folder is configured."
+        $status.Text = "No $label folder is configured."
         return
     }
 
@@ -27,7 +28,7 @@ function Invoke-EwWorkbenchFolderCheck {
         $basePath = [string](Get-Location -PSProvider FileSystem -ErrorAction Stop).ProviderPath
         $status.Text = 'Checking folder availability...'
         $request = @{
-            Name = "Check $($Kind.ToLowerInvariant()) folder"
+            Name = "Check $label folder"
             Path = $path
             OpenAfterCheck = [bool]$OpenAfterCheck
             ArgumentList = @($path, $basePath)

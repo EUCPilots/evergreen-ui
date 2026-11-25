@@ -5,7 +5,8 @@ function Invoke-EwWorkbenchInfoJobCleanup {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$State,
-        [ValidateSet('Download', 'Library', 'About')][string[]]$Kind = @('Download', 'Library', 'About'),
+        [ValidateSet('Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions', 'About')]
+        [string[]]$Kind = @('Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions', 'About'),
         [switch]$Closing
     )
 
@@ -38,7 +39,7 @@ function Invoke-EwWorkbenchInfoJobCleanup {
             }
             else {
                 Write-EwWorkbenchLog -State $State -Message $message -Level Warning -PreserveStatus
-                if ($jobKind -in @('Download', 'Library')) {
+                if ($jobKind -ne 'About') {
                     $State["${jobKind}FolderStatusLabel"].Text = "Could not replace the previous folder check: $detail"
                 }
             }

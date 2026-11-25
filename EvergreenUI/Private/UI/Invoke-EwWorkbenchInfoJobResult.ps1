@@ -5,7 +5,7 @@ function Invoke-EwWorkbenchInfoJobResult {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$State,
-        [Parameter(Mandatory)][ValidateSet('Download', 'Library', 'About')][string]$Kind,
+        [Parameter(Mandatory)][ValidateSet('Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions', 'About')][string]$Kind,
         [Parameter(Mandatory)][System.Collections.IDictionary]$Request,
         [AllowEmptyCollection()][object[]]$Output = @(),
         [AllowEmptyString()][string]$ErrorMessage = ''

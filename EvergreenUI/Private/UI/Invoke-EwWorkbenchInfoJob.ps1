@@ -5,7 +5,7 @@ function Invoke-EwWorkbenchInfoJob {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$State,
-        [Parameter(Mandatory)][ValidateSet('Download', 'Library', 'About')][string]$Kind,
+        [Parameter(Mandatory)][ValidateSet('Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions', 'About')][string]$Kind,
         [AllowNull()][System.Collections.IDictionary]$Request = $null
     )
 
@@ -39,6 +39,15 @@ function Invoke-EwWorkbenchInfoJob {
     }
     if ($null -ne $slot.ActiveId -or $null -eq $slot.Pending) {
         return
+    }
+    if ($Kind -ne 'About') {
+        # Reserve pool capacity for About and the active workflow job.
+        $activeChecks = @($State.InfoJobs.Keys | Where-Object {
+                $_ -ne 'About' -and $null -ne $State.InfoJobs[$_].ActiveId
+            }).Count
+        if ($activeChecks -ge 2) {
+            return
+        }
     }
 
     $current = $slot.Pending

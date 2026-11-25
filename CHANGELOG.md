@@ -2,6 +2,8 @@
 
 ## [2.0.1-preview]
 
+- Manage the Packages definitions, Microsoft 365 configurations, and Nerdio Shell App definitions folders in Settings.
+- Limit header status messages to two wrapped lines with an ellipsis and show the full message in a tooltip.
 - Show the publisher beside each definition in the Intune Win32 Apps comparison table.
 - Apply Fluent styling to Intune and shared Microsoft 365 confirmation dialogs.
 - Make Microsoft 365 form labels follow native light and dark themes in Intune and Nerdio.

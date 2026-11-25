@@ -1798,6 +1798,73 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'limits status messages to two lines in <Theme> mode at width <Width>' -ForEach @(
+        @{ Theme = 'Light'; Width = 1200 }
+        @{ Theme = 'Light'; Width = 960 }
+        @{ Theme = 'Dark'; Width = 1200 }
+        @{ Theme = 'Dark'; Width = 960 }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Theme = $Theme; Width = $Width } {
+            param($Theme, $Width)
+
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.ThemeMode = [System.Windows.ThemeMode]::$Theme
+                $window.Width = $Width
+                $window.Show()
+                $status = $window.FindName('StatusLabel')
+                foreach ($message in @(
+                    ('A long status message that must not expand the header. ' * 50)
+                    "First line`nSecond line`nThird line`nFourth line"
+                    ('x' * 2000)
+                )) {
+                    $status.Text = $message
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $window.UpdateLayout()
+
+                    $status.ActualHeight | Should -BeGreaterThan $status.LineHeight
+                    $status.ActualHeight | Should -BeLessOrEqual ($status.LineHeight * 2)
+                    $status.TextTrimming | Should -Be ([System.Windows.TextTrimming]::CharacterEllipsis)
+                    $status.Text | Should -BeExactly $message
+                    $status.ToolTip | Should -BeExactly $message
+                }
+
+                $status.Text = 'Ready'
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                $status.ActualHeight | Should -BeGreaterThan 0
+                $status.ActualHeight | Should -BeLessOrEqual $status.LineHeight
+                $status.ToolTip | Should -BeExactly 'Ready'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'preserves the full logged status message when its display is trimmed' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.Show()
+                $message = 'A complete failure message that remains available in Activity. ' * 50
+                Write-EwWorkbenchLog -State $state -Message $message -Level Error
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+
+                $state.StatusLabel.ActualHeight | Should -BeLessOrEqual ($state.StatusLabel.LineHeight * 2)
+                $state.StatusLabel.Text | Should -BeExactly $message
+                $state.StatusLabel.ToolTip | Should -BeExactly $message
+                $state.StatusLabel.Tag | Should -Be 'Error'
+                $state.ActivityLog.Text | Should -BeLike "*$message*"
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'retains native chrome with a themed solid caption and Mica body across theme changes' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
@@ -3624,6 +3691,317 @@ Describe 'Workbench Settings and About' {
                 $state.SettingsLibraryPathBox.Text | Should -Be ''
                 $state.LibraryFolderStatusLabel.Text | Should -Match 'No library folder is configured'
                 $state.OpenLibraryFolderButton.IsEnabled | Should -BeFalse
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'shows the three saved workflow folders without replacing unsaved edits on navigation' {
+        InModuleScope EvergreenUI -Parameters @{ Wait = $waitForInfoJob; Root = $TestDrive } {
+            param($Wait, $Root)
+            $available = Join-Path -Path $Root -ChildPath 'Definitions'
+            $missing = Join-Path -Path $Root -ChildPath 'Missing configurations'
+            $null = New-Item -Path $available -ItemType Directory -Force
+            Set-EwSetting -Name IntuneDefinitionsPath -Value $available
+            Set-EwSetting -Name M365DefinitionsPath -Value $missing
+            Set-EwSetting -Name NerdioDefinitionsPath -Value ''
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.IntuneDefinitionsPathBox.Text = 'C:\UnsavedPackages'
+                $state.IntuneM365PathBox.Text = 'C:\UnsavedM365'
+                $state.NerdioDefinitionsPathBox.Text = 'C:\UnsavedNerdio'
+                $state.NavSettings.IsChecked = $true
+                foreach ($kind in 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions') {
+                    & $Wait -State $state -Kind $kind
+                    $state["Settings${kind}PathBox"].IsReadOnly | Should -BeTrue
+                    $state["Browse${kind}FolderButton"].IsEnabled | Should -BeTrue
+                }
+                $state.SettingsPackageDefinitionsPathBox.Text | Should -Be $available
+                $state.SettingsM365ConfigurationsPathBox.Text | Should -Be $missing
+                $state.SettingsNerdioDefinitionsPathBox.Text | Should -Be ''
+                $state.OpenPackageDefinitionsFolderButton.IsEnabled | Should -BeTrue
+                $state.OpenM365ConfigurationsFolderButton.IsEnabled | Should -BeFalse
+                $state.M365ConfigurationsFolderStatusLabel.Text | Should -Match 'unavailable'
+                $state.NerdioDefinitionsFolderStatusLabel.Text | Should -Match 'No nerdio definitions folder is configured'
+                $state.IntuneDefinitionsPathBox.Text | Should -Be 'C:\UnsavedPackages'
+                $state.IntuneM365PathBox.Text | Should -Be 'C:\UnsavedM365'
+                $state.NerdioDefinitionsPathBox.Text | Should -Be 'C:\UnsavedNerdio'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'keeps the added folder controls reachable at minimum window size' -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.Width = $window.MinWidth
+                $window.Height = $window.MinHeight
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $state.NavSettings.IsChecked = $true
+                $window.UpdateLayout()
+                $scroll = $state.SettingsPanel.Children[0]
+                $scroll.ScrollableHeight | Should -BeGreaterThan 0
+                $scroll.ScrollToEnd()
+                $window.UpdateLayout()
+                $button = $state.OpenNerdioDefinitionsFolderButton
+                $position = $button.TranslatePoint([System.Windows.Point]::new(0, 0), $scroll)
+                $position.X | Should -BeGreaterOrEqual 0
+                ($position.X + $button.ActualWidth) | Should -BeLessOrEqual $scroll.ActualWidth
+                $position.Y | Should -BeGreaterOrEqual 0
+                ($position.Y + $button.ActualHeight) | Should -BeLessOrEqual $scroll.ActualHeight
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'saves the <Kind> folder and replaces the corresponding workflow drafts' -ForEach @(
+        @{ Kind = 'PackageDefinitions'; Setting = 'IntuneDefinitionsPath' }
+        @{ Kind = 'M365Configurations'; Setting = 'M365DefinitionsPath' }
+        @{ Kind = 'NerdioDefinitions'; Setting = 'NerdioDefinitionsPath' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Kind = $Kind; Setting = $Setting; Root = $TestDrive } {
+            param($Kind, $Setting, $Root)
+            $path = Join-Path -Path $Root -ChildPath $Kind
+            Set-EwSetting -Name $Setting -Value 'C:\OldSaved'
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                Mock Invoke-EwWorkbenchFolderCheck {}
+                switch ($Kind) {
+                    'PackageDefinitions' {
+                        $state.IntuneDefinitionsPathBox.Text = 'C:\Unsaved'
+                        $state.PackageDefinitions.Add([PSCustomObject]@{ Status = 'Valid' })
+                        $state.InstallDefinitionsStale = $false
+                        $state.IntuneComparisonRoot = 'C:\OldSaved'
+                        $state.IntuneComparisonListView.ItemsSource = [object[]]@([PSCustomObject]@{ Name = 'Old' })
+                    }
+                    'M365Configurations' {
+                        $state.IntuneM365PathBox.Text = 'C:\UnsavedIntune'
+                        $state.NerdioM365PathBox.Text = 'C:\UnsavedNerdio'
+                        $state.IntuneM365CompanyBox.Text = 'Unsaved company'
+                        foreach ($provider in 'Intune', 'Nerdio') {
+                            $view = $state.M365Views[$provider]
+                            $view.ConfigurationCombo.ItemsSource = [object[]]@([PSCustomObject]@{ FileName = 'old.xml' })
+                            $view.BuildPlan = [PSCustomObject]@{ Name = 'Old' }
+                            $view.PublishPlan = [PSCustomObject]@{ Name = 'Old' }
+                        }
+                    }
+                    'NerdioDefinitions' {
+                        $state.NerdioDefinitionsPathBox.Text = 'C:\Unsaved'
+                        $state.NmeHostBox.Text = 'unsaved-host'
+                        $state.NerdioDestination = [PSCustomObject]@{ ApiOnly = $false }
+                        $state.NerdioPlan = [PSCustomObject]@{ Name = 'Old' }
+                    }
+                }
+                Set-EwWorkbenchFolderPath -State $state -Kind $Kind -Path $path -Confirm:$false
+                (Get-EwSetting)[$Setting] | Should -Be $path
+                $state.Settings[$Setting] | Should -Be $path
+                $state["Settings${Kind}PathBox"].Text | Should -Be $path
+                switch ($Kind) {
+                    'PackageDefinitions' {
+                        $state.IntuneDefinitionsPathBox.Text | Should -Be $path
+                        $state.InstallDefinitionsStale | Should -BeTrue
+                        $state.PackageDefinitions.Count | Should -Be 0
+                        $state.UpdatePackageDefinitionsButton.IsEnabled | Should -BeFalse
+                        $state.IntuneComparisonRoot | Should -Be ''
+                        @($state.IntuneComparisonListView.ItemsSource).Count | Should -Be 0
+                    }
+                    'M365Configurations' {
+                        foreach ($provider in 'Intune', 'Nerdio') {
+                            $view = $state.M365Views[$provider]
+                            $view.PathBox.Text | Should -Be $path
+                            @($view.ConfigurationCombo.ItemsSource).Count | Should -Be 0
+                            $view.BuildPlan | Should -BeNullOrEmpty
+                            $view.PublishPlan | Should -BeNullOrEmpty
+                        }
+                        $state.IntuneM365CompanyBox.Text | Should -Be 'Unsaved company'
+                    }
+                    'NerdioDefinitions' {
+                        $state.NerdioDefinitionsPathBox.Text | Should -Be $path
+                        $state.NerdioPlan | Should -BeNullOrEmpty
+                        $state.NerdioDestination | Should -Not -BeNullOrEmpty
+                        $state.NmeHostBox.Text | Should -Be 'unsaved-host'
+                    }
+                }
+                Should -Invoke Invoke-EwWorkbenchFolderCheck -Exactly 1
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'reflects workflow view saves when Settings is reopened' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                Mock Invoke-EwWorkbenchFolderCheck {}
+                $state.IntuneDefinitionsPathBox.Text = 'C:\Packages'
+                $state.SaveIntuneDefinitionsPathButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                    ))
+                $state.IntuneM365PathBox.Text = 'C:\M365'
+                Invoke-EwWorkbenchM365Action -State $state -Provider Intune -Action Save
+                $state.NerdioDefinitionsPathBox.Text = 'C:\Nerdio'
+                Invoke-EwWorkbenchNerdioAction -State $state -Action Save
+                $state.NavSettings.IsChecked = $true
+                $state.SettingsPackageDefinitionsPathBox.Text | Should -Be 'C:\Packages'
+                $state.SettingsM365ConfigurationsPathBox.Text | Should -Be 'C:\M365'
+                $state.SettingsNerdioDefinitionsPathBox.Text | Should -Be 'C:\Nerdio'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'does not replace <Kind> workflow drafts when saving fails or a job is active' -ForEach @(
+        @{ Kind = 'PackageDefinitions'; Control = 'IntuneDefinitionsPathBox'; Setting = 'IntuneDefinitionsPath' }
+        @{ Kind = 'M365Configurations'; Control = 'IntuneM365PathBox'; Setting = 'M365DefinitionsPath' }
+        @{ Kind = 'NerdioDefinitions'; Control = 'NerdioDefinitionsPathBox'; Setting = 'NerdioDefinitionsPath' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Kind = $Kind; Control = $Control; Setting = $Setting } {
+            param($Kind, $Control, $Setting)
+            Set-EwSetting -Name $Setting -Value 'C:\OldSaved'
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state[$Control].Text = 'C:\Unsaved'
+                $state["Settings${Kind}PathBox"].Text = 'C:\OldSaved'
+                Mock Set-EwSetting { throw 'save failed' }
+                { Set-EwWorkbenchFolderPath -State $state -Kind $Kind -Path 'C:\New' -Confirm:$false } |
+                    Should -Throw '*save failed*'
+                $state["Settings${Kind}PathBox"].Text | Should -Be 'C:\OldSaved'
+                $state.Settings[$Setting] | Should -Be 'C:\OldSaved'
+                $state[$Control].Text | Should -Be 'C:\Unsaved'
+                $state.ActiveJobId = [guid]::NewGuid()
+                $state.ActiveJobKind = 'Downloads'
+                Invoke-EwWorkbenchBusyState -State $state -IsBusy $true
+                $state["Browse${Kind}FolderButton"].IsEnabled | Should -BeFalse
+                { Set-EwWorkbenchFolderPath -State $state -Kind $Kind -Path 'C:\New' -Confirm:$false } |
+                    Should -Throw '*current operation*'
+                Should -Invoke Set-EwSetting -Exactly 1
+            }
+            finally {
+                $state.ActiveJobId = $null
+                $window.Close()
+            }
+        }
+    }
+
+    It 'discards a superseded Microsoft 365 folder check after cancellation fails' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $firstId = [guid]::NewGuid()
+                $secondId = [guid]::NewGuid()
+                $script:folderTestIds = [System.Collections.Generic.Queue[guid]]::new()
+                $script:folderTestIds.Enqueue($firstId)
+                $script:folderTestIds.Enqueue($secondId)
+                $script:folderTestFirstState = 'Running'
+                Mock Start-EwJob { [PSCustomObject]@{ Id = $script:folderTestIds.Dequeue() } }
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id
+                        State = if ($Id -eq $firstId) { $script:folderTestFirstState } else { 'Completed' }
+                        Errors = @(); TerminatingError = $null
+                        Output = @([PSCustomObject]@{
+                                Available = $Id -eq $firstId
+                                ResolvedPath = 'C:\OldFolder'
+                                Error = 'The new folder is unavailable.'
+                            })
+                    }
+                }
+                Mock Stop-EwJob { throw 'synthetic cancellation failure' }
+                Mock Remove-EwJob {}
+                $state.SettingsM365ConfigurationsPathBox.Text = 'C:\OldFolder'
+                Invoke-EwWorkbenchFolderCheck -State $state -Kind M365Configurations
+                $state.SettingsM365ConfigurationsPathBox.Text = 'C:\NewFolder'
+                Invoke-EwWorkbenchFolderCheck -State $state -Kind M365Configurations
+                $script:folderTestFirstState = 'Completed'
+                Invoke-EwWorkbenchInfoJobMonitor -State $state
+                $state.OpenM365ConfigurationsFolderButton.IsEnabled | Should -BeFalse
+                $state.InfoJobs.M365Configurations.ActiveId | Should -Be $secondId
+                Invoke-EwWorkbenchInfoJobMonitor -State $state
+                $state.OpenM365ConfigurationsFolderButton.IsEnabled | Should -BeFalse
+                $state.M365ConfigurationsFolderStatusLabel.Text | Should -Match 'new folder is unavailable'
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'rechecks a saved Nerdio folder before opening it' {
+        InModuleScope EvergreenUI -Parameters @{ Wait = $waitForInfoJob; Root = $TestDrive } {
+            param($Wait, $Root)
+            $path = Join-Path -Path $Root -ChildPath 'Nerdio folder'
+            $null = New-Item -Path $path -ItemType Directory -Force
+            Set-EwSetting -Name NerdioDefinitionsPath -Value $path
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                Mock Start-Process {}
+                $state.NavSettings.IsChecked = $true
+                & $Wait -State $state -Kind NerdioDefinitions
+                $state.OpenNerdioDefinitionsFolderButton.IsEnabled | Should -BeTrue
+                Remove-Item -LiteralPath $path -Force
+                $state.OpenNerdioDefinitionsFolderButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                        [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                    ))
+                & $Wait -State $state -Kind NerdioDefinitions
+                $state.OpenNerdioDefinitionsFolderButton.IsEnabled | Should -BeFalse
+                $state.NerdioDefinitionsFolderStatusLabel.Text | Should -Match 'unavailable'
+                Should -Invoke Start-Process -Exactly 0
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'limits simultaneous folder checks and starts a pending check when a slot is freed' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid() } }
+                Mock Remove-EwJob {}
+                Mock Stop-EwJob { [PSCustomObject]@{ Id = $Id; State = 'Stopped' } }
+                foreach ($kind in 'Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions') {
+                    $state["Settings${kind}PathBox"].Text = "C:\$kind"
+                    Invoke-EwWorkbenchFolderCheck -State $state -Kind $kind
+                }
+                $firstId = $state.InfoJobs.Download.ActiveId
+                $state.InfoJobs.Library.ActiveId | Should -Not -BeNullOrEmpty
+                $state.InfoJobs.PackageDefinitions.Pending | Should -Not -BeNullOrEmpty
+                Should -Invoke Start-EwJob -Exactly 2
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id
+                        State = if ($Id -eq $firstId) { 'Completed' } else { 'Running' }
+                        Errors = @(); TerminatingError = $null
+                        Output = @([PSCustomObject]@{ Available = $true; ResolvedPath = 'C:\Download'; Error = '' })
+                    }
+                }
+                Invoke-EwWorkbenchInfoJobMonitor -State $state
+                $state.InfoJobs.PackageDefinitions.ActiveId | Should -Not -BeNullOrEmpty
+                $state.InfoJobs.M365Configurations.Pending | Should -Not -BeNullOrEmpty
+                Should -Invoke Start-EwJob -Exactly 3
             }
             finally {
                 $window.Close()

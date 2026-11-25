@@ -5,7 +5,7 @@ function Invoke-EwWorkbenchInfoJobMonitor {
     [CmdletBinding()]
     param([Parameter(Mandatory)][System.Collections.IDictionary]$State)
 
-    foreach ($kind in 'Download', 'Library', 'About') {
+    foreach ($kind in 'Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions', 'About') {
         $slot = $State.InfoJobs[$kind]
         if ($null -eq $slot.ActiveId) {
             continue
@@ -58,6 +58,12 @@ function Invoke-EwWorkbenchInfoJobMonitor {
             }
         }
         if ($null -ne $slot.Pending) {
+            Invoke-EwWorkbenchInfoJob -State $State -Kind $kind
+        }
+    }
+    foreach ($kind in 'Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions') {
+        $slot = $State.InfoJobs[$kind]
+        if ($null -eq $slot.ActiveId -and $null -ne $slot.Pending) {
             Invoke-EwWorkbenchInfoJob -State $State -Kind $kind
         }
     }

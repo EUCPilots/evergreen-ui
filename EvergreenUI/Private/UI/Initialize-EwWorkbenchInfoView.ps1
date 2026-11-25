@@ -6,7 +6,7 @@ function Initialize-EwWorkbenchInfoView {
     param([Parameter(Mandatory)][System.Collections.IDictionary]$State)
 
     $State.InfoJobs = @{}
-    foreach ($kind in 'Download', 'Library', 'About') {
+    foreach ($kind in 'Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions', 'About') {
         $State.InfoJobs[$kind] = @{
             Generation = 0
             ActiveId = $null
@@ -22,7 +22,7 @@ function Initialize-EwWorkbenchInfoView {
     $State.NavAbout.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'About' }
     }.GetNewClosure())
-    foreach ($kind in 'Download', 'Library') {
+    foreach ($kind in 'Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions') {
         $button = $State["Open${kind}FolderButton"]
         $button.Add_Click({
             & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchFolderCheck' -Parameters @{
@@ -36,9 +36,10 @@ function Initialize-EwWorkbenchInfoView {
         $browseButton.Add_Click({
             $pathBox = $State["Settings${kind}PathBox"]
             $dialog = [Microsoft.Win32.OpenFolderDialog]::new()
-            $dialog.Title = "Select the $($kind.ToLowerInvariant()) folder"
+            $label = [regex]::Replace($kind, '(?<=[a-z0-9])(?=[A-Z])', ' ').ToLowerInvariant()
+            $dialog.Title = "Select the $label folder"
             if (-not [string]::IsNullOrWhiteSpace($pathBox.Text) -and
-                (Test-Path -LiteralPath $pathBox.Text -PathType Container)) {
+                $State["Open${kind}FolderButton"].IsEnabled) {
                 $dialog.InitialDirectory = $pathBox.Text
             }
             if (-not $dialog.ShowDialog($State.Window)) {
@@ -53,7 +54,7 @@ function Initialize-EwWorkbenchInfoView {
                 }
             }
             catch {
-                $message = "Could not save $($kind.ToLowerInvariant()) folder: $($_.Exception.Message)"
+                $message = "Could not save $label folder: $($_.Exception.Message)"
                 & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                     State = $State
                     Message = $message

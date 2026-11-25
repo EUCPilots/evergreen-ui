@@ -232,10 +232,13 @@ marked stale.
 
 ### Settings and About
 
-Settings shows the saved Download and Library paths, including their existing
-defaults. Change the paths in Apps or Library; the Settings view does not
-save edits. Open folder is available only when the folder can be reached.
-Appearance remains available in the sidebar.
+Settings shows the saved Download, Library, Packages definitions, Microsoft 365
+Apps configurations, and Nerdio Shell App definitions folders. Use Browse to
+save a folder, or use the existing controls in each workflow. Changing one of
+the three workflow folders in Settings replaces any unsaved folder edit in
+that workflow. The Microsoft 365 folder is shared by Intune and Nerdio.
+Open folder is available only when the folder can be reached. Settings also
+provides appearance options.
 
 About shows Workbench metadata and local dependency status. Installed versions
 are the highest versions discoverable locally; loaded versions are those in
