@@ -1,11 +1,9 @@
 # Changelog
 
-## [2.0.3-preview]
+## [2.0.2-preview]
 
 - Fix confirmed Microsoft 365 builds replacing the application name with a preview field name. Calculate names from products, Outlook exclusions, Desktop or VDI licensing, channel and architecture, retaining the Office version when published to Intune.
 - Use Intune's `updateRelationships` action for supersedence instead of the unsupported relationship POST route. Preserve existing dependencies and supersedence relationships, include the relationship direction, and retain Graph error details when a request fails.
-
-## [2.0.2-preview]
 - Fix Microsoft 365 Intune publishing failing when the template omits `Program.AllowAvailableUninstall`; omitted values default to false.
 - Show install status and recovery guidance in the shared status instead of a duplicate label.
 - Match the selected navigation indicator to the theme accent colour.
