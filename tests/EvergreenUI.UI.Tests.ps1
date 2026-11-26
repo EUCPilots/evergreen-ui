@@ -1747,7 +1747,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'opens download folder settings from the action row when the queue is empty' {
+    It 'opens the download destination picker without leaving Apps' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -1764,7 +1764,9 @@ Describe 'Evergreen Workbench WPF shell' {
                     [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
                 )
                 $state.ChangeDownloadPathButton.RaiseEvent($click)
-                $state.NavSettings.IsChecked | Should -BeTrue
+                $state.ChangeDownloadPathButton.Content | Should -Be 'Change destination'
+                $state.NavApps.IsChecked | Should -BeTrue
+                $state.NavSettings.IsChecked | Should -BeFalse
                 $opened.Value | Should -BeTrue
             }
             finally {

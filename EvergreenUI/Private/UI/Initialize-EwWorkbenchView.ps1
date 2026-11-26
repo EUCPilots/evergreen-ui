@@ -430,7 +430,6 @@ function Initialize-EwWorkbenchView {
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchDownloadTray' -Parameters @{ State = $State }
     }.GetNewClosure())
     $State.ChangeDownloadPathButton.Add_Click({
-        $State.NavSettings.IsChecked = $true
         $clickArgs = [System.Windows.RoutedEventArgs]::new(
             [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
         )

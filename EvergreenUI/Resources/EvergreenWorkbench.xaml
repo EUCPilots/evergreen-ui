@@ -580,11 +580,11 @@
                                         Margin="10,4"
                                         Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
                                 <Button x:Name="ChangeDownloadPathButton"
-                                        Content="Change"
+                                        Content="Change destination"
                                         Padding="10,6"
                                         VerticalAlignment="Center"
-                                        ToolTip="Change download folder"
-                                        AutomationProperties.Name="Change download folder" />
+                                        ToolTip="Change download destination"
+                                        AutomationProperties.Name="Change destination" />
                                 <Button x:Name="DownloadTrayActionButton"
                                         Content="Download"
                                         Style="{DynamicResource AccentButtonStyle}"

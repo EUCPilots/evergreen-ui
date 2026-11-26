@@ -2,6 +2,7 @@
 
 ## [2.0.3-preview]
 
+- Keep the Apps download destination picker on the Apps page and label its button "Change destination".
 - Apply Fluent styling to the Clear Workbench cache confirmation dialog.
 - Show sidebar focus outlines only for keyboard navigation, not mouse selection.
 - Animate the sidebar selection indicator between navigation items, respecting Windows animation settings.
