@@ -66,6 +66,47 @@ BeforeAll {
 }
 
 Describe 'Install architecture review in the Workbench' {
+    It 'shows the completed install batch summary once in the shared status' {
+        InModuleScope EvergreenUI -Parameters @{ NewRow = $newRow; NewItem = $newItem } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavPackages.IsChecked = $true
+                $state.InstallTab.IsSelected = $true
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $row = & $NewRow -Name 'Example'
+                $item = & $NewItem -Row $row
+                $state.InstallDefinitions.Add($row)
+                $state.InstallBatchActive = $true
+                $state.InstallBatchCounts = @{ Installed = 0; Failed = 0; Blocked = 0; Skipped = 0; Unknown = 0 }
+                $state.InstallActiveItems = @($item)
+                $job = [PSCustomObject]@{
+                    State = 'Completed'; TerminatingError = $null
+                    Output = @([PSCustomObject]@{
+                        DefinitionPath = $item.DefinitionPath; Status = 'Installed'; ReviewChanged = $false
+                        DownloadedVersion = '2.0'; Error = ''
+                    })
+                }
+
+                Invoke-EwWorkbenchInstallJobResult -State $state -Kind InstallPackages -Job $job | Should -BeNullOrEmpty
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $summary = 'Install batch: 1 installed, 0 blocked, 0 skipped, 0 failed, 0 unknown.'
+                $state.StatusLabel.Text | Should -Be $summary
+                $state.ActivityLog.Text | Should -Match ([regex]::Escape($summary))
+                $visibleSummaries = @($state.StatusLabel, $window.FindName('InstallActionStatusLabel')) |
+                    Where-Object { $null -ne $_ -and $_.IsVisible -and $_.Text -eq $summary }
+                @($visibleSummaries).Count | Should -Be 1
+                $window.FindName('InstallActionStatusLabel') | Should -BeNullOrEmpty
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'hides only blocked rows and does not persist the toggle' {
         InModuleScope EvergreenUI -Parameters @{ NewRow = $newRow } {
             $window = Get-EwWorkbenchWindow
@@ -425,6 +466,9 @@ Describe 'Install architecture review in the Workbench' {
                 $unknown.Error | Should -Match 'Check the device'
                 $state.InstallBatchActive | Should -BeFalse
                 $state.InstallReviewQueue.Count | Should -Be 0
+                $state.StatusLabel.Text | Should -Match 'unknown outcomes.*Check the device before retrying'
+                $state.StatusLabel.Tag | Should -Be 'Error'
+                $state.ActivityLog.Text | Should -Match 'outcome for Interrupted is unknown'
             }
             finally {
                 $window.Close()

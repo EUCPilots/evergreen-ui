@@ -1810,22 +1810,86 @@ Describe 'Evergreen Workbench WPF shell' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
                 $window.Show()
+                $navigationNames = 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavSettings', 'NavAbout'
                 foreach ($mode in 'Light', 'Dark', 'Light') {
                     $window.ThemeMode = [System.Windows.ThemeMode]::$mode
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                    foreach ($name in 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavSettings', 'NavAbout') {
-                        $window.FindName($name).Foreground.Color |
+                    $expected = if ([System.Windows.SystemParameters]::HighContrast) {
+                        $window.TryFindResource([System.Windows.SystemColors]::HighlightBrushKey)
+                    }
+                    else {
+                        $window.TryFindResource('AccentFillColorDefaultBrush')
+                    }
+                    foreach ($name in $navigationNames) {
+                        $button = $window.FindName($name)
+                        $button.Foreground.Color |
                             Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
+                        $button.IsChecked = $true
+                        $indicator = $button.Template.FindName('SelectedIndicator', $button)
+                        $indicator.Visibility | Should -Be 'Visible'
+                        $indicator.Background.Color | Should -Be $expected.Color
                     }
                     $window.FindName('NavIntune').Content | Should -Be 'Intune'
-                    $selectedIndicator = $window.FindName('NavApps').Template.FindName(
-                        'SelectedIndicator',
-                        $window.FindName('NavApps')
-                    )
-                    $selectedIndicator.Visibility | Should -Be 'Visible'
-                    $selectedIndicator.Background.Color |
-                        Should -Be $window.TryFindResource([System.Windows.SystemColors]::HighlightBrushKey).Color
+                }
+                foreach ($accent in [System.Windows.Media.Brushes]::Coral, [System.Windows.Media.Brushes]::CornflowerBlue) {
+                    $window.Resources['AccentFillColorDefaultBrush'] = $accent
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $expected = if ([System.Windows.SystemParameters]::HighContrast) {
+                        $window.TryFindResource([System.Windows.SystemColors]::HighlightBrushKey)
+                    }
+                    else {
+                        $accent
+                    }
+                    foreach ($name in $navigationNames) {
+                        $button = $window.FindName($name)
+                        $indicator = $button.Template.FindName('SelectedIndicator', $button)
+                        $indicator.Background.Color | Should -Be $expected.Color
+                    }
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'uses the system highlight for navigation in high contrast' {
+        InModuleScope EvergreenUI {
+            Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
+            $xamlPath = Join-Path -Path (Split-Path -Path $script:ewModulePath -Parent) -ChildPath 'Resources\EvergreenWorkbench.xaml'
+            [xml]$xaml = Get-Content -LiteralPath $xamlPath -Raw
+            $namespaces = [System.Xml.XmlNamespaceManager]::new($xaml.NameTable)
+            $namespaces.AddNamespace('wpf', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
+            $namespaces.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+            $trigger = $xaml.SelectSingleNode(
+                "//wpf:Style[@x:Key='NavigationButtonStyle']//wpf:DataTrigger[@Binding='{Binding Path=(SystemParameters.HighContrast)}']",
+                $namespaces
+            )
+            $trigger | Should -Not -BeNullOrEmpty
+            $trigger.SetAttribute('Binding', '{Binding TestHighContrast}')
+            $window = [System.Windows.Markup.XamlReader]::Parse($xaml.OuterXml)
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Resources['AccentFillColorDefaultBrush'] = [System.Windows.Media.Brushes]::Coral
+                $window.Show()
+                foreach ($highContrast in $true, $false, $true) {
+                    $window.DataContext = [PSCustomObject]@{ TestHighContrast = $highContrast }
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $button = $window.FindName('NavApps')
+                    $indicator = $button.Template.FindName('SelectedIndicator', $button)
+                    $expected = if ($highContrast) {
+                        $window.TryFindResource([System.Windows.SystemColors]::HighlightBrushKey)
+                    }
+                    else {
+                        $window.TryFindResource('AccentFillColorDefaultBrush')
+                    }
+                    $indicator.Background.Color | Should -Be $expected.Color
                 }
             }
             finally {

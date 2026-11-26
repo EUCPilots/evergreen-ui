@@ -109,11 +109,17 @@ Describe 'Provider publishing' {
         }
     }
 
-    It 'retains a created app ID when its content version fails' {
+    It 'retains a created app ID when its content version fails with uninstall option <Option>' -ForEach @(
+        @{ Option = 'omitted'; UninstallValue = $null; ExpectedUninstall = $false }
+        @{ Option = 'enabled'; UninstallValue = $true; ExpectedUninstall = $true }
+        @{ Option = 'disabled'; UninstallValue = $false; ExpectedUninstall = $false }
+    ) {
         $template = Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\Resources\m365-app.json'
         $definition = Get-Content -LiteralPath $template -Raw | ConvertFrom-Json
         $definition.PackageInformation.IconFile = ''
-        $definition.Program | Add-Member -NotePropertyName AllowAvailableUninstall -NotePropertyValue $false
+        if ($null -ne $UninstallValue) {
+            $definition.Program | Add-Member -NotePropertyName AllowAvailableUninstall -NotePropertyValue $UninstallValue
+        }
         $archivePath = Join-Path -Path $publishRoot -ChildPath 'test.intunewin'
         $archive = [System.IO.Compression.ZipFile]::Open($archivePath, [System.IO.Compression.ZipArchiveMode]::Create)
         try {
@@ -128,7 +134,9 @@ Describe 'Provider publishing' {
         finally {
             $archive.Dispose()
         }
-        InModuleScope EvergreenUI -Parameters @{ Definition = $definition; Archive = $archivePath } {
+        InModuleScope EvergreenUI -Parameters @{
+            Definition = $definition; Archive = $archivePath; ExpectedUninstall = $ExpectedUninstall
+        } {
             Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant-id' } }
             Mock Write-UILog {}
             Mock Invoke-MgGraphRequest {
@@ -144,6 +152,7 @@ Describe 'Provider publishing' {
             $result.Error | Should -Match 'content version'
             Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter {
                 $Uri -eq 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps' -and
+                ($Body | ConvertFrom-Json).allowAvailableUninstall -ceq $ExpectedUninstall -and
                 ($Body | ConvertFrom-Json).detectionRules[0].detectionType -eq 'version' -and
                 ($Body | ConvertFrom-Json).detectionRules[0].detectionValue -eq '16.0.15726.20262'
             }
