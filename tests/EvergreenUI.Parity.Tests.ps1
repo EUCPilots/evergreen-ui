@@ -110,6 +110,35 @@ Describe 'Dependencies' {
 }
 
 Describe 'Microsoft 365 configurations' {
+    It 'calculates product and deployment names for <Scenario>' -ForEach @(
+        @{
+            Scenario = 'desktop with classic Outlook excluded'
+            Products = '<Product ID="O365ProPlusRetail"><ExcludeApp ID="Outlook" /></Product>'
+            Properties = ''; Edition = '64'; Channel = 'Current'
+            Expected = 'Microsoft 365 Apps for enterprise, Outlook (new): Desktop, Current, x64'
+        }
+        @{
+            Scenario = 'VDI with new Outlook excluded and multiple products'
+            Products = '<Product ID="O365BusinessRetail"><ExcludeApp ID="OutlookForWindows" /></Product><Product ID="VisioProRetail" /><Product ID="ProjectProRetail" /><Product ID="AccessRuntimeRetail" />'
+            Properties = '<Property Name="SharedComputerLicensing" Value="1" />'
+            Edition = '32'; Channel = 'MonthlyEnterprise'
+            Expected = 'Microsoft 365 Apps for business, Visio, Project, Access Runtime, Outlook (classic): VDI, MonthlyEnterprise, x86'
+        }
+        @{
+            Scenario = 'both Outlook variants excluded'
+            Products = '<Product ID="O365ProPlusRetail"><ExcludeApp ID="Outlook" /><ExcludeApp ID="OutlookForWindows" /></Product>'
+            Properties = '<Property Name="SharedComputerLicensing" Value="0" />'
+            Edition = '64'; Channel = 'Current'
+            Expected = 'Microsoft 365 Apps for enterprise, Outlook (new), Outlook (classic): Desktop, Current, x64'
+        }
+    ) {
+        $folder = Join-Path -Path $TestDrive -ChildPath $Scenario
+        $null = New-Item -Path $folder -ItemType Directory
+        $xml = "<Configuration ID='$([guid]::NewGuid())'><Add OfficeClientEdition='$Edition' Channel='$Channel'>$Products</Add>$Properties</Configuration>"
+        Set-Content -LiteralPath (Join-Path -Path $folder -ChildPath 'Install.xml') -Value $xml
+        (Get-EwM365Configuration -Path $folder).DisplayName | Should -Be $Expected
+    }
+
     It 'reports configuration status and skips the uninstall configuration' {
         $folder = Join-Path -Path $TestDrive -ChildPath 'M365'
         $null = New-Item -Path $folder -ItemType Directory -Force

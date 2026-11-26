@@ -8,8 +8,10 @@ function Get-EwM365Configuration {
     .DESCRIPTION
         Reads Office Deployment Tool XML files in the top level of a folder,
         excluding Uninstall-Microsoft365Apps.xml, and returns their products,
-        architecture, and configuration identifier. Files that cannot be read
-        are returned with an Invalid XML status.
+        architecture, and configuration identifier. Display names combine
+        products, Outlook exclusions, Desktop or VDI licensing, channel and
+        architecture. Files that cannot be read are returned with an Invalid
+        XML status.
     .PARAMETER Path
         Folder containing the configuration files.
     .EXAMPLE

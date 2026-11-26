@@ -152,6 +152,7 @@ Describe 'Provider publishing' {
             $result.Error | Should -Match 'content version'
             Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter {
                 $Uri -eq 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps' -and
+                ($Body | ConvertFrom-Json).displayName -eq "$($Definition.Information.DisplayName) 2.0" -and
                 ($Body | ConvertFrom-Json).allowAvailableUninstall -ceq $ExpectedUninstall -and
                 ($Body | ConvertFrom-Json).detectionRules[0].detectionType -eq 'version' -and
                 ($Body | ConvertFrom-Json).detectionRules[0].detectionValue -eq '16.0.15726.20262'
@@ -238,11 +239,13 @@ Describe 'Provider publishing' {
         InModuleScope EvergreenUI {
             Mock Assert-EwModule {}
             Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant-id' } }
-            Mock Invoke-MgGraphRequest {}
+            Mock Invoke-MgGraphRequest {
+                if ($Method -eq 'GET') { [PSCustomObject]@{ value = @() } }
+            }
             $result = Set-EwIntuneSupersedence -NewAppId new-id -PreviousAppId old-id -Confirm:$false
             $result.Succeeded | Should -BeTrue
             Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter {
-                $Method -eq 'POST' -and $Uri -like '*mobileApps/new-id/relationships'
+                $Method -eq 'POST' -and $Uri -like '*mobileApps/new-id/updateRelationships'
             }
             { Set-EwIntuneSupersedence -NewAppId same-id -PreviousAppId same-id -Confirm:$false } |
                 Should -Throw '*must be different*'

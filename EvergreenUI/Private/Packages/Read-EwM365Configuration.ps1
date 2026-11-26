@@ -9,6 +9,7 @@ function Read-EwM365Configuration {
         [string]$Path
     )
 
+    Write-Verbose -Message "EvergreenUI: Reading Microsoft 365 configuration '$Path'"
     [xml]$xml = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
     $displayNames = @{
         O365ProPlusRetail = 'Microsoft 365 Apps for enterprise'
@@ -27,30 +28,37 @@ function Read-EwM365Configuration {
         if ($displayNames.ContainsKey($_)) { $displayNames[$_] } else { $_ }
     })
     $architecture = if ($addNode.GetAttribute('OfficeClientEdition') -eq '32') { 'x86' } else { 'x64' }
-    $productText = $displayProducts -join ', '
-    $displayName = if ([string]::IsNullOrWhiteSpace($productText)) {
-        [System.IO.Path]::GetFileNameWithoutExtension($Path)
-    }
-    else {
-        "$productText`: $architecture"
-    }
-    $excluded = foreach ($product in $products) {
+    $excluded = @(foreach ($product in $products) {
         foreach ($exclude in @($product.SelectNodes('ExcludeApp'))) {
             if (-not [string]::IsNullOrWhiteSpace($exclude.GetAttribute('ID'))) {
                 $exclude.GetAttribute('ID')
             }
         }
-    }
+    })
     $sharedLicensing = $xml.SelectSingleNode("/Configuration/Property[@Name='SharedComputerLicensing']")
     $isVdi = $false
     if ($null -ne $sharedLicensing) {
         $isVdi = $sharedLicensing.GetAttribute('Value') -eq '1'
     }
+    $productText = $displayProducts -join ', '
+    $channel = $addNode.GetAttribute('Channel')
+    $deploymentProperties = @(
+        if ($isVdi) { 'VDI' } else { 'Desktop' }
+        if (-not [string]::IsNullOrWhiteSpace($channel)) { $channel }
+        $architecture
+    )
+    $displayName = if ([string]::IsNullOrWhiteSpace($productText)) {
+        [System.IO.Path]::GetFileNameWithoutExtension($Path)
+    }
+    else {
+        "$productText`: $($deploymentProperties -join ', ')"
+    }
+    Write-Verbose -Message "EvergreenUI: Microsoft 365 configuration resolved to '$displayName'"
     $descriptionNode = $xml.SelectSingleNode('/Configuration/Info/Description')
 
     [PSCustomObject]@{
         ConfigId = $xml.Configuration.GetAttribute('ID')
-        Channel = $addNode.GetAttribute('Channel')
+        Channel = $channel
         DisplayName = $displayName
         Architecture = $architecture
         Products = $productIds -join ', '

@@ -41,8 +41,7 @@ function Invoke-EwM365PackageBuild {
     )
 
     $configuration = Read-EwM365Configuration -Path $ConfigurationPath
-    $name = $configuration.DisplayName
-    $safeName = [regex]::Replace($name, '[\\/:*?"<>|]', '_').Trim('_')
+    $safeName = [regex]::Replace($configuration.DisplayName, '[\\/:*?"<>|]', '_').Trim('_')
     if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = 'Microsoft365Apps' }
     $buildPath = Join-Path -Path $WorkingPath -ChildPath "$safeName\Builds\$([guid]::NewGuid())"
     $sourcePath = Join-Path -Path $buildPath -ChildPath 'Source'
@@ -77,10 +76,10 @@ function Invoke-EwM365PackageBuild {
             if ($AppJsonTemplatePath) {
                 $inputValues.AppJsonTemplatePath = (Resolve-Path -LiteralPath $AppJsonTemplatePath -ErrorAction Stop).Path
             }
-            foreach ($name in $inputValues.Keys) {
-                if ($null -eq $Plan.PSObject.Properties[$name] -or
-                    [string]$Plan.$name -cne [string]$inputValues[$name]) {
-                    throw "Build input '$name' does not match the confirmed Microsoft 365 preview."
+            foreach ($inputName in $inputValues.Keys) {
+                if ($null -eq $Plan.PSObject.Properties[$inputName] -or
+                    [string]$Plan.$inputName -cne [string]$inputValues[$inputName]) {
+                    throw "Build input '$inputName' does not match the confirmed Microsoft 365 preview."
                 }
             }
             Assert-EwM365BuildPlan -Plan $Plan
@@ -202,7 +201,7 @@ function Invoke-EwM365PackageBuild {
             $appJson.Program.UninstallCommand = 'setup.exe /configure Uninstall-Microsoft365Apps.xml'
         }
         if ($null -ne $appJson.Information) {
-            $appJson.Information.DisplayName = $name
+            $appJson.Information.DisplayName = (Read-EwM365Configuration -Path $installXmlPath).DisplayName
             $appJson.Information.PSPackageFactoryGuid = $configuration.ConfigId
             $descriptionNote = "Office channel version: $($result.Version) | SharedComputerLicensing: $(if ($ImportFor -eq 'Multi-session') { '1' } else { '0' }) | Configuration XML: $(Split-Path -Path $ConfigurationPath -Leaf)"
             $existingDescription = [string]$appJson.Information.Description

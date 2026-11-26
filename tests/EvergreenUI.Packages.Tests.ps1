@@ -376,7 +376,10 @@ Describe 'Evergreen package builds' {
         }
     }
 
-    It 'builds a Nerdio zip with updated ODT settings' {
+    It 'builds a <Provider> package with updated ODT settings and the configuration display name' -ForEach @(
+        @{ Provider = 'Nerdio' }
+        @{ Provider = 'Intune' }
+    ) {
         $configurationRoot = Join-Path -Path $packageRoot -ChildPath 'M365'
         New-Item -Path $configurationRoot -ItemType Directory -Force | Out-Null
         $xmlPath = Join-Path -Path $configurationRoot -ChildPath 'Install.xml'
@@ -388,7 +391,12 @@ Describe 'Evergreen package builds' {
         Set-Content -LiteralPath $xmlPath -Value '<Configuration ID="9fddd581-f505-4760-9bb3-2365db204b38"><Add Channel="Old" OfficeClientEdition="64"><Product ID="O365ProPlusRetail"><ExcludeApp ID="Bing" /></Product></Add><Property Name="TenantId" Value="old" /><Property Name="SharedComputerLicensing" Value="0" /><AppSettings><Setup Value="Old" /></AppSettings></Configuration>'
         Set-Content -LiteralPath $uninstallPath -Value '<Configuration><Remove All="TRUE" /></Configuration>'
         New-TestM365ShellApp -Root $configurationRoot
-        InModuleScope EvergreenUI -Parameters @{ ConfigurationPath = $xmlPath; ConfigurationRoot = $configurationRoot; WorkingPath = $packageRoot; TemplatePath = $templatePath } {
+        InModuleScope EvergreenUI -Parameters @{
+            ConfigurationPath = $xmlPath; ConfigurationRoot = $configurationRoot
+            WorkingPath = $packageRoot; TemplatePath = $templatePath; Provider = $Provider
+        } {
+            Mock Assert-EwModule {}
+            Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant-id'; Account = 'user@example.test' } }
             Mock Get-EwNerdioSessionContext {
                 [PSCustomObject]@{ TenantId = 'tenant-id'; SessionId = 'session'; NmeHost = 'example.test'; ApiOnly = $true }
             }
@@ -409,11 +417,22 @@ Describe 'Evergreen package builds' {
                 Set-Content -LiteralPath $path -Value 'setup'
                 $path
             }
+            Mock Invoke-EwIntunePackageBuilder {
+                $path = Join-Path -Path $OutputFolder -ChildPath 'setup.intunewin'
+                Set-Content -LiteralPath $path -Value 'package'
+                $path
+            }
+            $preview = @{}
+            if ($Provider -eq 'Intune') {
+                $preview.M365Plan = Get-EwM365BuildPlan -ConfigurationPath $ConfigurationPath -ConfigurationRoot $ConfigurationRoot `
+                    -Provider Intune -Channel MonthlyEnterprise -CompanyName Contoso -ImportFor 'Multi-session' `
+                    -TenantId 'tenant-id' -AppJsonTemplatePath $TemplatePath
+            }
             $result = New-EwPackage -M365ConfigurationPath $ConfigurationPath -ConfigurationRoot $ConfigurationRoot `
-                -WorkingPath $WorkingPath -Provider Nerdio -Channel MonthlyEnterprise -CompanyName Contoso `
-                -ImportFor 'Multi-session' -TenantId 'tenant-id' -AppJsonTemplatePath $TemplatePath
-            $result.Succeeded | Should -BeTrue
-            $result.Provider | Should -Be 'Nerdio'
+                -WorkingPath $WorkingPath -Provider $Provider -Channel MonthlyEnterprise -CompanyName Contoso `
+                -ImportFor 'Multi-session' -TenantId 'tenant-id' -AppJsonTemplatePath $TemplatePath @preview
+            $result.Succeeded | Should -BeTrue -Because $result.Error
+            $result.Provider | Should -Be $Provider
             $result.Version | Should -Be '16.0.1234.1'
             $result.ToolVersion | Should -Be '16.0.5678.1'
             Should -Invoke Expand-EwM365DeploymentTool -Exactly 1 -ParameterFilter { $ExpectedVersion -eq '16.0.5678.1' }
@@ -425,7 +444,7 @@ Describe 'Evergreen package builds' {
             $updated.Configuration.AppSettings.Setup.Name | Should -Be 'Company'
             $updated.Configuration.AppSettings.Setup.Value | Should -Be 'Contoso'
             $appJson = Get-Content -LiteralPath (Join-Path -Path $result.SourcePath -ChildPath 'App.json') -Raw | ConvertFrom-Json
-            $appJson.Information.DisplayName | Should -Be 'Microsoft 365 Apps for enterprise: x64'
+            $appJson.Information.DisplayName | Should -Be 'Microsoft 365 Apps for enterprise: VDI, MonthlyEnterprise, x64'
             ($appJson.DetectionRule | Where-Object ValueName -eq VersionToReport).Value | Should -Be '16.0.1234.1'
             ($appJson.DetectionRule | Where-Object ValueName -eq VersionToReport).Operator | Should -Be 'greaterThanOrEqual'
             $appJson.RequirementRule.Architecture | Should -Be 'x64'
