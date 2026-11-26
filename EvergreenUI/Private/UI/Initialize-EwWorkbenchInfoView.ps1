@@ -22,6 +22,88 @@ function Initialize-EwWorkbenchInfoView {
     $State.NavAbout.Add_Checked({
         & $State.ModuleInvoker -Name 'Show-EwWorkbenchView' -Parameters @{ State = $State; View = 'About' }
     }.GetNewClosure())
+    $State.SettingsResetLayoutButton.Add_Click({
+        try {
+            foreach ($entry in @(
+                    @{ Name = 'WindowWidth'; Value = '1200' },
+                    @{ Name = 'WindowHeight'; Value = '820' },
+                    @{ Name = 'DownloadTrayHeight'; Value = '180' },
+                    @{ Name = 'AppsListWidth'; Value = '220' },
+                    @{ Name = 'WindowMaximized'; Value = 'False' }
+                )) {
+                & $State.ModuleInvoker -Name 'Set-EwSetting' -Parameters @{
+                    Name = $entry.Name
+                    Value = $entry.Value
+                }
+                $State.Settings[$entry.Name] = if ($entry.Name -in @('WindowWidth', 'WindowHeight', 'DownloadTrayHeight', 'AppsListWidth')) {
+                    [int]$entry.Value
+                } else {
+                    $false
+                }
+            }
+            $State.Window.WindowState = [System.Windows.WindowState]::Normal
+            $State.Window.Width = 1200
+            $State.Window.Height = 820
+            $State.AppsListColumn.Width = [System.Windows.GridLength]::new(220)
+            $State.AppsPanel.RowDefinitions[3].Height = [System.Windows.GridLength]::new(180)
+            $State.SettingsLayoutStatusLabel.Text = 'Window layout reset to defaults.'
+        }
+        catch {
+            $message = "Could not reset window layout: $($_.Exception.Message)"
+            $State.SettingsLayoutStatusLabel.Text = $message
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State
+                Message = $message
+                Level = 'Error'
+            }
+        }
+    }.GetNewClosure())
+
+    foreach ($entry in @(
+            @{ Control = 'SettingsUpdateEvergreenButton'; Action = 'Update'; Status = 'Updating Evergreen application data...' },
+            @{ Control = 'SettingsClearCacheButton'; Action = 'Clear'; Status = 'Clearing Workbench caches...' },
+            @{ Control = 'SettingsOpenCacheFolderButton'; Action = 'Open'; Status = 'Opening cache folder...' }
+        )) {
+        $action = $entry.Action
+        $status = $entry.Status
+        $State[$entry.Control].Add_Click({
+            $State.SettingsMaintenanceStatusLabel.Text = $status
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchMaintenanceAction' -Parameters @{
+                State = $State
+                Action = $action
+            }
+        }.GetNewClosure())
+    }
+
+    $State.SettingsRestoreDefaultsButton.Add_Click({
+        $confirmed = [System.Windows.MessageBox]::Show(
+            $State.Window,
+            'Restore all Workbench settings and UI preferences to their defaults?',
+            'Restore Workbench defaults',
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Warning
+        )
+        if ($confirmed -ne [System.Windows.MessageBoxResult]::Yes) {
+            return
+        }
+        try {
+            & $State.ModuleInvoker -Name 'Reset-EwSetting' -Parameters @{ Confirm = $false }
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchSettingsRefresh' -Parameters @{ State = $State }
+            $settings = & $State.ModuleInvoker -Name 'Get-EwSetting' -Parameters @{}
+            $State.Settings = $settings
+            $State.ThemeCombo.SelectedItem = [string]$settings.Theme
+            $State.SettingsRestoreStatusLabel.Text = 'Workbench settings restored to defaults.'
+        }
+        catch {
+            $message = "Could not restore defaults: $($_.Exception.Message)"
+            $State.SettingsRestoreStatusLabel.Text = $message
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State
+                Message = $message
+                Level = 'Error'
+            }
+        }
+    }.GetNewClosure())
     foreach ($kind in 'Download', 'Library', 'PackageDefinitions', 'M365Configurations', 'NerdioDefinitions') {
         $button = $State["Open${kind}FolderButton"]
         $button.Add_Click({

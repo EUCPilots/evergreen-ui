@@ -171,6 +171,9 @@ function Get-EwWorkbenchState {
         $state[$name] = $Window.FindName($name)
     }
     foreach ($name in @(
+            'SettingsResetLayoutButton', 'SettingsLayoutStatusLabel',
+            'SettingsUpdateEvergreenButton', 'SettingsClearCacheButton', 'SettingsOpenCacheFolderButton',
+            'SettingsMaintenanceStatusLabel', 'SettingsRestoreDefaultsButton', 'SettingsRestoreStatusLabel',
             'SettingsDownloadPathBox', 'SettingsLibraryPathBox', 'BrowseDownloadFolderButton',
             'BrowseLibraryFolderButton', 'OpenDownloadFolderButton',
             'OpenLibraryFolderButton', 'DownloadFolderStatusLabel', 'LibraryFolderStatusLabel',

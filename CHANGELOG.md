@@ -2,6 +2,7 @@
 
 ## [2.0.4-preview]
 
+- Expand Settings with a confirmed defaults reset, window-layout reset, and Evergreen and cache maintenance actions. Place Saved folders first, followed by Maintenance and Window layout, and remove the Startup view control.
 - Keep the Apps navigation label visible when its tooltip opens.
 - Keep the Apps download destination picker on the Apps page and label its button "Change destination".
 - Apply Fluent styling to the Clear Workbench cache confirmation dialog.

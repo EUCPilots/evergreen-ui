@@ -170,7 +170,10 @@ Describe 'Evergreen Workbench WPF shell' {
                         'ReloadInstallDefinitionsButton', 'ResolveInstallVersionsButton', 'HideIncompatibleInstallToggle',
                         'InstallSelectedPackagesButton', 'ConnectIntuneButton', 'CompareIntuneButton',
                         'IntuneComparisonListView', 'PublishSelectedIntuneButton', 'CancelIntuneBatchButton',
-                        'IntunePublishResultsListView', 'RetryIntuneSupersedenceButton', 'ThemeCombo', 'ActivityLog'
+                        'IntunePublishResultsListView', 'RetryIntuneSupersedenceButton', 'ThemeCombo',
+                        'SettingsResetLayoutButton', 'SettingsUpdateEvergreenButton',
+                        'SettingsClearCacheButton', 'SettingsOpenCacheFolderButton',
+                        'SettingsRestoreDefaultsButton', 'ActivityLog'
                     )) {
                     $window.FindName($name) | Should -Not -BeNullOrEmpty
                 }
@@ -4153,6 +4156,37 @@ Describe 'Workbench Settings and About' {
                 }
                 Should -Invoke Invoke-EwWorkbenchSettingsRefresh -Exactly 1
                 Should -Invoke Invoke-EwWorkbenchAboutRefresh -Exactly 2
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'resets the live window layout' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $window.Width = 1050
+                $window.Height = 760
+                $state.AppsListColumn.Width = [System.Windows.GridLength]::new(320)
+                $state.AppsPanel.RowDefinitions[3].Height = [System.Windows.GridLength]::new(260)
+                $eventArgs = [System.Windows.RoutedEventArgs]::new(
+                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
+                )
+                $state.SettingsResetLayoutButton.RaiseEvent($eventArgs)
+
+                $window.Width | Should -Be 1200
+                $window.Height | Should -Be 820
+                $state.AppsListColumn.Width.Value | Should -Be 220
+                $state.AppsPanel.RowDefinitions[3].Height.Value | Should -Be 180
+                $saved = Get-EwSetting
+                $saved.WindowWidth | Should -Be 1200
+                $saved.WindowHeight | Should -Be 820
+                $saved.DownloadTrayHeight | Should -Be 180
+                $saved.AppsListWidth | Should -Be 220
+                $saved.WindowMaximized | Should -BeFalse
             }
             finally {
                 $window.Close()
