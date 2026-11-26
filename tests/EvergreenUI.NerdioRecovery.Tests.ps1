@@ -83,6 +83,42 @@ Describe 'Nerdio recovery state' {
         }
     }
 
+    It 'replaces a completed ID-less Microsoft 365 recovery record with a verified pruning offer' {
+        InModuleScope EvergreenUI -Parameters @{ Root = $TestDrive } {
+            $package = Join-Path -Path $Root -ChildPath 'office.zip'
+            Set-Content -LiteralPath $package -Value 'fixture'
+            $definition = [PSCustomObject]@{
+                name = 'Office'; publisher = 'Microsoft'
+                versions = @([PSCustomObject]@{ name = ''; file = [PSCustomObject]@{ sourceUrl = ''; sha256 = '' } })
+            }
+            Mock Get-EwNerdioSessionContext {
+                [PSCustomObject]@{
+                    TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                    ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+                    AccessToken = 'token'; ApiOnly = $false
+                }
+            }
+            Mock Get-EwNerdioPublishContent { $definition }
+            Mock Assert-EwM365NerdioPublishPlan {}
+            Mock Assert-EwNerdioDestination {}
+            Mock Invoke-EwNerdioBlobUpload { [PSCustomObject]@{ BlobName = 'office.zip'; SourceUrl = 'https://storage.test/file'; Sha256 = 'hash' } }
+            Mock Invoke-EwNerdioApiRequest { [PSCustomObject]@{ job = [PSCustomObject]@{ id = '16830'; status = 'Completed' } } }
+            Mock Get-EwNerdioShellApp { [PSCustomObject]@{ Id = 'app-42'; Name = 'Office'; Publisher = 'Microsoft' } }
+            Mock Get-EwNerdioShellAppVersion { [PSCustomObject]@{ name = '16.0.20625.20142' } }
+            $build = [PSCustomObject]@{ ConfigurationRoot = $Root; OfficeVersion = '16.0.20625.20142' }
+            $plan = [PSCustomObject]@{ BuildPlan = $build; Name = 'Office'; Operation = 'Create'; ShellAppId = ''; Destination = [PSCustomObject]@{} }
+            $hash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash
+            $result = Publish-EwNerdioApp -DefinitionPath (Join-Path -Path $Root -ChildPath 'shell-app') -PackagePath $package `
+                -Version $build.OfficeVersion -M365Plan $plan -M365PackageHash $hash -Confirm:$false
+            $result.Succeeded | Should -BeTrue
+            $recovery = Invoke-EwNerdioRecoveryStore -Action Read
+            $recovery.Operations | Should -HaveCount 0
+            $recovery.PruningOffers | Should -HaveCount 1
+            $recovery.PruningOffers[0].AppId | Should -Be 'app-42'
+            $recovery.PruningOffers[0].PublishedVersion | Should -Be '16.0.20625.20142'
+        }
+    }
+
     It 'keeps a publish protected until its provider request returns' {
         InModuleScope EvergreenUI -Parameters @{ Root = $TestDrive } {
             $package = Join-Path -Path $Root -ChildPath 'office.zip'

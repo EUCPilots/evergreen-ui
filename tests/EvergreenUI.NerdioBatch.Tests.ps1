@@ -50,6 +50,22 @@ Describe 'Nerdio publish outcomes' {
         }
     }
 
+    It 'accepts a created app identifier in the <IdProperty> response field' -ForEach @(
+        @{ IdProperty = 'publicId' }
+        @{ IdProperty = 'externalId' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Folder = $folder; File = $file; IdProperty = $IdProperty } {
+            Mock Get-EwNerdioSessionContext { [PSCustomObject]@{ AccessToken = 'token'; NmeHost = 'nme.test' } }
+            Mock Invoke-EwNerdioBlobUpload { [PSCustomObject]@{ BlobName = 'blob'; SourceUrl = 'https://storage.test/file'; Sha256 = 'hash' } }
+            Mock Invoke-EwNerdioApiRequest {
+                [PSCustomObject]@{ item = [PSCustomObject]@{ $IdProperty = 'app-42' }; job = [PSCustomObject]@{ id = 'job'; status = 'Completed' } }
+            }
+            $result = Publish-EwNerdioApp -DefinitionPath $Folder -PackagePath $File -Version '2.0' -Confirm:$false
+            $result.Status | Should -Be 'Completed'
+            $result.AppId | Should -Be 'app-42'
+        }
+    }
+
     It 'persists a publish intent before writing the installer blob or calling Nerdio' {
         InModuleScope EvergreenUI -Parameters @{ Folder = $folder; File = $file } {
             $events = [System.Collections.Generic.List[string]]::new()

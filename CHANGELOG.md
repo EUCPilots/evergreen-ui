@@ -2,6 +2,8 @@
 
 ## [2.0.4-preview]
 
+- Show safe Nerdio validation details when a publish request fails, without automatically retrying uncertain writes.
+- Resolve a newly created Microsoft 365 Nerdio Shell App after a completed response omits its ID, while keeping ambiguous outcomes blocked for review.
 - Add explicit acknowledgment of unresolved Nerdio operations from both Nerdio workflows and PowerShell, with active-operation protection and duplicate-write warnings.
 - Expand Settings with a confirmed defaults reset, window-layout reset, and Evergreen and cache maintenance actions. Place Saved folders first, followed by Maintenance and Window layout, and remove the Startup view control.
 - Keep the Apps navigation label visible when its tooltip opens.

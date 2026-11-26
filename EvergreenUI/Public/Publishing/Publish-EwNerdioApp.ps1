@@ -190,7 +190,7 @@ function Publish-EwNerdioApp {
         $job = Get-EwFirstPropertyValue -InputObject $response -Name 'job'
         $result.JobId = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'id')
         if (-not $addVersion) {
-            $result.AppId = [string](Get-EwFirstPropertyValue -InputObject (Get-EwFirstPropertyValue -InputObject $response -Name 'item') -Name 'id')
+            $result.AppId = [string](Get-EwFirstPropertyValue -InputObject (Get-EwFirstPropertyValue -InputObject $response -Name 'item') -Name 'id', 'publicId', 'externalId')
         }
         $status = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'status')
         $result.Status = switch ($status) {
@@ -199,9 +199,36 @@ function Publish-EwNerdioApp {
             'Failed' { 'Failed' }
             default { 'Unknown' }
         }
-        if ($result.Status -eq 'Completed' -and -not $result.AppId) { $result.Status = 'Unknown' }
+        if ($result.Status -eq 'Completed' -and -not $result.AppId -and $null -ne $M365Plan -and -not $addVersion) {
+            Write-Verbose -Message 'EvergreenUI: Nerdio completed the Microsoft 365 create without an app ID; checking the destination for a unique app and version.'
+            $name = [string]$recoveryOperation.Name
+            $publisher = [string]$recoveryOperation.Publisher
+            if (-not [string]::IsNullOrWhiteSpace($name) -and -not [string]::IsNullOrWhiteSpace($publisher)) {
+                Assert-EwNerdioDestination -Destination $M365Plan.Destination
+                $apps = @(Get-EwNerdioShellApp)
+                $matchingApps = @($apps | Where-Object { $_.Name.Trim() -ieq $name.Trim() })
+                $resolvedAppId = ''
+                if ($matchingApps.Count -eq 1 -and ([string]$matchingApps[0].Publisher).Trim() -ieq $publisher.Trim() -and
+                    -not [string]::IsNullOrWhiteSpace([string]$matchingApps[0].Id) -and
+                    @($apps | Where-Object { [string]$_.Id -ieq [string]$matchingApps[0].Id }).Count -eq 1) {
+                    $matchingVersions = @(Get-EwNerdioShellAppVersion -Id $matchingApps[0].Id | Where-Object {
+                            [string](Get-EwFirstPropertyValue -InputObject $_ -Name 'name', 'version', 'displayVersion') -ceq $Version
+                        })
+                    if ($matchingVersions.Count -eq 1) { $resolvedAppId = [string]$matchingApps[0].Id }
+                }
+                Assert-EwNerdioDestination -Destination $M365Plan.Destination
+                $result.AppId = $resolvedAppId
+                if ($result.AppId) {
+                    Write-Verbose -Message "EvergreenUI: Verified created Nerdio Shell App '$($result.AppId)' version '$Version'."
+                }
+            }
+        }
+        if ($result.Status -eq 'Completed' -and -not $result.AppId) {
+            $result.Status = 'Unknown'
+            $result.Error = 'Nerdio reported completion, but the created app ID could not be verified; inspect the operation before retrying.'
+        }
         $result.Succeeded = $result.Status -eq 'Completed'
-        if (-not $result.Succeeded) { $result.Error = "Nerdio returned '$status'; inspect the operation before retrying." }
+        if (-not $result.Succeeded -and -not $result.Error) { $result.Error = "Nerdio returned '$status'; inspect the operation before retrying." }
         if ($result.Status -in @('Pending', 'Unknown')) {
             $recoveryOperation.Status = $result.Status
             $recoveryOperation.AppId = $result.AppId
@@ -231,12 +258,45 @@ function Publish-EwNerdioApp {
         return $result
     }
     catch {
-        if ($postStarted -or $_.Exception.Data.Contains('OutcomeUnknown')) { $result.Status = 'Unknown' }
-        if ($_.Exception.Data.Contains('BlobName')) { $result.BlobName = [string]$_.Exception.Data['BlobName'] }
-        $message = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+        $failure = $_
+        if ($postStarted -or $failure.Exception.Data.Contains('OutcomeUnknown')) { $result.Status = 'Unknown' }
+        if ($failure.Exception.Data.Contains('BlobName')) { $result.BlobName = [string]$failure.Exception.Data['BlobName'] }
+        $message = $failure.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+        if ($postStarted -and $null -ne $failure.ErrorDetails -and -not [string]::IsNullOrWhiteSpace($failure.ErrorDetails.Message)) {
+            $detail = ''
+            try {
+                $responseDetails = $failure.ErrorDetails.Message | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+                if ($responseDetails -is [System.Collections.IDictionary]) {
+                    if ($responseDetails['error'] -is [System.Collections.IDictionary]) {
+                        $detail = [string]$responseDetails['error']['message']
+                    }
+                    if (-not $detail) {
+                        foreach ($key in 'message', 'detail', 'title') {
+                            if ($responseDetails[$key] -is [string] -and $responseDetails[$key]) {
+                                $detail = $responseDetails[$key]
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+            catch {
+                Write-Verbose -Message 'EvergreenUI: Nerdio returned error details that could not be parsed as JSON.'
+            }
+            $accessToken = [string](Get-EwFirstPropertyValue -InputObject $context -Name 'AccessToken')
+            if ($detail -match '^[\p{L}\p{N}.,;() _-]{1,500}$' -and
+                ([string]::IsNullOrWhiteSpace($accessToken) -or -not $detail.Contains($accessToken, [StringComparison]::Ordinal)) -and
+                $detail -notmatch '(?i)secret|token|password|credential|authorization|cookie|signature|bearer|api.?key|access.?key|private.?key|connection.?string|client.?id' -and
+                $detail -notmatch '\b[A-Za-z0-9_-]{32,}\b') {
+                $message = "$message $detail"
+            }
+            else {
+                Write-Verbose -Message 'EvergreenUI: Nerdio error details were omitted because they could not be safely displayed.'
+            }
+        }
         Write-Verbose -Message "EvergreenUI: Nerdio publish failed: $message"
         if ($null -ne $recoveryOperation) {
-            if ($postStarted -or $_.Exception.Data.Contains('OutcomeUnknown')) {
+            if ($postStarted -or $failure.Exception.Data.Contains('OutcomeUnknown')) {
                 $recoveryOperation.Status = 'Unknown'
                 $recoveryOperation.AppId = $result.AppId
                 $recoveryOperation.JobId = $result.JobId

@@ -309,6 +309,7 @@
                                          Content="Packages"
                                          Tag="&#xE7B8;"
                                          AutomationProperties.Name="Packages view" />
+                            <Border Height="1" Margin="8,12" Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
                             <RadioButton x:Name="NavIntune"
                                          Style="{StaticResource NavigationButtonStyle}"
                                          Content="Microsoft Intune"

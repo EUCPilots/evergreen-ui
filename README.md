@@ -302,6 +302,8 @@ after confirming failure, or Cancel to leave it unresolved. A claimed publish
 success is not accepted until Workbench refreshes the Shell App and verifies the
 published version is uniquely newest.
 
+When a Microsoft 365 create completes without an app ID in the response, Workbench checks the connected destination for one matching Shell App and the published version. If either cannot be identified uniquely, the outcome remains unresolved and requires review.
+
 If the outcome cannot be established, select the record and choose **Acknowledge unknown** on the Nerdio Shell Apps or Microsoft 365 Apps tab. Confirming removes only that recovery record; it does not verify, cancel, or retry the operation. A later retry can duplicate or conflict with an operation still running in Nerdio.
 
 Workbench blocks acknowledgment while it can confirm the local operation is active, but cannot determine whether an unknown remote operation has finished. Refresh the preview before publishing again. From PowerShell, connect to the same destination, list records with `Get-EwNerdioRecovery`, and acknowledge the selected record with `Clear-EwNerdioRecovery -OperationId <id>`.
