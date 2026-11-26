@@ -279,6 +279,7 @@
                                          Style="{StaticResource NavigationButtonStyle}"
                                          Tag="&#xE71D;"
                                          AutomationProperties.Name="Apps view"
+                                         ToolTip="Apps"
                                          IsChecked="True">
                                 <DockPanel LastChildFill="True">
                                     <Border DockPanel.Dock="Right"

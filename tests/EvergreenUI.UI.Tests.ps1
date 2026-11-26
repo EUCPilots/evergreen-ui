@@ -2163,6 +2163,41 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'keeps the Apps label in the navigation while its tooltip is open' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            $tooltip = $null
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.ShowInTaskbar = $false
+                $window.Width = 1200
+                $window.Show()
+                $button = $window.FindName('NavApps')
+                $content = $button.Content
+                foreach ($mode in 'Light', 'Dark') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    foreach ($badgeVisibility in 'Collapsed', 'Visible') {
+                        $window.FindName('AppsQueueCountBadge').Visibility = [System.Windows.Visibility]::$badgeVisibility
+                        $tooltip = [System.Windows.Controls.ToolTip]::new()
+                        $tooltip.PlacementTarget = $button
+                        $tooltip.Content = $button.ToolTip
+                        $tooltip.IsOpen = $true
+                        $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                        $content.IsDescendantOf($button) | Should -BeTrue
+                        $tooltip.Content | Should -Be 'Apps'
+                        $tooltip.IsOpen = $false
+                    }
+                }
+            }
+            finally {
+                if ($null -ne $tooltip) { $tooltip.IsOpen = $false }
+                $window.Close()
+            }
+        }
+    }
+
     It 'adapts navigation to window width while keeping labels available to automation' -Skip:$isGitHubRunner {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow

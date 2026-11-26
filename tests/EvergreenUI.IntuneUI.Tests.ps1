@@ -35,7 +35,7 @@ Describe 'Intune Publish view' {
 
                 $expectedColumns = @(
                     @{ Header = 'Definition display name'; Property = 'DefinitionName' }
-                    @{ Header = 'App display name'; Property = 'IntuneDisplayName' }
+                    @{ Header = 'Intune display name'; Property = 'IntuneDisplayName' }
                     @{ Header = 'Publisher'; Property = 'Publisher' }
                 )
                 for ($index = 0; $index -lt $expectedColumns.Count; $index++) {
