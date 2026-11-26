@@ -151,15 +151,15 @@ Describe 'Microsoft 365 provider views' {
         }
     }
 
-    It 'enables Nerdio API-only sign-in without Azure or storage' {
+    It 'allows Nerdio API sign-in independently of Azure authentication' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
                 $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
                 Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid() } }
-                $state.NerdioApiOnlyToggle.IsChecked = $true
                 Invoke-EwWorkbenchNerdioBusyState -State $state
                 $state.ConnectNerdioButton.IsEnabled | Should -BeTrue
+                $state.NerdioApiOnlyToggle.IsChecked | Should -BeFalse
                 $state.NmeClientSecretBox.Password = 'synthetic-secret'
                 Invoke-EwWorkbenchNerdioAction -State $state -Action ApiConnect
                 $state.NmeClientSecretBox.Password | Should -Be ''
@@ -167,6 +167,14 @@ Describe 'Microsoft 365 provider views' {
                     $Name -eq 'Nerdio ApiConnect' -and $ArgumentList[1].ApiOnly -eq $true -and
                     -not $ArgumentList[1].ContainsKey('StorageAccountName')
                 }
+
+                $state.ActiveJobId = $null
+                $destination = [PSCustomObject]@{ ApiOnly = $true; NmeHost = 'nme.test' }
+                $state.NerdioDestination = $destination
+                $script:ewNerdioSession.Context = [PSCustomObject]@{ ApiOnly = $true; NmeHost = 'nme.test' }
+                Invoke-EwWorkbenchNerdioAction -State $state -Action AzureConnect
+                $state.NerdioDestination | Should -Be $destination
+                $script:ewNerdioSession.Context.ApiOnly | Should -BeTrue
             }
             finally { $window.Close() }
         }

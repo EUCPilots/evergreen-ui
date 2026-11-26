@@ -1321,6 +1321,22 @@
                                 <ScrollViewer x:Name="NerdioSetupScrollViewer" VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Disabled">
                                     <StackPanel>
+                                        <Expander Header="Nerdio Manager API setup" IsExpanded="True" Margin="0,0,0,6">
+                                            <StackPanel Margin="0,8">
+                                                <Label Content="Nerdio HTTPS host" Target="{Binding ElementName=NmeHostBox}" Padding="0" />
+                                                <TextBox x:Name="NmeHostBox" AutomationProperties.Name="Nerdio host" Margin="0,2,0,6" />
+                                                <Label Content="Application client ID" Target="{Binding ElementName=NmeClientIdBox}" Padding="0" />
+                                                <TextBox x:Name="NmeClientIdBox" AutomationProperties.Name="Nerdio client ID" Margin="0,2,0,6" />
+                                                <Label Content="API scope" Target="{Binding ElementName=NmeApiScopeBox}" Padding="0" />
+                                                <TextBox x:Name="NmeApiScopeBox" AutomationProperties.Name="Nerdio API scope" Margin="0,2,0,6" />
+                                                <Label Content="OAuth token URL (optional)" Target="{Binding ElementName=NmeOAuthTokenUrlBox}" Padding="0" />
+                                                <TextBox x:Name="NmeOAuthTokenUrlBox" AutomationProperties.Name="Nerdio OAuth token URL" Margin="0,2,0,6" />
+                                                <Label Content="Client secret (not saved)" Target="{Binding ElementName=NmeClientSecretBox}" Padding="0" />
+                                                <PasswordBox x:Name="NmeClientSecretBox" AutomationProperties.Name="Nerdio client secret" Margin="0,2,0,6" />
+                                                <CheckBox x:Name="NerdioApiOnlyToggle" Content="API only (Microsoft 365 build only)" Margin="0,0,0,6" />
+                                                <Button x:Name="ConnectNerdioButton" Content="Connect Nerdio Manager API" HorizontalAlignment="Left" Padding="12,4" />
+                                            </StackPanel>
+                                        </Expander>
                                         <Expander Header="Azure storage setup" IsExpanded="False" Margin="0,0,0,6">
                                             <StackPanel Margin="0,8">
                                                 <Label Content="Azure tenant ID" Target="{Binding ElementName=NerdioTenantIdBox}" Padding="0" />
@@ -1338,22 +1354,6 @@
                                                 <ComboBox x:Name="NmeStorageAccountCombo" AutomationProperties.Name="Nerdio storage account" Margin="0,2,0,6" />
                                                 <Label Content="Blob container" Target="{Binding ElementName=NmeContainerCombo}" Padding="0" />
                                                 <ComboBox x:Name="NmeContainerCombo" AutomationProperties.Name="Nerdio blob container" Margin="0,2,0,6" />
-                                            </StackPanel>
-                                        </Expander>
-                                        <Expander Header="Nerdio API setup" IsExpanded="True" Margin="0,0,0,6">
-                                            <StackPanel Margin="0,8">
-                                                <Label Content="Nerdio HTTPS host" Target="{Binding ElementName=NmeHostBox}" Padding="0" />
-                                                <TextBox x:Name="NmeHostBox" AutomationProperties.Name="Nerdio host" Margin="0,2,0,6" />
-                                                <Label Content="Application client ID" Target="{Binding ElementName=NmeClientIdBox}" Padding="0" />
-                                                <TextBox x:Name="NmeClientIdBox" AutomationProperties.Name="Nerdio client ID" Margin="0,2,0,6" />
-                                                <Label Content="API scope" Target="{Binding ElementName=NmeApiScopeBox}" Padding="0" />
-                                                <TextBox x:Name="NmeApiScopeBox" AutomationProperties.Name="Nerdio API scope" Margin="0,2,0,6" />
-                                                <Label Content="OAuth token URL (optional)" Target="{Binding ElementName=NmeOAuthTokenUrlBox}" Padding="0" />
-                                                <TextBox x:Name="NmeOAuthTokenUrlBox" AutomationProperties.Name="Nerdio OAuth token URL" Margin="0,2,0,6" />
-                                                <Label Content="Client secret (not saved)" Target="{Binding ElementName=NmeClientSecretBox}" Padding="0" />
-                                                <PasswordBox x:Name="NmeClientSecretBox" AutomationProperties.Name="Nerdio client secret" Margin="0,2,0,6" />
-                                                <CheckBox x:Name="NerdioApiOnlyToggle" Content="API only (Microsoft 365 build only)" Margin="0,0,0,6" />
-                                                <Button x:Name="ConnectNerdioButton" Content="Connect Nerdio API" HorizontalAlignment="Left" Padding="12,4" />
                                             </StackPanel>
                                         </Expander>
                                         <Button x:Name="SaveNerdioSetupButton" Content="Save setup" HorizontalAlignment="Left" Padding="12,4" Margin="0,6,0,6" />

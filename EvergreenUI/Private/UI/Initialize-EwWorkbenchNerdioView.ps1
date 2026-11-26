@@ -37,7 +37,12 @@ function Initialize-EwWorkbenchNerdioView {
             $connectionChanged = $name -ne 'NerdioDefinitionsPath'
             $control.Add_TextChanged({
                 if ($State.AllowNerdioEvents) {
-                    & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{ State = $State; AzureChanged = $azureChanged; ConnectionChanged = $connectionChanged }
+                    $preserveApiOnly = $azureChanged -and $null -ne $State.NerdioDestination -and
+                    [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
+                    & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{
+                        State = $State; AzureChanged = $azureChanged
+                        ConnectionChanged = $connectionChanged -and -not $preserveApiOnly
+                    }
                 }
             }.GetNewClosure())
         }
@@ -59,7 +64,11 @@ function Initialize-EwWorkbenchNerdioView {
     }
     $State.NmeResourceGroupCombo.Add_SelectionChanged({
         if ($State.AllowNerdioEvents) {
-            & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{ State = $State }
+            $preserveApiOnly = $null -ne $State.NerdioDestination -and
+            [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
+            & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{
+                State = $State; ConnectionChanged = -not $preserveApiOnly
+            }
             $State.AllowNerdioEvents = $false
             $State.NmeStorageAccountCombo.ItemsSource = @()
             $State.NmeContainerCombo.ItemsSource = @()
@@ -71,7 +80,11 @@ function Initialize-EwWorkbenchNerdioView {
     }.GetNewClosure())
     $State.NmeStorageAccountCombo.Add_SelectionChanged({
         if ($State.AllowNerdioEvents) {
-            & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{ State = $State }
+            $preserveApiOnly = $null -ne $State.NerdioDestination -and
+            [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
+            & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{
+                State = $State; ConnectionChanged = -not $preserveApiOnly
+            }
             $State.AllowNerdioEvents = $false
             $State.NmeContainerCombo.ItemsSource = @()
             $State.AllowNerdioEvents = $true
@@ -82,7 +95,11 @@ function Initialize-EwWorkbenchNerdioView {
     }.GetNewClosure())
     $State.NmeContainerCombo.Add_SelectionChanged({
         if ($State.AllowNerdioEvents) {
-            & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{ State = $State }
+            $preserveApiOnly = $null -ne $State.NerdioDestination -and
+            [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
+            & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{
+                State = $State; ConnectionChanged = -not $preserveApiOnly
+            }
         }
     }.GetNewClosure())
     $State.NerdioComparisonListView.Add_SelectionChanged({

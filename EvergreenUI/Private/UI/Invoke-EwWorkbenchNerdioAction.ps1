@@ -165,7 +165,10 @@ function Invoke-EwWorkbenchNerdioAction {
                 $State.NerdioSelectedPrunePlans = @()
             }
             'AzureConnect' {
-                Clear-EwWorkbenchNerdioComparison -State $State -AzureChanged $true
+                $preserveApiOnly = $null -ne $State.NerdioDestination -and
+                    [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
+                Clear-EwWorkbenchNerdioComparison -State $State -AzureChanged $true `
+                    -ConnectionChanged (-not $preserveApiOnly)
                 $body = {
                     param($Tenant, $Subscription, $Device)
                     $result = Connect-EwAzure -TenantId $Tenant -SubscriptionId $Subscription -UseDeviceAuthentication:([bool]$Device)
@@ -197,8 +200,8 @@ function Invoke-EwWorkbenchNerdioAction {
                 $arguments = @($State.NerdioAzureIdentity, [string]$State.NmeResourceGroupCombo.SelectedItem, [string]$State.NmeStorageAccountCombo.SelectedItem)
             }
             'ApiConnect' {
-                $apiOnly = [bool]$State.NerdioApiOnlyToggle.IsChecked
-                if (-not $apiOnly -and ($null -eq $State.NerdioAzureIdentity -or -not $State.NmeContainerCombo.SelectedItem)) { throw 'Connect Azure and select storage first.' }
+                $apiOnly = [bool]$State.NerdioApiOnlyToggle.IsChecked -or
+                    $null -eq $State.NerdioAzureIdentity -or -not $State.NmeContainerCombo.SelectedItem
                 $parameters = @{
                     TenantId = [string]$State.NerdioTenantIdBox.Text
                     ClientId = [string]$State.NmeClientIdBox.Text; ClientSecret = $State.NmeClientSecretBox.SecurePassword.Copy()

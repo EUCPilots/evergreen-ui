@@ -322,9 +322,9 @@ Describe 'Nerdio WPF view' {
                 $setup = $window.FindName('NerdioSetupScrollViewer')
                 $tabs.Items[2].Content | Should -Be $setup.Parent
                 @($setup.Content.Children | Where-Object { $_ -is [System.Windows.Controls.Expander] } | ForEach-Object { $_.Header }) |
-                    Should -Be @('Azure storage setup', 'Nerdio API setup')
-                $setup.Content.Children[0].Content.Children.Contains($state.NerdioTenantIdBox) | Should -BeTrue
-                $setup.Content.Children[1].Content.Children.Contains($state.NmeHostBox) | Should -BeTrue
+                Should -Be @('Nerdio API setup', 'Azure storage setup')
+                $setup.Content.Children[0].Content.Children.Contains($state.NmeHostBox) | Should -BeTrue
+                $setup.Content.Children[1].Content.Children.Contains($state.NerdioTenantIdBox) | Should -BeTrue
                 $setup.Content.Children.Contains($state.SaveNerdioSetupButton) | Should -BeTrue
                 $shellApps = $state.NerdioComparisonListView.Parent
                 $tabs.Items[0].Content | Should -Be $shellApps

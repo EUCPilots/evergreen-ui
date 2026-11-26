@@ -45,7 +45,14 @@ function Invoke-EwWorkbenchNerdioJobResult {
             switch ($Kind) {
                 'NerdioAzureConnect' {
                     $State.NerdioAzureIdentity = $result.Identity
-                    $State.NerdioConnectionStatusLabel.Text = "Azure: $($result.Identity.AccountId) / $($result.Identity.SubscriptionName). Select storage and connect Nerdio."
+                    $State.NerdioConnectionStatusLabel.Text = if (
+                        $null -ne $State.NerdioDestination -and
+                        [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
+                    ) {
+                        "Connected API only: $($State.NerdioDestination.NmeHost). Azure: $($result.Identity.AccountId) / $($result.Identity.SubscriptionName). Azure storage is required for publishing."
+                    } else {
+                        "Azure: $($result.Identity.AccountId) / $($result.Identity.SubscriptionName). Select storage and connect Nerdio."
+                    }
                     $State.NmeResourceGroupCombo.ItemsSource = [string[]]$result.Items
                     if ([string]$State.Settings.NmeResourceGroup -in @($result.Items)) {
                         $State.NmeResourceGroupCombo.SelectedItem = [string]$State.Settings.NmeResourceGroup

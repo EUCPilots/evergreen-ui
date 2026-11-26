@@ -14,9 +14,7 @@ function Invoke-EwWorkbenchNerdioBusyState {
     $State.NmeResourceGroupCombo.IsEnabled = $idle -and $null -ne $State.NerdioAzureIdentity
     $State.NmeStorageAccountCombo.IsEnabled = $idle -and $null -ne $State.NmeResourceGroupCombo.SelectedItem
     $State.NmeContainerCombo.IsEnabled = $idle -and $null -ne $State.NmeStorageAccountCombo.SelectedItem
-    $apiOnly = $null -ne $State.NerdioApiOnlyToggle -and [bool]$State.NerdioApiOnlyToggle.IsChecked
-    $State.ConnectNerdioButton.IsEnabled = $idle -and ($apiOnly -or
-        ($null -ne $State.NerdioAzureIdentity -and $null -ne $State.NmeContainerCombo.SelectedItem))
+    $State.ConnectNerdioButton.IsEnabled = $idle
     $State.DisconnectNerdioButton.IsEnabled = $idle -and ($null -ne $State.NerdioAzureIdentity -or $null -ne $State.NerdioDestination)
     $State.CompareNerdioButton.IsEnabled = $idle -and $null -ne $State.NerdioDestination -and
         -not [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
