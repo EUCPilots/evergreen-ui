@@ -48,6 +48,34 @@ function Get-EwWorkbenchWindow {
     $navigationPane = $window.FindName('NavigationPane')
     $navigationBrand = $window.FindName('NavigationBrand')
     $navigationScroll = $window.FindName('NavigationScrollViewer')
+    $navigationItems = $window.FindName('NavigationItems')
+    $navigationStack = $window.FindName('NavigationItemsStack')
+    $navigationIndicator = $window.FindName('NavigationSelectionIndicator')
+    $navigationButtons = @('NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavSettings', 'NavAbout') |
+        ForEach-Object { $window.FindName($_) }
+    $showIndicator = ${function:Show-EwWorkbenchNavigationIndicator}
+    $updateIndicator = {
+        param([bool]$animate)
+        foreach ($button in $navigationButtons) {
+            if ($button.IsChecked) {
+                & $showIndicator -Container $navigationItems -Indicator $navigationIndicator `
+                    -SelectedItem $button -Animate $animate
+                break
+            }
+        }
+    }.GetNewClosure()
+    foreach ($button in $navigationButtons) {
+        $button.Add_Checked({
+            & $showIndicator -Container $navigationItems -Indicator $navigationIndicator -SelectedItem $args[0] `
+                -Animate ([System.Windows.SystemParameters]::ClientAreaAnimation)
+        }.GetNewClosure())
+        $button.Add_SizeChanged({ & $updateIndicator -animate $false }.GetNewClosure())
+    }
+    $navigationStack.Add_SizeChanged({ & $updateIndicator -animate $false }.GetNewClosure())
+    $window.Add_Loaded({ & $updateIndicator -animate $false }.GetNewClosure())
+    foreach ($name in @('PackagesTabControl', 'IntuneTabControl', 'NerdioTabControl')) {
+        Initialize-EwWorkbenchProviderTab -Tabs $window.FindName($name)
+    }
     $window.Add_SizeChanged({
         $compact = $args[0].ActualWidth -lt 1100
         $navigationColumn.Width = [System.Windows.GridLength]::new($(if ($compact) { 64 } else { 208 }))

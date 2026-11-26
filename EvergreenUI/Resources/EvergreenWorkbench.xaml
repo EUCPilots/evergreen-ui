@@ -73,14 +73,6 @@
                                                       VerticalAlignment="Center" />
                                 </StackPanel>
                             </Border>
-                            <Border x:Name="SelectedIndicator"
-                                    Width="24"
-                                    Height="3"
-                                    CornerRadius="1.5"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Bottom"
-                                    Background="{DynamicResource AccentFillColorDefaultBrush}"
-                                    Visibility="Collapsed" />
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="Tag" Value="{x:Null}">
@@ -96,7 +88,6 @@
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="HeaderContent" Property="TextElement.Foreground"
                                         Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <Setter TargetName="SelectedIndicator" Property="Visibility" Value="Visible" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="HeaderBorder" Property="BorderBrush"
@@ -109,8 +100,6 @@
                             <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
                                 <Setter TargetName="HeaderContent" Property="TextElement.Foreground"
                                         Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" />
-                                <Setter TargetName="SelectedIndicator" Property="Background"
-                                        Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
                             </DataTrigger>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
@@ -137,12 +126,37 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
-                            <TabPanel x:Name="HeaderPanel"
-                                      IsItemsHost="True"
-                                      HorizontalAlignment="Left"
-                                      KeyboardNavigation.TabIndex="1"
-                                      KeyboardNavigation.TabNavigation="Once"
-                                      KeyboardNavigation.DirectionalNavigation="Contained" />
+                            <Grid x:Name="HeaderArea">
+                                <TabPanel x:Name="HeaderPanel"
+                                          IsItemsHost="True"
+                                          HorizontalAlignment="Left"
+                                          KeyboardNavigation.TabIndex="1"
+                                          KeyboardNavigation.TabNavigation="Once"
+                                          KeyboardNavigation.DirectionalNavigation="Contained" />
+                                <Border x:Name="SelectedIndicator"
+                                        Width="24"
+                                        Height="3"
+                                        CornerRadius="1.5"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
+                                        IsHitTestVisible="False"
+                                        Visibility="Collapsed">
+                                    <Border.RenderTransform>
+                                        <TranslateTransform />
+                                    </Border.RenderTransform>
+                                    <Border.Style>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
+                                                    <Setter Property="Background"
+                                                            Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </Grid>
                             <ContentPresenter x:Name="PART_SelectedContentHost"
                                               Grid.Row="1"
                                               Margin="0,8,0,0"
@@ -182,13 +196,6 @@
                                     <ColumnDefinition x:Name="NavigationIconColumn" Width="24" />
                                     <ColumnDefinition x:Name="NavigationLabelColumn" Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Border x:Name="SelectedIndicator"
-                                        Grid.Column="0"
-                                        Height="16"
-                                        Background="{DynamicResource AccentFillColorDefaultBrush}"
-                                        CornerRadius="2"
-                                        VerticalAlignment="Center"
-                                        Visibility="Collapsed" />
                                 <TextBlock x:Name="NavigationIcon"
                                            Grid.Column="1"
                                            Text="{TemplateBinding Tag}"
@@ -219,21 +226,11 @@
                                 <Setter TargetName="NavigationBorder"
                                         Property="Background"
                                         Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
-                                <Setter TargetName="SelectedIndicator" Property="Visibility" Value="Visible" />
                                 <Setter Property="FontWeight" Value="SemiBold" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="NavigationBorder"
-                                        Property="BorderBrush"
-                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5" />
                             </Trigger>
-                            <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
-                                <Setter TargetName="SelectedIndicator" Property="Background"
-                                        Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
-                            </DataTrigger>
                             <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
                                          Value="True">
                                 <Setter TargetName="NavigationLabel" Property="Visibility" Value="Collapsed" />
@@ -276,62 +273,87 @@
                 <ScrollViewer x:Name="NavigationScrollViewer"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel>
-                        <RadioButton x:Name="NavApps"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Tag="&#xE71D;"
-                                     AutomationProperties.Name="Apps view"
-                                     IsChecked="True">
-                            <DockPanel LastChildFill="True">
-                                <Border DockPanel.Dock="Right"
-                                        x:Name="AppsQueueCountBadge"
-                                        Background="{DynamicResource AccentFillColorDefaultBrush}"
-                                        CornerRadius="8"
-                                        Padding="6,1"
-                                        Margin="8,0,0,0"
-                                        Visibility="Collapsed">
-                                    <TextBlock x:Name="AppsQueueCountText"
-                                               Text="0"
-                                               FontSize="11"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"
-                                               AutomationProperties.Name="Pending downloads" />
-                                </Border>
-                                <TextBlock Text="Apps" VerticalAlignment="Center" />
-                            </DockPanel>
-                        </RadioButton>
-                        <RadioButton x:Name="NavLibrary"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Content="Library"
-                                     Tag="&#xE8F1;"
-                                     AutomationProperties.Name="Library view" />
-                        <RadioButton x:Name="NavPackages"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Content="Packages"
-                                     Tag="&#xE7B8;"
-                                     AutomationProperties.Name="Packages view" />
-                        <RadioButton x:Name="NavIntune"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Content="Intune"
-                                     Tag="&#xE753;"
-                                     AutomationProperties.Name="Intune view" />
-                        <RadioButton x:Name="NavNerdio"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Content="Nerdio"
-                                     Tag="&#xE968;"
-                                     AutomationProperties.Name="Nerdio view" />
-                        <Border Height="1" Margin="8,12" Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
-                        <RadioButton x:Name="NavSettings"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Content="Settings"
-                                     Tag="&#xE713;"
-                                     AutomationProperties.Name="Settings view" />
-                        <RadioButton x:Name="NavAbout"
-                                     Style="{StaticResource NavigationButtonStyle}"
-                                     Content="About"
-                                     Tag="&#xE946;"
-                                     AutomationProperties.Name="About view" />
-                    </StackPanel>
+                    <Grid x:Name="NavigationItems">
+                        <StackPanel x:Name="NavigationItemsStack">
+                            <RadioButton x:Name="NavApps"
+                                         Style="{StaticResource NavigationButtonStyle}"
+                                         Tag="&#xE71D;"
+                                         AutomationProperties.Name="Apps view"
+                                         IsChecked="True">
+                                <DockPanel LastChildFill="True">
+                                    <Border DockPanel.Dock="Right"
+                                            x:Name="AppsQueueCountBadge"
+                                            Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="8"
+                                            Padding="6,1"
+                                            Margin="8,0,0,0"
+                                            Visibility="Collapsed">
+                                        <TextBlock x:Name="AppsQueueCountText"
+                                                   Text="0"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"
+                                                   AutomationProperties.Name="Pending downloads" />
+                                    </Border>
+                                    <TextBlock Text="Apps" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="NavLibrary"
+                                         Style="{StaticResource NavigationButtonStyle}"
+                                         Content="Library"
+                                         Tag="&#xE8F1;"
+                                         AutomationProperties.Name="Library view" />
+                            <RadioButton x:Name="NavPackages"
+                                         Style="{StaticResource NavigationButtonStyle}"
+                                         Content="Packages"
+                                         Tag="&#xE7B8;"
+                                         AutomationProperties.Name="Packages view" />
+                            <RadioButton x:Name="NavIntune"
+                                         Style="{StaticResource NavigationButtonStyle}"
+                                         Content="Intune"
+                                         Tag="&#xE753;"
+                                         AutomationProperties.Name="Intune view" />
+                            <RadioButton x:Name="NavNerdio"
+                                         Style="{StaticResource NavigationButtonStyle}"
+                                         Content="Nerdio"
+                                         Tag="&#xE968;"
+                                         AutomationProperties.Name="Nerdio view" />
+                            <Border Height="1" Margin="8,12" Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            <RadioButton x:Name="NavSettings"
+                                         Style="{StaticResource NavigationButtonStyle}"
+                                         Content="Settings"
+                                         Tag="&#xE713;"
+                                         AutomationProperties.Name="Settings view" />
+                            <RadioButton x:Name="NavAbout"
+                                         Style="{StaticResource NavigationButtonStyle}"
+                                         Content="About"
+                                         Tag="&#xE946;"
+                                         AutomationProperties.Name="About view" />
+                        </StackPanel>
+                        <Border x:Name="NavigationSelectionIndicator"
+                                Width="3"
+                                Height="16"
+                                Margin="1,0,0,0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                CornerRadius="2"
+                                IsHitTestVisible="False"
+                                Visibility="Collapsed">
+                            <Border.RenderTransform>
+                                <TranslateTransform />
+                            </Border.RenderTransform>
+                            <Border.Style>
+                                <Style TargetType="{x:Type Border}">
+                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </Grid>
                 </ScrollViewer>
             </DockPanel>
         </Border>
@@ -992,7 +1014,7 @@
                 </Grid>
 
                 <Grid x:Name="IntunePanel" Visibility="Collapsed">
-                    <TabControl Style="{StaticResource ProviderTabControlStyle}">
+                    <TabControl x:Name="IntuneTabControl" Style="{StaticResource ProviderTabControlStyle}">
                         <TabItem Header="Win32 apps" Tag="&#xECAA;">
                             <Grid>
                     <Grid.RowDefinitions>
@@ -1161,7 +1183,7 @@
                 </Grid>
 
                 <Grid x:Name="NerdioPanel" Visibility="Collapsed">
-                    <TabControl Style="{StaticResource ProviderTabControlStyle}">
+                    <TabControl x:Name="NerdioTabControl" Style="{StaticResource ProviderTabControlStyle}">
                         <TabItem Header="Shell Apps" Tag="&#xE756;">
                             <Grid>
                     <Grid.RowDefinitions>

@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.3-preview]
+
+- Show sidebar focus outlines only for keyboard navigation, not mouse selection.
+- Animate the sidebar selection indicator between navigation items, respecting Windows animation settings.
+- Animate the selected tab indicator on the Packages, Intune and Nerdio pages.
+
 ## [2.0.2-preview]
 
 - Fix confirmed Microsoft 365 builds replacing the application name with a preview field name. Calculate names from products, Outlook exclusions, Desktop or VDI licensing, channel and architecture, retaining the Office version when published to Intune.

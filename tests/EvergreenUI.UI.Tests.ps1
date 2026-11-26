@@ -464,10 +464,10 @@ Describe 'Evergreen Workbench WPF shell' {
                             ($header.ActualWidth + 0.5) | Should -BeGreaterOrEqual $labelWidth
                             $point = $tab.TranslatePoint([System.Windows.Point]::new(0, 0), $page)
                             ($point.X + $tab.ActualWidth) | Should -BeLessOrEqual $page.ActualWidth
-                            $indicator = $tab.Template.FindName('SelectedIndicator', $tab)
-                            $indicator.Visibility.ToString() | Should -Be $(if ($tab.IsSelected) { 'Visible' } else { 'Collapsed' })
-                            $indicator.Background.Color | Should -Be $window.TryFindResource('AccentFillColorDefaultBrush').Color
                         }
+                        $indicator = $tabs.Template.FindName('SelectedIndicator', $tabs)
+                        $indicator.Visibility.ToString() | Should -Be 'Visible'
+                        $indicator.Background.Color | Should -Be $window.TryFindResource('AccentFillColorDefaultBrush').Color
                         $host1 = $tabs.Template.FindName('PART_SelectedContentHost', $tabs)
                         $host1.Content | Should -Be $tabs.SelectedItem.Content
                         $host1.ActualHeight | Should -BeGreaterThan 100
@@ -479,6 +479,74 @@ Describe 'Evergreen Workbench WPF shell' {
                         }
                     }
                 }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'slides and repositions the <Page> tab indicator' -ForEach @(
+        @{ Page = 'PackagesPanel' }
+        @{ Page = 'IntunePanel' }
+        @{ Page = 'NerdioPanel' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Page = $Page } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $window.FindName('AppsPanel').Visibility = 'Collapsed'
+                $pagePanel = $window.FindName($Page)
+                $pagePanel.Visibility = 'Visible'
+                $window.UpdateLayout()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $tabs = $pagePanel.Children[0]
+                $indicator = $tabs.Template.FindName('SelectedIndicator', $tabs)
+                $header = $tabs.Template.FindName('HeaderArea', $tabs)
+                $transform = $indicator.RenderTransform
+                $indicator.Visibility | Should -Be 'Visible'
+                $transform.HasAnimatedProperties | Should -BeFalse
+
+                $tabs.SelectedIndex = 1
+                if ([System.Windows.SystemParameters]::ClientAreaAnimation) {
+                    $transform.HasAnimatedProperties | Should -BeTrue
+                }
+                $tabs.SelectedIndex = $tabs.Items.Count - 1
+                $tabs.SelectedIndex = 0
+                $frame = [System.Windows.Threading.DispatcherFrame]::new()
+                $timer = [System.Windows.Threading.DispatcherTimer]::new()
+                $timer.Interval = [timespan]::FromMilliseconds(300)
+                $timer.Add_Tick({
+                    $timer.Stop()
+                    $frame.Continue = $false
+                }.GetNewClosure())
+                $timer.Start()
+                [System.Windows.Threading.Dispatcher]::PushFrame($frame)
+                $selected = $tabs.SelectedItem
+                $position = $selected.TranslatePoint([System.Windows.Point]::new(0, 0), $header)
+                $expectedX = $position.X + (($selected.ActualWidth - $indicator.Width) / 2)
+                [Math]::Abs($transform.X - $expectedX) | Should -BeLessThan 1
+
+                $pagePanel.Visibility = 'Collapsed'
+                $tabs.SelectedIndex = $tabs.Items.Count - 1
+                $pagePanel.Visibility = 'Visible'
+                $window.Width = 960
+                $window.UpdateLayout()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $selected = $tabs.SelectedItem
+                $position = $selected.TranslatePoint([System.Windows.Point]::new(0, 0), $header)
+                $expectedX = $position.X + (($selected.ActualWidth - $indicator.Width) / 2)
+                [Math]::Abs($transform.X - $expectedX) | Should -BeLessThan 1
+
+                Show-EwWorkbenchNavigationIndicator -Container $header -Indicator $indicator `
+                    -SelectedItem $tabs.Items[0] -Animate $true -Orientation 'Horizontal'
+                Show-EwWorkbenchNavigationIndicator -Container $header -Indicator $indicator `
+                    -SelectedItem $selected -Animate $false -Orientation 'Horizontal'
+                $transform.HasAnimatedProperties | Should -BeFalse
+                $transform.X | Should -Be $expectedX
             }
             finally {
                 $window.Close()
@@ -1864,6 +1932,7 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window.Top = -10000
                 $window.Show()
                 $navigationNames = 'NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavSettings', 'NavAbout'
+                $indicator = $window.FindName('NavigationSelectionIndicator')
                 foreach ($mode in 'Light', 'Dark', 'Light') {
                     $window.ThemeMode = [System.Windows.ThemeMode]::$mode
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
@@ -1878,7 +1947,6 @@ Describe 'Evergreen Workbench WPF shell' {
                         $button.Foreground.Color |
                             Should -Be $window.TryFindResource('TextFillColorPrimaryBrush').Color
                         $button.IsChecked = $true
-                        $indicator = $button.Template.FindName('SelectedIndicator', $button)
                         $indicator.Visibility | Should -Be 'Visible'
                         $indicator.Background.Color | Should -Be $expected.Color
                     }
@@ -1893,11 +1961,7 @@ Describe 'Evergreen Workbench WPF shell' {
                     else {
                         $accent
                     }
-                    foreach ($name in $navigationNames) {
-                        $button = $window.FindName($name)
-                        $indicator = $button.Template.FindName('SelectedIndicator', $button)
-                        $indicator.Background.Color | Should -Be $expected.Color
-                    }
+                    $indicator.Background.Color | Should -Be $expected.Color
                 }
             }
             finally {
@@ -1906,7 +1970,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'uses the system highlight for navigation in high contrast' {
+    It 'uses the system highlight for navigation and provider tabs in high contrast' {
         InModuleScope EvergreenUI {
             Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
             $xamlPath = Join-Path -Path (Split-Path -Path $script:ewModulePath -Parent) -ChildPath 'Resources\EvergreenWorkbench.xaml'
@@ -1915,11 +1979,17 @@ Describe 'Evergreen Workbench WPF shell' {
             $namespaces.AddNamespace('wpf', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
             $namespaces.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
             $trigger = $xaml.SelectSingleNode(
-                "//wpf:Style[@x:Key='NavigationButtonStyle']//wpf:DataTrigger[@Binding='{Binding Path=(SystemParameters.HighContrast)}']",
+                "//wpf:Border[@x:Name='NavigationSelectionIndicator']//wpf:DataTrigger[@Binding='{Binding Path=(SystemParameters.HighContrast)}']",
                 $namespaces
             )
             $trigger | Should -Not -BeNullOrEmpty
             $trigger.SetAttribute('Binding', '{Binding TestHighContrast}')
+            $tabTrigger = $xaml.SelectSingleNode(
+                "//wpf:Style[@x:Key='ProviderTabControlStyle']//wpf:Border[@x:Name='SelectedIndicator']//wpf:DataTrigger[@Binding='{Binding Path=(SystemParameters.HighContrast)}']",
+                $namespaces
+            )
+            $tabTrigger | Should -Not -BeNullOrEmpty
+            $tabTrigger.SetAttribute('Binding', '{Binding TestHighContrast}')
             $window = [System.Windows.Markup.XamlReader]::Parse($xaml.OuterXml)
             try {
                 $window.WindowStartupLocation = 'Manual'
@@ -1927,11 +1997,12 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window.Top = -10000
                 $window.Resources['AccentFillColorDefaultBrush'] = [System.Windows.Media.Brushes]::Coral
                 $window.Show()
+                $window.FindName('PackagesPanel').Visibility = 'Visible'
+                $window.UpdateLayout()
                 foreach ($highContrast in $true, $false, $true) {
                     $window.DataContext = [PSCustomObject]@{ TestHighContrast = $highContrast }
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                    $button = $window.FindName('NavApps')
-                    $indicator = $button.Template.FindName('SelectedIndicator', $button)
+                    $indicator = $window.FindName('NavigationSelectionIndicator')
                     $expected = if ($highContrast) {
                         $window.TryFindResource([System.Windows.SystemColors]::HighlightBrushKey)
                     }
@@ -1939,6 +2010,149 @@ Describe 'Evergreen Workbench WPF shell' {
                         $window.TryFindResource('AccentFillColorDefaultBrush')
                     }
                     $indicator.Background.Color | Should -Be $expected.Color
+                    $tabs = $window.FindName('PackagesTabControl')
+                    $tabIndicator = $tabs.Template.FindName('SelectedIndicator', $tabs)
+                    $tabIndicator.Background.Color | Should -Be $expected.Color
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'slides the navigation indicator and snaps when animations are disabled' -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $container = $window.FindName('NavigationItems')
+                $indicator = $window.FindName('NavigationSelectionIndicator')
+                $transform = $indicator.RenderTransform
+                $apps = $window.FindName('NavApps')
+                $library = $window.FindName('NavLibrary')
+                $about = $window.FindName('NavAbout')
+                $expectedApps = $apps.TranslatePoint([System.Windows.Point]::new(0, 0), $container).Y +
+                    (($apps.ActualHeight - $indicator.Height) / 2)
+                $transform.Y | Should -Be $expectedApps
+                $library.IsChecked = $true
+                if ([System.Windows.SystemParameters]::ClientAreaAnimation) {
+                    $transform.HasAnimatedProperties | Should -BeTrue
+                }
+                $about.IsChecked = $true
+                Show-EwWorkbenchNavigationIndicator -Container $container -Indicator $indicator -SelectedItem $about -Animate $true
+                $transform.HasAnimatedProperties | Should -BeTrue
+                $frame = [System.Windows.Threading.DispatcherFrame]::new()
+                $timer = [System.Windows.Threading.DispatcherTimer]::new()
+                $timer.Interval = [timespan]::FromMilliseconds(300)
+                $timer.Add_Tick({
+                    $timer.Stop()
+                    $frame.Continue = $false
+                }.GetNewClosure())
+                $timer.Start()
+                [System.Windows.Threading.Dispatcher]::PushFrame($frame)
+                $expectedAbout = $about.TranslatePoint([System.Windows.Point]::new(0, 0), $container).Y +
+                    (($about.ActualHeight - $indicator.Height) / 2)
+                [Math]::Abs($transform.Y - $expectedAbout) | Should -BeLessThan 1
+                Show-EwWorkbenchNavigationIndicator -Container $container -Indicator $indicator -SelectedItem $library -Animate $true
+                Show-EwWorkbenchNavigationIndicator -Container $container -Indicator $indicator -SelectedItem $about -Animate $false
+                $transform.HasAnimatedProperties | Should -BeFalse
+                $transform.Y | Should -Be $expectedAbout
+                $window.Width = 960
+                $window.UpdateLayout()
+                $window.FindName('NavigationScrollViewer').MaxHeight = 100
+                $window.UpdateLayout()
+                $window.FindName('NavigationScrollViewer').ScrollToEnd()
+                $window.UpdateLayout()
+                $indicatorTop = $indicator.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
+                $aboutTop = $about.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
+                [Math]::Abs($indicatorTop - $aboutTop - (($about.ActualHeight - $indicator.Height) / 2)) |
+                    Should -BeLessThan 1
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'positions the navigation indicator on the restored selection before animating' -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $button = $window.FindName('NavSettings')
+                $button.IsChecked = $true
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $indicator = $window.FindName('NavigationSelectionIndicator')
+                $expected = $button.TranslatePoint([System.Windows.Point]::new(0, 0), $window.FindName('NavigationItems')).Y +
+                    (($button.ActualHeight - $indicator.Height) / 2)
+                $indicator.RenderTransform.HasAnimatedProperties | Should -BeFalse
+                $indicator.RenderTransform.Y | Should -Be $expected
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'does not draw a keyboard focus border when a navigation item is focused by the mouse' -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $button = $window.FindName('NavLibrary')
+                $mouse = [System.Windows.Input.MouseButtonEventArgs]::new(
+                    [System.Windows.Input.Mouse]::PrimaryDevice, 0, [System.Windows.Input.MouseButton]::Left
+                )
+                $mouse.RoutedEvent = [System.Windows.Input.Mouse]::MouseDownEvent
+                $mouse.Source = $button
+                $null = [System.Windows.Input.InputManager]::Current.ProcessInput($mouse)
+                $null = $button.Focus()
+                $button.IsChecked = $true
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $button.IsKeyboardFocused | Should -BeTrue
+                $border = $button.Template.FindName('NavigationBorder', $button)
+                $border.BorderBrush.Color.A | Should -Be 0
+                $layer = [System.Windows.Documents.AdornerLayer]::GetAdornerLayer($button)
+                $layer.GetAdorners($button) | Should -BeNullOrEmpty
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'shows the native focus visual when navigating the sidebar by keyboard' -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                foreach ($mode in 'Light', 'Dark') {
+                    $window.ThemeMode = [System.Windows.ThemeMode]::$mode
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $null = $window.FindName('NavApps').Focus()
+                    $handle = [System.Windows.Interop.WindowInteropHelper]::new($window).Handle
+                    $null = [EvergreenUI.WorkbenchCaptionTestNative]::SendMessage($handle, 0x100, [intptr]40, [intptr]1)
+                    $null = [EvergreenUI.WorkbenchCaptionTestNative]::SendMessage($handle, 0x101, [intptr]40, [intptr]0xc0000001)
+                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                    $focused = $window.FindName('NavLibrary')
+                    $focused.IsKeyboardFocused | Should -BeTrue
+                    $layer = [System.Windows.Documents.AdornerLayer]::GetAdornerLayer($focused)
+                    $layer.GetAdorners($focused) | Should -Not -BeNullOrEmpty
                 }
             }
             finally {
@@ -3753,6 +3967,25 @@ Import-Module -Name '$modulePath' -Force -ErrorAction Stop
             finally {
                 foreach ($item in $windows) { $item.Close() }
                 $env:APPDATA = $originalAppData
+            }
+        }
+    }
+
+    It 'fades newly selected views and cancels interrupted navigation animations' -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI {
+            Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid(); Name = 'stub' } }
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavLibrary.IsChecked = $true
+                $state.LibraryPanel.HasAnimatedProperties | Should -BeTrue
+
+                $state.NavPackages.IsChecked = $true
+                $state.LibraryPanel.HasAnimatedProperties | Should -BeFalse
+                $state.PackagesPanel.HasAnimatedProperties | Should -BeTrue
+            }
+            finally {
+                $window.Close()
             }
         }
     }

@@ -17,13 +17,24 @@ function Show-EwWorkbenchView {
         $View = 'Packages'
     }
     foreach ($name in @('Apps', 'Library', 'Packages', 'Intune', 'Nerdio', 'Settings', 'About')) {
-        $visibility = if ($name -eq $View) {
-            [System.Windows.Visibility]::Visible
+        $panel = $State["${name}Panel"]
+        $wasVisible = $panel.Visibility -eq [System.Windows.Visibility]::Visible
+        $panel.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+        if ($name -eq $View) {
+            $panel.Visibility = [System.Windows.Visibility]::Visible
+            if (-not $wasVisible) {
+                $animation = [System.Windows.Media.Animation.DoubleAnimation]::new(
+                    0.0,
+                    1.0,
+                    [System.Windows.Duration]::new([timespan]::FromMilliseconds(160))
+                )
+                $animation.FillBehavior = [System.Windows.Media.Animation.FillBehavior]::Stop
+                $panel.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $animation)
+            }
         }
         else {
-            [System.Windows.Visibility]::Collapsed
+            $panel.Visibility = [System.Windows.Visibility]::Collapsed
         }
-        $State["${name}Panel"].Visibility = $visibility
     }
     $State.ViewTitleText.Text = $View
     if ($State.UiStateReady -and [string]$State.Settings.StartupView -ne $View) {
