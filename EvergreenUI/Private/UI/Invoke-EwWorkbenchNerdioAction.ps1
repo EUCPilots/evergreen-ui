@@ -6,7 +6,7 @@ function Invoke-EwWorkbenchNerdioAction {
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$State,
         [Parameter(Mandatory)]
-        [ValidateSet('AzureConnect', 'Disconnect', 'Storage', 'Containers', 'ApiConnect', 'Compare', 'Publish', 'Cancel', 'Save', 'Browse', 'Review', 'Prune', 'PruneExisting', 'PruneSelected')]
+        [ValidateSet('AzureConnect', 'Disconnect', 'Storage', 'Containers', 'ApiConnect', 'Compare', 'Publish', 'Cancel', 'Save', 'Browse', 'Review', 'Acknowledge', 'Prune', 'PruneExisting', 'PruneSelected')]
         [string]$Action,
 
         [Parameter()]
@@ -57,6 +57,20 @@ function Invoke-EwWorkbenchNerdioAction {
                     } $OperationId $Outcome
                 }
                 $arguments = @([string]$result.RecoveryOperationId, $outcome)
+            }
+            'Acknowledge' {
+                $result = if ($Selection.Count -gt 0) { $Selection[0] } else { $State.NerdioPublishResultsListView.SelectedItem }
+                $operationId = if ($null -ne $result) { [string](Get-EwFirstPropertyValue -InputObject $result -Name 'RecoveryOperationId') } else { '' }
+                if (-not $operationId -or -not $State.NerdioBlockedOutcomes.ContainsKey($operationId)) { throw 'Select an unresolved Nerdio outcome.' }
+                $message = "Destination: $($result.Destination)`nApp: $($result.Name)`nVersion: $($result.Version)`nStatus: $($result.Status)`nJob ID: $($result.JobId)`n`n" +
+                    'This does not verify or cancel the operation. A retry may duplicate or conflict with a provider operation still running. Acknowledge this unknown outcome?'
+                if (-not (Confirm-EwWorkbenchAction -Window $State.Window -Title 'Acknowledge unknown Nerdio outcome' -Message $message -DefaultYes $false)) { return }
+                $body = {
+                    param($OperationId)
+                    Clear-EwNerdioRecovery -OperationId $OperationId -Confirm:$false
+                    [PSCustomObject]@{ Succeeded = $true; Outcome = 'acknowledged without verification' }
+                }
+                $arguments = @($operationId)
             }
             'Prune' {
                 if (-not (Sync-EwWorkbenchNerdioRecoveryState -State $State)) {
@@ -276,7 +290,7 @@ function Invoke-EwWorkbenchNerdioAction {
                 $arguments[3] = $State.NerdioCancellation.Token
             }
         }
-        $kind = if ($Action -in @('Prune', 'PruneExisting')) { 'NerdioPrunePreview' } else { "Nerdio$Action" }
+        $kind = if ($Action -in @('Prune', 'PruneExisting')) { 'NerdioPrunePreview' } elseif ($Action -eq 'Acknowledge') { 'NerdioReview' } else { "Nerdio$Action" }
         Invoke-EwWorkbenchJob -State $State -Kind $kind -Name "Nerdio $Action" -ScriptBlock $body -ArgumentList $arguments
     }
     catch {

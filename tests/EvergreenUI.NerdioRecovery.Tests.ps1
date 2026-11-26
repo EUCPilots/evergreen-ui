@@ -23,6 +23,124 @@ Describe 'Nerdio recovery state' {
         }
     }
 
+    It 'allows a Microsoft 365 preview after explicitly acknowledging an unknown publish' {
+        InModuleScope EvergreenUI {
+            $destination = [ordered]@{
+                TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+            }
+            Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation ([ordered]@{
+                    Id = 'office-unknown'; Type = 'Publish'; Status = 'Unknown'; Destination = $destination
+                    Name = 'Microsoft 365 Apps for enterprise: Desktop, Current, x64'
+                    Publisher = 'Microsoft'; DefinitionPath = 'C:\fixture\shell-app'
+                    AppId = ''; Version = '16.0.20625.20142'; JobId = ''; BlobName = ''; Error = 'Unknown'
+                }) | Out-Null
+            Mock Get-EwNerdioSessionContext {
+                [PSCustomObject]@{
+                    SessionId = 'session'; TenantId = 'tenant'; SubscriptionId = 'subscription'
+                    NmeHost = 'nme.test'; ResourceGroupName = 'rg'; StorageAccountName = 'storage'
+                    ContainerName = 'container'; ApiOnly = $false
+                }
+            }
+            Mock Assert-EwM365BuildPlan {}
+            Mock Get-EwM365NerdioTarget { [PSCustomObject]@{} }
+            Mock Assert-EwM365NerdioPublishPlan {}
+            $build = [PSCustomObject]@{ Provider = 'Nerdio' }
+            { Get-EwM365NerdioPublishPlan -BuildPlan $build -Operation Create -Name 'Office' } |
+                Should -Throw "*version '16.0.20625.20142' needs review before another write*"
+
+            Clear-EwNerdioRecovery -OperationId 'office-unknown' -Confirm:$false
+
+            $plan = Get-EwM365NerdioPublishPlan -BuildPlan $build -Operation Create -Name 'Office'
+            $plan.Name | Should -Be 'Office'
+            (Invoke-EwNerdioRecoveryStore -Action Read).Operations | Should -HaveCount 0
+        }
+    }
+
+    It 'rejects acknowledgment of a live operation and permits it when its lease ends' {
+        InModuleScope EvergreenUI {
+            $destination = [ordered]@{
+                TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+            }
+            $id = [guid]::NewGuid().ToString()
+            $lease = [System.Threading.Semaphore]::new(0, 1, "Local\EvergreenWorkbench.NerdioOperation.$id")
+            try {
+                Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation ([ordered]@{
+                        Id = $id; Type = 'Publish'; Status = 'InProgress'; HasActiveLease = $true
+                        Destination = $destination; Name = 'Office'; Version = '1.0'
+                    }) | Out-Null
+                Mock Get-EwNerdioSessionContext { [PSCustomObject]$destination }
+                { Clear-EwNerdioRecovery -OperationId $id -Confirm:$false -WarningAction SilentlyContinue } |
+                    Should -Throw '*still running*'
+                { Resolve-EwNerdioOperationReview -OperationId $id -Outcome Failed } |
+                    Should -Throw '*still running*'
+                (Invoke-EwNerdioRecoveryStore -Action Read).Operations | Should -HaveCount 1
+            }
+            finally { $lease.Dispose() }
+            Clear-EwNerdioRecovery -OperationId $id -Confirm:$false -WarningAction SilentlyContinue
+            (Invoke-EwNerdioRecoveryStore -Action Read).Operations | Should -HaveCount 0
+        }
+    }
+
+    It 'keeps a publish protected until its provider request returns' {
+        InModuleScope EvergreenUI -Parameters @{ Root = $TestDrive } {
+            $package = Join-Path -Path $Root -ChildPath 'office.zip'
+            Set-Content -LiteralPath $package -Value 'fixture'
+            Mock Get-EwNerdioSessionContext {
+                [PSCustomObject]@{
+                    TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                    ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+                    AccessToken = 'token'; ApiOnly = $false
+                }
+            }
+            Mock Get-EwNerdioPublishContent { [PSCustomObject]@{ name = 'Office'; publisher = 'Microsoft' } }
+            Mock Invoke-EwNerdioBlobUpload { [PSCustomObject]@{ BlobName = 'blob'; SourceUrl = 'https://storage.test/file'; Sha256 = 'hash' } }
+            Mock Invoke-EwNerdioApiRequest {
+                $active = @((Invoke-EwNerdioRecoveryStore -Action Read).Operations)[0]
+                $active.HasActiveLease | Should -BeTrue
+                { Clear-EwNerdioRecovery -OperationId $active.Id -Confirm:$false -WarningAction SilentlyContinue } |
+                    Should -Throw '*still running*'
+                [PSCustomObject]@{ job = [PSCustomObject]@{ id = 'job'; status = 'Pending' } }
+            }
+            $result = Publish-EwNerdioApp -DefinitionPath 'C:\fixture' -PackagePath $package -ShellAppId 'app' -Version '1.0' -Confirm:$false
+            $result.Status | Should -Be 'Pending'
+            $record = @(Get-EwNerdioRecovery)[0]
+            Clear-EwNerdioRecovery -OperationId $record.Id -Confirm:$false -WarningAction SilentlyContinue
+            @(Get-EwNerdioRecovery) | Should -HaveCount 0
+        }
+    }
+
+    It 'limits recovery listing and acknowledgment to the connected destination and preserves other records' {
+        InModuleScope EvergreenUI {
+            $destination = [ordered]@{
+                TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+            }
+            $other = [ordered]@{} + $destination
+            $other.NmeHost = 'other.test'
+            foreach ($record in @(
+                    [ordered]@{ Id = 'current'; Type = 'Publish'; Status = 'Unknown'; Destination = $destination },
+                    [ordered]@{ Id = 'other'; Type = 'Publish'; Status = 'Pending'; Destination = $other }
+                )) {
+                Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $record | Out-Null
+            }
+            Invoke-EwNerdioRecoveryStore -Action Update -UpsertOffer ([ordered]@{ Id = 'offer'; Destination = $destination }) | Out-Null
+            Mock Get-EwNerdioSessionContext { [PSCustomObject]$destination }
+            @(Get-EwNerdioRecovery).Id | Should -Be @('current')
+            Clear-EwNerdioRecovery -OperationId 'current' -WhatIf -WarningAction SilentlyContinue
+            (Invoke-EwNerdioRecoveryStore -Action Read).Operations | Should -HaveCount 2
+            { Clear-EwNerdioRecovery -OperationId 'other' -Confirm:$false -WarningAction SilentlyContinue } |
+                Should -Throw '*destination recorded*'
+            { Clear-EwNerdioRecovery -OperationId 'missing' -Confirm:$false -WarningAction SilentlyContinue } |
+                Should -Throw '*missing or ambiguous*'
+            Clear-EwNerdioRecovery -OperationId 'current' -Confirm:$false -WarningAction SilentlyContinue
+            $remaining = Invoke-EwNerdioRecoveryStore -Action Read
+            @($remaining.Operations).Id | Should -Be @('other')
+            @($remaining.PruningOffers).Id | Should -Be @('offer')
+        }
+    }
+
     It 'persists only operation metadata and keeps state readable across loads' {
         InModuleScope EvergreenUI -Parameters @{ Root = $script:testAppData } {
             $path = Join-Path -Path $Root -ChildPath 'recovery.json'
@@ -201,6 +319,11 @@ Describe 'Nerdio version deletion outcomes' {
                 )
             }
             Mock Invoke-EwNerdioApiRequest {
+                $active = @((Invoke-EwNerdioRecoveryStore -Action Read).Operations)[0]
+                $active.HasActiveLease | Should -BeTrue
+                $active.OwnerProcessId | Should -Be $PID
+                { Clear-EwNerdioRecovery -OperationId $active.Id -Confirm:$false -WarningAction SilentlyContinue } |
+                    Should -Throw '*still running*'
                 [PSCustomObject]@{ job = [PSCustomObject]@{ id = 'delete-job'; status = 'Pending' } }
             }
 

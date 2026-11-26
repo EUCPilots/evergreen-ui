@@ -53,6 +53,7 @@ function Initialize-EwWorkbenchNerdioView {
         SaveNerdioSettingsButton = 'Save'; SaveNerdioSetupButton = 'Save'; BrowseNerdioDefinitionsButton = 'Browse'
         PublishSelectedNerdioButton = 'Publish'; CancelNerdioBatchButton = 'Cancel'
         ReviewNerdioOutcomeButton = 'Review'
+        AcknowledgeNerdioOutcomeButton = 'Acknowledge'
         PruneNerdioVersionsButton = 'Prune'
         PruneSelectedNerdioVersionsButton = 'PruneExisting'
     }

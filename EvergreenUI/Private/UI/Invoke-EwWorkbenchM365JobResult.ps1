@@ -11,6 +11,10 @@ function Invoke-EwWorkbenchM365JobResult {
     $output = @($Job.Output)
     if ($Job.State -ne 'Completed' -or $null -ne $Job.TerminatingError) {
         $view.ResultText.Text = 'Operation did not finish. Check the log and review any provider recovery record.'
+        if ($provider -eq 'Nerdio') {
+            Sync-EwWorkbenchNerdioRecoveryState -State $State | Out-Null
+            $view.ResultText.Text += ' Open Nerdio recovery below to review or acknowledge an unresolved outcome.'
+        }
     }
     else {
         switch ($action) {

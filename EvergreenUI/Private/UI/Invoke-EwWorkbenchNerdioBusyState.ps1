@@ -34,6 +34,7 @@ function Invoke-EwWorkbenchNerdioBusyState {
     $result = $State.NerdioPublishResultsListView.SelectedItem
     $State.ReviewNerdioOutcomeButton.IsEnabled = $idle -and $null -ne $result -and
         $result.Status -in @('Pending', 'Unknown') -and $State.NerdioBlockedOutcomes.ContainsKey($result.OutcomeKey)
+    $State.AcknowledgeNerdioOutcomeButton.IsEnabled = $State.ReviewNerdioOutcomeButton.IsEnabled
     $State.PruneNerdioVersionsButton.IsEnabled = $idle -and $State.NerdioPruningOffers.Count -gt 0 -and
         $State.NerdioBlockedOutcomes.Count -eq 0 -and [string]::IsNullOrWhiteSpace($State.NerdioRecoveryError) -and
         $null -ne $State.NerdioDestination

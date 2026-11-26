@@ -153,7 +153,7 @@ function Get-EwWorkbenchState {
             'NerdioApiOnlyToggle',
             'CompareNerdioButton', 'NerdioConnectionStatusLabel', 'NerdioComparisonListView',
             'CancelNerdioBatchButton', 'PublishSelectedNerdioButton', 'NerdioPublishResultsListView',
-            'ReviewNerdioOutcomeButton', 'PruneNerdioVersionsButton', 'PruneSelectedNerdioVersionsButton'
+            'ReviewNerdioOutcomeButton', 'AcknowledgeNerdioOutcomeButton', 'PruneNerdioVersionsButton', 'PruneSelectedNerdioVersionsButton'
         )) {
         $state[$name] = $Window.FindName($name)
     }
@@ -166,7 +166,7 @@ function Get-EwWorkbenchState {
             $state[$name] = $Window.FindName($name)
         }
     }
-    foreach ($name in 'NerdioM365OperationCombo', 'NerdioM365NameBox', 'NerdioM365AttestToggle',
+    foreach ($name in 'NerdioM365OperationCombo', 'NerdioM365NameBox', 'NerdioM365AttestToggle', 'NerdioM365RecoveryList', 'NerdioM365AcknowledgeButton',
         'IntuneM365RecoveryCombo', 'IntuneM365RecoveryLoadButton', 'IntuneM365ReviewButton') {
         $state[$name] = $Window.FindName($name)
     }

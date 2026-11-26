@@ -85,11 +85,17 @@ function Remove-EwNerdioShellAppVersion {
             if (-not $PSCmdlet.ShouldProcess("Shell App $Id version $name", 'Remove')) {
                 continue
             }
+            $owner = [System.Diagnostics.Process]::GetCurrentProcess()
+            try { $ownerStartTimeTicks = $owner.StartTime.ToUniversalTime().Ticks }
+            finally { $owner.Dispose() }
             $operation = [ordered]@{
                 Id = [guid]::NewGuid().ToString()
                 Type = 'Delete'
                 Status = 'InProgress'
                 StartedAt = [DateTimeOffset]::UtcNow.ToString('o')
+                HasActiveLease = $true
+                OwnerProcessId = $PID
+                OwnerStartTimeTicks = $ownerStartTimeTicks
                 Destination = Get-EwNerdioDestinationIdentity -Context $context
                 Name = $Id
                 AppId = $Id
@@ -99,50 +105,54 @@ function Remove-EwNerdioShellAppVersion {
                 JobId = ''
                 Error = 'The provider delete started but no final outcome was recorded.'
             }
-            $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $operation
             $uri = "https://$($context.NmeHost)/api/v1/shell-app/$([uri]::EscapeDataString($Id))/version/$([uri]::EscapeDataString($name))"
             $status = 'Unknown'
             $jobId = ''
             $errorMessage = ''
+            $recoveryLease = [System.Threading.Semaphore]::new(0, 1, "Local\EvergreenWorkbench.NerdioOperation.$($operation.Id)")
             try {
-                $response = Invoke-EwNerdioApiRequest -Method DELETE -Uri $uri -AccessToken $context.AccessToken
-                $job = Get-EwFirstPropertyValue -InputObject $response -Name 'job'
-                $jobId = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'id')
-                $providerStatus = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'status')
-                $status = switch ($providerStatus) {
-                    'Completed' { 'Completed' }
-                    'Pending' { 'Pending' }
-                    'Failed' { 'Failed' }
-                    default { 'Unknown' }
-                }
-                if ($status -eq 'Completed') {
-                    $removed.Add($name)
-                    $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $operation.Id
-                    Write-Verbose -Message "EvergreenUI: Removed Shell App '$Id' version '$name'"
-                }
-                elseif ($status -eq 'Failed') {
-                    $failed.Add($name)
-                    $errorMessage = "Nerdio returned '$providerStatus'."
-                    $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $operation.Id
-                    Write-Verbose -Message "EvergreenUI: Removing Shell App '$Id' version '$name' returned status '$providerStatus'"
-                }
-                else {
-                    $operation.Status = $status
-                    $operation.JobId = $jobId
-                    $operation.Error = "Nerdio returned '$providerStatus'; inspect the operation before continuing."
-                    $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $operation
-                    if ($status -eq 'Pending') { $pending.Add($name) } else { $unknown.Add($name) }
-                }
-            }
-            catch {
-                $status = 'Unknown'
-                $errorMessage = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
-                $operation.Status = 'Unknown'
-                $operation.Error = $errorMessage
                 $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $operation
-                $unknown.Add($name)
-                Write-Verbose -Message "EvergreenUI: Removing Shell App '$Id' version '$name' has an unknown outcome: $errorMessage"
+                try {
+                    $response = Invoke-EwNerdioApiRequest -Method DELETE -Uri $uri -AccessToken $context.AccessToken
+                    $job = Get-EwFirstPropertyValue -InputObject $response -Name 'job'
+                    $jobId = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'id')
+                    $providerStatus = [string](Get-EwFirstPropertyValue -InputObject $job -Name 'status')
+                    $status = switch ($providerStatus) {
+                        'Completed' { 'Completed' }
+                        'Pending' { 'Pending' }
+                        'Failed' { 'Failed' }
+                        default { 'Unknown' }
+                    }
+                    if ($status -eq 'Completed') {
+                        $removed.Add($name)
+                        $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $operation.Id
+                        Write-Verbose -Message "EvergreenUI: Removed Shell App '$Id' version '$name'"
+                    }
+                    elseif ($status -eq 'Failed') {
+                        $failed.Add($name)
+                        $errorMessage = "Nerdio returned '$providerStatus'."
+                        $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $operation.Id
+                        Write-Verbose -Message "EvergreenUI: Removing Shell App '$Id' version '$name' returned status '$providerStatus'"
+                    }
+                    else {
+                        $operation.Status = $status
+                        $operation.JobId = $jobId
+                        $operation.Error = "Nerdio returned '$providerStatus'; inspect the operation before continuing."
+                        $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $operation
+                        if ($status -eq 'Pending') { $pending.Add($name) } else { $unknown.Add($name) }
+                    }
+                }
+                catch {
+                    $status = 'Unknown'
+                    $errorMessage = $_.Exception.Message -replace 'https?://\S+', '[URL omitted]'
+                    $operation.Status = 'Unknown'
+                    $operation.Error = $errorMessage
+                    $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $operation
+                    $unknown.Add($name)
+                    Write-Verbose -Message "EvergreenUI: Removing Shell App '$Id' version '$name' has an unknown outcome: $errorMessage"
+                }
             }
+            finally { $recoveryLease.Dispose() }
             $outcomes.Add([PSCustomObject]@{ Version = $name; Status = $status; JobId = $jobId; Error = $errorMessage })
             if ($status -in @('Pending', 'Unknown')) {
                 $blocked = $true

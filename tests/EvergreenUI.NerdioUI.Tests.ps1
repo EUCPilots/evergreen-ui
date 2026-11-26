@@ -322,7 +322,7 @@ Describe 'Nerdio WPF view' {
                 $setup = $window.FindName('NerdioSetupScrollViewer')
                 $tabs.Items[2].Content | Should -Be $setup.Parent
                 @($setup.Content.Children | Where-Object { $_ -is [System.Windows.Controls.Expander] } | ForEach-Object { $_.Header }) |
-                Should -Be @('Nerdio API setup', 'Azure storage setup')
+                Should -Be @('Nerdio Manager API setup', 'Azure storage setup')
                 $setup.Content.Children[0].Content.Children.Contains($state.NmeHostBox) | Should -BeTrue
                 $setup.Content.Children[1].Content.Children.Contains($state.NerdioTenantIdBox) | Should -BeTrue
                 $setup.Content.Children.Contains($state.SaveNerdioSetupButton) | Should -BeTrue
@@ -544,6 +544,54 @@ Describe 'Nerdio WPF view' {
                 $state.NerdioBlockedOutcomes.ContainsKey('restart-publish') | Should -BeTrue
                 $state.NerdioPruningOffers | Should -HaveCount 1
                 $state.NerdioPruningOffers[0].Id | Should -Be 'restart-offer'
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'offers explicit acknowledgment in both Nerdio workflows and clears stale previews' {
+        InModuleScope EvergreenUI {
+            $destination = [ordered]@{
+                TenantId = 'tenant'; SubscriptionId = 'subscription'; NmeHost = 'nme.test'
+                ResourceGroupName = 'rg'; StorageAccountName = 'storage'; ContainerName = 'container'
+            }
+            Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation ([ordered]@{
+                    Id = 'office-unknown'; Type = 'Publish'; Status = 'Unknown'; Destination = $destination
+                    Name = 'Office'; Version = '2.0'; AppId = '42'; JobId = 'job'; BlobName = ''; Error = ''
+                    DefinitionPath = 'C:\fixture'
+                }) | Out-Null
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $row = $state.NerdioResults[0]
+                $state.NerdioPublishResultsListView.SelectedItem = $row
+                $state.NerdioM365RecoveryList.SelectedItem = $row
+                Invoke-EwWorkbenchNerdioBusyState -State $state
+                Invoke-EwWorkbenchM365BusyState -State $state
+                $state.AcknowledgeNerdioOutcomeButton.IsEnabled | Should -BeTrue
+                $state.NerdioM365AcknowledgeButton.IsEnabled | Should -BeTrue
+                $capture = @{ Body = $null; Arguments = @() }
+                Mock Get-EwNerdioSessionContext { [PSCustomObject]$destination }
+                Mock Confirm-EwWorkbenchAction { $false }
+                Mock Invoke-EwWorkbenchJob { $capture.Body = $ScriptBlock; $capture.Arguments = $ArgumentList }
+                $state.NerdioM365AcknowledgeButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
+                Mock Confirm-EwWorkbenchAction { $true }
+                $state.NerdioM365AcknowledgeButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                $state.AcknowledgeNerdioOutcomeButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                Should -Invoke Invoke-EwWorkbenchJob -Exactly 2 -ParameterFilter {
+                    $Kind -eq 'NerdioReview' -and $ArgumentList[0] -eq 'office-unknown'
+                }
+                $arguments = $capture.Arguments
+                $output = @(& $capture.Body @arguments)
+                (Invoke-EwNerdioRecoveryStore -Action Read).Operations | Should -HaveCount 0
+                $state.M365Views.Nerdio.PublishPlan = [PSCustomObject]@{}
+                $state.NerdioPlan = [PSCustomObject]@{}
+                $null = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind NerdioReview `
+                    -Job ([PSCustomObject]@{ State = 'Completed'; Output = $output; TerminatingError = $null })
+                $state.M365Views.Nerdio.PublishPlan | Should -BeNullOrEmpty
+                $state.NerdioPlan | Should -BeNullOrEmpty
+                $state.NerdioBlockedOutcomes.Count | Should -Be 0
             }
             finally { $window.Close() }
         }

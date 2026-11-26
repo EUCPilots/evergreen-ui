@@ -302,6 +302,10 @@ after confirming failure, or Cancel to leave it unresolved. A claimed publish
 success is not accepted until Workbench refreshes the Shell App and verifies the
 published version is uniquely newest.
 
+If the outcome cannot be established, select the record and choose **Acknowledge unknown** on the Nerdio Shell Apps or Microsoft 365 Apps tab. Confirming removes only that recovery record; it does not verify, cancel, or retry the operation. A later retry can duplicate or conflict with an operation still running in Nerdio.
+
+Workbench blocks acknowledgment while it can confirm the local operation is active, but cannot determine whether an unknown remote operation has finished. Refresh the preview before publishing again. From PowerShell, connect to the same destination, list records with `Get-EwNerdioRecovery`, and acknowledge the selected record with `Clear-EwNerdioRecovery -OperationId <id>`.
+
 After a successful publish, choose Preview published apps to review saved
 pruning offers. The preview selects no apps by default, keeps one version by
 default (including the newly published version), and lists the exact versions
@@ -378,7 +382,7 @@ interrupt an active build, upload or provider request. Review any partial
 result before proceeding; no retry, rollback or provider cleanup is automatic.
 Unknown Intune outcomes are stored without secrets and block writes for that
 configuration until reviewed and acknowledged in the Intune Microsoft 365
-tab. Nerdio pending and unknown outcomes use the Shell Apps recovery controls.
+tab. Nerdio pending and unknown outcomes can be acknowledged on either Nerdio tab; the Shell Apps tab also supports recording a verified outcome.
 
 Headless workflows use `Get-EwM365BuildPlan`, `Get-EwM365IntunePublishPlan` or
 `Get-EwM365NerdioPublishPlan`, and the corresponding

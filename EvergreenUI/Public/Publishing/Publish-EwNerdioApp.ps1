@@ -61,6 +61,7 @@ function Publish-EwNerdioApp {
     $addVersion = $PSCmdlet.ParameterSetName -eq 'AddVersion'
     $postStarted = $false
     $recoveryOperation = $null
+    $recoveryLease = $null
     if (-not $PSCmdlet.ShouldProcess($DefinitionPath, 'Upload and publish Nerdio Shell App')) { return }
     try {
         $context = Get-EwNerdioSessionContext
@@ -118,11 +119,17 @@ function Publish-EwNerdioApp {
             $result.Status = 'Cancelled'; $result.Error = 'Cancelled before upload.'
             return $result
         }
+        $owner = [System.Diagnostics.Process]::GetCurrentProcess()
+        try { $ownerStartTimeTicks = $owner.StartTime.ToUniversalTime().Ticks }
+        finally { $owner.Dispose() }
         $recoveryOperation = [ordered]@{
             Id = [guid]::NewGuid().ToString()
             Type = 'Publish'
             Status = 'InProgress'
             StartedAt = [DateTimeOffset]::UtcNow.ToString('o')
+            HasActiveLease = $true
+            OwnerProcessId = $PID
+            OwnerStartTimeTicks = $ownerStartTimeTicks
             Destination = Get-EwNerdioDestinationIdentity -Context $context
             Name = [string](Get-EwFirstPropertyValue -InputObject $definition -Name 'name')
             Publisher = [string](Get-EwFirstPropertyValue -InputObject $definition -Name 'publisher')
@@ -134,6 +141,7 @@ function Publish-EwNerdioApp {
             BlobName = [string]$result.BlobName
             Error = 'The provider write started but no final outcome was recorded.'
         }
+        $recoveryLease = [System.Threading.Semaphore]::new(0, 1, "Local\EvergreenWorkbench.NerdioOperation.$($recoveryOperation.Id)")
         $null = Invoke-EwNerdioRecoveryStore -Action Update -UpsertOperation $recoveryOperation
         Write-Verbose -Message "EvergreenUI: Uploading Nerdio payload for version '$Version'"
         $package = Invoke-EwNerdioBlobUpload -Path $PackagePath -Context $context
@@ -241,5 +249,8 @@ function Publish-EwNerdioApp {
             }
         }
         return (& $fail -Message $message)
+    }
+    finally {
+        if ($null -ne $recoveryLease) { $recoveryLease.Dispose() }
     }
 }

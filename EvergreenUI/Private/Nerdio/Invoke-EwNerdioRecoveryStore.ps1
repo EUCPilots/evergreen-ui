@@ -5,7 +5,7 @@ function Invoke-EwNerdioRecoveryStore {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('Read', 'Update')]
+        [ValidateSet('Read', 'Update', 'Review')]
         [string]$Action,
 
         [Parameter()]
@@ -21,7 +21,10 @@ function Invoke-EwNerdioRecoveryStore {
         [System.Collections.IDictionary]$UpsertOffer,
 
         [Parameter()]
-        [string]$RemoveOfferId
+        [string]$RemoveOfferId,
+
+        [Parameter()]
+        [psobject]$Context
     )
 
     if (-not $Path) {
@@ -53,6 +56,25 @@ function Invoke-EwNerdioRecoveryStore {
 
         if ($Action -eq 'Read') {
             return $state
+        }
+        if ($Action -eq 'Review') {
+            $matchingOperations = @($state.Operations | Where-Object { [string]$_.Id -eq $RemoveOperationId })
+            if ($matchingOperations.Count -ne 1 -or $null -eq $Context) {
+                throw 'The Nerdio recovery record is missing or ambiguous.'
+            }
+            $operation = $matchingOperations[0]
+            Assert-EwNerdioRecoveryDestination -Context $Context -Destination $operation.Destination
+            if ($operation.Contains('HasActiveLease') -and $operation.HasActiveLease) {
+                $operationId = [guid]::Empty
+                if (-not [guid]::TryParse([string]$operation.Id, [ref]$operationId)) {
+                    throw 'The Nerdio recovery operation ID is invalid.'
+                }
+                $lease = $null
+                if ([System.Threading.Semaphore]::TryOpenExisting("Local\EvergreenWorkbench.NerdioOperation.$operationId", [ref]$lease)) {
+                    $lease.Dispose()
+                    throw 'The Nerdio operation is still running and cannot be acknowledged.'
+                }
+            }
         }
 
         $operations = [System.Collections.Generic.List[object]]::new()

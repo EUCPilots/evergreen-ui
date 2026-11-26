@@ -65,7 +65,7 @@ function Resolve-EwNerdioOperationReview {
             $plan = Get-EwNerdioShellAppVersionPrunePlan -Id $operation.AppId -KeepVersions ([int]$operation.KeepVersions) `
                 -PublishedVersion ([string]$offer.PublishedVersion)
             if ($plan.Eligible -and $plan.Remove.Count -eq 0) {
-                $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $OperationId -RemoveOfferId ([string]$offer.Id)
+                $null = Invoke-EwNerdioRecoveryStore -Action Review -Context $context -RemoveOperationId $OperationId -RemoveOfferId ([string]$offer.Id)
                 Write-Verbose -Message "EvergreenUI: Completed deletion review for '$($operation.AppId)' version '$($operation.Version)'"
                 return [PSCustomObject]@{ Succeeded = $true; OperationId = $OperationId; Outcome = $Outcome; OfferId = '' }
             }
@@ -73,10 +73,10 @@ function Resolve-EwNerdioOperationReview {
     }
 
     if ($null -ne $offer) {
-        $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $OperationId -UpsertOffer $offer
+        $null = Invoke-EwNerdioRecoveryStore -Action Review -Context $context -RemoveOperationId $OperationId -UpsertOffer $offer
     }
     else {
-        $null = Invoke-EwNerdioRecoveryStore -Action Update -RemoveOperationId $OperationId
+        $null = Invoke-EwNerdioRecoveryStore -Action Review -Context $context -RemoveOperationId $OperationId
     }
     Write-Verbose -Message "EvergreenUI: Nerdio operation '$OperationId' review saved as '$Outcome'"
     [PSCustomObject]@{

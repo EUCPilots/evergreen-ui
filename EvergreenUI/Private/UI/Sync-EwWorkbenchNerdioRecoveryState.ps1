@@ -27,6 +27,8 @@ function Sync-EwWorkbenchNerdioRecoveryState {
                 JobId = [string]$operation.JobId
                 BlobName = [string]$operation.BlobName
                 NmeHost = [string]$operation.Destination.NmeHost
+                Destination = (@('TenantId', 'SubscriptionId', 'NmeHost', 'ResourceGroupName', 'StorageAccountName', 'ContainerName') |
+                    ForEach-Object { [string]$operation.Destination[$_] }) -join ' / '
                 Error = [string]$operation.Error
                 DefinitionPath = [string]$operation.DefinitionPath
                 RecoveryOperationId = [string]$operation.Id

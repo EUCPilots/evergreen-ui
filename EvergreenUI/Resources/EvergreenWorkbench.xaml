@@ -1239,6 +1239,8 @@
                                 Background="{DynamicResource ControlStrokeColorDefaultBrush}" />
                         <Button x:Name="ReviewNerdioOutcomeButton" Content="Review outcome" Margin="0,0,8,0"
                                 Padding="12,4" IsEnabled="False" ToolTip="After inspecting the selected pending or unknown result in Nerdio, record its final outcome. This does not retry or delete anything." />
+                        <Button x:Name="AcknowledgeNerdioOutcomeButton" Content="Acknowledge unknown" Margin="0,0,8,0"
+                                Padding="12,4" IsEnabled="False" ToolTip="Acknowledge without determining the outcome. A later retry can conflict with a running operation." />
                         <Button x:Name="CancelNerdioBatchButton" Content="Cancel batch" Margin="0,0,8,0" Padding="12,4" IsEnabled="False" />
                         <Button x:Name="PublishSelectedNerdioButton" Content="Publish selected" Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold" />
                     </WrapPanel>
@@ -1309,6 +1311,21 @@
                                                 </WrapPanel>
                                             </StackPanel>
                                         </GroupBox>
+                                        <Expander Header="Nerdio recovery" IsExpanded="False" Margin="0,0,0,12">
+                                            <StackPanel Margin="8">
+                                                <TextBlock Text="Select an unresolved result. Acknowledging does not verify or cancel the Nerdio operation; a retry may conflict with it." TextWrapping="Wrap" Margin="0,0,0,8" />
+                                                <DataGrid x:Name="NerdioM365RecoveryList" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MaxHeight="180" AutomationProperties.Name="Nerdio recovery outcomes">
+                                                    <DataGrid.Columns>
+                                                        <DataGridTextColumn Header="App" Binding="{Binding Name}" Width="2*" />
+                                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="*" />
+                                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" />
+                                                        <DataGridTextColumn Header="Destination" Binding="{Binding Destination}" Width="2*" />
+                                                        <DataGridTextColumn Header="Job ID" Binding="{Binding JobId}" Width="*" />
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                                <Button x:Name="NerdioM365AcknowledgeButton" Content="Acknowledge unknown" HorizontalAlignment="Left" Padding="12,4" Margin="0,8,0,0" IsEnabled="False" />
+                                            </StackPanel>
+                                        </Expander>
                                         <TextBlock x:Name="NerdioM365ResultText" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Grid>

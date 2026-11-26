@@ -23,4 +23,7 @@ function Invoke-EwWorkbenchM365BusyState {
         'IntuneM365RecoveryCombo', 'IntuneM365RecoveryLoadButton', 'IntuneM365ReviewButton') {
         $State[$name].IsEnabled = $idle
     }
+    $selected = $State.NerdioM365RecoveryList.SelectedItem
+    $key = if ($null -ne $selected) { [string](Get-EwFirstPropertyValue -InputObject $selected -Name 'OutcomeKey') } else { '' }
+    $State.NerdioM365AcknowledgeButton.IsEnabled = $idle -and $key -and $State.NerdioBlockedOutcomes.ContainsKey($key)
 }

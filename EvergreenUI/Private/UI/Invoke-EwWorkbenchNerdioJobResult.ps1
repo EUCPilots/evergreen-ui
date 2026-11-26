@@ -119,6 +119,7 @@ function Invoke-EwWorkbenchNerdioJobResult {
                     if ($null -ne $result -and $result.Succeeded) {
                         $State.NerdioPlan = $null
                         $State.NerdioComparisonListView.ItemsSource = @()
+                        Clear-EwWorkbenchM365Preview -State $State -Provider 'Nerdio'
                         Write-EwWorkbenchLog -State $State -Message "Reviewed Nerdio outcome as $($result.Outcome); compare again before another publish."
                     }
                 }

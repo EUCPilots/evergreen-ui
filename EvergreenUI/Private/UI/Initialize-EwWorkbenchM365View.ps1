@@ -77,6 +77,15 @@ function Initialize-EwWorkbenchM365View {
     $State.NerdioM365AttestToggle.Add_Click({
         & $State.ModuleInvoker -Name 'Clear-EwWorkbenchM365Preview' -Parameters @{ State = $State; Provider = 'Nerdio' }
     }.GetNewClosure())
+    $State.NerdioM365RecoveryList.ItemsSource = $State.NerdioResults
+    $State.NerdioM365RecoveryList.Add_SelectionChanged({
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchM365BusyState' -Parameters @{ State = $State }
+    }.GetNewClosure())
+    $State.NerdioM365AcknowledgeButton.Add_Click({
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchNerdioAction' -Parameters @{
+            State = $State; Action = 'Acknowledge'; Selection = @($State.NerdioM365RecoveryList.SelectedItem)
+        }
+    }.GetNewClosure())
     foreach ($entry in @(
             @{ Name = 'IntuneM365RecoveryLoadButton'; Action = 'Recovery' },
             @{ Name = 'IntuneM365ReviewButton'; Action = 'Review' }
