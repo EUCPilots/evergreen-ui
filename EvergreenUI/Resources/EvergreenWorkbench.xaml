@@ -885,6 +885,7 @@
                             <Button x:Name="UpdatePackageDefinitionsButton"
                                     Grid.Column="4"
                                     Content="Update definitions"
+                                    Style="{DynamicResource AccentButtonStyle}"
                                     Margin="8,0,0,0"
                                     Padding="12,4" />
                         </Grid>
