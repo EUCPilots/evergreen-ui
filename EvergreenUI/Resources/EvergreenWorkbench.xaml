@@ -159,9 +159,8 @@
         </Style>
         <Style x:Key="NavigationButtonStyle" TargetType="{x:Type RadioButton}">
             <Setter Property="GroupName" Value="MainNavigation" />
-            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="MinHeight" Value="40" />
-            <Setter Property="Padding" Value="10,8" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
@@ -176,20 +175,22 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5">
+                                CornerRadius="4">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="3" />
-                                    <ColumnDefinition Width="24" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition x:Name="NavigationIconColumn" Width="24" />
+                                    <ColumnDefinition x:Name="NavigationLabelColumn" Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="SelectedIndicator"
                                         Grid.Column="0"
-                                        Margin="0,5,0,5"
+                                        Height="16"
                                         Background="{DynamicResource AccentFillColorDefaultBrush}"
                                         CornerRadius="2"
+                                        VerticalAlignment="Center"
                                         Visibility="Collapsed" />
-                                <TextBlock Grid.Column="1"
+                                <TextBlock x:Name="NavigationIcon"
+                                           Grid.Column="1"
                                            Text="{TemplateBinding Tag}"
                                            FontFamily="Segoe Fluent Icons"
                                            FontSize="16"
@@ -198,7 +199,7 @@
                                            Opacity="0.8" />
                                 <ContentPresenter x:Name="NavigationLabel"
                                                   Grid.Column="2"
-                                                  Margin="{TemplateBinding Padding}"
+                                                  Margin="12,0"
                                                   HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                                   VerticalAlignment="Center" />
                             </Grid>
@@ -236,6 +237,10 @@
                             <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
                                          Value="True">
                                 <Setter TargetName="NavigationLabel" Property="Visibility" Value="Collapsed" />
+                                <Setter TargetName="NavigationIcon" Property="Grid.Column" Value="0" />
+                                <Setter TargetName="NavigationIcon" Property="Grid.ColumnSpan" Value="2" />
+                                <Setter TargetName="NavigationIconColumn" Property="Width" Value="*" />
+                                <Setter TargetName="NavigationLabelColumn" Property="Width" Value="Auto" />
                             </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

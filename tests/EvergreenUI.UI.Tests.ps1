@@ -1956,9 +1956,14 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                 $button = $window.FindName('NavApps')
                 $label = $button.Template.FindName('NavigationLabel', $button)
+                $icon = $button.Template.FindName('NavigationIcon', $button)
                 $window.FindName('NavigationColumn').ActualWidth | Should -Be 64
                 $label.Visibility | Should -Be 'Collapsed'
                 $button.ActualHeight | Should -BeGreaterOrEqual 40
+                $iconCenter = $icon.TransformToAncestor($button).Transform(
+                    [System.Windows.Point]::new($icon.ActualWidth / 2, $icon.ActualHeight / 2)
+                ).X
+                [Math]::Abs($iconCenter - ($button.ActualWidth / 2)) | Should -BeLessOrEqual 1
                 [System.Windows.Automation.AutomationProperties]::GetName($button) | Should -Be 'Apps view'
 
                 $window.Width = 1200
