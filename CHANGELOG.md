@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.3-preview]
+## [2.0.4-preview]
 
 - Keep the Apps navigation label visible when its tooltip opens.
 - Keep the Apps download destination picker on the Apps page and label its button "Change destination".
