@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.2-preview]
+
+- Fix Microsoft 365 Intune publishing failing when the template omits `Program.AllowAvailableUninstall`; omitted values default to false.
+- Show install status and recovery guidance in the shared status instead of a duplicate label.
+- Match the selected navigation indicator to the theme accent colour.
+
 ## [2.0.1-preview]
 
 - Remove the obsolete test suite and update project guidance.
