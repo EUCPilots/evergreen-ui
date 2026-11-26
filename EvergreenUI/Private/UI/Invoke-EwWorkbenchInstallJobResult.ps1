@@ -185,7 +185,13 @@ function Invoke-EwWorkbenchInstallJobResult {
         }
         $State.InstallReviewQueue.Clear()
         $State.InstallBatchActive = $false
-        $State.InstallActionStatusLabel.Text = 'Installation batch stopped. Check the activity log.'
+        $message = if ($State.InstallBatchCounts.Unknown -gt 0) {
+            'Installation batch stopped with unknown outcomes. Check the device before retrying; see the activity log for details.'
+        }
+        else {
+            'Installation batch stopped. Check the activity log.'
+        }
+        Write-EwWorkbenchLog -State $State -Message $message -Level Error
         return ''
     }
     if ($approved.Count -gt 0) {
@@ -197,7 +203,6 @@ function Invoke-EwWorkbenchInstallJobResult {
     }
     $State.InstallBatchActive = $false
     $counts = $State.InstallBatchCounts
-    $State.InstallActionStatusLabel.Text = "Install batch: $($counts.Installed) installed, $($counts.Blocked) blocked, $($counts.Skipped) skipped, $($counts.Failed) failed, $($counts.Unknown) unknown."
-    Write-EwWorkbenchLog -State $State -Message $State.InstallActionStatusLabel.Text
+    Write-EwWorkbenchLog -State $State -Message "Install batch: $($counts.Installed) installed, $($counts.Blocked) blocked, $($counts.Skipped) skipped, $($counts.Failed) failed, $($counts.Unknown) unknown."
     return ''
 }
