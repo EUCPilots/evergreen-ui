@@ -115,21 +115,21 @@ Describe 'Microsoft 365 configurations' {
             Scenario = 'desktop with classic Outlook excluded'
             Products = '<Product ID="O365ProPlusRetail"><ExcludeApp ID="Outlook" /></Product>'
             Properties = ''; Edition = '64'; Channel = 'Current'
-            Expected = 'Microsoft 365 Apps for enterprise, Outlook (new): Desktop, Current, x64'
+            Expected = 'Microsoft 365 Apps for enterprise: Desktop, Current, x64'
         }
         @{
             Scenario = 'VDI with new Outlook excluded and multiple products'
             Products = '<Product ID="O365BusinessRetail"><ExcludeApp ID="OutlookForWindows" /></Product><Product ID="VisioProRetail" /><Product ID="ProjectProRetail" /><Product ID="AccessRuntimeRetail" />'
             Properties = '<Property Name="SharedComputerLicensing" Value="1" />'
             Edition = '32'; Channel = 'MonthlyEnterprise'
-            Expected = 'Microsoft 365 Apps for business, Visio, Project, Access Runtime, Outlook (classic): VDI, MonthlyEnterprise, x86'
+            Expected = 'Microsoft 365 Apps for business, Visio, Project, Access Runtime: VDI, MonthlyEnterprise, x86'
         }
         @{
             Scenario = 'both Outlook variants excluded'
             Products = '<Product ID="O365ProPlusRetail"><ExcludeApp ID="Outlook" /><ExcludeApp ID="OutlookForWindows" /></Product>'
             Properties = '<Property Name="SharedComputerLicensing" Value="0" />'
             Edition = '64'; Channel = 'Current'
-            Expected = 'Microsoft 365 Apps for enterprise, Outlook (new), Outlook (classic): Desktop, Current, x64'
+            Expected = 'Microsoft 365 Apps for enterprise: Desktop, Current, x64'
         }
     ) {
         $folder = Join-Path -Path $TestDrive -ChildPath $Scenario
