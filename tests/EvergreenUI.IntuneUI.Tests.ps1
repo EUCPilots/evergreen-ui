@@ -13,7 +13,7 @@ AfterAll {
 }
 
 Describe 'Intune Publish view' {
-    It 'shows Publisher immediately after Definition in the Win32 apps comparison' {
+    It 'shows definition and Intune app display names followed by Publisher in the Win32 apps comparison' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -25,23 +25,29 @@ Describe 'Intune Publish view' {
                 $window.FindName('IntunePanel').Visibility = 'Visible'
                 $grid = $window.FindName('IntuneComparisonListView')
                 $rows = @(
-                    [PSCustomObject]@{ DefinitionName = 'Matched'; Publisher = 'Intune Publisher'; ImportAsUpdate = $false }
-                    [PSCustomObject]@{ DefinitionName = 'Local'; Publisher = 'Definition Publisher'; ImportAsUpdate = $false }
-                    [PSCustomObject]@{ DefinitionName = 'Unknown'; Publisher = ''; ImportAsUpdate = $false }
+                    [PSCustomObject]@{ DefinitionName = 'Local name'; IntuneDisplayName = 'Intune name'; Publisher = 'Intune Publisher'; ImportAsUpdate = $false }
+                    [PSCustomObject]@{ DefinitionName = 'Local only'; IntuneDisplayName = ''; Publisher = 'Definition Publisher'; ImportAsUpdate = $false }
+                    [PSCustomObject]@{ DefinitionName = ''; IntuneDisplayName = 'Intune only'; Publisher = ''; ImportAsUpdate = $false }
                 )
                 $grid.ItemsSource = $rows
                 $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                 $window.UpdateLayout()
 
-                $grid.Columns[0].Header | Should -Be 'Definition'
-                $column = $grid.Columns[1]
-                $column.Header | Should -Be 'Publisher'
-                $column.IsReadOnly | Should -BeTrue
-                foreach ($row in $rows) {
-                    $grid.ScrollIntoView($row, $column)
-                    $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                    $window.UpdateLayout()
-                    $column.GetCellContent($row).Text | Should -Be $row.Publisher
+                $expectedColumns = @(
+                    @{ Header = 'Definition display name'; Property = 'DefinitionName' }
+                    @{ Header = 'App display name'; Property = 'IntuneDisplayName' }
+                    @{ Header = 'Publisher'; Property = 'Publisher' }
+                )
+                for ($index = 0; $index -lt $expectedColumns.Count; $index++) {
+                    $column = $grid.Columns[$index]
+                    $column.Header | Should -Be $expectedColumns[$index].Header
+                    $column.IsReadOnly | Should -BeTrue
+                    foreach ($row in $rows) {
+                        $grid.ScrollIntoView($row, $column)
+                        $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                        $window.UpdateLayout()
+                        $column.GetCellContent($row).Text | Should -Be $row.($expectedColumns[$index].Property)
+                    }
                 }
             }
             finally {

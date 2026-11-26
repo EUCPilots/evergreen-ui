@@ -19,16 +19,15 @@ function Invoke-EwWorkbenchInstallRefresh {
     }
     if ($null -ne $State.ActiveJobId -or $State.InstallBatchActive) {
         $State.InstallRefreshPending = $true
-        $State.InstallActionStatusLabel.Text = 'Local detection refresh pending. Waiting for the current operation to finish.'
+        Write-EwWorkbenchLog -State $State -Message 'Local detection refresh pending. Waiting for the current operation to finish.'
         return
     }
     $State.InstallRefreshPending = $false
     if ([string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text)) {
-        $State.InstallActionStatusLabel.Text = 'Set the definitions folder on the Definitions tab, then reload.'
+        Write-EwWorkbenchLog -State $State -Message 'Set the definitions folder on the Definitions tab, then reload.'
         return
     }
     $State.InstallRefreshRevision = $State.InstallDefinitionsRevision
-    $State.InstallActionStatusLabel.Text = 'Refreshing definitions and local detection...'
     Write-Verbose -Message 'EvergreenUI: Refreshing local install definitions and detection'
     & $State.LoadInstallDefinitions
 }

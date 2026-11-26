@@ -225,7 +225,8 @@ Describe 'Packages tabs and local detection freshness' {
             $state.ActiveJobKind = 'PackageDefinitions'
             $state.InstallTab.IsSelected = $true
             $state.InstallRefreshPending | Should -BeTrue
-            $state.InstallActionStatusLabel.Text | Should -Match 'pending.*current operation'
+            $state.StatusLabel.Text | Should -Match 'pending.*current operation'
+            $state.ActivityLog.Text | Should -Match 'pending.*current operation'
             $state.ResolveInstallVersionsButton.IsEnabled | Should -BeFalse
             $state.InstallSelectedPackagesButton.IsEnabled | Should -BeFalse
             $state.InstallDefinitions.Add($script:rows[0])
@@ -244,6 +245,7 @@ Describe 'Packages tabs and local detection freshness' {
             Invoke-EwWorkbenchJobMonitor -State $state
             $state.InstallDefinitionsStale | Should -BeFalse
             $state.ResolveInstallVersionsButton.IsEnabled | Should -BeTrue
+            $state.StatusLabel.Text | Should -Match 'Checked local installation status.*Find latest versions separately'
         }
     }
 
@@ -258,7 +260,8 @@ Describe 'Packages tabs and local detection freshness' {
             Invoke-EwWorkbenchJobMonitor -State $state
             $state.ActiveJobId | Should -Be $activeId
             $state.InstallRefreshPending | Should -BeTrue
-            $state.InstallActionStatusLabel.Text | Should -Match 'waiting for its status'
+            $state.StatusLabel.Text | Should -Match 'Job status unavailable.*waiting for its status'
+            $state.StatusLabel.Tag | Should -Be 'Error'
             Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
             Should -Invoke Remove-EwJob -Exactly 0
         }
@@ -289,13 +292,50 @@ Describe 'Packages tabs and local detection freshness' {
             Invoke-EwWorkbenchJobMonitor -State $state
             Invoke-EwWorkbenchJobMonitor -State $state
             $state.InstallDefinitionsStale | Should -BeTrue
-            $state.InstallActionStatusLabel.Text | Should -Match 'Reload definitions to retry'
+            $state.StatusLabel.Text | Should -Match 'Reload definitions to retry'
+            $state.StatusLabel.Tag | Should -Be 'Error'
+            $state.ActivityLog.Text | Should -Match 'Reload definitions to retry'
             $state.ResolveInstallVersionsButton.IsEnabled | Should -BeFalse
             $state.InstallSelectedPackagesButton.IsEnabled | Should -BeFalse
             Should -Invoke Invoke-EwWorkbenchJob -Exactly 1
             $state.ReloadInstallDefinitionsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
                 [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
             Should -Invoke Invoke-EwWorkbenchJob -Exactly 2
+        }
+    }
+
+    It 'shows setup guidance in the shared status when the definitions folder is missing' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $state.IntuneDefinitionsPathBox.Text = ''
+            $state.InstallTab.IsSelected = $true
+            $state.StatusLabel.Text | Should -Be 'Set the definitions folder on the Definitions tab, then reload.'
+            $state.ActivityLog.Text | Should -Match 'Set the definitions folder'
+            $state.ResolveInstallVersionsButton.IsEnabled | Should -BeFalse
+            $state.InstallSelectedPackagesButton.IsEnabled | Should -BeFalse
+        }
+    }
+
+    It 'reports a refresh startup failure with retry guidance in the shared status' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            Mock Invoke-EwWorkbenchJob { throw 'Job startup failed.' }
+            $state.InstallTab.IsSelected = $true
+            $state.StatusLabel.Text | Should -Match 'Job startup failed.*Reload definitions to retry'
+            $state.StatusLabel.Tag | Should -Be 'Error'
+            $state.ActivityLog.Text | Should -Match 'Job startup failed.*Reload definitions to retry'
+            $state.InstallDefinitionsStale | Should -BeTrue
+            $state.InstallSelectedPackagesButton.IsEnabled | Should -BeFalse
+        }
+    }
+
+    It 'does not replace the shared status when install data is invalidated offscreen' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $state.StatusLabel.Text = 'Another operation finished.'
+            Invoke-EwWorkbenchInstallStale -State $state
+            $state.StatusLabel.Text | Should -Be 'Another operation finished.'
+            $state.InstallDefinitionsStale | Should -BeTrue
         }
     }
 }

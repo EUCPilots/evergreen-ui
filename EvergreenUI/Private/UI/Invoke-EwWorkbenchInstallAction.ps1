@@ -22,7 +22,6 @@ function Invoke-EwWorkbenchInstallAction {
         $State.InstallActiveItems = $items
         $arguments = [object[]]::new(1)
         $arguments[0] = $items
-        $State.InstallActionStatusLabel.Text = 'Reviewing installation architecture...'
         Invoke-EwWorkbenchJob -State $State -Kind InstallReview -Name 'Review selected installations' `
             -ArgumentList $arguments -ScriptBlock {
                 param([object[]]$Items)
@@ -60,7 +59,6 @@ function Invoke-EwWorkbenchInstallAction {
         $arguments = [object[]]::new(2)
         $arguments[0] = $items
         $arguments[1] = [string]$State.InstallBatchWorkingPath
-        $State.InstallActionStatusLabel.Text = 'Installing approved applications...'
         Invoke-EwWorkbenchJob -State $State -Kind InstallPackages -Name 'Install selected applications' `
             -ArgumentList $arguments -ScriptBlock {
                 param([object[]]$Items, [string]$WorkingPath)

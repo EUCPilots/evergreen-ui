@@ -22,10 +22,14 @@ function Invoke-EwWorkbenchJobMonitor {
         $job = Get-EwJob -Id $State.ActiveJobId
     }
     catch {
-        Write-EwWorkbenchLog -State $State -Message "Could not read the active job: $($_.Exception.Message)" -Level Error
-        if ($State.ActiveJobKind -eq 'InstallDefinitions' -or
-            ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending)) {
-            $State.InstallActionStatusLabel.Text = 'Local detection refresh pending. Could not read the current operation; waiting for its status.'
+        $installRefreshWaiting = $State.ActiveJobKind -eq 'InstallDefinitions' -or
+            ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending)
+        $message = "Could not read the active job: $($_.Exception.Message)"
+        if ($installRefreshWaiting) {
+            $message += ' Local detection refresh pending; waiting for its status.'
+        }
+        Write-EwWorkbenchLog -State $State -Message $message -Level Error
+        if ($installRefreshWaiting) {
             return
         }
         if ($State.ActiveJobKind -in @('NerdioPublish', 'M365', 'EvergreenUpdate', 'CacheClear', 'LibraryRemoval')) {
@@ -240,9 +244,8 @@ function Invoke-EwWorkbenchJobMonitor {
                 $State.InstallSelectedDefinitionPaths = @()
                 $validCount = @($State.InstallDefinitions | Where-Object DefinitionValid -eq 'Yes').Count
                 $State.InstallDefinitionsCountLabel.Text = "$($State.InstallDefinitions.Count) definitions ($validCount valid)"
-                $State.InstallActionStatusLabel.Text = 'Local detection complete. Find latest versions separately.'
                 $State.ResolveInstallVersionsButton.IsEnabled = $validCount -gt 0
-                Write-EwWorkbenchLog -State $State -Message "Checked local installation status for $validCount valid definitions."
+                Write-EwWorkbenchLog -State $State -Message "Checked local installation status for $validCount valid definitions. Find latest versions separately."
             }
             'InstallVersions' {
                 foreach ($versionResult in $output) {
@@ -291,7 +294,6 @@ function Invoke-EwWorkbenchJobMonitor {
                     }
                 }
                 [System.Windows.Data.CollectionViewSource]::GetDefaultView($State.InstallDefinitions).Refresh()
-                $State.InstallActionStatusLabel.Text = 'Latest-version lookup complete.'
                 Write-EwWorkbenchLog -State $State -Message 'Latest-version lookup completed.'
             }
             'IntuneConnect' {
@@ -400,7 +402,7 @@ function Invoke-EwWorkbenchJobMonitor {
     if ($kind -eq 'InstallDefinitions' -and $State.InstallDefinitionsStale -and
         $State.InstallRefreshRevision -eq $State.InstallDefinitionsRevision) {
         $State.InstallRefreshPending = $false
-        $State.InstallActionStatusLabel.Text = 'Local detection refresh did not complete. Reload definitions to retry.'
+        Write-EwWorkbenchLog -State $State -Message 'Local detection refresh did not complete. Reload definitions to retry.' -Level Error
     }
     if ($kind -eq 'IntunePublish' -and $null -ne $State.IntuneCancellation) {
         $State.IntuneCancellation.Dispose()

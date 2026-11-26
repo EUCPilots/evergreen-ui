@@ -186,7 +186,7 @@
                                 <Border x:Name="SelectedIndicator"
                                         Grid.Column="0"
                                         Margin="0,5,0,5"
-                                        Background="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"
+                                        Background="{DynamicResource AccentFillColorDefaultBrush}"
                                         CornerRadius="2"
                                         Visibility="Collapsed" />
                                 <TextBlock Grid.Column="1"
@@ -229,6 +229,10 @@
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5" />
                             </Trigger>
+                            <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
+                                <Setter TargetName="SelectedIndicator" Property="Background"
+                                        Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
                                          Value="True">
                                 <Setter TargetName="NavigationLabel" Property="Visibility" Value="Collapsed" />
@@ -916,7 +920,6 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="InstallDefinitionsCountLabel"
                                                Text="0 definitions"
@@ -927,13 +930,6 @@
                                               Margin="18,0,0,0"
                                               VerticalAlignment="Center"
                                               IsChecked="False" />
-                                    <TextBlock x:Name="InstallActionStatusLabel"
-                                               Grid.Column="2"
-                                               Text="Open Install to refresh definitions and local detection."
-                                               VerticalAlignment="Center"
-                                               HorizontalAlignment="Right"
-                                               TextWrapping="Wrap"
-                                               Opacity="0.75" />
                                 </Grid>
                                 <DataGrid x:Name="InstallDefinitionsListView"
                                           Grid.Row="1"
@@ -1037,10 +1033,11 @@
                               HeadersVisibility="Column" CanUserAddRows="False" EnableRowVirtualization="True"
                               AutomationProperties.Name="Intune comparison">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Definition" Binding="{Binding DefinitionName}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Definition display name" Binding="{Binding DefinitionName}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Intune display name" Binding="{Binding IntuneDisplayName}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Saved" Binding="{Binding DefinitionVersion}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Intune" Binding="{Binding IntuneVersion}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Definition version" Binding="{Binding DefinitionVersion}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                            <DataGridTextColumn Header="Intune version" Binding="{Binding IntuneVersion}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridTextColumn Header="Status" Binding="{Binding MatchStatus}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                             <DataGridCheckBoxColumn Header="Update app" Binding="{Binding ImportAsUpdate, UpdateSourceTrigger=PropertyChanged}" Width="100">
                                 <DataGridCheckBoxColumn.ElementStyle>

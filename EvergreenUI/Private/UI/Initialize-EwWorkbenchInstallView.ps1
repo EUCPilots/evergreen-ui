@@ -112,10 +112,9 @@ function Initialize-EwWorkbenchInstallView {
             }
         }
         catch {
-            $State.InstallActionStatusLabel.Text = 'Could not refresh local detection. Reload definitions to retry.'
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
-                Message = "Could not load local install definitions: $($_.Exception.Message)"
+                Message = "Could not load local install definitions: $($_.Exception.Message) Reload definitions to retry."
                 Level = 'Error'
             }
         }
@@ -143,7 +142,6 @@ function Initialize-EwWorkbenchInstallView {
         if ($definitions.Count -eq 0) {
             return
         }
-        $State.InstallActionStatusLabel.Text = 'Finding latest versions...'
         try {
             & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
                 State = $State
@@ -218,7 +216,6 @@ function Initialize-EwWorkbenchInstallView {
             }
         }
         catch {
-            $State.InstallActionStatusLabel.Text = 'Could not start latest-version lookup.'
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
                 Message = "Could not find latest package versions: $($_.Exception.Message)"
@@ -263,7 +260,6 @@ function Initialize-EwWorkbenchInstallView {
         }
         catch {
             $State.InstallBatchActive = $false
-            $State.InstallActionStatusLabel.Text = 'Could not start the installation review.'
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
                 State = $State
                 Message = "Could not start the installation review: $($_.Exception.Message)"
