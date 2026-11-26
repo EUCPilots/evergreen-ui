@@ -1573,7 +1573,7 @@
                                                Margin="0,0,8,0" />
                                 </DockPanel>
                                 <DataGrid x:Name="AboutDependenciesListView"
-                                          Height="220"
+                                          Height="260"
                                           AutoGenerateColumns="False"
                                           IsReadOnly="True"
                                           SelectionMode="Single"
