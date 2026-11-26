@@ -22,7 +22,8 @@
     is the only auth dependency; Connect-MSIntuneGraph is never called.
 
 .PARAMETER DefinitionObject
-    Parsed App.json object.
+    Parsed App.json object. Program.AllowAvailableUninstall is optional and
+    defaults to false when omitted.
 
 .PARAMETER DefinitionPath
     Full path to App.json (used to build the Notes Date field and for logging).
@@ -657,7 +658,7 @@ function Invoke-EwIntuneGraphWin32Import {
             'runAsAccount'          = $runAs
         }
         'deviceRestartBehavior'      = $deviceRestart
-        'allowAvailableUninstall'    = [bool]$DefinitionObject.Program.AllowAvailableUninstall
+        'allowAvailableUninstall'    = [bool](Get-EwFirstPropertyValue -InputObject $DefinitionObject.Program -Name 'AllowAvailableUninstall')
         'setupFilePath'              = $setupFilePath
         'allowedArchitectures'        = $allowedArchitectures
         'minimumSupportedOperatingSystem' = $minimumOsObject
