@@ -452,8 +452,13 @@ Describe 'Nerdio WPF view' {
                 $state.NavNerdio.IsChecked = $true
                 $state.NerdioPanel.Visibility.ToString() | Should -Be 'Visible'
                 $state.IntunePanel.Visibility.ToString() | Should -Be 'Collapsed'
-                $state.ViewTitleText.Text | Should -Be 'Nerdio'
-                $state.NavIntune.Content | Should -Be 'Intune'
+                $state.ViewTitleText.Text | Should -Be 'Nerdio Manager'
+                $state.NavIntune.Content | Should -Be 'Microsoft Intune'
+                $state.NavNerdio.Content | Should -Be 'Nerdio Manager'
+                $state.NavIntune.IsChecked = $true
+                $state.ViewTitleText.Text | Should -Be 'Microsoft Intune'
+                $state.NavNerdio.IsChecked = $true
+                $state.ViewTitleText.Text | Should -Be 'Nerdio Manager'
                 $state.IntuneTenantId = 'intune-tenant'
                 $state.NerdioAzureIdentity = [PSCustomObject]@{ TenantId = 'tenant'; SubscriptionId = 'sub' }
                 $state.AllowNerdioEvents = $false

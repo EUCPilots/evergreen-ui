@@ -36,7 +36,11 @@ function Show-EwWorkbenchView {
             $panel.Visibility = [System.Windows.Visibility]::Collapsed
         }
     }
-    $State.ViewTitleText.Text = $View
+    $State.ViewTitleText.Text = switch ($View) {
+        'Intune' { 'Microsoft Intune' }
+        'Nerdio' { 'Nerdio Manager' }
+        default { $View }
+    }
     if ($State.UiStateReady -and [string]$State.Settings.StartupView -ne $View) {
         Save-EwWorkbenchUiSetting -State $State -Name 'StartupView' -Value $View
     }
@@ -50,7 +54,7 @@ function Show-EwWorkbenchView {
             }
             Invoke-EwWorkbenchInstallRefresh -State $State
         }
-        'Intune' { $State.SubtitleTextBlock.Text = 'Compare and publish applications to Intune' }
+        'Intune' { $State.SubtitleTextBlock.Text = 'Compare and publish applications to Microsoft Intune' }
         'Nerdio' { $State.SubtitleTextBlock.Text = 'Compare and publish Nerdio Manager Shell Apps' }
         'Settings' {
             $State.SubtitleTextBlock.Text = 'Manage saved Workbench folders and preferences'

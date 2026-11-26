@@ -1952,7 +1952,7 @@ Describe 'Evergreen Workbench WPF shell' {
                         $indicator.Visibility | Should -Be 'Visible'
                         $indicator.Background.Color | Should -Be $expected.Color
                     }
-                    $window.FindName('NavIntune').Content | Should -Be 'Intune'
+                    $window.FindName('NavIntune').Content | Should -Be 'Microsoft Intune'
                 }
                 foreach ($accent in [System.Windows.Media.Brushes]::Coral, [System.Windows.Media.Brushes]::CornflowerBlue) {
                     $window.Resources['AccentFillColorDefaultBrush'] = $accent

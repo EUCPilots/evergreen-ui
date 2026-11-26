@@ -311,14 +311,14 @@
                                          AutomationProperties.Name="Packages view" />
                             <RadioButton x:Name="NavIntune"
                                          Style="{StaticResource NavigationButtonStyle}"
-                                         Content="Intune"
+                                         Content="Microsoft Intune"
                                          Tag="&#xE753;"
-                                         AutomationProperties.Name="Intune view" />
+                                         AutomationProperties.Name="Microsoft Intune view" />
                             <RadioButton x:Name="NavNerdio"
                                          Style="{StaticResource NavigationButtonStyle}"
-                                         Content="Nerdio"
+                                         Content="Nerdio Manager"
                                          Tag="&#xE968;"
-                                         AutomationProperties.Name="Nerdio view" />
+                                         AutomationProperties.Name="Nerdio Manager view" />
                             <Border Height="1" Margin="8,12" Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
                             <RadioButton x:Name="NavSettings"
                                          Style="{StaticResource NavigationButtonStyle}"
