@@ -83,6 +83,55 @@ AfterAll {
 }
 
 Describe 'Evergreen Workbench WPF shell' {
+    It 'animates library updates until measurable job progress arrives' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.LibraryPathBox.Text = 'C:\Library'
+                Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid() } }
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = $script:testJobState; Progress = $script:testJobProgress
+                        Information = @(); Errors = @(); Output = @(); TerminatingError = $null
+                    }
+                }
+                Mock Remove-EwJob {}
+                $script:testJobState = 'Running'
+                $script:testJobProgress = @()
+                $click = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)
+                $state.UpdateLibraryButton.RaiseEvent($click)
+                $state.ActiveJobKind | Should -Be 'LibraryUpdate'
+                $state.JobProgressBar.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+                $state.JobProgressBar.IsIndeterminate | Should -BeTrue
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.JobProgressBar.IsIndeterminate | Should -BeTrue
+
+                $script:testJobProgress = @([PSCustomObject]@{ Activity = 'Updating'; PercentComplete = 35 })
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.JobProgressBar.IsIndeterminate | Should -BeFalse
+                $state.JobProgressBar.Value | Should -Be 35
+
+                $script:testJobProgress += [PSCustomObject]@{ Activity = 'Updating'; PercentComplete = -1 }
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.JobProgressBar.IsIndeterminate | Should -BeTrue
+                $script:testJobState = 'Completed'
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.ActiveJobId | Should -BeNullOrEmpty
+                $state.JobProgressBar.Visibility | Should -Be ([System.Windows.Visibility]::Collapsed)
+                $state.JobProgressBar.IsIndeterminate | Should -BeFalse
+                $state.JobProgressBar.Value | Should -Be 0
+
+                Invoke-EwWorkbenchJob -State $state -Kind 'Apps' -Name 'Load applications' -ScriptBlock {}
+                $state.JobProgressBar.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+                $state.JobProgressBar.IsIndeterminate | Should -BeTrue
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'keeps WPF assemblies unloaded when the interface is declined with WhatIf' {
         InModuleScope EvergreenUI {
             $loadedBefore = @(

@@ -71,7 +71,11 @@ function Invoke-EwWorkbenchBusyState {
     else {
         [System.Windows.Visibility]::Collapsed
     }
-    if (-not $IsBusy) {
+    if ($IsBusy) {
+        $State.JobProgressBar.Value = 0
+        $State.JobProgressBar.IsIndeterminate = $true
+    }
+    else {
         $State.JobProgressBar.IsIndeterminate = $false
         $State.JobProgressBar.Value = 0
         $State.LoadPackageDefinitionsButton.IsEnabled = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text)
