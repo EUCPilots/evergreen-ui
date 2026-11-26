@@ -18,7 +18,7 @@ downloads in one view. Read `docs\adr\` before designing changes.
 
 ## Additional instructions
 
-* Review .github\instructions for additional instructions
+- Review .github\instructions for additional instructions
 
 ## Commands
 
@@ -158,6 +158,7 @@ Use `Write-Verbose` with the prefix `"EvergreenUI: "` for operational
 diagnostics. Use existing UI logging helpers for Workbench activity.
 
 Log the following at a minimum:
+
 - Start and outcome of significant file/network/API operations
 - Which branch was taken when complex conditional logic selects a code path
 - Cache hit/miss with age information
@@ -189,6 +190,7 @@ Follow this pattern for new functions that return structured results. The shape 
 ## Release Process
 
 Releases are automated via two GitHub Actions workflows:
+
 1. **tag-release.yml** - Watches `EvergreenUI.psd1` for version changes; creates a git tag `v{version}` when the version is bumped
 2. **publish-psgallery.yml** - Triggered by tag creation; publishes to PowerShell Gallery using `$env:NUGET_API_KEY`
 
