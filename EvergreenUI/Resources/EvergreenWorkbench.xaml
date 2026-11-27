@@ -880,7 +880,7 @@
                                     Padding="12,4" />
                             <Button x:Name="LoadPackageDefinitionsButton"
                                     Grid.Column="3"
-                                    Content="Load definitions"
+                                    Content="Reload definitions"
                                     Margin="8,0,0,0"
                                     Padding="12,4" />
                             <Button x:Name="UpdatePackageDefinitionsButton"

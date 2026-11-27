@@ -16,6 +16,9 @@ function Invoke-EwWorkbenchJobMonitor {
         if ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending) {
             Invoke-EwWorkbenchInstallRefresh -State $State
         }
+        if ($State.Contains('PackageDefinitionsLoadPending') -and $State.PackageDefinitionsLoadPending) {
+            Invoke-EwWorkbenchPackageDefinitionsLoad -State $State -Automatic
+        }
         return
     }
     try {
@@ -24,12 +27,17 @@ function Invoke-EwWorkbenchJobMonitor {
     catch {
         $installRefreshWaiting = $State.ActiveJobKind -eq 'InstallDefinitions' -or
             ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending)
+        $definitionsLoadWaiting = $State.ActiveJobKind -eq 'PackageDefinitions' -or
+            ($State.Contains('PackageDefinitionsLoadPending') -and $State.PackageDefinitionsLoadPending)
         $message = "Could not read the active job: $($_.Exception.Message)"
         if ($installRefreshWaiting) {
             $message += ' Local detection refresh pending; waiting for its status.'
         }
+        if ($definitionsLoadWaiting) {
+            $message += ' Definitions load pending; waiting for its status.'
+        }
         Write-EwWorkbenchLog -State $State -Message $message -Level Error
-        if ($installRefreshWaiting) {
+        if ($installRefreshWaiting -or $definitionsLoadWaiting) {
             return
         }
         if ($State.ActiveJobKind -in @('NerdioPublish', 'M365', 'EvergreenUpdate', 'CacheClear', 'LibraryRemoval')) {
@@ -191,6 +199,11 @@ function Invoke-EwWorkbenchJobMonitor {
                 Write-EwWorkbenchLog -State $State -Message "Updated the library and loaded $($output.Count) entries."
             }
             'PackageDefinitions' {
+                if (-not [string]::IsNullOrWhiteSpace($State.PackageDefinitionsJobPath) -and
+                    $State.PackageDefinitionsJobPath -cne [string]$State.IntuneDefinitionsPathBox.Text) {
+                    Write-EwWorkbenchLog -State $State -Message 'The definitions folder changed during loading. Reload definitions to load the current folder.' -Level Warning
+                    break
+                }
                 $result = $output | Select-Object -Last 1
                 $State.PackageDefinitions.Clear()
                 foreach ($definition in @($result.Items)) {
@@ -404,6 +417,9 @@ function Invoke-EwWorkbenchJobMonitor {
         $State.InstallRefreshPending = $false
         Write-EwWorkbenchLog -State $State -Message 'Local detection refresh did not complete. Reload definitions to retry.' -Level Error
     }
+    if ($kind -eq 'PackageDefinitions' -and ($job.State -ne 'Completed' -or $null -ne $job.TerminatingError)) {
+        Write-EwWorkbenchLog -State $State -Message 'Definitions load did not complete. Reload definitions to retry.' -Level Error
+    }
     if ($kind -eq 'IntunePublish' -and $null -ne $State.IntuneCancellation) {
         $State.IntuneCancellation.Dispose()
         $State.IntuneCancellation = $null
@@ -441,5 +457,8 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     if ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending) {
         Invoke-EwWorkbenchInstallRefresh -State $State
+    }
+    if ($State.Contains('PackageDefinitionsLoadPending') -and $State.PackageDefinitionsLoadPending) {
+        Invoke-EwWorkbenchPackageDefinitionsLoad -State $State -Automatic
     }
 }

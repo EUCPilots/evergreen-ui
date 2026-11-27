@@ -10,15 +10,37 @@ function Initialize-EwWorkbenchPackageView {
 
     $State.PackageDefinitions = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
     $State.PackageDefinitionsListView.ItemsSource = $State.PackageDefinitions
+    $State.PackageDefinitionsLoadAttempted = $false
+    $State.PackageDefinitionsLoadPending = $false
+    $State.PackageDefinitionsJobPath = ''
     $State.LoadPackageDefinitionsButton.IsEnabled = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text)
     $State.UpdatePackageDefinitionsButton.IsEnabled = $false
 
     $State.IntuneDefinitionsPathBox.Add_TextChanged({
+        $State.PackageDefinitions.Clear()
+        $State.PackageDefinitionsCountLabel.Text = 'Definitions need refresh'
+        $State.UpdatePackageDefinitionsButton.IsEnabled = $false
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallStale' -Parameters @{ State = $State }
         $State.LoadPackageDefinitionsButton.IsEnabled =
             -not [string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text) -and
             $null -eq $State.ActiveJobId
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchInstallRefresh' -Parameters @{ State = $State }
+    }.GetNewClosure())
+
+    $State.IntuneDefinitionsPathBox.Add_LostKeyboardFocus({
+        if ($args[1].NewFocus -in @(
+                $State.BrowseIntuneDefinitionsButton,
+                $State.SaveIntuneDefinitionsPathButton,
+                $State.LoadPackageDefinitionsButton
+            )) {
+            return
+        }
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchPackageDefinitionsLoad' -Parameters @{ State = $State; Automatic = $true }
+    }.GetNewClosure())
+    $State.PackagesTabControl.Add_SelectionChanged({
+        if ($args[1].Source -eq $State.PackagesTabControl -and $State.DefinitionsTab.IsSelected) {
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchPackageDefinitionsLoad' -Parameters @{ State = $State; Automatic = $true }
+        }
     }.GetNewClosure())
 
     $State.BrowseIntuneDefinitionsButton.Add_Click({
@@ -30,6 +52,7 @@ function Initialize-EwWorkbenchPackageView {
         }
         if ($dialog.ShowDialog($State.Window)) {
             $State.IntuneDefinitionsPathBox.Text = $dialog.FolderName
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchPackageDefinitionsLoad' -Parameters @{ State = $State; Automatic = $true }
         }
     }.GetNewClosure())
 
@@ -45,6 +68,7 @@ function Initialize-EwWorkbenchPackageView {
                 State = $State
                 Message = 'Intune definitions folder saved.'
             }
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchPackageDefinitionsLoad' -Parameters @{ State = $State; Automatic = $true }
         }
         catch {
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
@@ -56,36 +80,7 @@ function Initialize-EwWorkbenchPackageView {
     }.GetNewClosure())
 
     $State.LoadPackageDefinitionsButton.Add_Click({
-        $path = [string]$State.IntuneDefinitionsPathBox.Text
-        if ([string]::IsNullOrWhiteSpace($path)) {
-            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $State
-                Message = 'Set the Intune definitions folder before loading definitions.'
-                Level = 'Warning'
-            }
-            return
-        }
-        try {
-            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
-                State = $State
-                Kind = 'PackageDefinitions'
-                Name = 'Load Intune package definitions'
-                ScriptBlock = {
-                    param($DefinitionPath)
-                    [PSCustomObject]@{
-                        Items = @(Get-EwDefinition -Path $DefinitionPath)
-                    }
-                }
-                ArgumentList = @($path)
-            }
-        }
-        catch {
-            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $State
-                Message = "Could not load Intune definitions: $($_.Exception.Message)"
-                Level = 'Error'
-            }
-        }
+        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchPackageDefinitionsLoad' -Parameters @{ State = $State }
     }.GetNewClosure())
 
     $State.UpdatePackageDefinitionsButton.Add_Click({

@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.0.6-preview]
+
+- Load the configured Definitions folder on first entry to Packages and provide a Reload definitions button.
+
 ## [2.0.5-preview]
 
 - Connect Azure and the Nerdio API independently in either order; select storage to enable Shell App comparison and publishing.

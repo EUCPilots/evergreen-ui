@@ -189,7 +189,7 @@ is optional and is not a publishing gate.
 
 Definitions is the default tab. A saved `StartupView=Install` opens Packages
 with Install selected; tab selection is not saved separately. Each tab keeps
-its own selection, with no automatic transfer. Folder edits and completed
+its own selection, with no automatic transfer. Definitions loads the configured folder on first entry, waiting for any active operation to finish. Use **Reload definitions** after changing the folder or to retry a failed load. Folder edits and completed
 definition loads or updates invalidate Install rows. Entering Install refreshes
 definitions and local detection, discarding old latest-version and architecture
 assessments while retaining selections for definition paths still present.

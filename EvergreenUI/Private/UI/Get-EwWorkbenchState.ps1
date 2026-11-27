@@ -9,7 +9,9 @@ function Get-EwWorkbenchState {
         [object]$Window,
 
         [Parameter(Mandatory)]
-        [System.Collections.IDictionary]$Settings
+        [System.Collections.IDictionary]$Settings,
+
+        [switch]$DeferPackageDefinitionsStartup
     )
 
     $module = $ExecutionContext.SessionState.Module
@@ -34,6 +36,7 @@ function Get-EwWorkbenchState {
             Queue = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
             ActiveJobId = $null
             ActiveJobKind = ''
+            PackageDefinitionsStartupDeferred = $DeferPackageDefinitionsStartup.IsPresent
             MaintenancePromptActive = $false
             MaintenanceContext = $null
             AppsDisplayStale = $false
