@@ -36,10 +36,11 @@ BeforeAll {
         }
     }
     $newReview = {
-        param([string]$Status, [bool]$Missing = $false, [bool]$X64 = $false)
+        param([string]$Status, [bool]$Missing = $false, [bool]$X64 = $false, [bool]$Unknown = $false)
         $warnings = @(
             if ($Missing) { 'The Definition has no architecture requirement.' }
             if ($X64) { 'Windows 10 on Arm does not support x64 emulation.' }
+            if ($Unknown) { 'The Artifact architecture is unknown.' }
         )
         $errorMessage = if ($Status -eq 'Blocked') { 'The architecture is incompatible.' } else { '' }
         [PSCustomObject]@{
@@ -51,8 +52,10 @@ BeforeAll {
                 ArtifactArchitecture = if ($X64) { 'x64' } else { 'x86' }
                 RequiresMissingRequirementApproval = $Missing
                 RequiresX64OnArm64Approval = $X64
+                RequiresUnknownArchitectureApproval = $Unknown
                 MissingRequirementWarning = if ($Missing) { $warnings[0] } else { '' }
                 X64OnArm64Warning = if ($X64) { $warnings[-1] } else { '' }
+                UnknownArchitectureWarning = if ($Unknown) { $warnings[-1] } else { '' }
                 Warnings = [string[]]$warnings
                 Error = $errorMessage
             }
@@ -142,7 +145,7 @@ Describe 'Install architecture review in the Workbench' {
                     [PSCustomObject]@{
                         Name = 'Example'; Publisher = 'Example'; Version = '1.0'
                         Status = 'Valid'; DefinitionValid = 'Yes'; DefinitionPath = 'C:\Definitions\Example\App.json'
-                        DefinitionObject = [PSCustomObject]@{ RequirementRule = [PSCustomObject]@{ Architecture = 'x86' } }
+                        DefinitionObject = [PSCustomObject]@{ RequirementRule = [PSCustomObject]@{ Architecture = 'invalid' } }
                     }
                     [PSCustomObject]@{
                         Name = 'Missing'; Publisher = 'Example'; Version = '1.0'
@@ -153,7 +156,7 @@ Describe 'Install architecture review in the Workbench' {
                     }
                 }
                 Mock Test-EwDetection {
-                    [PSCustomObject]@{ Installed = $false; DetectedVersion = ''; Status = 'Not installed'; Error = '' }
+                    [PSCustomObject]@{ Installed = $true; DetectedVersion = ''; Status = 'Installed'; Error = '' }
                 }
                 Mock Resolve-EwArtifact {}
                 $eventArgs = [System.Windows.RoutedEventArgs]::new(
@@ -162,7 +165,9 @@ Describe 'Install architecture review in the Workbench' {
                 $state.ReloadInstallDefinitionsButton.RaiseEvent($eventArgs)
                 $worker = [scriptblock]::Create($script:installLoadWorker.ToString())
                 $rows = @(& $worker 'C:\Definitions')
-                $rows[0].RequirementArchitecture | Should -Be 'x86'
+                $rows[0].RequirementArchitecture | Should -Be 'invalid'
+                $rows[0].ArchitectureAssessment | Should -Be 'Blocked'
+                $rows[0].InstalledVersion | Should -Be 'Installed'
                 $rows[0].ArtifactArchitecture | Should -Be 'Not checked'
                 $rows[1].RequirementArchitecture | Should -Be 'Missing'
                 Should -Invoke Resolve-EwArtifact -Exactly 0
@@ -260,6 +265,7 @@ Describe 'Install architecture review in the Workbench' {
                     & $NewRow -Name 'Declined'
                     & $NewRow -Name 'Both'
                     & $NewRow -Name 'Unavailable'
+                    & $NewRow -Name 'Unknown'
                 )
                 foreach ($row in $rows) { $state.InstallDefinitions.Add($row) }
                 $items = @($rows | ForEach-Object { & $NewItem -Row $_ })
@@ -278,14 +284,16 @@ Describe 'Install architecture review in the Workbench' {
                         [PSCustomObject]@{ Item = $items[2]; Review = (& $NewReview -Status 'NeedsApproval' -Missing $true) }
                         [PSCustomObject]@{ Item = $items[3]; Review = (& $NewReview -Status 'NeedsApproval' -Missing $true -X64 $true) }
                         [PSCustomObject]@{ Item = $items[4]; Review = $unavailableReview }
+                        [PSCustomObject]@{ Item = $items[5]; Review = (& $NewReview -Status 'NeedsApproval' -Unknown $true) }
                     )
                 }
                 Mock Confirm-EwWorkbenchInstallArchitecture { $Name -ne 'Declined' }
 
                 Invoke-EwWorkbenchInstallJobResult -State $state -Kind InstallReview -Job $job | Should -Be 'Install'
-                @($state.InstallApprovedItems.Name) | Should -Be @('Allowed', 'Both')
+                @($state.InstallApprovedItems.Name) | Should -Be @('Allowed', 'Both', 'Unknown')
                 $state.InstallApprovedItems[1].AllowMissingArchitectureRequirement | Should -BeTrue
                 $state.InstallApprovedItems[1].AllowX64OnArm64 | Should -BeTrue
+                $state.InstallApprovedItems[2].AllowUnknownArchitectureOnArm64 | Should -BeTrue
                 $rows[1].InstallStatus | Should -Be 'Architecture blocked'
                 $rows[2].InstallStatus | Should -Be 'Skipped'
                 $rows[4].ArtifactArchitecture | Should -Be 'Not checked'
@@ -293,18 +301,19 @@ Describe 'Install architecture review in the Workbench' {
                 Should -Invoke Confirm-EwWorkbenchInstallArchitecture -Exactly 1 -ParameterFilter {
                     $Name -eq 'Both' -and @($Review.Compatibility.Warnings).Count -eq 2
                 }
-                Should -Invoke Confirm-EwWorkbenchInstallArchitecture -Exactly 2
+                Should -Invoke Confirm-EwWorkbenchInstallArchitecture -Exactly 3
 
                 $state.InstallActiveItems = $state.InstallApprovedItems
                 $state.InstallApprovedItems = @()
                 $job.Output = @(
                     [PSCustomObject]@{ DefinitionPath = $items[0].DefinitionPath; Status = 'Installed'; ReviewChanged = $false; DownloadedVersion = '2.0'; Error = '' }
                     [PSCustomObject]@{ DefinitionPath = $items[3].DefinitionPath; Status = 'Failed'; ReviewChanged = $false; DownloadedVersion = ''; Error = 'Installer failed.' }
+                    [PSCustomObject]@{ DefinitionPath = $items[5].DefinitionPath; Status = 'Installed'; ReviewChanged = $false; DownloadedVersion = '2.0'; Error = '' }
                 )
                 Invoke-EwWorkbenchInstallJobResult -State $state -Kind InstallPackages -Job $job | Should -BeNullOrEmpty
                 $rows[0].InstalledVersion | Should -Be '2.0'
                 $rows[3].InstallStatus | Should -Be 'Installation failed'
-                $state.InstallBatchCounts.Installed | Should -Be 1
+                $state.InstallBatchCounts.Installed | Should -Be 2
                 $state.InstallBatchCounts.Blocked | Should -Be 1
                 $state.InstallBatchCounts.Skipped | Should -Be 1
                 $state.InstallBatchCounts.Failed | Should -Be 2
@@ -371,7 +380,7 @@ Describe 'Install architecture review in the Workbench' {
                 $state.InstallBatchWorkingPath = 'C:\Output'
                 $state.InstallApprovedItems = @([PSCustomObject]@{
                     Name = 'Example'; DefinitionPath = 'C:\Definitions\Example\App.json'; Reconfirmations = 0
-                    Fingerprint = 'A' * 64; AllowMissingArchitectureRequirement = $true; AllowX64OnArm64 = $true
+                    Fingerprint = 'A' * 64; AllowMissingArchitectureRequirement = $true; AllowX64OnArm64 = $true; AllowUnknownArchitectureOnArm64 = $true
                 })
                 Mock Invoke-EwWorkbenchJob {
                     $script:installWorker = $ScriptBlock
@@ -388,7 +397,7 @@ Describe 'Install architecture review in the Workbench' {
                 $result.ReviewChanged | Should -BeTrue
                 Should -Invoke Install-EwPackage -Exactly 1 -ParameterFilter {
                     $NoCache -and $RequireArchitectureOptIn -and $AllowMissingArchitectureRequirement -and
-                    $AllowX64OnArm64 -and $ExpectedReviewFingerprint -eq ('A' * 64)
+                    $AllowX64OnArm64 -and $AllowUnknownArchitectureOnArm64 -and $ExpectedReviewFingerprint -eq ('A' * 64)
                 }
             }
             finally {

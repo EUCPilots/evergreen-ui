@@ -115,6 +115,20 @@ function Invoke-EwIntuneGraphWin32Import {
         }
     }
 
+    $requirementRule = Get-EwObjectPropertyValue -Object $DefinitionObject -Name 'RequirementRule'
+    $architectureValue = if ($null -ne $requirementRule) {
+        [string](Get-EwObjectPropertyValue -Object $requirementRule -Name 'Architecture' -Default '')
+    } else { '' }
+    $architectureRequirement = ConvertFrom-EwArchitectureRequirement -Architecture $architectureValue
+    if ($architectureRequirement.Kind -eq 'Missing') {
+        return (& $fail 'RequirementRule.Architecture is missing. Specify the compatible OS architectures before publishing.')
+    }
+    if ($architectureRequirement.Kind -eq 'Invalid') {
+        return (& $fail $architectureRequirement.Error)
+    }
+    $allowedArchitectures = $architectureRequirement.Values -join ','
+    Write-Verbose -Message "EvergreenUI: Intune OS architecture requirement '$architectureValue' maps to '$allowedArchitectures'."
+
     # -- Validate prerequisites ------------------------------------------------
     if (-not (Get-Command -Name 'Invoke-MgGraphRequest' -ErrorAction SilentlyContinue)) {
         return (& $fail 'Invoke-MgGraphRequest is not available. Ensure Microsoft.Graph.Authentication is imported and Connect-MgGraph has been called.')
@@ -319,11 +333,15 @@ function Invoke-EwIntuneGraphWin32Import {
                         'Integer' { 'IntegerComparison'; break }
                         default   { 'VersionComparison' }
                     }
+                    $registryKeyPath = [string](Get-EwObjectPropertyValue -Object $rule -Name 'KeyPath' -Default '')
+                    if ([string]::IsNullOrWhiteSpace($registryKeyPath)) {
+                        $registryKeyPath = [string](Get-EwObjectPropertyValue -Object $rule -Name 'Path' -Default '')
+                    }
 
                     $generated.Add([PSCustomObject]@{
                             Type                 = 'Registry'
                             DetectionMethod      = $requirementMethod
-                            KeyPath              = [string]$rule.KeyPath
+                            KeyPath              = $registryKeyPath
                             ValueName            = [string]$rule.ValueName
                             Operator             = $negated
                             Value                = $sourceValue
@@ -514,9 +532,13 @@ function Invoke-EwIntuneGraphWin32Import {
                         'Boolean'   { 'boolean' }
                         default     { 'string' }
                     }
+                    $registryKeyPath = [string](Get-EwObjectPropertyValue -Object $rule -Name 'KeyPath' -Default '')
+                    if ([string]::IsNullOrWhiteSpace($registryKeyPath)) {
+                        $registryKeyPath = [string](Get-EwObjectPropertyValue -Object $rule -Name 'Path' -Default '')
+                    }
                     $graphRule = [ordered]@{
                         '@odata.type'         = '#microsoft.graph.win32LobAppRegistryDetection'
-                        'keyPath'             = [string]$rule.KeyPath
+                        'keyPath'             = $registryKeyPath
                         'valueName'           = [string]$rule.ValueName
                         'check32BitOn64System' = ([string]$rule.Check32BitOn64System -ieq 'true')
                         'detectionType'       = $detType
@@ -566,34 +588,7 @@ function Invoke-EwIntuneGraphWin32Import {
         $minimumOsObject['v10_1809'] = $true  # safe default
     }
 
-    # -- Build allowed architectures string -----------------------------------
-    # The Graph API allowedArchitectures field is a string enum, not an array.
-    # Parse RequirementRule.Architecture (single value or comma-separated list)
-    # and map to the nearest valid Graph enum value:
-    #   x64 only                -> 'x64'         (x64 machines only)
-    #   arm64 only              -> 'arm64'        (arm64 machines only)
-    #   x86 only                -> 'x86'          (x86 machines only)
-    #   x86,x64 or x86,x64,arm64 -> 'x86,x64,arm64' (union spans all machine types)
-    #   null / unspecified      -> 'x86,x64,arm64' (safe default)
-    $archRaw = [string]$DefinitionObject.RequirementRule.Architecture
-    $archList = @(
-        $archRaw -split ',' |
-        ForEach-Object { $_.Trim().ToLower() } |
-        Where-Object { $_ -ne '' }
-    )
-
-    $allowedArchitectures = if ($archList.Count -eq 1) {
-        switch ($archList[0]) {
-            'x64'   { 'x64' }
-            'x86'   { 'x86' }
-            'arm64' { 'arm64' }
-            default { 'x86,x64,arm64' }
-        }
-    }
-    else {
-        'x86,x64,arm64'
-    }
-    Write-UILog -Message "Allowed architectures resolved to '$allowedArchitectures' (RequirementRule.Architecture='$archRaw')." -Level Info -SyncHash $SyncHash
+    Write-UILog -Message "Allowed architectures resolved to '$allowedArchitectures' (RequirementRule.Architecture='$architectureValue')." -Level Info -SyncHash $SyncHash
 
     # -- Build install experience ----------------------------------------------
     $runAs          = if ([string]$DefinitionObject.Program.InstallExperience -ieq 'user') { 'user' } else { 'system' }

@@ -31,6 +31,56 @@ Describe 'Local package detection' {
         $result.Installed | Should -BeFalse
         $result.Status | Should -Be 'No detection rules'
     }
+
+    It 'expands file paths in the requested program files context' {
+        InModuleScope EvergreenUI {
+            $native = [Environment]::GetEnvironmentVariable('ProgramW6432')
+            if ([string]::IsNullOrWhiteSpace($native)) { $native = [Environment]::GetEnvironmentVariable('ProgramFiles') }
+            $x86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+            if ([Environment]::Is64BitOperatingSystem -and -not [string]::IsNullOrWhiteSpace($x86)) {
+                Resolve-EwDetectionFilePath -Path '%ProgramFiles%\Example' -Check32BitOn64System | Should -Be "$x86\Example"
+                Resolve-EwDetectionFilePath -Path '%ProgramFiles%\Example' | Should -Be "$native\Example"
+            }
+        }
+    }
+
+    It 'selects the requested registry view for a detection rule' {
+        InModuleScope EvergreenUI {
+            Mock Get-EwDetectionRegistryValue {
+                [PSCustomObject]@{ KeyExists = $true; ValueExists = $true; Value = '2.0' }
+            }
+            $definition = [PSCustomObject]@{ DetectionRule = @(
+                [PSCustomObject]@{ Type = 'Registry'; KeyPath = 'HKCU\Software\Example'; ValueName = 'Version'; DetectionMethod = 'VersionComparison'; Value = '2.0'; Check32BitOn64System = $true }
+            ) }
+            $result = Test-EwDetection -DefinitionObject $definition
+            $result.Installed | Should -BeTrue
+            Should -Invoke Get-EwDetectionRegistryValue -Exactly 1 -ParameterFilter {
+                $Path -eq 'HKCU\Software\Example' -and $Check32BitOn64System
+            }
+        }
+    }
+
+    It 'reads registry values from the requested logical views' -Skip:(-not $IsWindows -or -not [Environment]::Is64BitOperatingSystem) {
+        $subKey = "Software\Classes\CLSID\{$([guid]::NewGuid())}"
+        $base32 = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::CurrentUser, [Microsoft.Win32.RegistryView]::Registry32)
+        $base64 = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::CurrentUser, [Microsoft.Win32.RegistryView]::Registry64)
+        try {
+            $key32 = $base32.CreateSubKey($subKey)
+            try { $key32.SetValue('Version', '32') } finally { $key32.Dispose() }
+            $key64 = $base64.CreateSubKey($subKey)
+            try { $key64.SetValue('Version', '64') } finally { $key64.Dispose() }
+            InModuleScope EvergreenUI -Parameters @{ Path = "HKCU\$subKey" } {
+                (Get-EwDetectionRegistryValue -Path $Path -ValueName 'Version' -Check32BitOn64System).Value | Should -Be '32'
+                (Get-EwDetectionRegistryValue -Path $Path -ValueName 'Version').Value | Should -Be '64'
+            }
+        }
+        finally {
+            $base32.DeleteSubKeyTree($subKey, $false)
+            $base64.DeleteSubKeyTree($subKey, $false)
+            $base32.Dispose()
+            $base64.Dispose()
+        }
+    }
 }
 
 Describe 'Local package installation' {
@@ -67,7 +117,7 @@ Describe 'Local package installation' {
                     Succeeded = $true
                     Version = '2.0'
                     URI = 'https://example.test/installer.exe'
-                    ResolvedArtifact = [PSCustomObject]@{ Version = '2.0'; URI = 'https://example.test/installer.exe' }
+                    ResolvedArtifact = [PSCustomObject]@{ Version = '2.0'; URI = 'https://example.test/installer.exe'; Architecture = 'x86' }
                     Error = ''
                 }
             }
@@ -204,12 +254,44 @@ catch {
         }
     }
 
-    It 'does not execute when the Definition changes during staging' {
+    It 'requires a separate opt-in for unknown artifact architecture on ARM64' {
         InModuleScope EvergreenUI -Parameters @{ DefinitionPath = $installDefinitionPath; WorkingPath = $installRoot } {
             Mock Resolve-EwArtifact {
                 [PSCustomObject]@{
                     Succeeded = $true; Version = '2.0'; URI = 'https://example.test/installer.exe'
                     ResolvedArtifact = [PSCustomObject]@{ Version = '2.0'; URI = 'https://example.test/installer.exe' }
+                    Error = ''
+                }
+            }
+            Mock Get-EwInstallArchitectureCompatibility {
+                [PSCustomObject]@{
+                    Status = 'NeedsApproval'; RequiresMissingRequirementApproval = $true
+                    RequiresX64OnArm64Approval = $false; RequiresUnknownArchitectureApproval = $true
+                    MissingRequirementWarning = 'Missing requirement'; X64OnArm64Warning = ''
+                    UnknownArchitectureWarning = 'Unknown artifact architecture'; Error = ''
+                }
+            }
+            Mock Confirm-EwInstallArchitecture { $false }
+            Mock Invoke-EwArtifactSave { [PSCustomObject]@{ FullName = Join-Path -Path $Path -ChildPath 'installer.exe' } }
+            Mock Invoke-EwInstallerProcess { [PSCustomObject]@{ ExitCode = 0 } }
+            $declined = Install-EwPackage -DefinitionPath $DefinitionPath -WorkingPath $WorkingPath `
+                -AllowMissingArchitectureRequirement -Confirm:$false
+            $declined.Status | Should -Be 'Skipped'
+            Should -Invoke Confirm-EwInstallArchitecture -Exactly 1 -ParameterFilter {
+                @($Warning).Count -eq 1 -and $Warning[0] -eq 'Unknown artifact architecture'
+            }
+            $approved = Install-EwPackage -DefinitionPath $DefinitionPath -WorkingPath $WorkingPath `
+                -AllowMissingArchitectureRequirement -AllowUnknownArchitectureOnArm64 -Confirm:$false
+            $approved.Status | Should -Be 'Installed'
+        }
+    }
+
+    It 'does not execute when the Definition changes during staging' {
+        InModuleScope EvergreenUI -Parameters @{ DefinitionPath = $installDefinitionPath; WorkingPath = $installRoot } {
+            Mock Resolve-EwArtifact {
+                [PSCustomObject]@{
+                    Succeeded = $true; Version = '2.0'; URI = 'https://example.test/installer.exe'
+                    ResolvedArtifact = [PSCustomObject]@{ Version = '2.0'; URI = 'https://example.test/installer.exe'; Architecture = 'x86' }
                     Error = ''
                 }
             }

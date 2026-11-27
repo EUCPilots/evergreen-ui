@@ -96,7 +96,9 @@ function Initialize-EwWorkbenchInstallView {
                             DefinitionPath = $definition.DefinitionPath
                             DefinitionValid = $definition.DefinitionValid
                             IsInstalled = [bool]$detection.Installed
-                            InstalledVersion = [string]$detection.DetectedVersion
+                            InstalledVersion = if ($detection.Installed -and [string]::IsNullOrWhiteSpace([string]$detection.DetectedVersion)) {
+                                'Installed'
+                            } else { [string]$detection.DetectedVersion }
                             LatestVersion = ''
                             InstallStatus = if ($definition.Status -ne 'Valid') { "Invalid definition: $($definition.Status)" }
                                 elseif ($architecture.Status -eq 'Blocked') { 'Architecture blocked' }

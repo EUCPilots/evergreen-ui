@@ -43,8 +43,10 @@ function Get-EwInstallArchitectureCompatibility {
             ArtifactArchitecture = $artifactText
             RequiresMissingRequirementApproval = $false
             RequiresX64OnArm64Approval = $false
+            RequiresUnknownArchitectureApproval = $false
             MissingRequirementWarning = ''
             X64OnArm64Warning = ''
+            UnknownArchitectureWarning = ''
             Warnings = [string[]]@()
             Error = $Message
         }
@@ -63,80 +65,49 @@ function Get-EwInstallArchitectureCompatibility {
         return (& $fail "Unsupported or unknown operating system architecture '$OperatingSystemArchitecture'.")
     }
 
-    $parseArchitecture = {
-        param([string]$Value)
-        if ([string]::IsNullOrWhiteSpace($Value) -or $Value.Trim() -eq '-') {
-            return [PSCustomObject]@{ Kind = 'Missing'; Values = [string[]]@() }
-        }
-
-        $values = @($Value -split ',' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Select-Object -Unique)
-        if (@($values | Where-Object { $_ -notin @('all', 'x86', 'x64', 'arm64') }).Count -gt 0) {
-            return [PSCustomObject]@{ Kind = 'Invalid'; Values = [string[]]$values }
-        }
-        if ('all' -in $values -or
-            ('x86' -in $values -and 'x64' -in $values -and 'arm64' -in $values)) {
-            return [PSCustomObject]@{ Kind = 'All'; Values = [string[]]@('x86', 'x64', 'arm64') }
-        }
-        return [PSCustomObject]@{ Kind = 'Specific'; Values = [string[]]$values }
-    }
-    $getDecision = {
-        param([string]$Architecture, [string]$HostArchitecture)
-        if ($Architecture -eq 'x86' -or $Architecture -eq $HostArchitecture) {
-            return 'Allowed'
-        }
-        if ($Architecture -eq 'x64' -and $HostArchitecture -eq 'arm64') {
-            return 'Approval'
-        }
-        return 'Blocked'
-    }
-
-    $requirement = & $parseArchitecture -Value $requirementText
+    $requirement = ConvertFrom-EwArchitectureRequirement -Architecture $requirementText
     if ($requirement.Kind -eq 'Invalid') {
-        return (& $fail "Unrecognized Definition architecture requirement '$requirementText'.")
+        return (& $fail $requirement.Error)
     }
-    $artifactArchitecture = & $parseArchitecture -Value $artifactText
-    if ($artifactArchitecture.Kind -eq 'Invalid') {
-        Write-Verbose -Message "EvergreenUI: Artifact architecture '$artifactText' is not recognized; using the Definition requirement."
+    if ($requirement.Kind -ne 'Missing' -and $OperatingSystemArchitecture -notin $requirement.Values) {
+        return (& $fail "Definition architecture requirement '$requirementText' excludes $OperatingSystemArchitecture Windows.")
     }
 
     $requiresMissingApproval = $requirement.Kind -eq 'Missing'
     $requiresEmulationApproval = $false
-    if ($requirement.Kind -eq 'Specific') {
-        $requirementValues = @($requirement.Values)
-        if ($artifactArchitecture.Kind -eq 'Specific' -and
-            $artifactArchitecture.Values.Count -eq 1 -and
-            $artifactArchitecture.Values[0] -in $requirementValues) {
-            $requirementValues = @($artifactArchitecture.Values[0])
-        }
-        $decisions = @($requirementValues | ForEach-Object {
-                & $getDecision -Architecture $_ -HostArchitecture $OperatingSystemArchitecture
-            })
-        if ('Allowed' -notin $decisions -and 'Approval' -notin $decisions) {
-            return (& $fail "Definition architecture requirement '$requirementText' is incompatible with $OperatingSystemArchitecture Windows.")
-        }
-        $requiresEmulationApproval = 'Approval' -in $decisions
-    }
-
-    if ($artifactArchitecture.Kind -eq 'Specific') {
-        $decisions = @($artifactArchitecture.Values | ForEach-Object {
-                & $getDecision -Architecture $_ -HostArchitecture $OperatingSystemArchitecture
-            })
-        if ('Allowed' -notin $decisions -and 'Approval' -notin $decisions) {
+    $requiresUnknownApproval = $false
+    if ($PSBoundParameters.ContainsKey('Artifact')) {
+        $artifactArchitecture = $artifactText.Trim().ToLowerInvariant()
+        if (($artifactArchitecture -eq 'x64' -and $OperatingSystemArchitecture -eq 'x86') -or
+            ($artifactArchitecture -eq 'arm64' -and $OperatingSystemArchitecture -ne 'arm64')) {
             return (& $fail "Artifact architecture '$artifactText' is incompatible with $OperatingSystemArchitecture Windows.")
         }
-        if ('Approval' -in $decisions) {
+        if ($OperatingSystemArchitecture -eq 'arm64' -and $artifactArchitecture -eq 'x64') {
             $requiresEmulationApproval = $true
+        }
+        elseif ($OperatingSystemArchitecture -eq 'arm64' -and $artifactArchitecture -notin @('x86', 'x64', 'arm64')) {
+            $application = Get-EwObjectPropertyValue -Object $DefinitionObject -Name 'Application'
+            $declared = if ($null -ne $application) {
+                ([string](Get-EwObjectPropertyValue -Object $application -Name 'Architecture' -Default '')).Trim().ToLowerInvariant()
+            } else { '' }
+            if ($declared -eq 'x64') {
+                $requiresEmulationApproval = $true
+            }
+            elseif ($declared -notin @('x86', 'arm64')) {
+                $requiresUnknownApproval = $true
+            }
         }
     }
 
     $missingWarning = if ($requiresMissingApproval) { 'The Definition has no architecture requirement.' } else { '' }
     $emulationWarning = if ($requiresEmulationApproval) {
-        'The installation may use x64 emulation on Arm64. Windows 10 on Arm does not support x64 emulation.'
+        'The installation may use x64 emulation on Arm64. Application and driver compatibility is not guaranteed.'
     }
     else {
         ''
     }
-    $warnings = @($missingWarning, $emulationWarning | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $unknownWarning = if ($requiresUnknownApproval) { 'The Artifact architecture is unknown on Arm64; compatibility and emulation requirements cannot be determined.' } else { '' }
+    $warnings = @($missingWarning, $emulationWarning, $unknownWarning | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     $status = if ($warnings.Count -gt 0) { 'NeedsApproval' } else { 'Allowed' }
     Write-Verbose -Message "EvergreenUI: Local install architecture assessment for $OperatingSystemArchitecture is $status."
     [PSCustomObject]@{
@@ -146,8 +117,10 @@ function Get-EwInstallArchitectureCompatibility {
         ArtifactArchitecture = $artifactText
         RequiresMissingRequirementApproval = $requiresMissingApproval
         RequiresX64OnArm64Approval = $requiresEmulationApproval
+        RequiresUnknownArchitectureApproval = $requiresUnknownApproval
         MissingRequirementWarning = $missingWarning
         X64OnArm64Warning = $emulationWarning
+        UnknownArchitectureWarning = $unknownWarning
         Warnings = [string[]]$warnings
         Error = ''
     }

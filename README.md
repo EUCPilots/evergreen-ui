@@ -75,15 +75,16 @@ Evergreen queries and `Where-Object` predicates resolve. `Test-EwDetection`
 evaluates File, Registry, and MSI rules, while `Install-EwPackage` stages and
 runs a local package with `ShouldProcess` support.
 
-Local installation checks the native Windows architecture against the Definition
-requirement and resolved Artifact. Incompatible values are blocked. A missing
-requirement or x64 emulation on Arm64 needs separate approval; x86 is supported
-on x86, x64, and Arm64. Windows 10 on Arm does not support x64 emulation.
-For unattended use, explicitly supply
-`-AllowMissingArchitectureRequirement` and/or `-AllowX64OnArm64` as needed.
+`RequirementRule.Architecture` is an explicit OS architecture allowlist shared by local installation and Intune publishing. Use `x86`, `x64`, or `arm64`, a comma-separated combination, or `All`. For example, `x64` excludes ARM64 even when Windows can emulate the app. A missing requirement needs local approval and blocks Intune publishing; invalid values are rejected.
+
+`Application.Architecture` selects the Artifact variant. A specified value must match the resolved Artifact's architecture label; blank or `-` leaves the choice unconstrained. `All` is a literal Artifact label, not a wildcard. Detection reports installed state independently of install eligibility, and file and registry rules use their `Check32BitOn64System` setting to select the relevant view.
+
+Local installation requires separate approval for a missing requirement, x64 emulation on ARM64, or unknown Artifact architecture on ARM64. For unattended use, explicitly supply `-AllowMissingArchitectureRequirement`, `-AllowX64OnArm64`, and/or `-AllowUnknownArchitectureOnArm64` as needed.
 `-Confirm:$false` alone does not approve these warnings, and a non-interactive
 call without the required opt-in throws. Results report `Installed`, `Failed`,
 `Blocked`, or `Skipped`; `-WhatIf` does not resolve or download an Artifact.
+
+For an optional Intune integration check, publish a disposable test package to a test tenant with `x86,x64` and verify the resulting OS requirements exclude ARM64. Repeat with `x64,arm64` and verify x86 is excluded. Read back the app's `allowedArchitectures` through Microsoft Graph and compare the selected architectures in Intune before assigning the app. Test local detection and installation separately on a Windows 11 ARM64 device; metadata and emulation do not guarantee vendor support.
 
 `New-EwPackage` builds Intune Win32 packages from App.json definitions or
 Microsoft 365 Apps packages from ODT XML for Intune or Nerdio. Intune package
@@ -120,7 +121,7 @@ Update-EwLibrary -WhatIf
 
 | Requirement | Minimum |
 |---|---|
-| Operating system | Windows 10 / Windows Server 2019 or later |
+| Operating system | Windows 11 / Windows Server 2019 or later |
 | PowerShell | 7.6 or later |
 | Evergreen module | 2603.2832.0 or later (installed from PSGallery) |
 

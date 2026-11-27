@@ -1,5 +1,7 @@
 # Local installation uses an emulation-aware architecture check
 
+Superseded by [ADR 0007](0007-explicit-os-architecture-compatibility.md).
+
 Local installation interprets a Definition's architecture requirement using
 the local OS execution matrix rather than Intune's OS-target mapping. This
 allows x86 applications on x64 and Arm64, while requiring explicit approval

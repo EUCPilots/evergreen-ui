@@ -2,6 +2,8 @@
 
 ## [2.0.6-preview]
 
+- Apply exact OS architecture requirements consistently to local installation and Intune publishing, and require declared Artifact variants to match.
+- Correct local file and registry detection architecture views and require approval for unknown Artifact architecture on ARM64.
 - Load the configured Definitions folder on first entry to Packages and provide a Reload definitions button.
 
 ## [2.0.5-preview]

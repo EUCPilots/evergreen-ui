@@ -69,6 +69,8 @@ function Test-EwDetection {
                 'file' {
                     $basePath = [string](Get-EwObjectPropertyValue -Object $rule -Name Path -Default '')
                     $relativePath = [string](Get-EwObjectPropertyValue -Object $rule -Name FileOrFolder -Default '')
+                    $check32Bit = [string](Get-EwObjectPropertyValue -Object $rule -Name Check32BitOn64System -Default 'false') -ieq 'true'
+                    $basePath = Resolve-EwDetectionFilePath -Path $basePath -Check32BitOn64System:$check32Bit
                     $targetPath = if ([string]::IsNullOrWhiteSpace($relativePath)) {
                         $basePath
                     }
@@ -94,23 +96,15 @@ function Test-EwDetection {
                     if ([string]::IsNullOrWhiteSpace($registryPath)) {
                         $registryPath = [string](Get-EwObjectPropertyValue -Object $rule -Name Path -Default '')
                     }
-                    $registryPath = $registryPath -replace '^HKEY_LOCAL_MACHINE', 'HKLM:' -replace '^HKEY_CURRENT_USER', 'HKCU:'
-                    $registryPath = $registryPath -replace '^HKLM(?!:)', 'HKLM:' -replace '^HKCU(?!:)', 'HKCU:'
-                    if ([string](Get-EwObjectPropertyValue -Object $rule -Name Check32BitOn64System -Default 'false') -ieq 'true' -and
-                        $registryPath -like 'HKLM:\Software*' -and
-                        $registryPath -notmatch 'WOW6432Node') {
-                        $registryPath = $registryPath -replace '^HKLM:\\Software', 'HKLM:\Software\WOW6432Node'
-                    }
-
-                    if (-not [string]::IsNullOrWhiteSpace($registryPath) -and
-                        (Test-Path -LiteralPath $registryPath)) {
+                    if (-not [string]::IsNullOrWhiteSpace($registryPath)) {
                         $valueName = [string](Get-EwObjectPropertyValue -Object $rule -Name ValueName -Default '')
-                        $registryItem = Get-ItemProperty -LiteralPath $registryPath -ErrorAction Stop
-                        if ($method -ieq 'Existence' -and [string]::IsNullOrWhiteSpace($valueName)) {
+                        $check32Bit = [string](Get-EwObjectPropertyValue -Object $rule -Name Check32BitOn64System -Default 'false') -ieq 'true'
+                        $registryItem = Get-EwDetectionRegistryValue -Path $registryPath -ValueName $valueName -Check32BitOn64System:$check32Bit
+                        if ($registryItem.KeyExists -and $method -ieq 'Existence' -and [string]::IsNullOrWhiteSpace($valueName)) {
                             $passed = $true
                         }
-                        elseif ($null -ne $registryItem.PSObject.Properties[$valueName]) {
-                            $currentValue = [string]$registryItem.PSObject.Properties[$valueName].Value
+                        elseif ($registryItem.KeyExists -and $registryItem.ValueExists) {
+                            $currentValue = [string]$registryItem.Value
                             $expectedValue = if ($null -ne $rule.PSObject.Properties['DetectionValue'] -and
                                 -not [string]::IsNullOrWhiteSpace([string]$rule.DetectionValue)) {
                                 [string](Get-EwObjectPropertyValue -Object $rule -Name DetectionValue -Default '')

@@ -110,12 +110,20 @@ Describe 'Provider publishing' {
     }
 
     It 'retains a created app ID when its content version fails with uninstall option <Option>' -ForEach @(
-        @{ Option = 'omitted'; UninstallValue = $null; ExpectedUninstall = $false }
-        @{ Option = 'enabled'; UninstallValue = $true; ExpectedUninstall = $true }
-        @{ Option = 'disabled'; UninstallValue = $false; ExpectedUninstall = $false }
+        @{ Option = 'omitted'; UninstallValue = $null; ExpectedUninstall = $false; Architecture = 'x64'; ExpectedArchitecture = 'x64' }
+        @{ Option = 'enabled'; UninstallValue = $true; ExpectedUninstall = $true; Architecture = 'x86,x64'; ExpectedArchitecture = 'x86,x64' }
+        @{ Option = 'disabled'; UninstallValue = $false; ExpectedUninstall = $false; Architecture = 'arm64, x64'; ExpectedArchitecture = 'x64,arm64' }
+        @{ Option = 'x86'; UninstallValue = $null; ExpectedUninstall = $false; Architecture = 'x86'; ExpectedArchitecture = 'x86' }
+        @{ Option = 'arm64'; UninstallValue = $null; ExpectedUninstall = $false; Architecture = 'arm64'; ExpectedArchitecture = 'arm64' }
+        @{ Option = 'x86 and arm64'; UninstallValue = $null; ExpectedUninstall = $false; Architecture = 'x86,arm64'; ExpectedArchitecture = 'x86,arm64' }
+        @{ Option = 'all'; UninstallValue = $null; ExpectedUninstall = $false; Architecture = 'All'; ExpectedArchitecture = 'x86,x64,arm64' }
     ) {
         $template = Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\Resources\m365-app.json'
         $definition = Get-Content -LiteralPath $template -Raw | ConvertFrom-Json
+        $definition.RequirementRule.Architecture = $Architecture
+        $registryPath = [string]$definition.DetectionRule[1].KeyPath
+        $definition.DetectionRule[1].PSObject.Properties.Remove('KeyPath')
+        $definition.DetectionRule[1] | Add-Member -NotePropertyName Path -NotePropertyValue $registryPath
         $definition.PackageInformation.IconFile = ''
         if ($null -ne $UninstallValue) {
             $definition.Program | Add-Member -NotePropertyName AllowAvailableUninstall -NotePropertyValue $UninstallValue
@@ -135,7 +143,7 @@ Describe 'Provider publishing' {
             $archive.Dispose()
         }
         InModuleScope EvergreenUI -Parameters @{
-            Definition = $definition; Archive = $archivePath; ExpectedUninstall = $ExpectedUninstall
+            Definition = $definition; Archive = $archivePath; ExpectedUninstall = $ExpectedUninstall; ExpectedArchitecture = $ExpectedArchitecture
         } {
             Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant-id' } }
             Mock Write-UILog {}
@@ -154,6 +162,8 @@ Describe 'Provider publishing' {
                 $Uri -eq 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps' -and
                 ($Body | ConvertFrom-Json).displayName -eq "$($Definition.Information.DisplayName) 2.0" -and
                 ($Body | ConvertFrom-Json).allowAvailableUninstall -ceq $ExpectedUninstall -and
+                ($Body | ConvertFrom-Json).allowedArchitectures -ceq $ExpectedArchitecture -and
+                ($Body | ConvertFrom-Json).detectionRules[1].keyPath -eq 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Office\ClickToRun\Configuration' -and
                 ($Body | ConvertFrom-Json).detectionRules[0].detectionType -eq 'version' -and
                 ($Body | ConvertFrom-Json).detectionRules[0].detectionValue -eq '16.0.15726.20262'
             }
@@ -179,6 +189,10 @@ Describe 'Provider publishing' {
                 -ImportAsUpdate -SyncHash @{}
             $update.Succeeded | Should -BeTrue -Because $update.Error
             Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter {
+                $Uri -eq 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps' -and
+                ($Body | ConvertFrom-Json).requirementRules[1].keyPath -eq 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
+            }
+            Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter {
                 $Uri -like '*/assignments' -and
                 ($Body | ConvertFrom-Json).target.'@odata.type' -eq '#microsoft.graph.allDevicesAssignmentTarget' -and
                 ($Body | ConvertFrom-Json).intent -eq 'required'
@@ -200,6 +214,24 @@ Describe 'Provider publishing' {
                 Should -Invoke Invoke-MgGraphRequest -Exactly 1 -ParameterFilter { $Uri -like '*/commit' }
             }
             finally { $script:cancelAfterUpload.Dispose() }
+        }
+    }
+
+    It 'rejects missing and malformed OS architecture requirements before any Graph request' -ForEach @(
+        @{ Architecture = '' }
+        @{ Architecture = '-' }
+        @{ Architecture = 'x64,typo' }
+        @{ Architecture = 'All,x64' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Architecture = $Architecture; Archive = $packagePath } {
+            Mock Invoke-MgGraphRequest {}
+            $definition = [PSCustomObject]@{ RequirementRule = [PSCustomObject]@{ Architecture = $Architecture } }
+            $result = Invoke-EwIntuneGraphWin32Import -DefinitionObject $definition -IntuneWinPath $Archive `
+                -DownloadedVersion '1' -PSPackageFactoryGuid 'guid' -SyncHash @{}
+            $result.Succeeded | Should -BeFalse
+            $result.WriteStarted | Should -BeFalse
+            $result.Error | Should -Match 'architecture'
+            Should -Invoke Invoke-MgGraphRequest -Exactly 0
         }
     }
 
