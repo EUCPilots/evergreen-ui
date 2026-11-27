@@ -159,13 +159,12 @@ Describe 'Microsoft 365 provider views' {
                 Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid() } }
                 Invoke-EwWorkbenchNerdioBusyState -State $state
                 $state.ConnectNerdioButton.IsEnabled | Should -BeTrue
-                $state.NerdioApiOnlyToggle.IsChecked | Should -BeFalse
                 $state.NmeClientSecretBox.Password = 'synthetic-secret'
                 Invoke-EwWorkbenchNerdioAction -State $state -Action ApiConnect
                 $state.NmeClientSecretBox.Password | Should -Be ''
                 Should -Invoke Start-EwJob -Exactly 1 -ParameterFilter {
-                    $Name -eq 'Nerdio ApiConnect' -and $ArgumentList[1].ApiOnly -eq $true -and
-                    -not $ArgumentList[1].ContainsKey('StorageAccountName')
+                    $Name -eq 'Nerdio ApiConnect' -and $ArgumentList[0].ApiOnly -eq $true -and
+                    -not $ArgumentList[0].ContainsKey('StorageAccountName')
                 }
 
                 $state.ActiveJobId = $null

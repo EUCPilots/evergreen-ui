@@ -2,6 +2,8 @@
 
 ## [2.0.4-preview]
 
+- Connect Azure and the Nerdio API independently in either order; select storage to enable Shell App comparison and publishing.
+- Prompt for Azure sign-in when a matching cached context has expired or unavailable credentials.
 - Show safe Nerdio validation details when a publish request fails, without automatically retrying uncertain writes.
 - Resolve a newly created Microsoft 365 Nerdio Shell App after a completed response omits its ID, while keeping ambiguous outcomes blocked for review.
 - Add explicit acknowledgment of unresolved Nerdio operations from both Nerdio workflows and PowerShell, with active-operation protection and duplicate-write warnings.

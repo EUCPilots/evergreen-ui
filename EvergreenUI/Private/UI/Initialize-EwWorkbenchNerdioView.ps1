@@ -34,14 +34,12 @@ function Initialize-EwWorkbenchNerdioView {
         if ($control -is [System.Windows.Controls.TextBox]) {
             $control.Text = [string]$State.Settings[$name]
             $azureChanged = $name -in @('NerdioTenantId', 'NmeSubscriptionId')
-            $connectionChanged = $name -ne 'NerdioDefinitionsPath'
+            $connectionChanged = $name -notin @('NerdioDefinitionsPath', 'NmeSubscriptionId')
             $control.Add_TextChanged({
                 if ($State.AllowNerdioEvents) {
-                    $preserveApiOnly = $azureChanged -and $null -ne $State.NerdioDestination -and
-                    [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
                     & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{
                         State = $State; AzureChanged = $azureChanged
-                        ConnectionChanged = $connectionChanged -and -not $preserveApiOnly
+                        ConnectionChanged = $connectionChanged; StorageChanged = $azureChanged -and -not $connectionChanged
                     }
                 }
             }.GetNewClosure())
@@ -65,10 +63,8 @@ function Initialize-EwWorkbenchNerdioView {
     }
     $State.NmeResourceGroupCombo.Add_SelectionChanged({
         if ($State.AllowNerdioEvents) {
-            $preserveApiOnly = $null -ne $State.NerdioDestination -and
-            [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
             & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{
-                State = $State; ConnectionChanged = -not $preserveApiOnly
+                State = $State; ConnectionChanged = $false; StorageChanged = $true
             }
             $State.AllowNerdioEvents = $false
             $State.NmeStorageAccountCombo.ItemsSource = @()
@@ -81,10 +77,8 @@ function Initialize-EwWorkbenchNerdioView {
     }.GetNewClosure())
     $State.NmeStorageAccountCombo.Add_SelectionChanged({
         if ($State.AllowNerdioEvents) {
-            $preserveApiOnly = $null -ne $State.NerdioDestination -and
-            [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
             & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{
-                State = $State; ConnectionChanged = -not $preserveApiOnly
+                State = $State; ConnectionChanged = $false; StorageChanged = $true
             }
             $State.AllowNerdioEvents = $false
             $State.NmeContainerCombo.ItemsSource = @()
@@ -96,18 +90,15 @@ function Initialize-EwWorkbenchNerdioView {
     }.GetNewClosure())
     $State.NmeContainerCombo.Add_SelectionChanged({
         if ($State.AllowNerdioEvents) {
-            $preserveApiOnly = $null -ne $State.NerdioDestination -and
-            [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
             & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{
-                State = $State; ConnectionChanged = -not $preserveApiOnly
+                State = $State; ConnectionChanged = $false; StorageChanged = $true
+            }
+            if ($State.NmeContainerCombo.SelectedItem -and $null -ne $State.NerdioDestination -and $null -ne $State.NerdioAzureIdentity) {
+                & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchNerdioAction' -Parameters @{ State = $State; Action = 'BindStorage' }
             }
         }
     }.GetNewClosure())
     $State.NerdioComparisonListView.Add_SelectionChanged({
-        & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchNerdioBusyState' -Parameters @{ State = $State }
-    }.GetNewClosure())
-    $State.NerdioApiOnlyToggle.Add_Click({
-        & $State.ModuleInvoker -Name 'Clear-EwWorkbenchNerdioComparison' -Parameters @{ State = $State; ConnectionChanged = $true }
         & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchNerdioBusyState' -Parameters @{ State = $State }
     }.GetNewClosure())
     $State.NerdioPublishResultsListView.Add_SelectionChanged({

@@ -42,8 +42,17 @@ function Connect-EwAzAccount {
     $subscriptionMatches = [string]::IsNullOrWhiteSpace($SubscriptionId) -or $existing.SubscriptionId -ieq $SubscriptionId.Trim()
     if (-not [string]::IsNullOrWhiteSpace($existing.AccountId) -and
         -not [string]::IsNullOrWhiteSpace($existing.TenantId) -and $tenantMatches -and $subscriptionMatches) {
-        Write-Verbose -Message "EvergreenUI: Reusing Azure context for '$($existing.AccountId)' in tenant '$($existing.TenantId)'"
-        return $existing
+        try {
+            $null = Get-AzAccessToken -ErrorAction Stop
+            Write-Verbose -Message "EvergreenUI: Reusing Azure context for '$($existing.AccountId)' in tenant '$($existing.TenantId)'"
+            return $existing
+        }
+        catch {
+            if ($_.Exception.Message -notmatch 'Your Azure credentials have not been set up or have expired') {
+                throw
+            }
+            Write-Verbose -Message 'EvergreenUI: Cached Azure credentials are unavailable or expired; requesting sign-in'
+        }
     }
 
     $parameters = @{ ErrorAction = 'Stop' }
@@ -56,7 +65,7 @@ function Connect-EwAzAccount {
     if ($UseDeviceAuthentication) {
         $parameters.UseDeviceAuthentication = $true
     }
-    Write-Verbose -Message 'EvergreenUI: No matching Azure context; calling Connect-AzAccount'
+    Write-Verbose -Message 'EvergreenUI: Calling Connect-AzAccount'
     Connect-AzAccount @parameters | Out-Null
     $connected = & $describe -Context (Get-AzContext -ErrorAction Stop)
     if ([string]::IsNullOrWhiteSpace($connected.TenantId)) {

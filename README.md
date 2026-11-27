@@ -272,9 +272,7 @@ changes. Supersedence can be retried during the current Workbench session.
 ### Nerdio Shell Apps
 
 Open the Nerdio view and select Settings for the collapsible Azure and API
-setup. Connect Azure with the tenant and subscription
-IDs, then select a resource group, storage account and blob container. Enter
-the Nerdio host, client ID, API scope and client secret, and connect the API.
+setup. Connect Azure with the tenant and subscription IDs, and connect the Nerdio API with the host, client ID, API scope and client secret. You can connect in either order. Select a resource group, storage account and blob container for Shell App comparison and publishing.
 Use Save setup to persist non-secret
 configuration; the client secret is cleared from the form when connecting
 and is never saved.
@@ -344,7 +342,7 @@ matching provider, load the folder containing the Office Deployment Tool (ODT)
 configuration XML, and select one configuration with a valid, non-empty ID.
 Choose the channel, company and session type, then preview and build or preview
 and publish. Use Save settings to persist the shared, non-secret selections.
-Nerdio build-only can use API-only sign-in; publishing additionally requires
+Nerdio build-only requires the Nerdio API connection; publishing additionally requires
 the connected Azure tenant, subscription and storage destination.
 
 The folder must contain `Uninstall-Microsoft365Apps.xml` with a

@@ -6,7 +6,7 @@ function Invoke-EwWorkbenchNerdioAction {
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$State,
         [Parameter(Mandatory)]
-        [ValidateSet('AzureConnect', 'Disconnect', 'Storage', 'Containers', 'ApiConnect', 'Compare', 'Publish', 'Cancel', 'Save', 'Browse', 'Review', 'Acknowledge', 'Prune', 'PruneExisting', 'PruneSelected')]
+        [ValidateSet('AzureConnect', 'Disconnect', 'Storage', 'Containers', 'ApiConnect', 'BindStorage', 'Compare', 'Publish', 'Cancel', 'Save', 'Browse', 'Review', 'Acknowledge', 'Prune', 'PruneExisting', 'PruneSelected')]
         [string]$Action,
 
         [Parameter()]
@@ -80,6 +80,9 @@ function Invoke-EwWorkbenchNerdioAction {
                     throw 'Review all pending or unknown Nerdio outcomes before pruning.'
                 }
                 if ($null -eq $State.NerdioDestination) { throw 'Reconnect to the Nerdio destination before pruning.' }
+                if ([bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')) {
+                    throw 'A full Nerdio connection with Azure storage is required for pruning.'
+                }
                 $offers = @($State.NerdioPruningOffers)
                 if ($offers.Count -eq 0) { throw 'There are no successful Nerdio publishes available to prune.' }
                 $body = {
@@ -112,6 +115,9 @@ function Invoke-EwWorkbenchNerdioAction {
                     throw 'Review all pending or unknown Nerdio outcomes before pruning.'
                 }
                 if ($null -eq $State.NerdioDestination) { throw 'Reconnect to the Nerdio destination before pruning.' }
+                if ([bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')) {
+                    throw 'A full Nerdio connection with Azure storage is required to prune selected apps.'
+                }
                 $rows = @($State.NerdioComparisonListView.SelectedItems)
                 if ($null -eq $State.NerdioPlan -or $rows.Count -ne 1 -or
                     (Get-EwFirstPropertyValue -InputObject $rows[0] -Name 'RowType') -ne 'Definition' -or
@@ -179,10 +185,8 @@ function Invoke-EwWorkbenchNerdioAction {
                 $State.NerdioSelectedPrunePlans = @()
             }
             'AzureConnect' {
-                $preserveApiOnly = $null -ne $State.NerdioDestination -and
-                    [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
                 Clear-EwWorkbenchNerdioComparison -State $State -AzureChanged $true `
-                    -ConnectionChanged (-not $preserveApiOnly)
+                    -ConnectionChanged $false -StorageChanged $true
                 $body = {
                     param($Tenant, $Subscription, $Device)
                     $result = Connect-EwAzure -TenantId $Tenant -SubscriptionId $Subscription -UseDeviceAuthentication:([bool]$Device)
@@ -214,36 +218,44 @@ function Invoke-EwWorkbenchNerdioAction {
                 $arguments = @($State.NerdioAzureIdentity, [string]$State.NmeResourceGroupCombo.SelectedItem, [string]$State.NmeStorageAccountCombo.SelectedItem)
             }
             'ApiConnect' {
-                $apiOnly = [bool]$State.NerdioApiOnlyToggle.IsChecked -or
-                    $null -eq $State.NerdioAzureIdentity -or -not $State.NmeContainerCombo.SelectedItem
+                Clear-EwWorkbenchNerdioComparison -State $State -ConnectionChanged $true
                 $parameters = @{
                     TenantId = [string]$State.NerdioTenantIdBox.Text
                     ClientId = [string]$State.NmeClientIdBox.Text; ClientSecret = $State.NmeClientSecretBox.SecurePassword.Copy()
                     ApiScope = [string]$State.NmeApiScopeBox.Text; NmeHost = [string]$State.NmeHostBox.Text
-                    OAuthTokenUrl = [string]$State.NmeOAuthTokenUrlBox.Text
-                }
-                if ($apiOnly) { $parameters.ApiOnly = $true }
-                else {
-                    $parameters.SubscriptionId = [string]$State.NmeSubscriptionIdBox.Text
-                    $parameters.ResourceGroupName = [string]$State.NmeResourceGroupCombo.SelectedItem
-                    $parameters.StorageAccountName = [string]$State.NmeStorageAccountCombo.SelectedItem
-                    $parameters.ContainerName = [string]$State.NmeContainerCombo.SelectedItem
+                    OAuthTokenUrl = [string]$State.NmeOAuthTokenUrlBox.Text; ApiOnly = $true
                 }
                 $State.NmeClientSecretBox.Clear()
                 $body = {
-                    param($Identity, $Parameters)
+                    param($Parameters)
                     try {
-                        if (-not $Parameters.ContainsKey('ApiOnly')) {
-                            & (Get-Module -Name EvergreenUI) { param($Value) Assert-EwAzureIdentity -Identity $Value } $Identity
-                        }
                         Connect-EwNerdio @Parameters
                     }
                     finally { $Parameters.ClientSecret.Dispose() }
                 }
-                $arguments = @($State.NerdioAzureIdentity, $parameters)
+                $arguments = ,$parameters
+            }
+            'BindStorage' {
+                if ($null -eq $State.NerdioDestination -or $null -eq $State.NerdioAzureIdentity -or
+                    -not $State.NmeResourceGroupCombo.SelectedItem -or -not $State.NmeStorageAccountCombo.SelectedItem -or
+                    -not $State.NmeContainerCombo.SelectedItem) { throw 'Connect Azure and Nerdio and select a storage destination first.' }
+                $body = {
+                    param($Identity, $Destination, $Group, $Storage, $Container)
+                    & (Get-Module -Name EvergreenUI) {
+                        param($Identity, $Destination, $Group, $Storage, $Container)
+                        Sync-EwNerdioStorageContext -Identity $Identity -Destination $Destination `
+                            -ResourceGroupName $Group -StorageAccountName $Storage -ContainerName $Container
+                    } $Identity $Destination $Group $Storage $Container
+                }
+                $arguments = @($State.NerdioAzureIdentity, $State.NerdioDestination,
+                    [string]$State.NmeResourceGroupCombo.SelectedItem, [string]$State.NmeStorageAccountCombo.SelectedItem,
+                    [string]$State.NmeContainerCombo.SelectedItem)
             }
             'Compare' {
-                if ($null -eq $State.NerdioDestination) { throw 'Connect to Nerdio before comparing.' }
+                if ($null -eq $State.NerdioDestination -or
+                    [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')) {
+                    throw 'Connect Azure and Nerdio and select a storage destination before comparing.'
+                }
                 $root = [string]$State.Settings.NerdioDefinitionsPath
                 if (-not $root -or $root -ne $State.NerdioDefinitionsPathBox.Text) { throw 'Save the Shell App definitions path before comparing.' }
                 $State.NerdioPlan = $null
@@ -258,6 +270,10 @@ function Invoke-EwWorkbenchNerdioAction {
                 $arguments = @($root, $State.NerdioDestination)
             }
             'Publish' {
+                if ($null -eq $State.NerdioDestination -or
+                    [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')) {
+                    throw 'A full Nerdio connection with Azure storage is required for publishing.'
+                }
                 if (-not (Sync-EwWorkbenchNerdioRecoveryState -State $State)) {
                     throw 'Nerdio recovery state is unavailable; publishing is blocked.'
                 }

@@ -7,9 +7,10 @@ function Connect-EwAzure {
         Signs in to Azure for Nerdio storage discovery.
     .DESCRIPTION
         Signs in to Azure with Az.Accounts and selects a subscription so that
-        resource groups, storage accounts, and containers can be discovered
-        before Connect-EwNerdio is called. An existing Azure context for the
-        same tenant and subscription is reused.
+        resource groups, storage accounts, and containers can be discovered.
+        An API-only Nerdio connection remains available. An existing Azure
+        context for the same tenant and subscription is reused when its
+        credentials are usable; otherwise Azure sign-in is requested.
     .PARAMETER SubscriptionId
         Azure subscription ID to select.
     .PARAMETER TenantId
@@ -37,8 +38,10 @@ function Connect-EwAzure {
         [switch]$UseDeviceAuthentication
     )
 
-    $script:ewNerdioSession.Context = $null
-    $script:ewNerdioSession.ApiOnly = $false
+    if (-not $script:ewNerdioSession.ApiOnly) {
+        $script:ewNerdioSession.Context = $null
+        $script:ewNerdioSession.ApiOnly = $false
+    }
     try {
         $context = Connect-EwAzAccount -TenantId $TenantId -SubscriptionId $SubscriptionId `
             -UseDeviceAuthentication:$UseDeviceAuthentication

@@ -150,7 +150,6 @@ function Get-EwWorkbenchState {
             'NmeApiScopeBox', 'NmeOAuthTokenUrlBox', 'NmeClientSecretBox', 'ConnectNerdioButton',
             'NerdioDefinitionsPathBox', 'BrowseNerdioDefinitionsButton',
             'SaveNerdioSettingsButton', 'SaveNerdioSetupButton',
-            'NerdioApiOnlyToggle',
             'CompareNerdioButton', 'NerdioConnectionStatusLabel', 'NerdioComparisonListView',
             'CancelNerdioBatchButton', 'PublishSelectedNerdioButton', 'NerdioPublishResultsListView',
             'ReviewNerdioOutcomeButton', 'AcknowledgeNerdioOutcomeButton', 'PruneNerdioVersionsButton', 'PruneSelectedNerdioVersionsButton'

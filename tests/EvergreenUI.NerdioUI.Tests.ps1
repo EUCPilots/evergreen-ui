@@ -22,6 +22,202 @@ Describe 'Nerdio WPF view' {
         }
     }
 
+    It 'prompts for Azure sign-in when a matching cached context has expired credentials' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NerdioTenantIdBox.Text = 'tenant'
+                $state.NmeSubscriptionIdBox.Text = 'sub'
+                $script:azureSignedIn = $false
+                Mock Assert-EwModule {}
+                Mock Get-AzContext {
+                    [PSCustomObject]@{
+                        Account = [PSCustomObject]@{ Id = 'account' }
+                        Tenant = [PSCustomObject]@{ Id = 'tenant' }
+                        Subscription = [PSCustomObject]@{ Id = 'sub'; Name = 'subscription' }
+                    }
+                }
+                Mock Connect-AzAccount { $script:azureSignedIn = $true }
+                Mock Get-AzAccessToken {
+                    if (-not $script:azureSignedIn) {
+                        throw 'Your Azure credentials have not been set up or have expired, please run Connect-AzAccount to set up your Azure credentials. SharedTokenCacheCredential authentication unavailable. No accounts were found in the cache.'
+                    }
+                    [PSCustomObject]@{ Token = 'synthetic-token' }
+                }
+                Mock Get-AzResourceGroup {
+                    if (-not $script:azureSignedIn) {
+                        throw 'Your Azure credentials have not been set up or have expired, please run Connect-AzAccount to set up your Azure credentials. SharedTokenCacheCredential authentication unavailable. No accounts were found in the cache.'
+                    }
+                    [PSCustomObject]@{ ResourceGroupName = 'rg' }
+                }
+                Mock Invoke-EwWorkbenchJob { $script:azureWorker = $ScriptBlock; $script:azureArguments = $ArgumentList }
+                Invoke-EwWorkbenchNerdioAction -State $state -Action AzureConnect
+                $result = & $script:azureWorker @script:azureArguments
+                $result.Items | Should -Contain 'rg'
+                Should -Invoke Connect-AzAccount -Exactly 1
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'connects Azure and Nerdio in <Order> order without repeating authentication' -ForEach @(
+        @{ Order = 'Nerdio-first' }
+        @{ Order = 'Azure-first' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Order = $Order } {
+            $window = Get-EwWorkbenchWindow
+            $originalContext = $script:ewNerdioSession.Context
+            $originalApiOnly = $script:ewNerdioSession.ApiOnly
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavNerdio.IsChecked = $true
+                $state.NerdioTenantIdBox.Text = 'tenant'
+                $state.NmeSubscriptionIdBox.Text = 'sub'
+                $state.NmeHostBox.Text = 'nme.test'
+                $state.NmeClientIdBox.Text = 'client'
+                $state.NmeApiScopeBox.Text = 'scope'
+                $state.Settings.NmeResourceGroup = 'rg'
+                $state.Settings.NmeStorageAccount = 'storage'
+                $state.Settings.NmeContainer = 'container'
+                $window.FindName('NerdioApiOnlyToggle') | Should -BeNullOrEmpty
+                Mock Get-EwNerdioAccessToken { [PSCustomObject]@{ access_token = 'test-token'; expires_in = 3600 } }
+                Mock Connect-EwAzAccount { [PSCustomObject]@{ AccountId = 'account'; TenantId = 'tenant'; SubscriptionId = 'sub'; SubscriptionName = 'subscription' } }
+                Mock Assert-EwAzureIdentity {}
+                Mock Get-EwAzureResourceGroup { 'rg' }
+                Mock Get-EwAzureStorageAccount { 'storage' }
+                Mock Get-EwAzureStorageContainer { 'container' }
+                Mock Invoke-EwWorkbenchJob { $script:authWorker = $ScriptBlock; $script:authArguments = $ArgumentList; $script:authKind = $Kind }
+                $start = if ($Order -eq 'Nerdio-first') { @('ApiConnect', 'AzureConnect') } else { @('AzureConnect', 'ApiConnect') }
+                foreach ($action in $start) {
+                    if ($action -eq 'ApiConnect') { $state.NmeClientSecretBox.Password = 'synthetic-secret' }
+                    $next = $action
+                    while ($next) {
+                        Invoke-EwWorkbenchNerdioAction -State $state -Action $next
+                        $result = & $script:authWorker @script:authArguments
+                        $next = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind $script:authKind `
+                            -Job ([PSCustomObject]@{ State = 'Completed'; TerminatingError = $null; Output = @($result) })
+                    }
+                    Invoke-EwWorkbenchNerdioBusyState -State $state
+                    if ($action -eq $start[0]) { $state.CompareNerdioButton.IsEnabled | Should -BeFalse }
+                }
+                $context = Get-EwNerdioSessionContext
+                $context.AccessToken | Should -Be 'test-token'
+                $context.ApiOnly | Should -BeFalse
+                $context.SubscriptionId | Should -Be 'sub'
+                $context.ResourceGroupName | Should -Be 'rg'
+                $context.StorageAccountName | Should -Be 'storage'
+                $context.ContainerName | Should -Be 'container'
+                $state.NerdioDestination.SessionId | Should -Be $context.SessionId
+                $state.CompareNerdioButton.IsEnabled | Should -BeTrue
+                $oldSession = $context.SessionId
+                $state.NerdioPlan = [PSCustomObject]@{ Items = @() }
+                $state.NmeContainerCombo.ItemsSource = [string[]]@('container', 'other')
+                $state.NmeContainerCombo.SelectedItem = 'other'
+                $state.NerdioPlan | Should -BeNullOrEmpty
+                (Get-EwNerdioSessionContext).ApiOnly | Should -BeTrue
+                $state.CompareNerdioButton.IsEnabled | Should -BeFalse
+                $script:authKind | Should -Be 'NerdioBindStorage'
+                $result = & $script:authWorker @script:authArguments
+                $null = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind $script:authKind `
+                    -Job ([PSCustomObject]@{ State = 'Completed'; TerminatingError = $null; Output = @($result) })
+                Invoke-EwWorkbenchNerdioBusyState -State $state
+                $context = Get-EwNerdioSessionContext
+                $context.ContainerName | Should -Be 'other'
+                $context.SessionId | Should -Not -Be $oldSession
+                $context.AccessToken | Should -Be 'test-token'
+                $state.CompareNerdioButton.IsEnabled | Should -BeTrue
+                $next = 'AzureConnect'
+                while ($next) {
+                    Invoke-EwWorkbenchNerdioAction -State $state -Action $next
+                    $result = & $script:authWorker @script:authArguments
+                    $next = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind $script:authKind `
+                        -Job ([PSCustomObject]@{ State = 'Completed'; TerminatingError = $null; Output = @($result) })
+                }
+                (Get-EwNerdioSessionContext).AccessToken | Should -Be 'test-token'
+                (Get-EwNerdioSessionContext).ApiOnly | Should -BeFalse
+                $state.NmeSubscriptionIdBox.Text = 'new-sub'
+                $context = Get-EwNerdioSessionContext
+                $context.ApiOnly | Should -BeTrue
+                $context.AccessToken | Should -Be 'test-token'
+                $state.NerdioAzureIdentity | Should -BeNullOrEmpty
+                $state.CompareNerdioButton.IsEnabled | Should -BeFalse
+                Should -Invoke Get-EwNerdioAccessToken -Exactly 1
+                Should -Invoke Connect-EwAzAccount -Exactly 2
+                $state.NerdioTenantIdBox.Text = 'different-tenant'
+                $state.NerdioDestination | Should -BeNullOrEmpty
+                { Get-EwNerdioSessionContext } | Should -Throw '*not connected*'
+            }
+            finally {
+                $script:ewNerdioSession.Context = $originalContext
+                $script:ewNerdioSession.ApiOnly = $originalApiOnly
+                $window.Close()
+            }
+        }
+    }
+
+    It 'requires both connections and storage for Shell App comparison' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavNerdio.IsChecked = $true
+                $state.NerdioDestination = [PSCustomObject]@{ ApiOnly = $true; NmeHost = 'nme.test' }
+                $state.NerdioPruningOffers = @([PSCustomObject]@{ Id = 'offer' })
+                Mock Invoke-EwWorkbenchJob {}
+                Mock Write-EwWorkbenchLog {}
+                Invoke-EwWorkbenchNerdioBusyState -State $state
+                $state.CompareNerdioButton.IsEnabled | Should -BeFalse
+                $state.PruneNerdioVersionsButton.IsEnabled | Should -BeFalse
+                Invoke-EwWorkbenchNerdioAction -State $state -Action Compare
+                Mock Sync-EwWorkbenchNerdioRecoveryState { $true }
+                Invoke-EwWorkbenchNerdioAction -State $state -Action Prune
+                Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
+                Should -Invoke Write-EwWorkbenchLog -Exactly 1 -ParameterFilter { $Level -eq 'Error' -and $Message -match 'select a storage destination' }
+                Should -Invoke Write-EwWorkbenchLog -Exactly 1 -ParameterFilter { $Level -eq 'Error' -and $Message -match 'Azure storage is required for pruning' }
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'keeps the Nerdio API connected through the Azure connection workflow' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            $originalContext = $script:ewNerdioSession.Context
+            $originalApiOnly = $script:ewNerdioSession.ApiOnly
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavNerdio.IsChecked = $true
+                $state.NerdioTenantIdBox.Text = 'tenant'
+                $state.NmeSubscriptionIdBox.Text = 'sub'
+                $state.NerdioDestination = [PSCustomObject]@{ Succeeded = $true; ApiOnly = $true; SessionId = 'session'; NmeHost = 'nme.test' }
+                $script:ewNerdioSession.Context = [PSCustomObject]@{
+                    SessionId = 'session'; ApiOnly = $true; AccessToken = 'test-token'
+                    NmeHost = 'nme.test'; TokenExpiresAt = [DateTimeOffset]::UtcNow.AddHours(1)
+                }
+                $script:ewNerdioSession.ApiOnly = $true
+                Mock Connect-EwAzAccount { [PSCustomObject]@{ AccountId = 'account'; TenantId = 'tenant'; SubscriptionId = 'sub'; SubscriptionName = 'subscription' } }
+                Mock Assert-EwAzureIdentity {}
+                Mock Get-EwAzureResourceGroup { 'rg' }
+                Mock Invoke-EwWorkbenchJob { $script:azureWorker = $ScriptBlock; $script:azureArguments = $ArgumentList }
+                Invoke-EwWorkbenchNerdioAction -State $state -Action AzureConnect
+                $result = & $script:azureWorker @script:azureArguments
+                $null = Invoke-EwWorkbenchNerdioJobResult -State $state -Kind NerdioAzureConnect `
+                    -Job ([PSCustomObject]@{ State = 'Completed'; TerminatingError = $null; Output = @($result) })
+                Invoke-EwWorkbenchNerdioBusyState -State $state
+                (Get-EwNerdioSessionContext).SessionId | Should -Be 'session'
+                $state.NerdioDestination.SessionId | Should -Be 'session'
+                $state.CompareNerdioButton.IsEnabled | Should -BeFalse
+                $state.NerdioConnectionStatusLabel.Text | Should -Match 'Nerdio API connected: nme.test'
+            }
+            finally {
+                $script:ewNerdioSession.Context = $originalContext
+                $script:ewNerdioSession.ApiOnly = $originalApiOnly
+                $window.Close()
+            }
+        }
+    }
+
     It 'preserves publishing details and defaults to No in the shared confirmation' {
         InModuleScope EvergreenUI {
             $selection = @([PSCustomObject]@{
@@ -323,8 +519,9 @@ Describe 'Nerdio WPF view' {
                 $tabs.Items[2].Content | Should -Be $setup.Parent
                 @($setup.Content.Children | Where-Object { $_ -is [System.Windows.Controls.Expander] } | ForEach-Object { $_.Header }) |
                 Should -Be @('Nerdio Manager API setup', 'Azure storage setup')
-                $setup.Content.Children[0].Content.Children.Contains($state.NmeHostBox) | Should -BeTrue
-                $setup.Content.Children[1].Content.Children.Contains($state.NerdioTenantIdBox) | Should -BeTrue
+                $apiSetup = @($setup.Content.Children | Where-Object { $_ -is [System.Windows.Controls.Expander] })[0]
+                $apiSetup.Content.Children.Contains($state.NmeHostBox) | Should -BeTrue
+                $setup.Content.Children.Contains($state.NerdioTenantIdBox) | Should -BeTrue
                 $setup.Content.Children.Contains($state.SaveNerdioSetupButton) | Should -BeTrue
                 $shellApps = $state.NerdioComparisonListView.Parent
                 $tabs.Items[0].Content | Should -Be $shellApps

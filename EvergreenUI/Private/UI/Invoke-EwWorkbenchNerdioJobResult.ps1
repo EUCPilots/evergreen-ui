@@ -49,9 +49,9 @@ function Invoke-EwWorkbenchNerdioJobResult {
                         $null -ne $State.NerdioDestination -and
                         [bool](Get-EwFirstPropertyValue -InputObject $State.NerdioDestination -Name 'ApiOnly')
                     ) {
-                        "Connected API only: $($State.NerdioDestination.NmeHost). Azure: $($result.Identity.AccountId) / $($result.Identity.SubscriptionName). Azure storage is required for publishing."
+                        "Nerdio API connected: $($State.NerdioDestination.NmeHost). Azure: $($result.Identity.AccountId) / $($result.Identity.SubscriptionName). Select storage for Shell Apps."
                     } else {
-                        "Azure: $($result.Identity.AccountId) / $($result.Identity.SubscriptionName). Select storage and connect Nerdio."
+                        "Azure: $($result.Identity.AccountId) / $($result.Identity.SubscriptionName). Select storage and connect the Nerdio API."
                     }
                     $State.NmeResourceGroupCombo.ItemsSource = [string[]]$result.Items
                     if ([string]$State.Settings.NmeResourceGroup -in @($result.Items)) {
@@ -70,16 +70,25 @@ function Invoke-EwWorkbenchNerdioJobResult {
                     $State.NmeContainerCombo.ItemsSource = [string[]]$result.Items
                     if ([string]$State.Settings.NmeContainer -in @($result.Items)) {
                         $State.NmeContainerCombo.SelectedItem = [string]$State.Settings.NmeContainer
+                        if ($null -ne $State.NerdioDestination -and $null -ne $State.NerdioAzureIdentity) { $next = 'BindStorage' }
                     }
                 }
                 'NerdioApiConnect' {
+                    $State.NerdioPlan = $null
+                    $State.NerdioComparisonListView.ItemsSource = @()
                     if ($null -ne $result -and $result.Succeeded) {
                         $State.NerdioDestination = $result
                         $State.NerdioConnectionStatusLabel.Text = if ([bool](Get-EwFirstPropertyValue -InputObject $result -Name 'ApiOnly')) {
-                            "Connected API only: $($result.NmeHost). Azure storage is required for publishing."
+                            if ($null -ne $State.NerdioAzureIdentity) {
+                                "Nerdio API connected: $($result.NmeHost). Select Azure storage for Shell Apps."
+                            } else {
+                                "Nerdio API connected: $($result.NmeHost). Connect Azure and select storage for Shell Apps."
+                            }
                         } else {
                             "Connected: $($result.NmeHost) / $($result.StorageAccountName) / $($result.ContainerName)"
                         }
+                        if ($null -ne $State.NerdioAzureIdentity -and $State.NmeResourceGroupCombo.SelectedItem -and
+                            $State.NmeStorageAccountCombo.SelectedItem -and $State.NmeContainerCombo.SelectedItem) { $next = 'BindStorage' }
                     }
                     else {
                         $State.NerdioDestination = $null
@@ -87,6 +96,11 @@ function Invoke-EwWorkbenchNerdioJobResult {
                         $message = if ($null -eq $result) { 'No connection result.' } else { [string]$result.Error }
                         Write-EwWorkbenchLog -State $State -Message ($message -replace 'https?://\S+', '[URL omitted]') -Level Error
                     }
+                }
+                'NerdioBindStorage' {
+                    $State.NerdioDestination = $result
+                    $State.NerdioConnectionStatusLabel.Text = "Connected: $($result.NmeHost) / $($result.StorageAccountName) / $($result.ContainerName)"
+                    Write-EwWorkbenchLog -State $State -Message 'Nerdio API and Azure storage are ready for Shell Apps.'
                 }
                 'NerdioCompare' {
                     $State.NerdioPlan = $result
@@ -148,6 +162,9 @@ function Invoke-EwWorkbenchNerdioJobResult {
             }
         }
         finally { $State.AllowNerdioEvents = $true }
+    }
+    if ($Kind -eq 'NerdioBindStorage' -and ($Job.State -ne 'Completed' -or $null -ne $Job.TerminatingError)) {
+        $State.NerdioConnectionStatusLabel.Text = 'Could not connect the selected Azure storage. Check the activity log.'
     }
     if ($Kind -eq 'NerdioPruneSelected' -and $State.NerdioPruneSelectionId -and $null -ne $State.NerdioDestination) {
         $State.NerdioPlan = $null

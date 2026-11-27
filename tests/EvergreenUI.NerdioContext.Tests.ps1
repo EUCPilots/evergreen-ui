@@ -18,6 +18,183 @@ BeforeAll {
 AfterAll { Remove-Module -Name EvergreenUI -Force }
 
 Describe 'Nerdio sessions across Job workers' {
+    It 'reauthenticates an expired cached Azure context inside a job before discovery' {
+        $job = Start-EwJob -ScriptBlock {
+            & (Get-Module -Name EvergreenUI) {
+                $script:fixtureAzureSignedIn = $false
+                try {
+                    function Assert-EwModule {}
+                    function Get-AzContext {
+                        [PSCustomObject]@{
+                            Account = [PSCustomObject]@{ Id = 'account' }
+                            Tenant = [PSCustomObject]@{ Id = 'tenant' }
+                            Subscription = [PSCustomObject]@{ Id = 'sub'; Name = 'subscription' }
+                        }
+                    }
+                    function Get-AzAccessToken {
+                        throw 'Your Azure credentials have not been set up or have expired'
+                    }
+                    function Connect-AzAccount { $script:fixtureAzureSignedIn = $true }
+                    function Get-AzResourceGroup {
+                        if (-not $script:fixtureAzureSignedIn) {
+                            throw 'Your Azure credentials have not been set up or have expired'
+                        }
+                        [PSCustomObject]@{ ResourceGroupName = 'rg' }
+                    }
+                    $connection = Connect-EwAzure -TenantId tenant -SubscriptionId sub
+                    if (-not $connection.Succeeded) { throw $connection.Error }
+                    Get-EwAzureResourceGroup
+                }
+                finally { Remove-Variable -Name fixtureAzureSignedIn -Scope Script -ErrorAction SilentlyContinue }
+            }
+        }
+        & $waitForJob -Job $job | Should -Be 'rg'
+    }
+
+    It 'rejects storage binding when <Reason>' -ForEach @(
+        @{ Reason = 'the tenant differs'; Case = 'Tenant'; Error = '*tenants do not match*' }
+        @{ Reason = 'the API session changed'; Case = 'Session'; Error = '*connection or Azure storage selection changed*' }
+        @{ Reason = 'Azure context changed'; Case = 'Azure'; Error = '*Azure tenant or subscription changed*' }
+        @{ Reason = 'the API session changes during validation'; Case = 'Race'; Error = '*Nerdio connection changed*' }
+        @{ Reason = 'the API token expired'; Case = 'Expired'; Error = '*expired*' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Case = $Case; Error = $Error } {
+            $originalContext = $script:ewNerdioSession.Context
+            $originalApiOnly = $script:ewNerdioSession.ApiOnly
+            try {
+                $script:ewNerdioSession.Context = [PSCustomObject]@{
+                    SessionId = 'session'; ApiOnly = $true; AccessToken = 'test-token'; TenantId = 'tenant'
+                    NmeHost = 'nme.test'; TokenExpiresAt = [DateTimeOffset]::UtcNow.AddHours(1)
+                }
+                $script:ewNerdioSession.ApiOnly = $true
+                $destination = [PSCustomObject]@{ SessionId = 'session'; NmeHost = 'nme.test' }
+                $identity = [PSCustomObject]@{ AccountId = 'account'; TenantId = 'tenant'; SubscriptionId = 'sub'; SubscriptionName = 'subscription' }
+                Mock Assert-EwAzureIdentity {}
+                switch ($Case) {
+                    'Tenant' { $identity.TenantId = 'different' }
+                    'Session' { $destination.SessionId = 'old-session' }
+                    'Azure' { Mock Assert-EwAzureIdentity { throw 'The selected Azure tenant or subscription changed. Connect Azure again.' } }
+                    'Race' { Mock Assert-EwAzureIdentity { $script:ewNerdioSession.Context = $null } }
+                    'Expired' { $script:ewNerdioSession.Context.TokenExpiresAt = [DateTimeOffset]::UtcNow.AddMinutes(-1) }
+                }
+                { Sync-EwNerdioStorageContext -Identity $identity -Destination $destination `
+                        -ResourceGroupName 'rg' -StorageAccountName 'storage' -ContainerName 'container' } | Should -Throw $Error
+                if ($Case -notin @('Expired', 'Race')) {
+                    $script:ewNerdioSession.Context.ApiOnly | Should -BeTrue
+                    $script:ewNerdioSession.Context.AccessToken | Should -Be 'test-token'
+                }
+            }
+            finally {
+                $script:ewNerdioSession.Context = $originalContext
+                $script:ewNerdioSession.ApiOnly = $originalApiOnly
+            }
+        }
+    }
+
+    It 'binds Azure storage in a separate worker without exposing the API token' {
+        InModuleScope EvergreenUI {
+            $script:ewNerdioSession.Context = [PSCustomObject]@{
+                SessionId = 'session'; ApiOnly = $true; AccessToken = 'test-token'; TenantId = 'tenant'
+                NmeHost = 'nme.test'; TokenExpiresAt = [DateTimeOffset]::UtcNow.AddHours(1)
+            }
+            $script:ewNerdioSession.ApiOnly = $true
+        }
+        try {
+            $job = Start-EwJob -ScriptBlock {
+                & (Get-Module -Name EvergreenUI) {
+                    function Assert-EwAzureIdentity {}
+                    $identity = [PSCustomObject]@{ AccountId = 'account'; TenantId = 'tenant'; SubscriptionId = 'sub'; SubscriptionName = 'subscription' }
+                    $destination = [PSCustomObject]@{ SessionId = 'session'; NmeHost = 'nme.test' }
+                    Sync-EwNerdioStorageContext -Identity $identity -Destination $destination `
+                        -ResourceGroupName 'rg' -StorageAccountName 'storage' -ContainerName 'container'
+                }
+            }
+            $result = & $waitForJob -Job $job
+            $result.ApiOnly | Should -BeFalse
+            $result.PSObject.Properties.Name | Should -Not -Contain 'AccessToken'
+            InModuleScope EvergreenUI {
+                $context = Get-EwNerdioSessionContext
+                $context.AccessToken | Should -Be 'test-token'
+                $context.ContainerName | Should -Be 'container'
+                $script:ewNerdioSession.ApiOnly | Should -BeFalse
+            }
+        }
+        finally {
+            InModuleScope EvergreenUI { $script:ewNerdioSession.Context = $null; $script:ewNerdioSession.ApiOnly = $false }
+        }
+    }
+
+    It 'preserves API-only Nerdio authentication when Azure sign-in <Outcome>' -ForEach @(
+        @{ Outcome = 'succeeds'; Succeeds = $true }
+        @{ Outcome = 'fails'; Succeeds = $false }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Succeeds = $Succeeds } {
+            Mock Get-EwNerdioAccessToken { [PSCustomObject]@{ access_token = 'test-token'; expires_in = 3600 } }
+            if ($Succeeds) {
+                Mock Connect-EwAzAccount { [PSCustomObject]@{ AccountId = 'account'; TenantId = 'tenant'; SubscriptionId = 'sub'; SubscriptionName = 'subscription' } }
+            }
+            else {
+                Mock Connect-EwAzAccount { throw 'Azure sign-in failed' }
+            }
+            $secret = [System.Security.SecureString]::new()
+            try {
+                $nerdio = Connect-EwNerdio -TenantId tenant -ClientId client -ClientSecret $secret `
+                    -ApiScope scope -NmeHost 'nme.example.test' -ApiOnly
+                $nerdio.Succeeded | Should -BeTrue
+                $azure = Connect-EwAzure -TenantId tenant -SubscriptionId sub
+                $azure.Succeeded | Should -Be $Succeeds
+                $context = Get-EwNerdioSessionContext
+                $context.SessionId | Should -Be $nerdio.SessionId
+                $context.AccessToken | Should -Be 'test-token'
+                $script:ewNerdioSession.ApiOnly | Should -BeTrue
+            }
+            finally {
+                $secret.Dispose()
+                $null = Disconnect-EwNerdio
+            }
+        }
+    }
+
+    It 'invalidates an Azure-bound Nerdio session when Azure reconnects' {
+        InModuleScope EvergreenUI {
+            $script:ewNerdioSession.Context = [PSCustomObject]@{ SessionId = 'old-session'; ApiOnly = $false }
+            $script:ewNerdioSession.ApiOnly = $false
+            Mock Connect-EwAzAccount { [PSCustomObject]@{ AccountId = 'account'; TenantId = 'tenant'; SubscriptionId = 'new-sub'; SubscriptionName = 'subscription' } }
+            $result = Connect-EwAzure -TenantId tenant -SubscriptionId new-sub
+            $result.Succeeded | Should -BeTrue
+            $script:ewNerdioSession.Context | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'preserves API-only authentication across an Azure sign-in job' {
+        InModuleScope EvergreenUI {
+            $script:ewNerdioSession.Context = [PSCustomObject]@{
+                SessionId = 'session'; ApiOnly = $true; AccessToken = 'test-token'
+                TokenExpiresAt = [DateTimeOffset]::UtcNow.AddHours(1)
+            }
+            $script:ewNerdioSession.ApiOnly = $true
+        }
+        try {
+            $job = Start-EwJob -ScriptBlock {
+                & (Get-Module -Name EvergreenUI) {
+                    function Connect-EwAzAccount {
+                        [PSCustomObject]@{ AccountId = 'account'; TenantId = 'tenant'; SubscriptionId = 'sub'; SubscriptionName = 'subscription' }
+                    }
+                    Connect-EwAzure -TenantId tenant -SubscriptionId sub
+                }
+            }
+            $result = & $waitForJob -Job $job
+            $result.Succeeded | Should -BeTrue
+            InModuleScope EvergreenUI {
+                (Get-EwNerdioSessionContext).SessionId | Should -Be 'session'
+                $script:ewNerdioSession.ApiOnly | Should -BeTrue
+            }
+        }
+        finally {
+            InModuleScope EvergreenUI { $null = Disconnect-EwNerdio }
+        }
+    }
+
     It 'connects and disconnects an API-only session without changing Azure context' {
         InModuleScope EvergreenUI {
             Mock Get-EwNerdioAccessToken { [PSCustomObject]@{ access_token = 'test-token'; expires_in = 3600 } }

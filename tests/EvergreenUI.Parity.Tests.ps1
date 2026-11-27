@@ -293,6 +293,7 @@ Describe 'Azure discovery' {
         InModuleScope EvergreenUI {
             Mock Assert-EwModule {}
             Mock Connect-AzAccount {}
+            Mock Get-AzAccessToken { [PSCustomObject]@{ Token = 'synthetic-token' } }
             Mock Get-AzContext {
                 [PSCustomObject]@{
                     Account = [PSCustomObject]@{ Id = 'user@example.test' }
@@ -304,6 +305,47 @@ Describe 'Azure discovery' {
             $result.Succeeded | Should -BeTrue
             $result.SubscriptionName | Should -Be 'Test'
             Should -Invoke Connect-AzAccount -Exactly 0
+            Should -Invoke Get-AzAccessToken -Exactly 1
+        }
+    }
+
+    It 'reports other Azure token errors without forcing another sign-in' {
+        InModuleScope EvergreenUI {
+            Mock Assert-EwModule {}
+            Mock Connect-AzAccount {}
+            Mock Get-AzContext {
+                [PSCustomObject]@{
+                    Account = [PSCustomObject]@{ Id = 'user@example.test' }
+                    Tenant = [PSCustomObject]@{ Id = 'tenant-id' }
+                    Subscription = [PSCustomObject]@{ Id = 'sub-id'; Name = 'Test' }
+                }
+            }
+            Mock Get-AzAccessToken { throw 'Azure token service unavailable' }
+            $result = Connect-EwAzure -TenantId 'tenant-id' -SubscriptionId 'sub-id'
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match 'Azure token service unavailable'
+            Should -Invoke Connect-AzAccount -Exactly 0
+        }
+    }
+
+    It 'preserves device authentication and reports a cancelled Azure sign-in' {
+        InModuleScope EvergreenUI {
+            Mock Assert-EwModule {}
+            Mock Get-AzContext {
+                [PSCustomObject]@{
+                    Account = [PSCustomObject]@{ Id = 'user@example.test' }
+                    Tenant = [PSCustomObject]@{ Id = 'tenant-id' }
+                    Subscription = [PSCustomObject]@{ Id = 'sub-id'; Name = 'Test' }
+                }
+            }
+            Mock Get-AzAccessToken { throw 'Your Azure credentials have not been set up or have expired' }
+            Mock Connect-AzAccount { throw 'Sign-in cancelled' }
+            $result = Connect-EwAzure -TenantId 'tenant-id' -SubscriptionId 'sub-id' -UseDeviceAuthentication
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match 'Sign-in cancelled'
+            Should -Invoke Connect-AzAccount -Exactly 1 -ParameterFilter {
+                $UseDeviceAuthentication -and $Tenant -eq 'tenant-id' -and $Subscription -eq 'sub-id'
+            }
         }
     }
 

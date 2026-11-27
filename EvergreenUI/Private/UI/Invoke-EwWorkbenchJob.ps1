@@ -35,6 +35,7 @@ function Invoke-EwWorkbenchJob {
             'NerdioStorage',
             'NerdioContainers',
             'NerdioApiConnect',
+            'NerdioBindStorage',
             'NerdioCompare',
             'NerdioPublish',
             'NerdioReview',
