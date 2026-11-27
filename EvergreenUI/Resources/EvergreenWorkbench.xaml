@@ -590,7 +590,7 @@
                                 <Button x:Name="DownloadTrayActionButton"
                                         Content="Download"
                                         Style="{DynamicResource AccentButtonStyle}"
-                                        Padding="14,6"
+                                        Padding="10,6"
                                         Margin="8,0,0,0"
                                         VerticalAlignment="Center"
                                         IsEnabled="False" />
@@ -601,14 +601,14 @@
                                 <Button x:Name="QueueDownloadButton"
                                         Content="Add to queue"
                                         Style="{DynamicResource AccentButtonStyle}"
-                                        Padding="14,6"
+                                        Padding="10,6"
                                         FontWeight="SemiBold"
                                         VerticalAlignment="Center"
                                         IsEnabled="False" />
                                 <Button x:Name="DownloadNowButton"
                                         Content="Download now"
                                         Margin="8,0,0,0"
-                                        Padding="14,6"
+                                        Padding="10,6"
                                         VerticalAlignment="Center"
                                         IsEnabled="False" />
                             </StackPanel>
@@ -1317,11 +1317,11 @@
                                                 <TextBlock Text="Select an unresolved result. Acknowledging does not verify or cancel the Nerdio operation; a retry may conflict with it." TextWrapping="Wrap" Margin="0,0,0,8" />
                                                 <DataGrid x:Name="NerdioM365RecoveryList" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MaxHeight="180" AutomationProperties.Name="Nerdio recovery outcomes">
                                                     <DataGrid.Columns>
-                                                        <DataGridTextColumn Header="App" Binding="{Binding Name}" Width="2*" />
-                                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="*" />
-                                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" />
-                                                        <DataGridTextColumn Header="Destination" Binding="{Binding Destination}" Width="2*" />
-                                                        <DataGridTextColumn Header="Job ID" Binding="{Binding JobId}" Width="*" />
+                                                        <DataGridTextColumn Header="App" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                                        <DataGridTextColumn Header="Destination" Binding="{Binding Destination}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                                        <DataGridTextColumn Header="Job ID" Binding="{Binding JobId}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                                                     </DataGrid.Columns>
                                                 </DataGrid>
                                                 <Button x:Name="NerdioM365AcknowledgeButton" Content="Acknowledge unknown" HorizontalAlignment="Left" Padding="12,4" Margin="0,8,0,0" IsEnabled="False" />
