@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.4-preview]
+## [2.0.5-preview]
 
 - Connect Azure and the Nerdio API independently in either order; select storage to enable Shell App comparison and publishing.
 - Prompt for Azure sign-in when a matching cached context has expired or unavailable credentials.
