@@ -81,18 +81,18 @@
         </ScrollViewer>
         <Border Grid.Row="2"
                 Style="{StaticResource NerdioPruneFooterStyle}"
-                Padding="24,14">
+                Padding="24,16">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="CancelNerdioPruneButton"
                         Content="Cancel"
                         IsCancel="True"
-                        MinWidth="100"
-                        Padding="14,6"
+                        MinWidth="104"
+                        Padding="12,4"
                         Margin="0,0,8,0" />
                 <Button x:Name="ReviewNerdioPruneButton"
                         Content="Review selected deletions"
                         Style="{DynamicResource AccentButtonStyle}"
-                        Padding="14,6" />
+                        Padding="12,4" />
             </StackPanel>
         </Border>
     </Grid>

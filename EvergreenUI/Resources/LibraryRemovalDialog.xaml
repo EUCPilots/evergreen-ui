@@ -70,7 +70,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Style="{StaticResource RemovalCardStyle}"
-                                    Margin="0,0,0,6"
+                                    Margin="0,0,0,8"
                                     Padding="12,8">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Summary}"
@@ -88,19 +88,19 @@
         </ScrollViewer>
         <Border Grid.Row="1"
                 Style="{StaticResource RemovalFooterStyle}"
-                Padding="24,14">
+                Padding="24,16">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="CancelLibraryRemovalButton"
                         Content="Cancel"
                         Style="{DynamicResource AccentButtonStyle}"
                         IsDefault="True"
                         IsCancel="True"
-                        MinWidth="100"
-                        Padding="14,6"
+                        MinWidth="104"
+                        Padding="12,4"
                         Margin="0,0,8,0" />
                 <Button x:Name="ConfirmLibraryRemovalButton"
                         MinWidth="120"
-                        Padding="14,6" />
+                        Padding="12,4" />
             </StackPanel>
         </Border>
     </Grid>
