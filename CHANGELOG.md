@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.0.8-preview]
 
 - Show one Intune comparison entry per definition with a closable inspector drawer, resolved import versions, architecture details and named supersedence relationships.
 - Separate deployment imports from updates for existing installations, with explicit assignment effects in one publishing confirmation.
@@ -10,9 +10,8 @@
 - Fix the Intune inspector exception when selecting a definition with exactly one matching app.
 - Reduce delays before Intune packaging by refreshing only selected definitions during publishing review and validation, while retaining duplicate GUID and current Intune match checks.
 - Add Intune connection and comparison guidance, improve filter and action layout, and align Intune-only app columns with their headers.
-
-## [2.0.6-preview]
-
+- Show a configuration summary card on the Intune and Nerdio Microsoft 365 Apps tabs that translates the selected ODT XML into the primary product, included and excluded apps, additional products, deployment settings and install behaviour, reflecting the channel, session type and company chosen in the form.
+- Add a Summary property to `Get-EwM365Configuration` output with a readable translation of each configuration.
 - Apply exact OS architecture requirements consistently to local installation and Intune publishing, and require declared Artifact variants to match.
 - Correct local file and registry detection architecture views and require approval for unknown Artifact architecture on ARM64.
 - Load the configured Definitions folder on first entry to Packages and provide a Reload definitions button.
