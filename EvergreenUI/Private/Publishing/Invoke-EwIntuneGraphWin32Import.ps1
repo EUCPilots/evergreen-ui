@@ -103,6 +103,8 @@ function Invoke-EwIntuneGraphWin32Import {
     $appId = ''
     $displayName = ''
     $createStarted = $false
+    $assignmentStatus = 'Not started'
+    $assignmentsApplied = 0
     $fail = {
         param([string]$Msg)
         return [PSCustomObject]@{
@@ -112,6 +114,7 @@ function Invoke-EwIntuneGraphWin32Import {
             Error       = $Msg
             Cancelled   = $CancellationToken.IsCancellationRequested
             WriteStarted = $createStarted
+            AssignmentStatus = if ($assignmentStatus -eq 'Applying') { "Incomplete ($assignmentsApplied applied)" } else { $assignmentStatus }
         }
     }
 
@@ -128,6 +131,11 @@ function Invoke-EwIntuneGraphWin32Import {
     }
     $allowedArchitectures = $architectureRequirement.Values -join ','
     Write-Verbose -Message "EvergreenUI: Intune OS architecture requirement '$architectureValue' maps to '$allowedArchitectures'."
+    $updateRequirement = $null
+    if ($ImportAsUpdate) {
+        $updateRequirement = Get-EwIntuneUpdateRequirement -Definition $DefinitionObject
+        if (-not $updateRequirement.Succeeded) { return (& $fail $updateRequirement.Error) }
+    }
 
     # -- Validate prerequisites ------------------------------------------------
     if (-not (Get-Command -Name 'Invoke-MgGraphRequest' -ErrorAction SilentlyContinue)) {
@@ -269,108 +277,8 @@ function Invoke-EwIntuneGraphWin32Import {
         return $PathValue
     }
 
-    # -- Auto-generate an update CustomRequirementRule from DetectionRule when needed --
-    $negateOperator = {
-        param([string]$Operator)
-        switch ($Operator) {
-            'greaterThanOrEqual' { 'lessThan' }
-            'greaterThan'        { 'lessThanOrEqual' }
-            'lessThanOrEqual'    { 'greaterThan' }
-            'lessThan'           { 'greaterThanOrEqual' }
-            'equal'              { 'notEqual' }
-            'notEqual'           { 'equal' }
-            default              { $null }
-        }
-    }
-
-    $buildAutoCustomRequirementRule = {
-        param([object[]]$SourceDetectionRules)
-
-        $generated = [System.Collections.Generic.List[object]]::new()
-
-        foreach ($rule in @($SourceDetectionRules)) {
-            $ruleType = [string]$rule.Type
-            switch ($ruleType) {
-                'File' {
-                    if ($rule.PSObject.Properties.Name -notcontains 'Operator' -or [string]::IsNullOrWhiteSpace([string]$rule.Operator)) {
-                        Write-UILog -Message "Intune update: File DetectionRule for '$([string]$rule.FileOrFolder)' has no comparable Operator - cannot auto-generate an update requirement rule." -Level Warning -SyncHash $SyncHash
-                        continue
-                    }
-
-                    $negated = & $negateOperator ([string]$rule.Operator)
-                    if ($null -eq $negated) {
-                        Write-UILog -Message "Intune update: unsupported Operator '$($rule.Operator)' on File DetectionRule for '$([string]$rule.FileOrFolder)' - skipped." -Level Warning -SyncHash $SyncHash
-                        continue
-                    }
-
-                    $generated.Add([PSCustomObject]@{
-                            Type                 = 'File'
-                            DetectionMethod      = [string]$rule.DetectionMethod
-                            Path                 = [string]$rule.Path
-                            FileOrFolder         = [string]$rule.FileOrFolder
-                            Operator             = $negated
-                            VersionValue         = [string]$rule.VersionValue
-                            Check32BitOn64System = [string]$rule.Check32BitOn64System
-                        })
-                }
-                'Registry' {
-                    if ($rule.PSObject.Properties.Name -notcontains 'Operator' -or [string]::IsNullOrWhiteSpace([string]$rule.Operator)) {
-                        Write-UILog -Message "Intune update: Registry DetectionRule for '$([string]$rule.ValueName)' has no comparable Operator - cannot auto-generate an update requirement rule." -Level Warning -SyncHash $SyncHash
-                        continue
-                    }
-
-                    $negated = & $negateOperator ([string]$rule.Operator)
-                    if ($null -eq $negated) {
-                        Write-UILog -Message "Intune update: unsupported Operator '$($rule.Operator)' on Registry DetectionRule for '$([string]$rule.ValueName)' - skipped." -Level Warning -SyncHash $SyncHash
-                        continue
-                    }
-
-                    # DetectionRule Registry entries may store the comparison value as DetectionValue or Value.
-                    $sourceValue = if ($rule.PSObject.Properties.Name -contains 'DetectionValue') { [string]$rule.DetectionValue } else { [string]$rule.Value }
-                    $requirementMethod = switch -Regex ([string]$rule.DetectionMethod) {
-                        'Version' { 'VersionComparison'; break }
-                        'String'  { 'StringComparison'; break }
-                        'Integer' { 'IntegerComparison'; break }
-                        default   { 'VersionComparison' }
-                    }
-                    $registryKeyPath = [string](Get-EwObjectPropertyValue -Object $rule -Name 'KeyPath' -Default '')
-                    if ([string]::IsNullOrWhiteSpace($registryKeyPath)) {
-                        $registryKeyPath = [string](Get-EwObjectPropertyValue -Object $rule -Name 'Path' -Default '')
-                    }
-
-                    $generated.Add([PSCustomObject]@{
-                            Type                 = 'Registry'
-                            DetectionMethod      = $requirementMethod
-                            KeyPath              = $registryKeyPath
-                            ValueName            = [string]$rule.ValueName
-                            Operator             = $negated
-                            Value                = $sourceValue
-                            Check32BitOn64System = [string]$rule.Check32BitOn64System
-                        })
-                }
-                'MSI' {
-                    Write-UILog -Message 'Intune update: MSI DetectionRule cannot be auto-converted to an update requirement rule - skipped.' -Level Warning -SyncHash $SyncHash
-                }
-                default {
-                    Write-UILog -Message "Intune update: DetectionRule type '$ruleType' cannot be auto-converted to an update requirement rule - skipped." -Level Warning -SyncHash $SyncHash
-                }
-            }
-        }
-
-        return $generated.ToArray()
-    }
-
-    $hasExplicitCustomRequirementRule = ($null -ne $DefinitionObject.CustomRequirementRule) -and (@($DefinitionObject.CustomRequirementRule).Count -gt 0)
-    $effectiveCustomRequirementRule = if ($hasExplicitCustomRequirementRule) {
-        $DefinitionObject.CustomRequirementRule
-    }
-    elseif ($ImportAsUpdate) {
-        Write-UILog -Message 'Intune update: no CustomRequirementRule defined in App.json - auto-generating from DetectionRule.' -Level Info -SyncHash $SyncHash
-        & $buildAutoCustomRequirementRule -SourceDetectionRules $DefinitionObject.DetectionRule
-    }
-    else {
-        $null
-    }
+    $effectiveCustomRequirementRule = if ($ImportAsUpdate) { $updateRequirement.Rules }
+        else { Get-EwObjectPropertyValue -Object $DefinitionObject -Name 'CustomRequirementRule' }
 
     if ($null -ne $effectiveCustomRequirementRule) {
         foreach ($rule in $effectiveCustomRequirementRule) {
@@ -975,6 +883,7 @@ function Invoke-EwIntuneGraphWin32Import {
     }
 
     if ($null -ne $effectiveAssignments) {
+        $assignmentStatus = 'Applying'
         foreach ($assignment in $effectiveAssignments) {
             $assignmentType = [string]$assignment.Type
             $intent = [string]$assignment.Intent
@@ -1073,6 +982,7 @@ function Invoke-EwIntuneGraphWin32Import {
                     -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$appId/assignments" `
                     -Body ($assignmentBody | ConvertTo-Json -Depth 20) `
                     -ContentType 'application/json' -ErrorAction Stop | Out-Null
+                $assignmentsApplied++
             }
             catch {
                 return (& $fail "Failed to create assignment '$assignmentType' for app '$appId': $($_.Exception.Message)")
@@ -1080,6 +990,7 @@ function Invoke-EwIntuneGraphWin32Import {
         }
     }
 
+    $assignmentStatus = if ($assignmentsApplied -gt 0) { 'Applied' } else { 'No assignments' }
     Write-UILog -Message "Import complete. App '$displayName' created with id: $appId" -Level Info -SyncHash $SyncHash
 
     return [PSCustomObject]@{
@@ -1089,6 +1000,7 @@ function Invoke-EwIntuneGraphWin32Import {
         Error       = ''
         Cancelled   = $false
         WriteStarted = $true
+        AssignmentStatus = $assignmentStatus
     }
     }
     catch {

@@ -11,13 +11,62 @@ function Initialize-EwWorkbenchPublishView {
     $State.IntuneTenantId = ''
     $State.IntuneComparison = @()
     $State.IntuneComparisonRoot = ''
+    $State.IntuneComparisonLoaded = $false
     $State.IntuneResults = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
     $State.IntunePublishResultsListView.ItemsSource = $State.IntuneResults
     $State.IntuneCancellation = $null
+    $State.IntunePendingPublish = $null
+    $State.IntuneUpdatingInspector = $false
     $State.CompareIntuneButton.IsEnabled = $false
     $State.IntuneComparisonListView.Add_SelectionChanged({
-        $State.PublishSelectedIntuneButton.IsEnabled = $State.IntuneComparisonListView.SelectedItems.Count -gt 0 -and
-            $null -eq $State.ActiveJobId -and -not [string]::IsNullOrWhiteSpace($State.IntuneTenantId)
+        & $State.ModuleInvoker -Name 'Update-EwWorkbenchIntuneView' -Parameters @{ State = $State }
+    }.GetNewClosure())
+    $selectionChanged = [System.Windows.RoutedEventHandler]{
+        param($Control, $RoutedArgs)
+        if ($Control -ne $State.IntuneComparisonListView) { return }
+        $source = $RoutedArgs.OriginalSource
+        if ($source -is [System.Windows.Controls.CheckBox] -and $source.IsLoaded -and $null -ne $source.DataContext) {
+            $source.DataContext.IsSelected = [bool]$source.IsChecked
+            & $State.ModuleInvoker -Name 'Update-EwWorkbenchIntuneView' -Parameters @{ State = $State }
+        }
+    }.GetNewClosure()
+    $State.IntuneComparisonListView.AddHandler([System.Windows.Controls.Primitives.ToggleButton]::CheckedEvent, $selectionChanged)
+    $State.IntuneComparisonListView.AddHandler([System.Windows.Controls.Primitives.ToggleButton]::UncheckedEvent, $selectionChanged)
+    $State.CloseIntuneDefinitionDrawerButton.Add_Click({
+        $State.IntuneComparisonListView.SelectedItem = $null
+        $null = $State.IntuneComparisonListView.Focus()
+    }.GetNewClosure())
+    $State.IntuneInventoryViewCombo.Add_SelectionChanged({
+        & $State.ModuleInvoker -Name 'Update-EwWorkbenchIntuneView' -Parameters @{ State = $State }
+    }.GetNewClosure())
+    $State.IntuneDefinitionSearchBox.Add_TextChanged({
+        $query = [string]$State.IntuneDefinitionSearchBox.Text
+        foreach ($control in @($State.IntuneComparisonListView, $State.IntuneOnlyAppsListView)) {
+            if ($null -eq $control.ItemsSource) { continue }
+            $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($control.ItemsSource)
+            $view.Filter = {
+                param($Item)
+                $name = if ($Item.RowType -eq 'Definition') { $Item.DefinitionName } else { $Item.IntuneDisplayName }
+                [string]::IsNullOrWhiteSpace($query) -or $name.IndexOf($query, [StringComparison]::OrdinalIgnoreCase) -ge 0
+            }.GetNewClosure()
+        }
+    }.GetNewClosure())
+    $State.IntunePredecessorCombo.Add_SelectionChanged({
+        if ($State.IntuneUpdatingInspector) { return }
+        $row = $State.IntuneComparisonListView.SelectedItem
+        if ($null -eq $row) { return }
+        try {
+            & $State.ModuleInvoker -Name 'Set-EwIntuneComparisonTarget' -Parameters @{
+                Row = $row; AppId = [string]$State.IntunePredecessorCombo.SelectedValue
+            }
+            $State.IntuneComparisonListView.Items.Refresh()
+            & $State.ModuleInvoker -Name 'Update-EwWorkbenchIntuneView' -Parameters @{ State = $State }
+        }
+        catch {
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State; Message = "Could not select the Intune predecessor: $($_.Exception.Message)"; Level = 'Error'
+            }
+        }
     }.GetNewClosure())
     $State.IntunePublishResultsListView.Add_SelectionChanged({
         $selected = $State.IntunePublishResultsListView.SelectedItem
@@ -74,63 +123,26 @@ function Initialize-EwWorkbenchPublishView {
     }.GetNewClosure())
 
     $State.PublishSelectedIntuneButton.Add_Click({
-        $null = $State.IntuneComparisonListView.CommitEdit()
-        $null = $State.IntuneComparisonListView.CommitEdit()
-        $selection = @($State.IntuneComparisonListView.SelectedItems)
-        if ($selection.Count -eq 0) { return }
-        foreach ($item in $selection) {
-            if ($item.MatchStatus -notin @('No matching Win32 app', 'Matched (current)', 'Matched (update required)') -or
-                ([bool]$item.ImportAsUpdate -and [string]::IsNullOrWhiteSpace([string]$item.IntuneAppId))) {
-                & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                    State = $State; Message = "Cannot publish '$($item.DefinitionName)': review its match and update-app selection."; Level = 'Warning'
-                }
-                return
-            }
-        }
-        $root = [string]$State.IntuneComparisonRoot
-        $working = [string]$State.Settings.PackageOutputPath
-        if ([string]::IsNullOrWhiteSpace($working)) { $working = [string]$State.Settings.OutputPath }
-        if ([string]::IsNullOrWhiteSpace($root) -or [string]::IsNullOrWhiteSpace($working)) {
-            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $State; Message = 'Save the Definition and package output paths in Packages first.'; Level = 'Warning'
-            }
-            return
-        }
-        if ($root -ne [string]$State.Settings.IntuneDefinitionsPath) {
-            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $State; Message = 'The saved Definitions folder changed. Compare again before publishing.'; Level = 'Warning'
-            }
-            return
-        }
-        $confirmed = & $State.ModuleInvoker -Name 'Confirm-EwWorkbenchIntuneBatch' -Parameters @{
-            Window = $State.Window; Selection = [object[]]$selection; TenantId = [string]$State.IntuneTenantId
-        }
-        if (-not $confirmed) { return }
-        $State.IntuneCancellation = [System.Threading.CancellationTokenSource]::new()
-        $arguments = [object[]]::new(5)
-        $arguments[0] = $root
-        $arguments[1] = [object[]]$selection
-        $arguments[2] = $working
-        $arguments[3] = [string]$State.IntuneTenantId
-        $arguments[4] = $State.IntuneCancellation.Token
         try {
-            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchJob' -Parameters @{
-                State = $State
-                Kind = 'IntunePublish'
-                Name = 'Build and publish Intune apps'
-                ScriptBlock = {
-                    param($Root, $Selection, $WorkingPath, $TenantId, $CancellationToken)
-                    Publish-EwIntuneBatch -DefinitionPath $Root -Selection $Selection -WorkingPath $WorkingPath `
-                        -TenantId $TenantId -CancellationToken $CancellationToken -Confirm:$false
-                }
-                ArgumentList = $arguments
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchIntunePublish' -Parameters @{
+                State = $State; ImportAsUpdate = $false
             }
         }
         catch {
-            $State.IntuneCancellation.Dispose()
-            $State.IntuneCancellation = $null
             & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
-                State = $State; Message = "Could not start Intune publishing: $($_.Exception.Message)"; Level = 'Error'
+                State = $State; Message = "Could not review the deployment import: $($_.Exception.Message)"; Level = 'Error'
+            }
+        }
+    }.GetNewClosure())
+    $State.PublishIntuneUpdateButton.Add_Click({
+        try {
+            & $State.ModuleInvoker -Name 'Invoke-EwWorkbenchIntunePublish' -Parameters @{
+                State = $State; ImportAsUpdate = $true
+            }
+        }
+        catch {
+            & $State.ModuleInvoker -Name 'Write-EwWorkbenchLog' -Parameters @{
+                State = $State; Message = "Could not review the update import: $($_.Exception.Message)"; Level = 'Error'
             }
         }
     }.GetNewClosure())

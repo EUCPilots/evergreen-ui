@@ -42,6 +42,7 @@ function Invoke-EwWorkbenchBusyState {
             $State.ConnectIntuneButton,
             $State.CompareIntuneButton,
             $State.PublishSelectedIntuneButton,
+            $State.PublishIntuneUpdateButton,
             $State.RetryIntuneSupersedenceButton
         )) {
         if ($null -ne $button) {
@@ -60,6 +61,9 @@ function Invoke-EwWorkbenchBusyState {
     $State.IntuneDefinitionsPathBox.IsEnabled = -not $IsBusy
     $State.InstallDefinitionsListView.IsEnabled = -not $IsBusy
     $State.IntuneComparisonListView.IsEnabled = -not $IsBusy
+    $State.IntunePredecessorCombo.IsEnabled = -not $IsBusy
+    $State.IntuneDefinitionSearchBox.IsEnabled = -not $IsBusy
+    $State.IntuneInventoryViewCombo.IsEnabled = -not $IsBusy
     $State.IntuneTenantIdBox.IsEnabled = -not $IsBusy
     $State.UseIntuneDeviceCodeToggle.IsEnabled = -not $IsBusy
     $connected = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneTenantId)
@@ -86,11 +90,11 @@ function Invoke-EwWorkbenchBusyState {
             Where-Object DefinitionValid -eq 'Yes')
         $State.InstallSelectedPackagesButton.IsEnabled = $selectedInstallDefinitions.Count -gt 0 -and -not $State.InstallDefinitionsStale
         $State.CompareIntuneButton.IsEnabled = $connected
-        $State.PublishSelectedIntuneButton.IsEnabled = $connected -and $State.IntuneComparisonListView.SelectedItems.Count -gt 0
         $selectedResult = $State.IntunePublishResultsListView.SelectedItem
         $State.RetryIntuneSupersedenceButton.IsEnabled = $connected -and $null -ne $selectedResult -and
             $selectedResult.Status -eq 'Supersedence failed' -and $selectedResult.TenantId -eq $State.IntuneTenantId
     }
+    Update-EwWorkbenchIntuneView -State $State
     Show-EwWorkbenchDownloadTray -State $State
     Invoke-EwWorkbenchNerdioBusyState -State $State
     Invoke-EwWorkbenchM365BusyState -State $State

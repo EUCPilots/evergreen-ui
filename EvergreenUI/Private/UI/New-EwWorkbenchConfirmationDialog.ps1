@@ -10,7 +10,9 @@ function New-EwWorkbenchConfirmationDialog {
         [Parameter(Mandatory)][string]$Title,
         [Parameter(Mandatory)][string]$Message,
         [Parameter(Mandatory)][bool]$DefaultYes,
-        [Parameter()][ValidateSet('YesNo', 'YesNoCancel', 'OK')][string]$Buttons = 'YesNo'
+        [Parameter()][ValidateSet('YesNo', 'YesNoCancel', 'OK')][string]$Buttons = 'YesNo',
+        [Parameter()][string]$AcceptText = 'Yes',
+        [Parameter()][string]$DeclineText = 'No'
     )
 
     $moduleRoot = Split-Path -Path $script:ewModulePath -Parent
@@ -43,6 +45,8 @@ function New-EwWorkbenchConfirmationDialog {
     $yesButton = $dialog.FindName('ConfirmationYesButton')
     $noButton = $dialog.FindName('ConfirmationNoButton')
     $cancelButton = $dialog.FindName('ConfirmationCancelButton')
+    $yesButton.Content = $AcceptText
+    $noButton.Content = $DeclineText
     switch ($Buttons) {
         'YesNo' {
             $yesButton.IsDefault = $DefaultYes

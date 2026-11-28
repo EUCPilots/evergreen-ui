@@ -12,6 +12,8 @@ function Get-EwIntuneApp {
     .EXAMPLE
         Connect-EwIntune -TenantId $tenantId
         Get-EwIntuneApp
+    .PARAMETER IncludeUnmanaged
+        Includes Win32 apps without PSPackageFactory notes for inventory review.
     .OUTPUTS
         System.Management.Automation.PSCustomObject
     .NOTES
@@ -19,7 +21,10 @@ function Get-EwIntuneApp {
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
-    param()
+    param(
+        [Parameter()]
+        [switch]$IncludeUnmanaged
+    )
 
     Assert-EwModule -Name Microsoft.Graph.Authentication
     if ($null -eq (Get-MgContext -ErrorAction Stop)) {
@@ -62,7 +67,7 @@ function Get-EwIntuneApp {
             }
         }
         $createdBy = [string](& $property -Object $notes -Name 'CreatedBy')
-        if (-not ($notesText -match 'PSPackageFactory' -or $createdBy -ieq 'PSPackageFactory')) {
+        if (-not $IncludeUnmanaged -and -not ($notesText -match 'PSPackageFactory' -or $createdBy -ieq 'PSPackageFactory')) {
             continue
         }
         $isUpdateApp = & $property -Object $notes -Name 'IsUpdateApp'
@@ -71,6 +76,7 @@ function Get-EwIntuneApp {
             DisplayName = [string](& $property -Object $application -Name 'displayName')
             Publisher = [string](& $property -Object $application -Name 'publisher')
             DisplayVersion = [string](& $property -Object $application -Name 'displayVersion')
+            AllowedArchitectures = [string](& $property -Object $application -Name 'allowedArchitectures')
             NotesGuid = [string](& $property -Object $notes -Name 'Guid')
             NotesValid = $notesValid
             IsUpdateApp = ($null -ne $isUpdateApp -and [bool]$isUpdateApp)
@@ -78,9 +84,17 @@ function Get-EwIntuneApp {
         }
     }
     $groups = @($rows | Where-Object {
-            $_.NotesValid -eq 'Yes' -and -not $_.IsUpdateApp -and
+            $_.NotesValid -eq 'Yes' -and
             -not [string]::IsNullOrWhiteSpace($_.NotesGuid)
-        } | Group-Object -Property NotesGuid | Where-Object Count -gt 1)
+        } | Group-Object -Property NotesGuid | Where-Object { $IncludeUnmanaged -or $_.Count -gt 1 })
+    if ($IncludeUnmanaged) {
+        $relationshipApps = @($groups | ForEach-Object { $_.Group })
+        $targets = Get-EwIntuneRelationshipBatch -App $relationshipApps
+        foreach ($app in $relationshipApps) {
+            $app.SupersededAppIds = @($targets[[string]$app.IntuneAppId])
+        }
+        return @($rows) | Sort-Object -Property Publisher, DisplayName, IntuneAppId
+    }
     foreach ($group in $groups) {
         foreach ($app in $group.Group) {
             $relationshipsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.IntuneAppId)/relationships"
