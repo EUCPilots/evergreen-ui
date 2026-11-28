@@ -16,9 +16,10 @@ Describe 'Evergreen module selection' {
     ) {
         $olderRoot = Join-Path -Path $TestDrive -ChildPath 'older'
         $newerRoot = Join-Path -Path $TestDrive -ChildPath 'newer'
+        # New runspaces add standard module directories, so fixtures must outrank installed versions.
         foreach ($fixture in @(
-                @{ Root = $olderRoot; Version = '2603.2832.0' }
-                @{ Root = $newerRoot; Version = '2604.2833.0' }
+                @{ Root = $olderRoot; Version = '12.13.14.156' }
+                @{ Root = $newerRoot; Version = '12.13.14.157' }
             )) {
             $directory = Join-Path -Path $fixture.Root -ChildPath "Evergreen\$($fixture.Version)"
             New-Item -Path $directory -ItemType Directory -Force | Out-Null
@@ -30,14 +31,15 @@ Describe 'Evergreen module selection' {
         $originalWorkbenchPath = $env:EW_TEST_MODULE_PATH
         $originalPreload = $env:EW_TEST_PRELOAD
         try {
-            $env:EW_TEST_FIXTURE_MODULE_PATH = "$olderRoot;$newerRoot;$PSHOME\Modules"
+            $env:EW_TEST_FIXTURE_MODULE_PATH = @($olderRoot, $newerRoot, (Join-Path -Path $PSHOME -ChildPath 'Modules')) -join [IO.Path]::PathSeparator
             $env:EW_TEST_MODULE_PATH = $modulePath
             $env:EW_TEST_PRELOAD = [string]$Preload
-            $result = & (Join-Path -Path $PSHOME -ChildPath 'pwsh.exe') -NoLogo -NoProfile -Command {
+            $executable = if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' }
+            $result = & (Join-Path -Path $PSHOME -ChildPath $executable) -NoLogo -NoProfile -Command {
                 $ErrorActionPreference = 'Stop'
                 $env:PSModulePath = $env:EW_TEST_FIXTURE_MODULE_PATH
                 if ($env:EW_TEST_PRELOAD -eq 'True') {
-                    Import-Module -FullyQualifiedName @{ ModuleName = 'Evergreen'; RequiredVersion = '2603.2832.0' }
+                    Import-Module -FullyQualifiedName @{ ModuleName = 'Evergreen'; RequiredVersion = '12.13.14.156' }
                 }
                 Import-Module -Name $env:EW_TEST_MODULE_PATH
                 & (Get-Module -Name EvergreenUI) { "Main:$(Find-EvergreenApp)" }
@@ -58,10 +60,10 @@ Describe 'Evergreen module selection' {
                 $snapshot.Output
             }
             $LASTEXITCODE | Should -Be 0
-            $result | Should -Contain 'Main:2604.2833.0'
-            $result | Should -Contain 'Worker:2604.2833.0'
+            $result | Should -Contain 'Main:12.13.14.157'
+            $result | Should -Contain 'Worker:12.13.14.157'
             if ($Preload) {
-                $result | Should -Contain 'Caller:2603.2832.0'
+                $result | Should -Contain 'Caller:12.13.14.156'
             }
         }
         finally {
