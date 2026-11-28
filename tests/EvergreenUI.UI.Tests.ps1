@@ -2246,6 +2246,68 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'toggles navigation and preserves the manual choice across window resizes' -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Width = 1200
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $toggle = $window.FindName('NavigationToggle')
+                $peer = [System.Windows.Automation.Peers.UIElementAutomationPeer]::CreatePeerForElement($toggle)
+                $provider = $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Toggle)
+                $settings = $window.FindName('NavSettings')
+                $settings.IsChecked = $true
+                $provider.Toggle()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $toggle.IsChecked | Should -BeTrue
+                $toggle.ToolTip | Should -Be 'Expand navigation'
+                $window.FindName('NavigationColumn').ActualWidth | Should -Be 64
+                foreach ($name in 'NavApps', 'NavSettings', 'NavAbout') {
+                    $button = $window.FindName($name)
+                    $button.Template.FindName('NavigationLabel', $button).Visibility | Should -Be 'Collapsed'
+                }
+                $settings.IsChecked | Should -BeTrue
+                $indicator = $window.FindName('NavigationSelectionIndicator')
+                $expected = $settings.TranslatePoint([System.Windows.Point]::new(0, 0), $window.FindName('NavigationItems')).Y +
+                    (($settings.ActualHeight - $indicator.Height) / 2)
+                [Math]::Abs($indicator.RenderTransform.Y - $expected) | Should -BeLessThan 1
+
+                $window.Width = 960
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $toggle.IsEnabled | Should -BeFalse
+                $window.Width = 1200
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $toggle.IsEnabled | Should -BeTrue
+                $window.FindName('NavigationColumn').ActualWidth | Should -Be 64
+
+                $provider.Toggle()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $toggle.IsChecked | Should -BeFalse
+                $toggle.ToolTip | Should -Be 'Collapse navigation'
+                $window.FindName('NavigationColumn').ActualWidth | Should -Be 208
+                foreach ($name in 'NavApps', 'NavSettings', 'NavAbout') {
+                    $button = $window.FindName($name)
+                    $button.Template.FindName('NavigationLabel', $button).Visibility | Should -Be 'Visible'
+                }
+                $settings.IsChecked | Should -BeTrue
+
+                $window.Width = 960
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.FindName('NavigationColumn').ActualWidth | Should -Be 64
+                $window.Width = 1200
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.FindName('NavigationColumn').ActualWidth | Should -Be 208
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'resizes the activity log without preventing it from collapsing' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
@@ -5353,14 +5415,13 @@ function Get-EwDependency {
                 $window.Width = 960
                 $window.Height = 660
                 $window.Show()
-                $scroll = $window.FindName('NavigationScrollViewer')
-                $scroll.ScrollToEnd()
                 $window.UpdateLayout()
                 $about = $window.FindName('NavAbout')
+                $pane = $window.FindName('NavigationPane')
                 $aboutTop = $about.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
-                $scrollTop = $scroll.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
-                $aboutTop | Should -BeGreaterOrEqual $scrollTop
-                ($aboutTop + $about.ActualHeight) | Should -BeLessOrEqual ($scrollTop + $scroll.ActualHeight)
+                $paneTop = $pane.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
+                $aboutTop | Should -BeGreaterOrEqual $paneTop
+                ($aboutTop + $about.ActualHeight) | Should -BeLessOrEqual ($paneTop + $pane.ActualHeight)
                 $about.ActualHeight | Should -BeGreaterThan 0
             }
             finally {

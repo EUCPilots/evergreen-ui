@@ -47,7 +47,7 @@ function Get-EwWorkbenchWindow {
     $navigationColumn = $window.FindName('NavigationColumn')
     $navigationPane = $window.FindName('NavigationPane')
     $navigationBrand = $window.FindName('NavigationBrand')
-    $navigationScroll = $window.FindName('NavigationScrollViewer')
+    $navigationToggle = $window.FindName('NavigationToggle')
     $navigationItems = $window.FindName('NavigationItems')
     $navigationStack = $window.FindName('NavigationItemsStack')
     $navigationFooter = $window.FindName('NavigationFooter')
@@ -78,12 +78,29 @@ function Get-EwWorkbenchWindow {
     foreach ($name in @('PackagesTabControl', 'IntuneTabControl', 'NerdioTabControl')) {
         Initialize-EwWorkbenchProviderTab -Tabs $window.FindName($name)
     }
-    $window.Add_SizeChanged({
-        $compact = $args[0].ActualWidth -lt 1100
+    $updateNavigationLayout = {
+        $narrow = $window.ActualWidth -lt 1100
+        $compact = $narrow -or $navigationToggle.IsChecked
         $navigationColumn.Width = [System.Windows.GridLength]::new($(if ($compact) { 64 } else { 208 }))
         $navigationPane.Padding = [System.Windows.Thickness]::new($(if ($compact) { 4 } else { 16 }))
         $navigationBrand.Visibility = if ($compact) { 'Collapsed' } else { 'Visible' }
-        $navigationScroll.Tag = $compact
+        $navigationPane.Tag = $compact
+        $navigationToggle.IsEnabled = -not $narrow
+        $navigationToggle.ToolTip = if ($narrow) {
+            'Navigation is compact while the window is narrow'
+        }
+        elseif ($compact) {
+            'Expand navigation'
+        }
+        else {
+            'Collapse navigation'
+        }
+        [System.Windows.Automation.AutomationProperties]::SetHelpText($navigationToggle, $navigationToggle.ToolTip)
+    }.GetNewClosure()
+    $navigationToggle.Add_Checked({ & $updateNavigationLayout }.GetNewClosure())
+    $navigationToggle.Add_Unchecked({ & $updateNavigationLayout }.GetNewClosure())
+    $window.Add_SizeChanged({
+        & $updateNavigationLayout
     }.GetNewClosure())
 
     $activityLog = $window.FindName('ActivityLog')

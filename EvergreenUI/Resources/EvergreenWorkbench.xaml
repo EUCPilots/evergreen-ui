@@ -232,7 +232,7 @@
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5" />
                             </Trigger>
-                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
+                            <DataTrigger Binding="{Binding Tag, ElementName=NavigationPane}"
                                          Value="True">
                                 <Setter TargetName="NavigationLabel" Property="Visibility" Value="Collapsed" />
                                 <Setter TargetName="NavigationIcon" Property="Grid.Column" Value="0" />
@@ -331,6 +331,18 @@
                 BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource SubtleFillColorSecondaryBrush}">
             <DockPanel>
+                <ToggleButton x:Name="NavigationToggle"
+                              DockPanel.Dock="Top"
+                              Width="40"
+                              Height="40"
+                              Margin="0,0,0,8"
+                              HorizontalAlignment="Left"
+                              AutomationProperties.Name="Collapse navigation"
+                              ToolTipService.ShowOnDisabled="True">
+                    <TextBlock Text="&#xE700;"
+                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                               FontSize="16" />
+                </ToggleButton>
                 <StackPanel x:Name="NavigationBrand" DockPanel.Dock="Top" Margin="4,8,4,20">
                     <TextBlock Text="Evergreen"
                                FontSize="20"
