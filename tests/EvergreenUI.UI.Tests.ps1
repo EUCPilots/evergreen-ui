@@ -2237,7 +2237,7 @@ Describe 'Evergreen Workbench WPF shell' {
 
                 $window.Width = 1200
                 $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                $window.FindName('NavigationColumn').ActualWidth | Should -Be 196
+                $window.FindName('NavigationColumn').ActualWidth | Should -Be 200
                 $label.Visibility | Should -Be 'Visible'
             }
             finally {
@@ -2265,11 +2265,11 @@ Describe 'Evergreen Workbench WPF shell' {
                 )
                 $keyArgs.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent
                 $thumb.RaiseEvent($keyArgs)
-                $log.Height | Should -Be 196
+                $log.Height | Should -Be 200
                 $expander.IsExpanded = $false
                 $expander.IsExpanded | Should -BeFalse
                 $expander.IsExpanded = $true
-                $log.Height | Should -Be 196
+                $log.Height | Should -Be 200
             }
             finally {
                 $window.Close()
