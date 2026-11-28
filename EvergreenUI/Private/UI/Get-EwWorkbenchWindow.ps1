@@ -50,6 +50,7 @@ function Get-EwWorkbenchWindow {
     $navigationScroll = $window.FindName('NavigationScrollViewer')
     $navigationItems = $window.FindName('NavigationItems')
     $navigationStack = $window.FindName('NavigationItemsStack')
+    $navigationFooter = $window.FindName('NavigationFooter')
     $navigationIndicator = $window.FindName('NavigationSelectionIndicator')
     $navigationButtons = @('NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavSettings', 'NavAbout') |
         ForEach-Object { $window.FindName($_) }
@@ -72,6 +73,7 @@ function Get-EwWorkbenchWindow {
         $button.Add_SizeChanged({ & $updateIndicator -animate $false }.GetNewClosure())
     }
     $navigationStack.Add_SizeChanged({ & $updateIndicator -animate $false }.GetNewClosure())
+    $navigationFooter.Add_SizeChanged({ & $updateIndicator -animate $false }.GetNewClosure())
     $window.Add_Loaded({ & $updateIndicator -animate $false }.GetNewClosure())
     foreach ($name in @('PackagesTabControl', 'IntuneTabControl', 'NerdioTabControl')) {
         Initialize-EwWorkbenchProviderTab -Tabs $window.FindName($name)

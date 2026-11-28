@@ -2095,6 +2095,33 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
+    It 'positions Settings and About in the bottom navigation footer' -Skip:$isGitHubRunner {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $container = $window.FindName('NavigationItems')
+                $footer = $window.FindName('NavigationFooter')
+                $settings = $window.FindName('NavSettings')
+                $about = $window.FindName('NavAbout')
+                $containerBottom = $container.TranslatePoint([System.Windows.Point]::new(0, $container.ActualHeight), $window).Y
+                $footerBottom = $footer.TranslatePoint([System.Windows.Point]::new(0, $footer.ActualHeight), $window).Y
+                [Math]::Abs($footerBottom - $containerBottom) | Should -BeLessThan 1
+                $settings.TranslatePoint([System.Windows.Point]::new(0, 0), $footer).Y |
+                    Should -BeGreaterThan 0
+                $aboutBottom = $about.TranslatePoint([System.Windows.Point]::new(0, $about.ActualHeight), $footer).Y
+                [Math]::Abs($aboutBottom - $footer.ActualHeight) | Should -BeLessThan 1
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
     It 'does not draw a keyboard focus border when a navigation item is focused by the mouse' -Skip:$isGitHubRunner {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
