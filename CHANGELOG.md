@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Show selected definition details and validation errors in a resizable panel on the Packages Definitions tab.
+
 ## [2.0.8-preview]
 
 - Show one Intune comparison entry per definition with a closable inspector drawer, resolved import versions, architecture details and named supersedence relationships.

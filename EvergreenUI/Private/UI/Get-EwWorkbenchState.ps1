@@ -137,6 +137,7 @@ function Get-EwWorkbenchState {
             BrowseIntuneDefinitionsButton = $Window.FindName('BrowseIntuneDefinitionsButton')
             SaveIntuneDefinitionsPathButton = $Window.FindName('SaveIntuneDefinitionsPathButton')
             PackageDefinitionsListView = $Window.FindName('PackageDefinitionsListView')
+            PackageDefinitionDetailsText = $Window.FindName('PackageDefinitionDetailsText')
             PackageDefinitionsCountLabel = $Window.FindName('PackageDefinitionsCountLabel')
             LoadPackageDefinitionsButton = $Window.FindName('LoadPackageDefinitionsButton')
             UpdatePackageDefinitionsButton = $Window.FindName('UpdatePackageDefinitionsButton')

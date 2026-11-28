@@ -16,6 +16,29 @@ function Initialize-EwWorkbenchPackageView {
     $State.LoadPackageDefinitionsButton.IsEnabled = -not [string]::IsNullOrWhiteSpace([string]$State.IntuneDefinitionsPathBox.Text)
     $State.UpdatePackageDefinitionsButton.IsEnabled = $false
 
+    $State.PackageDefinitionsListView.Add_SelectionChanged({
+        $details = @(& $State.ModuleInvoker -Name 'Get-EwWorkbenchPackageDefinitionSummary' -Parameters @{
+            Definition = $State.PackageDefinitionsListView.SelectedItem
+        })
+        $paragraph = [System.Windows.Documents.Paragraph]::new()
+        $paragraph.Margin = [System.Windows.Thickness]::new(0)
+        foreach ($detail in $details) {
+            if ($paragraph.Inlines.Count -gt 0) {
+                $paragraph.Inlines.Add([System.Windows.Documents.Run]::new("`r`n`r`n"))
+            }
+            if (-not [string]::IsNullOrWhiteSpace($detail.Label)) {
+                $paragraph.Inlines.Add([System.Windows.Documents.Run]::new("$($detail.Label):`r`n"))
+            }
+            $value = [System.Windows.Documents.Run]::new($detail.Value)
+            if ($detail.IsFilter) {
+                $value.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas')
+            }
+            $paragraph.Inlines.Add($value)
+        }
+        $State.PackageDefinitionDetailsText.Document.Blocks.Clear()
+        $State.PackageDefinitionDetailsText.Document.Blocks.Add($paragraph)
+    }.GetNewClosure())
+
     $State.IntuneDefinitionsPathBox.Add_TextChanged({
         $State.PackageDefinitions.Clear()
         $State.PackageDefinitionsCountLabel.Text = 'Definitions need refresh'

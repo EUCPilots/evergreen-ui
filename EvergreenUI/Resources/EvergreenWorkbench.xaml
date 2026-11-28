@@ -962,24 +962,56 @@
                                    Text="0 definitions"
                                    Margin="0,0,0,12"
                                    VerticalAlignment="Center" />
-                        <DataGrid x:Name="PackageDefinitionsListView"
-                                  Grid.Row="5"
-                                  MinHeight="160"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  SelectionMode="Single"
-                                  HeadersVisibility="Column"
-                                  CanUserAddRows="False"
-                                  EnableRowVirtualization="True"
-                                  AutomationProperties.Name="Intune package definitions">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                <DataGridTextColumn Header="Architecture" Binding="{Binding DefinitionObject.Application.Architecture}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <Grid Grid.Row="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" MinWidth="200" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" MinWidth="200" />
+                            </Grid.ColumnDefinitions>
+                            <DataGrid x:Name="PackageDefinitionsListView"
+                                      MinHeight="160"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single"
+                                      HeadersVisibility="Column"
+                                      CanUserAddRows="False"
+                                      EnableRowVirtualization="True"
+                                      AutomationProperties.Name="Intune package definitions">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Architecture" Binding="{Binding DefinitionObject.Application.Architecture}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <GridSplitter Grid.Column="1"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"
+                                          ResizeDirection="Columns"
+                                          ResizeBehavior="PreviousAndNext"
+                                          Background="Transparent"
+                                          ToolTip="Resize definition details"
+                                          AutomationProperties.Name="Resize definition details" />
+                            <DockPanel Grid.Column="2" Margin="4,0,0,0">
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="Definition details"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,12" />
+                                <RichTextBox x:Name="PackageDefinitionDetailsText"
+                                             IsReadOnly="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             HorizontalScrollBarVisibility="Disabled"
+                                             AutomationProperties.Name="Selected definition details">
+                                    <FlowDocument PagePadding="0"
+                                                  FontFamily="{Binding FontFamily, ElementName=PackageDefinitionDetailsText}"
+                                                  FontSize="{Binding FontSize, ElementName=PackageDefinitionDetailsText}">
+                                        <Paragraph Margin="0">Select a definition to view its details.</Paragraph>
+                                    </FlowDocument>
+                                </RichTextBox>
+                            </DockPanel>
+                        </Grid>
                         <Label Grid.Row="6" Content="Package output folder" Target="{Binding ElementName=PackageOutputPathBox}"
                                Padding="0" Margin="0,16,0,4" />
                         <Grid Grid.Row="7">
