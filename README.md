@@ -79,6 +79,18 @@ runs a local package with `ShouldProcess` support.
 
 `Application.Architecture` selects the Artifact variant. A specified value must match the resolved Artifact's architecture label; blank or `-` leaves the choice unconstrained. `All` is a literal Artifact label, not a wildcard. Detection reports installed state independently of install eligibility, and file and registry rules use their `Check32BitOn64System` setting to select the relevant view.
 
+### Intune Win32 app imports
+
+Choose **Compare definitions** on the Intune Win32 apps page. The flat list shows one entry per definition and compares its resolved import version with every GUID-matched Intune app, including update apps. Click an entry to open the closable inspector drawer, which shows stored and resolved versions, Artifact and allowed-device architectures, deployment assignments, and named supersedence relationships. Use **Intune-only apps** to inspect apps without a matching local definition.
+
+Comparison reads current Intune inventory and batches relationship requests. Browsing reuses the existing definition-hash-validated Artifact cache for up to 24 hours instead of querying each application again. Import review always refreshes the available versions before confirmation.
+
+Select definitions using their checkboxes, then choose **Import for deployment** to use their definition assignments or **Import update for existing installations** to assign updates as required to All Devices. Update imports retain configured custom requirements or generate comparable requirements, and additionally require the application's detected file or Registry value to exist. MSI-only or script-only detection cannot establish this safeguard and blocks update import. It does not block ordinary deployment.
+
+Each batch has one intent. Already-imported or older versions are blocked, missing or uncomparable versions require review, and ambiguous matches require an explicit predecessor selection. A background review refreshes available versions for only the selected definitions and checks their current Intune targets before one human-readable confirmation explains app creation, assignments and supersedence. Root-wide duplicate GUID checks remain active. Changes during building stop the affected import and require a new review. Earlier apps are not deleted; partial outcomes retain the created app ID and allow supersedence retry without importing another copy.
+
+For headless comparison, use `Compare-EwIntuneApp -DefinitionView` for the same definition-focused data and `-NoCache` to refresh Artifact resolution. Add `-SelectedDefinitionPath` with definition file paths to resolve only those definitions while retaining root-wide duplicate GUID validation; this omits Intune-only inventory rows. Its default output remains the existing app-oriented comparison. `Get-EwIntuneApp -IncludeUnmanaged` includes other Win32 apps for inventory review.
+
 Local installation requires separate approval for a missing requirement, x64 emulation on ARM64, or unknown Artifact architecture on ARM64. For unattended use, explicitly supply `-AllowMissingArchitectureRequirement`, `-AllowX64OnArm64`, and/or `-AllowUnknownArchitectureOnArm64` as needed.
 `-Confirm:$false` alone does not approve these warnings, and a non-interactive
 call without the required opt-in throws. Results report `Installed`, `Failed`,
