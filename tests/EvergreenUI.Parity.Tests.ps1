@@ -230,6 +230,94 @@ Describe 'Intune comparison' {
         }
     }
 
+    It 'retrieves inventory relationships without one network round trip per app' {
+        InModuleScope EvergreenUI {
+            Mock Assert-EwModule {}
+            Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant-id' } }
+            $script:networkWait = 0
+            Mock Invoke-MgGraphRequest {
+                $script:networkWait += 50
+                Start-Sleep -Milliseconds 50
+                if ($Uri -like '*/relationships') {
+                    return [PSCustomObject]@{ value = @() }
+                }
+                if ($Uri -like '*/$batch') {
+                    $requests = ($Body | ConvertFrom-Json).requests
+                    return [PSCustomObject]@{ responses = @($requests | ForEach-Object {
+                        [PSCustomObject]@{ id = $_.id; status = 200; body = [PSCustomObject]@{ value = @() } }
+                    }) }
+                }
+                [PSCustomObject]@{ value = @(1..40 | ForEach-Object {
+                    [PSCustomObject]@{ id = "app-$_"; displayName = "App $_"; notes = "{`"CreatedBy`":`"PSPackageFactory`",`"Guid`":`"guid-$_`"}" }
+                }) }
+            }
+            $apps = @(Get-EwIntuneApp -IncludeUnmanaged)
+            $apps.Count | Should -Be 40
+            $script:networkWait | Should -BeLessOrEqual 150
+            Should -Invoke Invoke-MgGraphRequest -Exactly 3
+        }
+    }
+
+    It 'correlates unordered batched relationships and follows their next pages' {
+        InModuleScope EvergreenUI {
+            Mock Invoke-MgGraphRequest {
+                $requests = ($Body | ConvertFrom-Json).requests
+                if ($requests.Count -eq 2) {
+                    return [PSCustomObject]@{ responses = @(
+                        [PSCustomObject]@{ id = '1'; status = 200; body = [PSCustomObject]@{ value = @() } }
+                        [PSCustomObject]@{ id = '0'; status = 200; body = [PSCustomObject]@{
+                            value = @([PSCustomObject]@{ '@odata.type' = '#microsoft.graph.mobileAppSupersedence'; targetId = 'old'; targetType = 'parent' })
+                            '@odata.nextLink' = 'https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/new/relationships?$skiptoken=next'
+                        } }
+                    ) }
+                }
+                $requests[0].url | Should -Be '/deviceAppManagement/mobileApps/new/relationships?$skiptoken=next'
+                [PSCustomObject]@{ responses = @([PSCustomObject]@{ id = '0'; status = 200; body = [PSCustomObject]@{
+                    value = @([PSCustomObject]@{ '@odata.type' = '#microsoft.graph.mobileAppSupersedence'; targetId = 'earlier'; targetType = 'parent' })
+                } }) }
+            }
+            $result = Get-EwIntuneRelationshipBatch -App @([PSCustomObject]@{ IntuneAppId = 'new' }, [PSCustomObject]@{ IntuneAppId = 'old' })
+            @($result.new) | Should -Be @('old', 'earlier')
+            $result.old.Count | Should -Be 0
+            Should -Invoke Invoke-MgGraphRequest -Exactly 2
+        }
+    }
+
+    It 'retries only throttled relationship pages and preserves successful responses' {
+        InModuleScope EvergreenUI {
+            $script:batchCalls = 0
+            Mock Start-Sleep {}
+            Mock Invoke-MgGraphRequest {
+                $script:batchCalls++
+                if ($script:batchCalls -eq 1) {
+                    return [PSCustomObject]@{ responses = @(
+                        [PSCustomObject]@{ id = '0'; status = 429; headers = [PSCustomObject]@{ 'Retry-After' = '3' }; body = [PSCustomObject]@{ error = [PSCustomObject]@{ message = 'Throttled' } } }
+                        [PSCustomObject]@{ id = '1'; status = 200; body = [PSCustomObject]@{ value = @() } }
+                    ) }
+                }
+                $requests = ($Body | ConvertFrom-Json).requests
+                $requests.Count | Should -Be 1
+                $requests[0].id | Should -Be '0'
+                [PSCustomObject]@{ responses = @([PSCustomObject]@{ id = '0'; status = 200; body = [PSCustomObject]@{ value = @() } }) }
+            }
+            $result = Get-EwIntuneRelationshipBatch -App @([PSCustomObject]@{ IntuneAppId = 'new' }, [PSCustomObject]@{ IntuneAppId = 'old' })
+            $result.Keys.Count | Should -Be 2
+            Should -Invoke Start-Sleep -Exactly 1 -ParameterFilter { $Seconds -eq 3 }
+            Should -Invoke Invoke-MgGraphRequest -Exactly 2
+        }
+    }
+
+    It 'does not report a verified empty relationship when a batch page fails' {
+        InModuleScope EvergreenUI {
+            Mock Invoke-MgGraphRequest {
+                [PSCustomObject]@{ responses = @([PSCustomObject]@{
+                    id = '0'; status = 403; body = [PSCustomObject]@{ error = [PSCustomObject]@{ message = 'Access denied' } }
+                }) }
+            }
+            { Get-EwIntuneRelationshipBatch -App @([PSCustomObject]@{ IntuneAppId = 'new' }) } | Should -Throw '*HTTP 403*Access denied*'
+        }
+    }
+
     It 'retrieves supersedence relationships for duplicate GUIDs' {
         InModuleScope EvergreenUI {
             Mock Assert-EwModule {}

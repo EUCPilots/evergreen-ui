@@ -373,7 +373,7 @@ Describe 'Evergreen Workbench WPF shell' {
         }
     }
 
-    It 'centres the Intune Update app check boxes in their cells' {
+    It 'offers separate deployment and existing-installation update actions without an update-mode checkbox' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -383,24 +383,11 @@ Describe 'Evergreen Workbench WPF shell' {
                 $window.Show()
                 $window.FindName('AppsPanel').Visibility = 'Collapsed'
                 $window.FindName('IntunePanel').Visibility = 'Visible'
-                $grid = $window.FindName('IntuneComparisonListView')
-                $grid.ItemsSource = @([PSCustomObject]@{
-                        DefinitionName = 'App'; DefinitionVersion = '1.0'; IntuneVersion = '1.0'
-                        MatchStatus = 'Matched'; ImportAsUpdate = $false
-                    })
                 $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                 $window.UpdateLayout()
-                $column = $grid.Columns | Where-Object { $_.Header -eq 'Update app' }
-                $cell = $column.GetCellContent($grid.Items[0]).Parent
-                $checkBox = $column.GetCellContent($grid.Items[0])
-                $checkBox | Should -BeOfType ([System.Windows.Controls.CheckBox])
-                $point = $checkBox.TranslatePoint([System.Windows.Point]::new(0, 0), $cell)
-                $left = $point.X
-                $right = $cell.ActualWidth - $point.X - $checkBox.ActualWidth
-                $top = $point.Y
-                $bottom = $cell.ActualHeight - $point.Y - $checkBox.ActualHeight
-                [Math]::Abs($left - $right) | Should -BeLessOrEqual 2
-                [Math]::Abs($top - $bottom) | Should -BeLessOrEqual 2
+                $window.FindName('PublishSelectedIntuneButton').Content | Should -Be 'Import for deployment...'
+                $window.FindName('PublishIntuneUpdateButton').Content | Should -Be 'Import update for existing installations...'
+                $window.FindName('IntuneComparisonListView').GetType().Name | Should -Be 'ListView'
             }
             finally {
                 $window.Close()
@@ -1545,7 +1532,7 @@ Describe 'Evergreen Workbench WPF shell' {
             foreach ($name in @(
                     'AppsListView', 'ArtifactsGrid', 'DownloadQueueListView',
                     'LibraryListView', 'LibraryVersionsListView', 'PackageDefinitionsListView',
-                    'IntuneComparisonListView', 'IntunePublishResultsListView',
+                    'IntuneOnlyAppsListView', 'IntunePublishResultsListView',
                     'NerdioComparisonListView', 'NerdioPublishResultsListView',
                     'InstallDefinitionsListView', 'AboutDependenciesListView'
                 )) {
@@ -1553,6 +1540,7 @@ Describe 'Evergreen Workbench WPF shell' {
                 $hostWindow = [System.Windows.Window]::new()
                 try {
                     $grid = $window.FindName($name)
+                    $grid.Visibility = 'Visible'
                     $grid.Parent.Children.Remove($grid)
                     $hostWindow.ThemeMode = [System.Windows.ThemeMode]::$Mode
                     $hostWindow.Width = 1100
@@ -2753,16 +2741,25 @@ Import-Module -Name '$modulePath' -Force
                 $state.Settings.PackageOutputPath = 'C:\Packages'
                 $item = [PSCustomObject]@{
                     DefinitionName = 'App'; DefinitionPath = 'C:\Definitions\App\App.json'
-                    MatchStatus = 'Matched (current)'; IntuneAppId = 'old-id'; ImportAsUpdate = $false
+                    RowType = 'Definition'; MatchStatus = 'Matched (update required)'; IntuneAppId = 'old-id'; ImportAsUpdate = $false
+                    IsSelected = $true; DeploymentBlocker = ''; UpdateBlocker = ''; MatchingApps = @(); MatchingAppCount = 0; RelationshipsVerified = $true
                 }
-                $state.IntuneComparisonListView.ItemsSource = @($item)
-                $state.IntuneComparisonListView.SelectedItem = $item
+                $state.IntuneComparison = @($item)
+                $state.ActiveJobId = [guid]::NewGuid()
+                $state.ActiveJobKind = 'IntuneReview'
+                $state.IntunePendingPublish = [PSCustomObject]@{
+                    Root = 'C:\Definitions'; WorkingPath = 'C:\Packages'; TenantId = 'tenant'; ImportAsUpdate = $false
+                }
                 Mock Confirm-EwWorkbenchIntuneBatch { $false }
                 Mock Start-EwJob {}
-                $eventArgs = [System.Windows.RoutedEventArgs]::new(
-                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
-                )
-                $state.PublishSelectedIntuneButton.RaiseEvent($eventArgs)
+                Mock Remove-EwJob {}
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = 'Completed'; Progress = @(); Information = @(); Errors = @(); TerminatingError = $null
+                        Output = @([PSCustomObject]@{ Items = @($item); Comparison = @($item); Changed = $false })
+                    }
+                }
+                Invoke-EwWorkbenchJobMonitor -State $state
                 Should -Invoke Confirm-EwWorkbenchIntuneBatch -Exactly 1
                 Should -Invoke Start-EwJob -Exactly 0
             }
@@ -4321,6 +4318,7 @@ Describe 'Workbench Settings and About' {
                         $state.PackageDefinitions.Add([PSCustomObject]@{ Status = 'Valid' })
                         $state.InstallDefinitionsStale = $false
                         $state.IntuneComparisonRoot = 'C:\OldSaved'
+                        $state.IntuneComparisonLoaded = $true
                         $state.IntuneComparisonListView.ItemsSource = [object[]]@([PSCustomObject]@{ Name = 'Old' })
                     }
                     'M365Configurations' {
@@ -4352,6 +4350,9 @@ Describe 'Workbench Settings and About' {
                         $state.PackageDefinitions.Count | Should -Be 0
                         $state.UpdatePackageDefinitionsButton.IsEnabled | Should -BeFalse
                         $state.IntuneComparisonRoot | Should -Be ''
+                        $state.IntuneComparisonLoaded | Should -BeFalse
+                        $state.IntuneComparisonInstructionText.Text | Should -Match 'Connect to Intune'
+                        $state.IntuneComparisonInstructionText.Visibility.ToString() | Should -Be 'Visible'
                         @($state.IntuneComparisonListView.ItemsSource).Count | Should -Be 0
                     }
                     'M365Configurations' {
