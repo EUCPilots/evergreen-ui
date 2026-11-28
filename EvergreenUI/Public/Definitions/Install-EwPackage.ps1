@@ -20,6 +20,8 @@ function Install-EwPackage {
         Explicitly approves installation when the Definition has no architecture requirement.
     .PARAMETER AllowX64OnArm64
         Explicitly approves x64 emulation on Arm64.
+    .PARAMETER AllowUnknownArchitectureOnArm64
+        Explicitly approves an unknown artifact architecture on Arm64.
     .EXAMPLE
         Install-EwPackage -DefinitionPath .\Definitions\Example\App.json -WhatIf
     .OUTPUTS
@@ -50,6 +52,9 @@ function Install-EwPackage {
 
         [Parameter()]
         [switch]$AllowX64OnArm64,
+
+        [Parameter()]
+        [switch]$AllowUnknownArchitectureOnArm64,
 
         [Parameter(DontShow)]
         [ValidatePattern('^[0-9A-Fa-f]{64}$')]
@@ -137,6 +142,9 @@ function Install-EwPackage {
         }
         if ($review.Compatibility.RequiresX64OnArm64Approval -and -not $AllowX64OnArm64) {
             $review.Compatibility.X64OnArm64Warning
+        }
+        if ((Get-EwObjectPropertyValue -Object $review.Compatibility -Name 'RequiresUnknownArchitectureApproval' -Default $false) -and -not $AllowUnknownArchitectureOnArm64) {
+            $review.Compatibility.UnknownArchitectureWarning
         }
     )
     if ($warnings.Count -gt 0) {

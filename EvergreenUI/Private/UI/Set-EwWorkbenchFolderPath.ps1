@@ -52,8 +52,12 @@ function Set-EwWorkbenchFolderPath {
                 $State.UpdatePackageDefinitionsButton.IsEnabled = $false
                 $State.IntuneComparison = @()
                 $State.IntuneComparisonRoot = ''
+                $State.IntuneComparisonLoaded = $false
                 $State.IntuneComparisonListView.ItemsSource = @()
+                $State.IntuneOnlyAppsListView.ItemsSource = @()
                 $State.PublishSelectedIntuneButton.IsEnabled = $false
+                $State.PublishIntuneUpdateButton.IsEnabled = $false
+                Update-EwWorkbenchIntuneView -State $State
             }
         }
         'M365Configurations' {

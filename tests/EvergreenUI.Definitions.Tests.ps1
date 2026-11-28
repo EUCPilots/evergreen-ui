@@ -83,6 +83,7 @@ Describe 'Evergreen package definitions' {
                     [PSCustomObject]@{ Type = 'intunewin'; Architecture = 'x86'; Language = 'en-US'; Version = '3.0.0'; URI = 'https://example.test/wrong-arch.intunewin' }
                 )
             }
+
             $first = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
             $second = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
             $first.Succeeded | Should -BeTrue
@@ -97,6 +98,66 @@ Describe 'Evergreen package definitions' {
             $third = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
             $third.IsFromCache | Should -BeFalse
             Should -Invoke Get-EwAppVersion -Exactly 2
+        }
+    }
+
+    It 'rejects a missing or mismatched declared artifact architecture' -ForEach @(
+        @{ ArtifactArchitecture = 'x86' }
+        @{ ArtifactArchitecture = '' }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Definition = $definitionPath; ArtifactArchitecture = $ArtifactArchitecture } {
+            Mock Get-EwAppVersion {
+                [PSCustomObject]@{ Type = 'intunewin'; Architecture = $ArtifactArchitecture; Version = '2.0'; URI = 'https://example.test/installer' }
+            }
+            $result = Resolve-EwArtifact -DefinitionPath $Definition -NoCache
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match 'Application.Architecture'
+        }
+    }
+
+    It 'does not reuse a cached artifact with a mismatched declared architecture' {
+        InModuleScope EvergreenUI -Parameters @{ Definition = $definitionPath; Cache = $TestDrive } {
+            Mock Get-EwAppVersion {
+                [PSCustomObject]@{ Type = 'intunewin'; Architecture = 'x64'; Version = '2.0'; URI = 'https://example.test/installer' }
+            }
+            $first = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
+            $first.Succeeded | Should -BeTrue
+            $snapshot = Invoke-EwDefinitionCache -Action Read -CachePath $Cache
+            $entry = @($snapshot.Entries | Where-Object { $_.DefinitionPath -eq [System.IO.Path]::GetFullPath($Definition) })[0]
+            $entry.ResolvedArtifact.Architecture = 'x86'
+            Invoke-EwDefinitionCache -Action Write -CachePath $Cache -Epoch $snapshot.Epoch -Entry $entry
+            $second = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
+            $second.IsFromCache | Should -BeFalse
+            $second.ResolvedArtifact.Architecture | Should -Be 'x64'
+            Should -Invoke Get-EwAppVersion -Exactly 2
+        }
+    }
+
+    It 'retains cached resolution failures for a declared architecture' {
+        InModuleScope EvergreenUI -Parameters @{ Definition = $definitionPath; Cache = $TestDrive } {
+            Mock Get-EwAppVersion {
+                [PSCustomObject]@{ Type = 'intunewin'; Architecture = 'x86'; Version = '2.0'; URI = 'https://example.test/installer' }
+            }
+            $first = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
+            $second = Resolve-EwArtifact -DefinitionPath $Definition -CachePath $Cache
+            $first.Succeeded | Should -BeFalse
+            $second.IsFromCache | Should -BeTrue
+            $second.Succeeded | Should -BeFalse
+            Should -Invoke Get-EwAppVersion -Exactly 1
+        }
+    }
+
+    It 'keeps selection unconstrained when the architecture preference is a dash' {
+        $definition = Get-Content -LiteralPath $definitionPath -Raw | ConvertFrom-Json
+        $definition.Application.Architecture = '-'
+        $definition | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $definitionPath
+        InModuleScope EvergreenUI -Parameters @{ Definition = $definitionPath } {
+            Mock Get-EwAppVersion {
+                [PSCustomObject]@{ Type = 'intunewin'; Architecture = 'x86'; Version = '2.0'; URI = 'https://example.test/installer' }
+            }
+            $result = Resolve-EwArtifact -DefinitionPath $Definition -NoCache
+            $result.Succeeded | Should -BeTrue
+            $result.ResolvedArtifact.Architecture | Should -Be 'x86'
         }
     }
 

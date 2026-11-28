@@ -16,6 +16,9 @@ function Invoke-EwWorkbenchJobMonitor {
         if ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending) {
             Invoke-EwWorkbenchInstallRefresh -State $State
         }
+        if ($State.Contains('PackageDefinitionsLoadPending') -and $State.PackageDefinitionsLoadPending) {
+            Invoke-EwWorkbenchPackageDefinitionsLoad -State $State -Automatic
+        }
         return
     }
     try {
@@ -24,12 +27,17 @@ function Invoke-EwWorkbenchJobMonitor {
     catch {
         $installRefreshWaiting = $State.ActiveJobKind -eq 'InstallDefinitions' -or
             ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending)
+        $definitionsLoadWaiting = $State.ActiveJobKind -eq 'PackageDefinitions' -or
+            ($State.Contains('PackageDefinitionsLoadPending') -and $State.PackageDefinitionsLoadPending)
         $message = "Could not read the active job: $($_.Exception.Message)"
         if ($installRefreshWaiting) {
             $message += ' Local detection refresh pending; waiting for its status.'
         }
+        if ($definitionsLoadWaiting) {
+            $message += ' Definitions load pending; waiting for its status.'
+        }
         Write-EwWorkbenchLog -State $State -Message $message -Level Error
-        if ($installRefreshWaiting) {
+        if ($installRefreshWaiting -or $definitionsLoadWaiting) {
             return
         }
         if ($State.ActiveJobKind -in @('NerdioPublish', 'M365', 'EvergreenUpdate', 'CacheClear', 'LibraryRemoval')) {
@@ -113,6 +121,7 @@ function Invoke-EwWorkbenchJobMonitor {
     $output = @($job.Output)
     $refreshIntune = $kind -in @('IntunePublish', 'IntuneRetry')
     $nextMaintenanceAction = ''
+    $nextIntunePublish = $null
     $restoreApp = $null
     if ($kind -in @('EvergreenUpdate', 'CacheClear', 'MaintenanceCatalog', 'MaintenanceArtifacts')) {
         $nextMaintenanceAction = Invoke-EwWorkbenchMaintenanceJobResult -State $State -Kind $kind -Job $job
@@ -191,6 +200,11 @@ function Invoke-EwWorkbenchJobMonitor {
                 Write-EwWorkbenchLog -State $State -Message "Updated the library and loaded $($output.Count) entries."
             }
             'PackageDefinitions' {
+                if (-not [string]::IsNullOrWhiteSpace($State.PackageDefinitionsJobPath) -and
+                    $State.PackageDefinitionsJobPath -cne [string]$State.IntuneDefinitionsPathBox.Text) {
+                    Write-EwWorkbenchLog -State $State -Message 'The definitions folder changed during loading. Reload definitions to load the current folder.' -Level Warning
+                    break
+                }
                 $result = $output | Select-Object -Last 1
                 $State.PackageDefinitions.Clear()
                 foreach ($definition in @($result.Items)) {
@@ -310,6 +324,10 @@ function Invoke-EwWorkbenchJobMonitor {
                     Write-EwWorkbenchLog -State $State -Message "Intune sign-in failed: $message" -Level Error
                 }
                 $State.IntuneComparisonListView.ItemsSource = @()
+                $State.IntuneComparison = @()
+                $State.IntuneComparisonRoot = ''
+                $State.IntuneComparisonLoaded = $false
+                $State.IntuneOnlyAppsListView.ItemsSource = @()
             }
             'IntuneDisconnect' {
                 $result = $output | Select-Object -Last 1
@@ -317,6 +335,10 @@ function Invoke-EwWorkbenchJobMonitor {
                     $State.IntuneTenantId = ''
                     $State.IntuneConnectionStatusLabel.Text = 'Not connected'
                     $State.IntuneComparisonListView.ItemsSource = @()
+                    $State.IntuneComparison = @()
+                    $State.IntuneComparisonRoot = ''
+                    $State.IntuneComparisonLoaded = $false
+                    $State.IntuneOnlyAppsListView.ItemsSource = @()
                     Write-EwWorkbenchLog -State $State -Message 'Disconnected from Intune.'
                 }
                 else {
@@ -329,9 +351,15 @@ function Invoke-EwWorkbenchJobMonitor {
                 if ($null -ne $result) {
                     $State.IntuneComparisonRoot = [string]$result.DefinitionRoot
                     $State.IntuneComparison = @($result.Items)
-                    $State.IntuneComparisonListView.ItemsSource = [object[]]$State.IntuneComparison
-                    Write-EwWorkbenchLog -State $State -Message "Compared $($State.IntuneComparison.Count) Intune and Definition rows."
+                    $State.IntuneComparisonLoaded = $true
+                    $State.IntuneComparisonListView.ItemsSource = [object[]]@($State.IntuneComparison | Where-Object RowType -EQ 'Definition')
+                    $State.IntuneOnlyAppsListView.ItemsSource = [object[]]@($State.IntuneComparison | Where-Object RowType -EQ 'Intune')
+                    $State.IntuneDefinitionSearchBox.Text = ''
+                    Write-EwWorkbenchLog -State $State -Message "Compared definitions and all matching Intune versions: $($State.IntuneComparison.Count) rows."
                 }
+            }
+            'IntuneReview' {
+                $nextIntunePublish = $output | Select-Object -Last 1
             }
             'IntunePublish' {
                 foreach ($result in $output) {
@@ -358,6 +386,7 @@ function Invoke-EwWorkbenchJobMonitor {
                         $row.Status = 'Published'
                         $row.Succeeded = $true
                         $row.Error = ''
+                        if ($null -ne $row.PSObject.Properties['SupersedenceStatus']) { $row.SupersedenceStatus = 'Linked' }
                         $State.IntunePublishResultsListView.Items.Refresh()
                     }
                     Write-EwWorkbenchLog -State $State -Message "Supersedence linked for $($result.NewAppId)."
@@ -404,11 +433,51 @@ function Invoke-EwWorkbenchJobMonitor {
         $State.InstallRefreshPending = $false
         Write-EwWorkbenchLog -State $State -Message 'Local detection refresh did not complete. Reload definitions to retry.' -Level Error
     }
+    if ($kind -eq 'PackageDefinitions' -and ($job.State -ne 'Completed' -or $null -ne $job.TerminatingError)) {
+        Write-EwWorkbenchLog -State $State -Message 'Definitions load did not complete. Reload definitions to retry.' -Level Error
+    }
     if ($kind -eq 'IntunePublish' -and $null -ne $State.IntuneCancellation) {
         $State.IntuneCancellation.Dispose()
         $State.IntuneCancellation = $null
     }
     Invoke-EwWorkbenchBusyState -State $State -IsBusy $false
+    if ($kind -eq 'IntuneReview') {
+        $pending = $State.IntunePendingPublish
+        $State.IntunePendingPublish = $null
+        if ($null -ne $nextIntunePublish -and $null -ne $pending) {
+            try {
+                if ($State.IntuneTenantId -ne $pending.TenantId -or $State.Settings.IntuneDefinitionsPath -ne $pending.Root) {
+                    throw 'The confirmed tenant or definitions folder changed during review.'
+                }
+                $reviewedDefinitions = @{}
+                foreach ($reviewed in @($nextIntunePublish.Items)) { $reviewedDefinitions[[string]$reviewed.DefinitionPath] = $reviewed }
+                $State.IntuneComparison = @(foreach ($existing in $State.IntuneComparison) {
+                    if ($existing.RowType -eq 'Definition' -and $reviewedDefinitions.ContainsKey([string]$existing.DefinitionPath)) {
+                        $reviewedDefinitions[[string]$existing.DefinitionPath]
+                    }
+                    else { $existing }
+                })
+                $State.IntuneComparisonListView.ItemsSource = [object[]]@($State.IntuneComparison | Where-Object RowType -EQ 'Definition')
+                $State.IntuneOnlyAppsListView.ItemsSource = [object[]]@($State.IntuneComparison | Where-Object RowType -EQ 'Intune')
+                $confirmed = Confirm-EwWorkbenchIntuneBatch -Window $State.Window -Selection @($nextIntunePublish.Items) `
+                    -TenantId $pending.TenantId -PlanChanged:([bool]$nextIntunePublish.Changed)
+                if ($confirmed) {
+                    $State.IntuneCancellation = [System.Threading.CancellationTokenSource]::new()
+                    Invoke-EwWorkbenchJob -State $State -Kind 'IntunePublish' -Name 'Build and publish Intune apps' `
+                        -ArgumentList @($pending.Root, [object[]]$nextIntunePublish.Items, $pending.WorkingPath, $pending.TenantId, $State.IntuneCancellation.Token) -ScriptBlock {
+                        param($Root, $Selection, $WorkingPath, $TenantId, $CancellationToken)
+                        Publish-EwIntuneBatch -DefinitionPath $Root -Selection $Selection -WorkingPath $WorkingPath `
+                            -TenantId $TenantId -CancellationToken $CancellationToken -Confirm:$false
+                    }
+                }
+                else { Update-EwWorkbenchIntuneView -State $State }
+            }
+            catch {
+                if ($null -ne $State.IntuneCancellation) { $State.IntuneCancellation.Dispose(); $State.IntuneCancellation = $null }
+                Write-EwWorkbenchLog -State $State -Message "Could not start the confirmed Intune import: $($_.Exception.Message)" -Level Error
+            }
+        }
+    }
     if ($null -ne $restoreApp -and $null -eq $State.CurrentApp) {
         # Selecting the row starts the normal Artifact load for the restored application.
         $State.AppsListView.SelectedItem = $restoreApp
@@ -441,5 +510,8 @@ function Invoke-EwWorkbenchJobMonitor {
     }
     if ($State.Contains('InstallRefreshPending') -and $State.InstallRefreshPending) {
         Invoke-EwWorkbenchInstallRefresh -State $State
+    }
+    if ($State.Contains('PackageDefinitionsLoadPending') -and $State.PackageDefinitionsLoadPending) {
+        Invoke-EwWorkbenchPackageDefinitionsLoad -State $State -Automatic
     }
 }

@@ -17,10 +17,16 @@ A resolved installer for a specific version of an application, produced by evalu
 _Avoid_: Download, installer, result
 
 **Local-install architecture compatibility**:
-The assessment of whether a Definition and its Artifact, when known, are
-allowed, require approval, or are blocked for installation on the local
-operating system architecture.
+The assessment of whether a Definition and its Artifact, when known, are allowed, require approval, or are blocked for installation on the local operating system architecture.
 _Avoid_: Architecture match
+
+**OS architecture requirement**:
+The operating system architectures on which a Definition declares its package eligible for installation.
+_Avoid_: Artifact architecture, processor preference
+
+**Artifact architecture**:
+The architecture associated with a resolved Artifact or selected as its variant in a Definition.
+_Avoid_: OS architecture requirement
 
 **Workbench cache**:
 Reusable application catalog and resolved Artifact data retained by Workbench.

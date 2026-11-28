@@ -13,7 +13,265 @@ AfterAll {
 }
 
 Describe 'Intune Publish view' {
-    It 'shows definition and Intune app display names followed by Publisher in the Win32 apps comparison' {
+    It 'shows connection and comparison instructions until a successful comparison, including an empty result' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.IntuneComparisonInstructionText.Visibility.ToString() | Should -Be 'Visible'
+                $state.IntuneComparisonInstructionText.Text | Should -Match 'Connect to Intune'
+                $state.IntuneComparisonListView.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.IntuneTenantId = 'tenant'
+                Update-EwWorkbenchIntuneView -State $state
+                $state.IntuneComparisonInstructionText.Text | Should -Match 'Compare definitions'
+                $state.ActiveJobId = [guid]::NewGuid()
+                $state.ActiveJobKind = 'IntuneCompare'
+                Update-EwWorkbenchIntuneView -State $state
+                $state.IntuneComparisonInstructionText.Text | Should -Match 'Comparing'
+                Mock Remove-EwJob {}
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = 'Completed'; Progress = @(); Information = @(); Errors = @(); TerminatingError = $null
+                        Output = @([PSCustomObject]@{ DefinitionRoot = 'C:\Definitions'; Items = @() })
+                    }
+                }
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.IntuneComparisonLoaded | Should -BeTrue
+                $state.IntuneComparisonInstructionText.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.IntuneComparisonListView.Visibility.ToString() | Should -Be 'Visible'
+                $state.IntuneInventoryViewCombo.SelectedIndex = 1
+                $state.IntuneOnlyAppsListView.Visibility.ToString() | Should -Be 'Visible'
+                $state.IntuneTenantId = ''
+                $state.IntuneComparisonLoaded = $false
+                Update-EwWorkbenchIntuneView -State $state
+                $state.IntuneOnlyAppsListView.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.IntuneComparisonInstructionText.Text | Should -Match 'Connect to Intune'
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'restores comparison guidance after a failed initial comparison' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.IntuneTenantId = 'tenant'
+                $state.ActiveJobId = [guid]::NewGuid()
+                $state.ActiveJobKind = 'IntuneCompare'
+                Update-EwWorkbenchIntuneView -State $state
+                $state.IntuneComparisonInstructionText.Text | Should -Match 'Comparing'
+                Mock Remove-EwJob {}
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = 'Failed'; Progress = @(); Information = @(); Errors = @()
+                        TerminatingError = [System.Management.Automation.ErrorRecord]::new(
+                            [System.Exception]::new('Comparison failed'), 'ComparisonFailed',
+                            [System.Management.Automation.ErrorCategory]::NotSpecified, $null)
+                        Output = @()
+                    }
+                }
+                Invoke-EwWorkbenchJobMonitor -State $state
+                $state.IntuneComparisonLoaded | Should -BeFalse
+                $state.IntuneComparisonInstructionText.Text | Should -Match 'Compare definitions'
+                $state.IntuneComparisonListView.Visibility.ToString() | Should -Be 'Collapsed'
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'places the selection summary beside the import actions at window width <Width>' -ForEach @(
+        @{ Width = 960 }
+        @{ Width = 1400 }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Width = $Width } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Width = $Width
+                $window.Show()
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavIntune.IsChecked = $true
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                $summary = $state.IntuneSelectionSummaryText
+                $summaryPosition = $summary.TranslatePoint([System.Windows.Point]::new(0, 0), $window)
+                $summary.ActualWidth | Should -BeGreaterThan 0
+                foreach ($button in @($state.CancelIntuneBatchButton, $state.PublishSelectedIntuneButton, $state.PublishIntuneUpdateButton)) {
+                    $buttonPosition = $button.TranslatePoint([System.Windows.Point]::new(0, 0), $window)
+                    ($summaryPosition.X + $summary.ActualWidth) | Should -BeLessOrEqual $buttonPosition.X
+                    [Math]::Abs(($summaryPosition.Y + $summary.ActualHeight / 2) - ($buttonPosition.Y + $button.ActualHeight / 2)) | Should -BeLessOrEqual 1
+                    ($buttonPosition.X + $button.ActualWidth) | Should -BeLessOrEqual $window.ActualWidth
+                }
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'aligns Intune inventory column headers with their cells and spaces filter labels' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavIntune.IsChecked = $true
+                $state.IntuneTenantId = 'tenant'
+                $state.IntuneComparisonLoaded = $true
+                $state.IntuneInventoryViewCombo.SelectedIndex = 1
+                $item = [PSCustomObject]@{
+                    IntuneDisplayName = 'App'; IntuneVersion = '1.0'; RequirementArchitecture = 'x64'; PSPackageFactoryGuid = 'guid'
+                }
+                $grid = $state.IntuneOnlyAppsListView
+                $grid.ItemsSource = @($item)
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                foreach ($pair in @(
+                        @{ Label = 'IntuneDefinitionSearchLabel'; Input = 'IntuneDefinitionSearchBox' }
+                        @{ Label = 'IntuneInventoryViewLabel'; Input = 'IntuneInventoryViewCombo' }
+                    )) {
+                    $label = $window.FindName($pair.Label)
+                    $inputControl = $window.FindName($pair.Input)
+                    $labelEnd = $label.TranslatePoint([System.Windows.Point]::new($label.ActualWidth, 0), $window).X
+                    $inputStart = $inputControl.TranslatePoint([System.Windows.Point]::new(0, 0), $window).X
+                    ($inputStart - $labelEnd) | Should -BeGreaterOrEqual 8
+                }
+                $grid.HeadersVisibility | Should -Be ([System.Windows.Controls.DataGridHeadersVisibility]::Column)
+                $pending = [System.Collections.Generic.Stack[System.Windows.DependencyObject]]::new()
+                $pending.Push($grid)
+                $headers = @{}
+                while ($pending.Count -gt 0) {
+                    $element = $pending.Pop()
+                    if ($element -is [System.Windows.Controls.Primitives.DataGridColumnHeader] -and $null -ne $element.Column) {
+                        $headers[[string]$element.Column.Header] = $element
+                    }
+                    for ($index = 0; $index -lt [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($element); $index++) {
+                        $pending.Push([System.Windows.Media.VisualTreeHelper]::GetChild($element, $index))
+                    }
+                }
+                foreach ($column in $grid.Columns) {
+                    $header = $headers[[string]$column.Header]
+                    $header | Should -Not -BeNullOrEmpty
+                    $text = $column.GetCellContent($item)
+                    $cell = [System.Windows.Media.VisualTreeHelper]::GetParent($text)
+                    while ($null -ne $cell -and $cell -isnot [System.Windows.Controls.DataGridCell]) {
+                        $cell = [System.Windows.Media.VisualTreeHelper]::GetParent($cell)
+                    }
+                    $headerX = $header.TranslatePoint([System.Windows.Point]::new(0, 0), $grid).X
+                    $cellX = $cell.TranslatePoint([System.Windows.Point]::new(0, 0), $grid).X
+                    [Math]::Abs($headerX - $cellX) | Should -BeLessOrEqual 1
+                }
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'opens and closes the inspector with <Count> matching apps' -ForEach @(
+        @{ Count = 0 }
+        @{ Count = 1 }
+        @{ Count = 2 }
+    ) {
+        InModuleScope EvergreenUI -Parameters @{ Count = $Count } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavIntune.IsChecked = $true
+                $state.IntuneTenantId = 'tenant'
+                $state.IntuneComparisonLoaded = $true
+                $apps = @(for ($index = 0; $index -lt $Count; $index++) {
+                    [PSCustomObject]@{
+                        IntuneAppId = "app-$index"; DisplayName = "Imported app $index"; DisplayVersion = '1.0'
+                        AllowedArchitectures = 'x64'; Role = 'Current app'; AppKind = 'Deployment app'
+                        Supersedes = 'No verified predecessor'; SupersededBy = 'No verified successor'
+                        SupersededAppIds = @(); SelectionLabel = "Imported app $index / 1.0"
+                    }
+                })
+                $row = [PSCustomObject]@{
+                    RowType = 'Definition'; DefinitionName = 'Definition'; Publisher = 'Publisher'; AvailableVersion = '2.0'
+                    IsSelected = $false; MatchingAppCount = $Count; MatchingApps = $apps; RelationshipsVerified = $true
+                    IntuneAppId = if ($Count) { 'app-0' } else { '' }
+                    DeploymentBlocker = ''; UpdateBlocker = ''
+                }
+                $state.IntuneComparison = @($row)
+                $state.IntuneComparisonListView.ItemsSource = @($row)
+                $state.IntuneComparisonListView.SelectedItem = $row
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                $state.IntuneDefinitionDrawer.Visibility.ToString() | Should -Be 'Visible'
+                $state.IntunePredecessorCombo.Items.Count | Should -Be $Count
+                $window.FindName('IntuneMatchingAppsControl').Items.Count | Should -Be $Count
+                if ($Count) {
+                    $state.IntunePredecessorCombo.SelectedValue | Should -Be 'app-0'
+                    $window.FindName('IntuneMatchingAppsControl').Items[0].DisplayName | Should -Be 'Imported app 0'
+                }
+                $state.CloseIntuneDefinitionDrawerButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                $state.IntuneDefinitionDrawer.Visibility.ToString() | Should -Be 'Collapsed'
+                $state.IntunePredecessorCombo.Items.Count | Should -Be 0
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'does not repeatedly rebuild the inspector when checked rows are rendered' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $window.WindowStartupLocation = 'Manual'
+                $window.Left = -10000
+                $window.Top = -10000
+                $window.Show()
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavIntune.IsChecked = $true
+                $state.IntuneTenantId = 'tenant'
+                $state.IntuneComparisonLoaded = $true
+                Update-EwWorkbenchIntuneView -State $state
+                $state.InspectorUpdateCount = 0
+                $originalInvoker = $state.ModuleInvoker
+                $state.ModuleInvoker = {
+                    param($Name, $Parameters)
+                    if ($Name -eq 'Update-EwWorkbenchIntuneView') { $state.InspectorUpdateCount++; return }
+                    & $originalInvoker -Name $Name -Parameters $Parameters
+                }.GetNewClosure()
+                $rows = @(1..100 | ForEach-Object {
+                    [PSCustomObject]@{
+                        RowType = 'Definition'; DefinitionName = "App $_"; IsSelected = $true
+                        Publisher = 'Publisher'; AvailableVersion = '2.0'; Architecture = 'x64'; Readiness = 'Update available'; MatchingAppCount = 0
+                    }
+                })
+                $state.IntuneComparison = $rows
+                $state.IntuneComparisonListView.ItemsSource = $rows
+                $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+                $window.UpdateLayout()
+                $state.InspectorUpdateCount | Should -Be 0
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'uses cached artifacts for browsing while keeping comparison in the background' {
+        InModuleScope EvergreenUI {
+            Mock Invoke-EwWorkbenchJob {
+                & $ScriptBlock @ArgumentList
+            }
+            Mock Import-Module {}
+            Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant' } }
+            Mock Compare-EwIntuneApp { @() }
+            $state = @{ Settings = @{ IntuneDefinitionsPath = 'C:\Definitions' }; IntuneTenantId = 'tenant' }
+            Invoke-EwWorkbenchIntuneComparison -State $state
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter { $Kind -eq 'IntuneCompare' }
+            Should -Invoke Compare-EwIntuneApp -Exactly 1 -ParameterFilter { $DefinitionView -and -not $NoCache }
+        }
+    }
+
+    It 'opens a closable inspector with all matching apps without grouping or duplicating definition rows' {
         InModuleScope EvergreenUI {
             $window = Get-EwWorkbenchWindow
             try {
@@ -23,32 +281,50 @@ Describe 'Intune Publish view' {
                 $window.Show()
                 $window.FindName('AppsPanel').Visibility = 'Collapsed'
                 $window.FindName('IntunePanel').Visibility = 'Visible'
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $state.NavIntune.IsChecked = $true
+                $state.IntuneTenantId = 'tenant'
+                $state.IntuneComparisonLoaded = $true
                 $grid = $window.FindName('IntuneComparisonListView')
-                $rows = @(
-                    [PSCustomObject]@{ DefinitionName = 'Local name'; IntuneDisplayName = 'Intune name'; Publisher = 'Intune Publisher'; ImportAsUpdate = $false }
-                    [PSCustomObject]@{ DefinitionName = 'Local only'; IntuneDisplayName = ''; Publisher = 'Definition Publisher'; ImportAsUpdate = $false }
-                    [PSCustomObject]@{ DefinitionName = ''; IntuneDisplayName = 'Intune only'; Publisher = ''; ImportAsUpdate = $false }
-                )
+                $row = [PSCustomObject]@{
+                    RowType = 'Definition'; DefinitionName = 'Local name'; Publisher = 'Publisher'; AvailableVersion = '2.0'
+                    IsSelected = $false; MatchingAppCount = 2; RelationshipsVerified = $true; IntuneAppId = 'current'
+                    MatchingApps = @([PSCustomObject]@{ IntuneAppId = 'current'; DisplayName = 'Current app'; DisplayVersion = '2.0' }, [PSCustomObject]@{ IntuneAppId = 'old'; DisplayName = 'Earlier app'; DisplayVersion = '1.0' })
+                    DeploymentBlocker = 'Already imported'; UpdateBlocker = 'Already imported'
+                }
+                $rows = @($row)
+                $state.IntuneComparison = $rows
                 $grid.ItemsSource = $rows
+                $grid.SelectedItem = $row
                 $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                 $window.UpdateLayout()
 
-                $expectedColumns = @(
-                    @{ Header = 'Definition display name'; Property = 'DefinitionName' }
-                    @{ Header = 'Intune display name'; Property = 'IntuneDisplayName' }
-                    @{ Header = 'Publisher'; Property = 'Publisher' }
-                )
-                for ($index = 0; $index -lt $expectedColumns.Count; $index++) {
-                    $column = $grid.Columns[$index]
-                    $column.Header | Should -Be $expectedColumns[$index].Header
-                    $column.IsReadOnly | Should -BeTrue
-                    foreach ($row in $rows) {
-                        $grid.ScrollIntoView($row, $column)
-                        $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
-                        $window.UpdateLayout()
-                        $column.GetCellContent($row).Text | Should -Be $row.($expectedColumns[$index].Property)
+                $grid.Items.Count | Should -Be 1
+                $state.IntuneDefinitionDrawer.Visibility.ToString() | Should -Be 'Visible'
+                $window.FindName('IntuneInspectedDefinitionNameText').Text | Should -Be 'Local name'
+                $window.FindName('IntuneInspectedVersionText').Text | Should -Be 'Version available to import: 2.0'
+                $window.FindName('IntuneMatchingAppsControl').Items.Count | Should -Be 2
+                $state.CloseIntuneDefinitionDrawerButton.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                $state.IntuneDefinitionDrawer.Visibility.ToString() | Should -Be 'Collapsed'
+                $grid.Items.Count | Should -Be 1
+                $pending = [System.Collections.Generic.Stack[System.Windows.DependencyObject]]::new()
+                $pending.Push($grid.ItemContainerGenerator.ContainerFromItem($row))
+                $checkBox = $null
+                while ($pending.Count -gt 0) {
+                    $element = $pending.Pop()
+                    if ($element -is [System.Windows.Controls.CheckBox]) { $checkBox = $element; break }
+                    for ($index = 0; $index -lt [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($element); $index++) {
+                        $pending.Push([System.Windows.Media.VisualTreeHelper]::GetChild($element, $index))
                     }
                 }
+                $checkBox | Should -Not -BeNullOrEmpty
+                $checkBox.IsChecked = $true
+                $row.IsSelected | Should -BeTrue
+                $state.IntuneSelectionSummaryText.Text | Should -Match '1 selected: Local name'
+                $state.PublishSelectedIntuneButton.IsEnabled | Should -BeFalse
+                $state.IntuneDefinitionSearchBox.Text = 'Does not match'
+                $grid.Items.Count | Should -Be 0
+                $row.IsSelected | Should -BeTrue
             }
             finally {
                 $window.Close()
@@ -56,20 +332,21 @@ Describe 'Intune Publish view' {
         }
     }
 
-    It 'preserves batch confirmation details for new and update apps' {
+    It 'uses one readable confirmation with explicit update effects and a verb-labelled action' {
         InModuleScope EvergreenUI {
             $selection = @(
-                [PSCustomObject]@{ DefinitionName = 'New & Co'; ImportAsUpdate = $false; IntuneAppId = '' }
-                [PSCustomObject]@{ DefinitionName = 'Existing'; ImportAsUpdate = $true; IntuneAppId = 'previous-id' }
+                [PSCustomObject]@{ DefinitionName = 'Existing & Co'; ImportAsUpdate = $true; IntuneAppId = 'previous-id'; IntuneDisplayName = 'Earlier & Co'; IntuneVersion = '1.0'; AvailableVersion = '2.0'; Architecture = 'x64'; RequirementArchitecture = 'x64,arm64'; DefinitionVersion = '1.0' }
             )
             Mock Confirm-EwWorkbenchAction { $true }
             Confirm-EwWorkbenchIntuneBatch -Window ([object]::new()) -Selection $selection -TenantId 'tenant-id' |
                 Should -BeTrue
             Should -Invoke Confirm-EwWorkbenchAction -Exactly 1 -ParameterFilter {
-                $Title -eq 'Confirm Intune publishing' -and $DefaultYes -and
+                $Title -eq 'Confirm Intune publishing' -and -not $DefaultYes -and
                 $Message -match 'Tenant: tenant-id' -and
-                $Message -match 'New & Co: Definition assignments; new app' -and
-                $Message -match 'Existing: UPDATE APP: required for All Devices; supersedes previous-id' -and
+                $Message -match 'Existing & Co' -and
+                $Message -match "supersede 'Earlier & Co', version 1.0" -and
+                $Message -match 'Required for All Devices' -and
+                $Message -match 'application-presence' -and $AcceptText -eq 'Import 1 update app' -and $DeclineText -eq 'Cancel' -and
                 $Message -match 'Definition and Source\\Install.json files may be updated on disk'
             }
         }
@@ -277,6 +554,8 @@ Describe 'Intune Publish view' {
                 $state.ConnectIntuneButton.Content | Should -Be 'Disconnect'
                 $state.ConnectIntuneButton.IsEnabled | Should -BeTrue
                 $state.CompareIntuneButton.IsEnabled | Should -BeTrue
+                $state.IntuneComparisonLoaded | Should -BeFalse
+                $state.IntuneComparisonInstructionText.Text | Should -Match 'Compare definitions'
 
                 $state.ConnectIntuneButton.RaiseEvent($click)
                 $state.ActiveJobKind | Should -Be 'IntuneDisconnect'
@@ -307,6 +586,8 @@ Describe 'Intune Publish view' {
                 $state.IntuneConnectionStatusLabel.Text | Should -Be 'Not connected'
                 $state.ConnectIntuneButton.Content | Should -Be 'Connect'
                 $state.CompareIntuneButton.IsEnabled | Should -BeFalse
+                $state.IntuneComparisonLoaded | Should -BeFalse
+                $state.IntuneComparisonInstructionText.Text | Should -Match 'Connect to Intune'
             }
             finally {
                 $window.Close()
@@ -351,27 +632,49 @@ Describe 'Intune Publish view' {
                 $state.IntunePanel.Visibility.ToString() | Should -Be 'Visible'
                 $state.IntuneTenantId = 'tenant'
                 $state.IntuneComparisonRoot = 'C:\Definitions'
+                $state.IntuneComparisonLoaded = $true
                 $state.Settings.IntuneDefinitionsPath = 'C:\Definitions'
                 $state.Settings.PackageOutputPath = 'C:\Packages'
                 $row = [PSCustomObject]@{
                     DefinitionName = 'App'; DefinitionPath = 'C:\Definitions\App\App.json'
-                    MatchStatus = 'Matched (current)'; IntuneAppId = 'old-id'; ImportAsUpdate = $true
+                    RowType = 'Definition'; MatchStatus = 'Matched (update required)'; IntuneAppId = 'old-id'; ImportAsUpdate = $true
+                    IsSelected = $true; DeploymentBlocker = ''; UpdateBlocker = ''; MatchingApps = @(); MatchingAppCount = 0; RelationshipsVerified = $true
                 }
-                $state.IntuneComparisonListView.ItemsSource = @($row)
+                $unselected = $row.PSObject.Copy()
+                $unselected.DefinitionName = 'Unselected'
+                $unselected.DefinitionPath = 'C:\Definitions\Other\App.json'
+                $unselected.IsSelected = $false
+                $inventory = [PSCustomObject]@{ RowType = 'Intune'; IntuneDisplayName = 'Inventory app'; IntuneAppId = 'inventory' }
+                $state.IntuneComparison = @($row, $unselected, $inventory)
+                $state.IntuneComparisonListView.ItemsSource = @($row, $unselected)
                 $state.IntuneComparisonListView.SelectedItem = $row
                 Mock Confirm-EwWorkbenchIntuneBatch { $true }
                 Mock Start-EwJob { [PSCustomObject]@{ Id = [guid]::NewGuid(); Name = $Name } }
                 $click = [System.Windows.RoutedEventArgs]::new(
                     [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent
                 )
-                $state.PublishSelectedIntuneButton.RaiseEvent($click)
+                $state.PublishIntuneUpdateButton.RaiseEvent($click)
+                $state.ActiveJobKind | Should -Be 'IntuneReview'
+                Should -Invoke Confirm-EwWorkbenchIntuneBatch -Exactly 0
+                Mock Remove-EwJob {}
+                Mock Get-EwJob {
+                    [PSCustomObject]@{
+                        Id = $Id; State = 'Completed'; Progress = @(); Information = @(); Errors = @(); TerminatingError = $null
+                        Output = @([PSCustomObject]@{ Items = @($row); Comparison = @($row); Changed = $false })
+                    }
+                }
+                Invoke-EwWorkbenchJobMonitor -State $state
                 $state.ActiveJobKind | Should -Be 'IntunePublish'
+                $state.IntuneComparison.Count | Should -Be 3
+                $state.IntuneComparisonListView.Items.Count | Should -Be 2
+                $state.IntuneOnlyAppsListView.Items.Count | Should -Be 1
+                ($state.IntuneComparison | Where-Object { $_.RowType -eq 'Definition' -and $_.DefinitionName -eq 'Unselected' }).IsSelected | Should -BeFalse
                 $state.CancelIntuneBatchButton.IsEnabled | Should -BeTrue
                 Should -Invoke Confirm-EwWorkbenchIntuneBatch -Exactly 1 -ParameterFilter {
                     $TenantId -eq 'tenant' -and $Selection[0].ImportAsUpdate
                 }
                 Should -Invoke Start-EwJob -Exactly 1 -ParameterFilter {
-                    $ArgumentList[0] -eq 'C:\Definitions' -and $ArgumentList[2] -eq 'C:\Packages' -and
+                    $Name -eq 'Build and publish Intune apps' -and $ArgumentList[0] -eq 'C:\Definitions' -and $ArgumentList[2] -eq 'C:\Packages' -and
                     $ArgumentList[3] -eq 'tenant'
                 }
                 $state.CancelIntuneBatchButton.RaiseEvent($click)

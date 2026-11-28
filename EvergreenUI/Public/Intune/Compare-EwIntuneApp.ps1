@@ -13,6 +13,14 @@ function Compare-EwIntuneApp {
         Folder containing App.json definitions.
     .PARAMETER IntuneApp
         Apps returned by Get-EwIntuneApp. When omitted, Intune is queried.
+    .PARAMETER DefinitionView
+        Returns one row per definition, with resolved import versions, all GUID
+        matches, supersedence details and import blockers, plus Intune-only rows.
+    .PARAMETER NoCache
+        Refreshes artifact resolution for DefinitionView.
+    .PARAMETER SelectedDefinitionPath
+        Limits DefinitionView to these definition files while checking duplicate
+        GUIDs across the root folder. Omits Intune-only inventory rows.
     .EXAMPLE
         Compare-EwIntuneApp -DefinitionPath C:\Packages\Apps
     .OUTPUTS
@@ -32,9 +40,28 @@ function Compare-EwIntuneApp {
 
         [Parameter()]
         [AllowEmptyCollection()]
-        [object[]]$IntuneApp
+        [object[]]$IntuneApp,
+
+        [Parameter()]
+        [switch]$DefinitionView,
+
+        [Parameter()]
+        [switch]$NoCache,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string[]]$SelectedDefinitionPath
     )
 
+    if ($DefinitionView) {
+        if (-not $PSBoundParameters.ContainsKey('IntuneApp')) {
+            $IntuneApp = @(Get-EwIntuneApp -IncludeUnmanaged)
+        }
+        $comparisonParameters = @{ DefinitionPath = $DefinitionPath; IntuneApp = $IntuneApp; NoCache = $NoCache }
+        if ($PSBoundParameters.ContainsKey('SelectedDefinitionPath')) { $comparisonParameters.SelectedDefinitionPath = $SelectedDefinitionPath }
+        return Get-EwIntuneDefinitionComparison @comparisonParameters
+    }
+    if ($PSBoundParameters.ContainsKey('SelectedDefinitionPath')) { throw 'SelectedDefinitionPath requires DefinitionView.' }
     $definitions = @(Get-EwDefinition -Path $DefinitionPath)
     if (-not $PSBoundParameters.ContainsKey('IntuneApp')) {
         $IntuneApp = @(Get-EwIntuneApp)
@@ -66,41 +93,9 @@ function Compare-EwIntuneApp {
     $supersededIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($group in $groups.Values) {
         if ($group.Count -lt 2) { continue }
-        $byId = @{}
-        $targets = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        $edges = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        foreach ($app in $group) { $byId[[string]$app.IntuneAppId] = $app }
-        foreach ($app in $group) {
-            $property = $app.PSObject.Properties['SupersededAppIds']
-            if ($null -eq $property) { continue }
-            foreach ($target in @($property.Value)) {
-                if ($byId.ContainsKey([string]$target)) {
-                    $null = $targets.Add([string]$target)
-                    $null = $edges.Add("$($app.IntuneAppId)|$target")
-                }
-            }
-        }
-        $roots = @($group | Where-Object { -not $targets.Contains([string]$_.IntuneAppId) })
-        if ($roots.Count -ne 1 -or $edges.Count -ne ($group.Count - 1)) { continue }
-        $visited = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        $pending = [System.Collections.Generic.Stack[string]]::new()
-        $pending.Push([string]$roots[0].IntuneAppId)
-        while ($pending.Count -gt 0) {
-            $id = $pending.Pop()
-            if (-not $visited.Add($id)) { continue }
-            $property = $byId[$id].PSObject.Properties['SupersededAppIds']
-            if ($null -ne $property) {
-                foreach ($target in @($property.Value)) {
-                    if ($byId.ContainsKey([string]$target)) { $pending.Push([string]$target) }
-                }
-            }
-        }
-        if ($visited.Count -eq $group.Count) {
-            foreach ($app in $group) {
-                if ([string]$app.IntuneAppId -ne [string]$roots[0].IntuneAppId) {
-                    $null = $supersededIds.Add([string]$app.IntuneAppId)
-                }
-            }
+        $chain = Get-EwIntuneSupersedenceState -App @($group)
+        foreach ($id in $chain.SupersededAppIds) {
+            $null = $supersededIds.Add([string]$id)
         }
     }
     $appCounts = @{}

@@ -110,7 +110,14 @@ function Resolve-EwArtifact {
                 }
                 if ($timestampValid) {
                     $age = [DateTimeOffset]::UtcNow - $retrievedAt.ToUniversalTime()
-                    if ($age.TotalHours -le $CacheMaxAgeHours -and $age.TotalMinutes -ge 0) {
+                    $application = $definition.Application
+                    $architecture = [string](Get-EwObjectPropertyValue -Object $application -Name 'Architecture' -Default '')
+                    $cachedArchitecture = if ($null -ne $entry.ResolvedArtifact) {
+                        [string](Get-EwObjectPropertyValue -Object $entry.ResolvedArtifact -Name 'Architecture' -Default '')
+                    } else { '' }
+                    $architectureMatches = [string]::IsNullOrWhiteSpace($architecture) -or $architecture.Trim() -eq '-' -or
+                        -not $entry.Succeeded -or $cachedArchitecture.Trim() -ieq $architecture.Trim()
+                    if ($age.TotalHours -le $CacheMaxAgeHours -and $age.TotalMinutes -ge 0 -and $architectureMatches) {
                         Write-Verbose -Message "EvergreenUI: Definition artifact cache hit (age: $([Math]::Round($age.TotalMinutes, 1)) minutes)."
                         return [PSCustomObject]@{
                             Succeeded        = [bool]$entry.Succeeded
@@ -147,23 +154,26 @@ function Resolve-EwArtifact {
         $preferredLanguage = if ($null -ne $application.PSObject.Properties['Language']) {
             [string]$application.Language
         } else { '' }
-        foreach ($preference in @(
-            @{ Property = 'Architecture'; Value = $preferredArchitecture }
-            @{ Property = 'Language'; Value = $preferredLanguage }
-        )) {
-            if (-not [string]::IsNullOrWhiteSpace($preference.Value)) {
-                $preferredMatches = @($artifacts | Where-Object {
-                    $null -ne $_.PSObject.Properties[$preference.Property] -and
-                    [string]$_.PSObject.Properties[$preference.Property].Value -ieq $preference.Value
-                })
-                if ($preferredMatches.Count -gt 0) {
-                    $artifacts = $preferredMatches
-                }
-            }
-        }
-
         if ($artifacts.Count -eq 0) {
             throw 'Application.Filter did not return any artifacts.'
+        }
+        if (-not [string]::IsNullOrWhiteSpace($preferredArchitecture) -and $preferredArchitecture.Trim() -ne '-') {
+            $artifacts = @($artifacts | Where-Object {
+                $value = [string](Get-EwObjectPropertyValue -Object $_ -Name 'Architecture' -Default '')
+                $value.Trim() -ieq $preferredArchitecture.Trim()
+            })
+            if ($artifacts.Count -eq 0) {
+                throw "No artifact matches Application.Architecture '$preferredArchitecture'."
+            }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($preferredLanguage)) {
+            $preferredMatches = @($artifacts | Where-Object {
+                $null -ne $_.PSObject.Properties['Language'] -and
+                [string]$_.PSObject.Properties['Language'].Value -ieq $preferredLanguage
+            })
+            if ($preferredMatches.Count -gt 0) {
+                $artifacts = $preferredMatches
+            }
         }
 
         $best = $null

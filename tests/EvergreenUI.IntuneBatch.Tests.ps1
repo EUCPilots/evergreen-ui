@@ -4,6 +4,295 @@ BeforeAll {
     Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\EvergreenUI\EvergreenUI.psd1') -Force -ErrorAction Stop
 }
 
+Describe 'Definition-centric Intune comparison' {
+    BeforeEach {
+        $script:comparisonRoot = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString())
+        $null = New-Item -Path $script:comparisonRoot -ItemType Directory
+        $script:comparisonPath = Join-Path -Path $script:comparisonRoot -ChildPath 'App.json'
+        $script:guid = 'ad6e0b7c-37c9-4e96-9c3d-a4d9c6b046dc'
+        $script:definition = [PSCustomObject]@{
+            Information = @{ DisplayName = 'Example definition'; Publisher = 'Example publisher'; PSPackageFactoryGuid = $script:guid }
+            Application = @{ Architecture = 'x64'; Filter = 'Get-EvergreenApp -Name Example' }
+            RequirementRule = @{ Architecture = 'x64,arm64' }
+            PackageInformation = @{ Version = '1.0'; SetupFile = 'setup.exe' }
+            DetectionRule = @(@{ Type = 'File'; DetectionMethod = 'Version'; Path = 'C:\Example'; FileOrFolder = 'app.exe'; Operator = 'greaterThanOrEqual'; VersionValue = '1.0'; Check32BitOn64System = 'false' })
+            CustomRequirementRule = @()
+            Assignments = @(@{ Type = 'AllUsers'; Intent = 'available' })
+        }
+        $script:definition = $script:definition | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+        $script:definition | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:comparisonPath
+        Mock Resolve-EwArtifact {
+            [PSCustomObject]@{ Succeeded = $true; Version = '2.0'; URI = 'https://example.test/app.exe'; ResolvedArtifact = [PSCustomObject]@{ Architecture = 'x64' }; Error = '' }
+        } -ModuleName EvergreenUI
+        $script:older = [PSCustomObject]@{
+            IntuneAppId = 'old'; DisplayName = 'Example imported name'; DisplayVersion = '1.0'
+            Publisher = 'Example publisher'; NotesValid = 'Yes'; NotesGuid = $script:guid; IsUpdateApp = $false
+            AllowedArchitectures = 'x64'; SupersededAppIds = @()
+        }
+    }
+
+    It 'retains the names and versions of the current and superseded apps in one definition row' {
+        $current = $older.PSObject.Copy()
+        $current.IntuneAppId = 'current'
+        $current.DisplayName = 'Example latest'
+        $current.DisplayVersion = '2.0'
+        $current.SupersededAppIds = @('old')
+        $rows = @(Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older, $current))
+        $rows.Count | Should -Be 1
+        $rows[0].Readiness | Should -Be 'Latest imported'
+        $rows[0].IntuneAppId | Should -Be 'current'
+        $rows[0].DefinitionVersion | Should -Be '1.0'
+        $rows[0].AvailableVersion | Should -Be '2.0'
+        $rows[0].MatchingApps.Count | Should -Be 2
+        $rows[0].MatchingApps[0].Supersedes | Should -Match 'Example imported name.*1.0'
+        $rows[0].MatchingApps[1].SupersededBy | Should -Match 'Example latest.*2.0'
+        $rows[0].DeploymentBlocker | Should -Match 'already imported'
+    }
+
+    It 'indexes supersedence relationships instead of rescanning inventory for every matching app' {
+        InModuleScope EvergreenUI -Parameters @{ Root = $comparisonRoot; Guid = $guid } {
+            $script:relationshipReads = 0
+            $propertyReader = (Get-Command Get-EwObjectPropertyValue).ScriptBlock
+            Mock Get-EwObjectPropertyValue {
+                if ($Name -eq 'SupersededAppIds') { $script:relationshipReads++ }
+                & $propertyReader -Object $Object -Name $Name -Default $Default
+            }
+            $inventory = @(1..100 | ForEach-Object {
+                [PSCustomObject]@{
+                    IntuneAppId = "app-$_"; DisplayName = "App $_"; DisplayVersion = '1.0'; Publisher = 'Publisher'
+                    NotesValid = 'Yes'; NotesGuid = if ($_ -le 20) { $Guid } else { 'unrelated' }
+                    IsUpdateApp = $false; AllowedArchitectures = 'x64'; SupersededAppIds = @()
+                }
+            })
+            $rows = @(Compare-EwIntuneApp -DefinitionPath $Root -DefinitionView -IntuneApp $inventory)
+            $rows[0].MatchingAppCount | Should -Be 20
+            $script:relationshipReads | Should -BeLessOrEqual 140
+        }
+    }
+
+    It 'matches update apps to the definition and distinguishes artifact from OS architecture' {
+        $older.IsUpdateApp = $true
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        $row.Readiness | Should -Be 'Update available'
+        $row.MatchingApps[0].AppKind | Should -Be 'Update app'
+        $row.Architecture | Should -Be 'x64'
+        $row.RequirementArchitecture | Should -Be 'x64,arm64'
+        $row.MatchingApps[0].AllowedArchitectures | Should -Be 'x64'
+        $row.UpdateBlocker | Should -BeNullOrEmpty
+    }
+
+    It 'requires an explicit predecessor when matching apps are not linked' {
+        $other = $older.PSObject.Copy()
+        $other.IntuneAppId = 'other'
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older, $other)
+        $row.Readiness | Should -Be 'Needs review'
+        $row.IntuneAppId | Should -BeNullOrEmpty
+        InModuleScope EvergreenUI -Parameters @{ Row = $row } {
+            Set-EwIntuneComparisonTarget -Row $Row -AppId 'other'
+            $Row.IntuneAppId | Should -Be 'other'
+            $Row.DeploymentBlocker | Should -BeNullOrEmpty
+            { Set-EwIntuneComparisonTarget -Row $Row -AppId 'unrelated' } | Should -Throw '*not a unique match*'
+        }
+    }
+
+    It 'blocks missing versions and preserves unrelated inventory without name matching' {
+        $older.NotesGuid = 'another-guid'
+        $older.DisplayVersion = ''
+        $rows = @(Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older))
+        $rows[0].Readiness | Should -Be 'Not imported'
+        $rows[0].UpdateBlocker | Should -Match 'No existing app'
+        $rows[1].RowType | Should -Be 'Intune'
+        $rows[1].IntuneVersion | Should -Be 'Version unavailable'
+        $older.NotesGuid = $guid
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        $row.Readiness | Should -Be 'Needs review'
+        $row.DeploymentBlocker | Should -Match 'cannot be compared'
+    }
+
+    It 'blocks imports older than an existing Intune version' {
+        $older.DisplayVersion = '3.0'
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        $row.Readiness | Should -Be 'Newer version in Intune'
+        $row.DeploymentBlocker | Should -Match 'Older imports are blocked'
+    }
+
+    It 'blocks unresolvable definitions without hiding the resolution error' {
+        Mock Resolve-EwArtifact { [PSCustomObject]@{ Succeeded = $false; Error = 'No artifact matches'; Version = ''; URI = ''; ResolvedArtifact = $null } } -ModuleName EvergreenUI
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @()
+        $row.Readiness | Should -Be 'Needs review'
+        $row.DeploymentBlocker | Should -Match 'No artifact matches'
+        $row.AvailableVersion | Should -Be 'Unavailable'
+    }
+
+    It 'adds independent existence checks even when custom requirements are configured' {
+        InModuleScope EvergreenUI -Parameters @{ Definition = $definition } {
+            $Definition.CustomRequirementRule = @([PSCustomObject]@{ Type = 'Script'; ScriptFile = 'custom.ps1' })
+            $result = Get-EwIntuneUpdateRequirement -Definition $Definition
+            $result.Succeeded | Should -BeTrue
+            $result.Rules.Count | Should -Be 2
+            $result.Rules[1].DetectionMethod | Should -Be 'Existence'
+            $result.Rules[1].FileOrFolder | Should -Be 'app.exe'
+            $Definition.DetectionRule = @([PSCustomObject]@{ Type = 'MSI'; ProductCode = '{example}' })
+            (Get-EwIntuneUpdateRequirement -Definition $Definition).Succeeded | Should -BeFalse
+        }
+    }
+
+    It 'rejects an unsafe update before any Graph write' {
+        InModuleScope EvergreenUI -Parameters @{ Definition = $definition } {
+            $Definition.DetectionRule = @([PSCustomObject]@{ Type = 'MSI' })
+            Mock Invoke-MgGraphRequest {}
+            $result = Invoke-EwIntuneGraphWin32Import -DefinitionObject $Definition -IntuneWinPath 'not-used.intunewin' -SetupFilePath 'setup.exe' -DownloadedVersion '2.0' -PSPackageFactoryGuid 'guid' -ImportAsUpdate -SyncHash @{}
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match 'MSI-only'
+            Should -Invoke Invoke-MgGraphRequest -Exactly 0
+        }
+    }
+
+    It 'pins the version during publishing and does not upload a different built version' {
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        InModuleScope EvergreenUI -Parameters @{ Root = $comparisonRoot; Item = $row } {
+            Mock Assert-EwModule {}
+            Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant' } }
+            Mock Assert-EwIntunePublishPlan {}
+            Mock New-EwPackage { [PSCustomObject]@{ Succeeded = $true; PackagePath = 'package.intunewin'; Version = '3.0'; SetupFile = 'setup.exe'; Error = '' } }
+            Mock Publish-EwIntuneApp {}
+            Mock Invoke-MgGraphRequest {}
+            $result = Publish-EwIntuneBatch -DefinitionPath $Root -Selection @($Item) -WorkingPath $Root -TenantId 'tenant' -Confirm:$false
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match 'confirmed import version'
+            Should -Invoke Publish-EwIntuneApp -Exactly 0
+        }
+    }
+
+    It 'requires fresh confirmation when a reviewed version changes' {
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        InModuleScope EvergreenUI -Parameters @{ Root = $comparisonRoot; Item = $row } {
+            $changed = $Item.PSObject.Copy()
+            $changed.AvailableVersion = '3.0'
+            Mock Compare-EwIntuneApp { $changed }
+            { Assert-EwIntunePublishPlan -DefinitionPath $Root -Item $Item } | Should -Throw '*AvailableVersion*'
+            $review = Get-EwIntunePublishReview -DefinitionPath $Root -Selection @($Item) -ImportAsUpdate $false
+            $review.Changed | Should -BeTrue
+            $review.Items[0].AvailableVersion | Should -Be '3.0'
+            Should -Invoke Compare-EwIntuneApp -Exactly 2 -ParameterFilter { $DefinitionView -and $NoCache }
+        }
+    }
+
+    It 'refreshes only selected artifacts during <Stage> without querying unrelated definitions' -ForEach @(
+        @{ Stage = 'Review' }
+        @{ Stage = 'BeforeBuild' }
+        @{ Stage = 'AfterBuild' }
+    ) {
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        $otherFolder = Join-Path -Path $comparisonRoot -ChildPath 'Unselected'
+        $null = New-Item -Path $otherFolder -ItemType Directory
+        $otherPath = Join-Path -Path $otherFolder -ChildPath 'App.json'
+        $otherDefinition = $definition | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+        $otherDefinition.Information.PSPackageFactoryGuid = [guid]::NewGuid().ToString()
+        $otherDefinition | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $otherPath
+        InModuleScope EvergreenUI -Parameters @{ Root = $comparisonRoot; Item = $row; App = $older; Stage = $Stage; OtherPath = $otherPath } {
+            Mock Get-EwIntuneApp { @($App) }
+            if ($Stage -eq 'Review') {
+                $review = Get-EwIntunePublishReview -DefinitionPath $Root -Selection @($Item) -ImportAsUpdate $false
+                $review.Items.Count | Should -Be 1
+            }
+            else {
+                Assert-EwIntunePublishPlan -DefinitionPath $Root -Item $Item -AfterBuild:($Stage -eq 'AfterBuild')
+            }
+            Should -Invoke Resolve-EwArtifact -Exactly 0 -ParameterFilter { $DefinitionPath -eq $OtherPath }
+            Should -Invoke Resolve-EwArtifact -Exactly 1 -ParameterFilter { $DefinitionPath -eq $Item.DefinitionPath -and $NoCache }
+        }
+    }
+
+    It 'retains root-wide duplicate GUID protection when refreshing selected definitions' {
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        $duplicateFolder = Join-Path -Path $comparisonRoot -ChildPath 'Duplicate'
+        $null = New-Item -Path $duplicateFolder -ItemType Directory
+        $definition | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path -Path $duplicateFolder -ChildPath 'App.json')
+        InModuleScope EvergreenUI -Parameters @{ Root = $comparisonRoot; Item = $row; App = $older } {
+            Mock Get-EwIntuneApp { @($App) }
+            { Get-EwIntunePublishReview -DefinitionPath $Root -Selection @($Item) -ImportAsUpdate $false } | Should -Throw '*Multiple local definitions share this GUID*'
+            { Assert-EwIntunePublishPlan -DefinitionPath $Root -Item $Item } | Should -Throw '*changed*'
+            Should -Invoke Resolve-EwArtifact -Exactly 0 -ParameterFilter { $NoCache }
+        }
+    }
+
+    It 'refreshes every selected definition in a batch and rejects files removed from the root' {
+        $secondFolder = Join-Path -Path $comparisonRoot -ChildPath 'Second'
+        $null = New-Item -Path $secondFolder -ItemType Directory
+        $secondPath = Join-Path -Path $secondFolder -ChildPath 'App.json'
+        $secondDefinition = $definition | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+        $secondDefinition.Information.PSPackageFactoryGuid = [guid]::NewGuid().ToString()
+        $secondDefinition | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $secondPath
+        $selection = @(Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older))
+        InModuleScope EvergreenUI -Parameters @{ Root = $comparisonRoot; Items = $selection; App = $older } {
+            Mock Get-EwIntuneApp { @($App) }
+            $review = Get-EwIntunePublishReview -DefinitionPath $Root -Selection $Items -ImportAsUpdate $false
+            $review.Items.Count | Should -Be 2
+            @($review.Items | Where-Object IsSelected -EQ $true).Count | Should -Be 2
+            Should -Invoke Resolve-EwArtifact -Exactly 2 -ParameterFilter { $NoCache }
+            $missing = $Items[0].PSObject.Copy()
+            $missing.DefinitionPath = Join-Path -Path $Root -ChildPath 'Missing\App.json'
+            { Get-EwIntunePublishReview -DefinitionPath $Root -Selection @($missing) -ImportAsUpdate $false } | Should -Throw '*no longer a unique definition*'
+        }
+    }
+
+    It 'reviews the newly verified current app instead of retaining a superseded predecessor' {
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        $current = $older.PSObject.Copy()
+        $current.IntuneAppId = 'current'
+        $current.DisplayVersion = '1.5'
+        $current.SupersededAppIds = @('old')
+        $fresh = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older, $current)
+        InModuleScope EvergreenUI -Parameters @{ Root = $comparisonRoot; Item = $row; Fresh = $fresh } {
+            Mock Compare-EwIntuneApp { $Fresh }
+            $review = Get-EwIntunePublishReview -DefinitionPath $Root -Selection @($Item) -ImportAsUpdate $false
+            $review.Changed | Should -BeTrue
+            $review.Items[0].IntuneAppId | Should -Be 'current'
+            { Assert-EwIntunePublishPlan -DefinitionPath $Root -Item $Item } | Should -Throw '*changed*'
+        }
+    }
+
+    It 'blocks a definition edited while its available artifact is resolving' {
+        Mock Resolve-EwArtifact {
+            $changedDefinition = Get-Content -LiteralPath $DefinitionPath -Raw | ConvertFrom-Json
+            $changedDefinition.Information.DisplayName = 'Changed definition'
+            $changedDefinition | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $DefinitionPath
+            [PSCustomObject]@{ Succeeded = $true; Version = '2.0'; URI = 'https://example.test/app.exe'; ResolvedArtifact = [PSCustomObject]@{ Architecture = 'x64' }; Error = '' }
+        } -ModuleName EvergreenUI
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        $row.Readiness | Should -Be 'Needs review'
+        $row.DeploymentBlocker | Should -Match 'changed while comparing'
+        $row.UpdateBlocker | Should -Match 'changed while comparing'
+    }
+
+    It 'does not upload a definition edited during the final publishing review' {
+        $older.DisplayVersion = '0.9'
+        Mock Resolve-EwArtifact {
+            [PSCustomObject]@{ Succeeded = $true; Version = '1.0'; URI = 'https://example.test/app.exe'; ResolvedArtifact = [PSCustomObject]@{ Architecture = 'x64' }; Error = '' }
+        } -ModuleName EvergreenUI
+        $row = Compare-EwIntuneApp -DefinitionPath $comparisonRoot -DefinitionView -IntuneApp @($older)
+        InModuleScope EvergreenUI -Parameters @{ Root = $comparisonRoot; Item = $row } {
+            Mock Assert-EwModule {}
+            Mock Get-MgContext { [PSCustomObject]@{ TenantId = 'tenant' } }
+            Mock Assert-EwIntunePublishPlan {
+                if ($AfterBuild) {
+                    $changedDefinition = Get-Content -LiteralPath $Item.DefinitionPath -Raw | ConvertFrom-Json
+                    $changedDefinition.Information.DisplayName = 'Changed after build'
+                    $changedDefinition | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $Item.DefinitionPath
+                }
+            }
+            Mock New-EwPackage { [PSCustomObject]@{ Succeeded = $true; PackagePath = 'package.intunewin'; Version = '1.0'; SetupFile = 'setup.exe'; Error = '' } }
+            Mock Publish-EwIntuneApp {}
+            Mock Invoke-MgGraphRequest {}
+            $result = Publish-EwIntuneBatch -DefinitionPath $Root -Selection @($Item) -WorkingPath $Root -TenantId 'tenant' -Confirm:$false
+            $result.Succeeded | Should -BeFalse
+            $result.Error | Should -Match 'Definition files changed'
+            Should -Invoke Publish-EwIntuneApp -Exactly 0
+        }
+    }
+}
+
 AfterAll {
     Remove-Module -Name EvergreenUI -Force -ErrorAction SilentlyContinue
 }

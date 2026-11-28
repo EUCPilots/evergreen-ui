@@ -49,6 +49,7 @@ function Show-EwWorkbenchView {
         'Library' { $State.SubtitleTextBlock.Text = 'Inspect and refresh a local Evergreen library' }
         'Packages' {
             $State.SubtitleTextBlock.Text = 'Validate and update Intune package definitions. Test with local installation'
+            Invoke-EwWorkbenchPackageDefinitionsLoad -State $State -Automatic
             if ($State.InstallTab.IsSelected -and -not $State.InstallDefinitionsStale) {
                 Invoke-EwWorkbenchInstallStale -State $State
             }

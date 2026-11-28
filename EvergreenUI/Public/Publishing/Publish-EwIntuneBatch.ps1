@@ -13,7 +13,8 @@ function Publish-EwIntuneBatch {
         Root folder containing the compared definitions.
     .PARAMETER Selection
         Confirmed comparison rows with DefinitionHash, InstallHash, and
-        ImportAsUpdate properties.
+        ImportAsUpdate properties. DefinitionView rows also pin the resolved
+        version, URI, architectures and complete matching-app snapshot.
     .PARAMETER WorkingPath
         Package working and output folder.
     .PARAMETER TenantId
@@ -62,6 +63,13 @@ function Publish-EwIntuneBatch {
         if ([bool]$item.ImportAsUpdate -and [string]::IsNullOrWhiteSpace([string]$item.IntuneAppId)) {
             throw 'Update-app mode requires one matching Intune app.'
         }
+        if ($null -ne $item.PSObject.Properties['AvailableVersion']) {
+            $blocker = if ($item.ImportAsUpdate) { $item.UpdateBlocker } else { $item.DeploymentBlocker }
+            if ($blocker) { throw "Definition '$($item.DefinitionName)' is not eligible: $blocker" }
+        }
+    }
+    if (@($Selection | Select-Object -ExpandProperty ImportAsUpdate -Unique).Count -gt 1) {
+        throw 'An Intune batch must use one deployment intent.'
     }
     if (-not $PSCmdlet.ShouldProcess("$($Selection.Count) definitions in tenant $TenantId", 'Build and publish Intune apps')) {
         return
@@ -84,6 +92,10 @@ function Publish-EwIntuneBatch {
             IntuneAppId = ''
             PackagePath = ''
             Version = ''
+            DisplayName = ''
+            CreationStatus = 'Not started'
+            AssignmentStatus = 'Not started'
+            SupersedenceStatus = if ($item.IntuneAppId) { 'Not started' } else { 'Not applicable' }
             ChangedPaths = @()
             Error = ''
         }
@@ -100,6 +112,7 @@ function Publish-EwIntuneBatch {
             continue
         }
         try {
+            $planned = $null -ne $item.PSObject.Properties['AvailableVersion']
             $context = Get-MgContext -ErrorAction Stop
             if ($null -eq $context -or [string]$context.TenantId -ne $TenantId) {
                 $stopReason = 'The confirmed Intune connection is no longer active. The batch stopped.'
@@ -115,14 +128,19 @@ function Publish-EwIntuneBatch {
             if ($definitionHash -ne [string]$item.DefinitionHash -or $installHash -ne [string]$item.InstallHash) {
                 throw 'Definition files changed after confirmation. Refresh the comparison and review them.'
             }
-            $comparisonRows = @(Compare-EwIntuneApp -DefinitionPath $DefinitionPath |
-                Where-Object { $_.DefinitionPath -eq $item.DefinitionPath })
-            if ($comparisonRows.Count -ne 1 -or $comparisonRows[0].MatchStatus -ne $item.MatchStatus -or
-                $comparisonRows[0].IntuneAppId -ne $item.IntuneAppId -or
-                $comparisonRows[0].IntuneVersion -ne $item.IntuneVersion -or
-                $comparisonRows[0].DefinitionVersion -ne $item.DefinitionVersion -or
-                $comparisonRows[0].PSPackageFactoryGuid -ne $item.PSPackageFactoryGuid) {
-                throw 'The Intune match changed after confirmation. Refresh the comparison and review it.'
+            if ($planned) {
+                Assert-EwIntunePublishPlan -DefinitionPath $DefinitionPath -Item $item
+            }
+            else {
+                $comparisonRows = @(Compare-EwIntuneApp -DefinitionPath $DefinitionPath |
+                    Where-Object { $_.DefinitionPath -eq $item.DefinitionPath })
+                if ($comparisonRows.Count -ne 1 -or $comparisonRows[0].MatchStatus -ne $item.MatchStatus -or
+                    $comparisonRows[0].IntuneAppId -ne $item.IntuneAppId -or
+                    $comparisonRows[0].IntuneVersion -ne $item.IntuneVersion -or
+                    $comparisonRows[0].DefinitionVersion -ne $item.DefinitionVersion -or
+                    $comparisonRows[0].PSPackageFactoryGuid -ne $item.PSPackageFactoryGuid) {
+                    throw 'The Intune match changed after confirmation. Refresh the comparison and review it.'
+                }
             }
 
             Write-Verbose -Message "EvergreenUI: Building '$($item.DefinitionName)' for tenant '$TenantId'"
@@ -130,6 +148,9 @@ function Publish-EwIntuneBatch {
             if (-not $package.Succeeded) { throw "Package build failed: $($package.Error)" }
             $result.PackagePath = [string]$package.PackagePath
             $result.Version = [string]$package.Version
+            if ($planned -and [string]$package.Version -cne [string]$item.AvailableVersion) {
+                throw 'The built version differs from the confirmed import version. Refresh and confirm a new plan.'
+            }
             $definition = Get-Content -LiteralPath $item.DefinitionPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
             if ((Get-FileHash -LiteralPath $item.DefinitionPath -Algorithm SHA256 -ErrorAction Stop).Hash -ne $definitionHash -or
                 $(if (Test-Path -LiteralPath $installPath -PathType Leaf) {
@@ -151,6 +172,9 @@ function Publish-EwIntuneBatch {
                 if (-not $package.Succeeded) { throw "Package rebuild failed: $($package.Error)" }
                 $result.PackagePath = [string]$package.PackagePath
                 $result.Version = [string]$package.Version
+                if ($planned -and [string]$package.Version -cne [string]$item.AvailableVersion) {
+                    throw 'The rebuilt version differs from the confirmed import version. Refresh and confirm a new plan.'
+                }
                 $definition = Get-Content -LiteralPath $item.DefinitionPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
             }
             if ([string]$definition.PackageInformation.Version -ne [string]$package.Version -or
@@ -166,6 +190,19 @@ function Publish-EwIntuneBatch {
                     throw 'Source\Install.json does not match the built package. Review it before publishing.'
                 }
             }
+            if ($planned) {
+                Assert-EwIntunePublishPlan -DefinitionPath $DefinitionPath -Item $item -AfterBuild
+            }
+            else {
+                $comparisonRows = @(Compare-EwIntuneApp -DefinitionPath $DefinitionPath |
+                    Where-Object { $_.DefinitionPath -eq $item.DefinitionPath })
+                if ($comparisonRows.Count -ne 1 -or $comparisonRows[0].MatchStatus -notin @('No matching Win32 app', 'Matched (current)', 'Matched (update required)') -or
+                    $comparisonRows[0].IntuneAppId -ne $item.IntuneAppId -or
+                    $comparisonRows[0].IntuneVersion -ne $item.IntuneVersion -or
+                    $comparisonRows[0].PSPackageFactoryGuid -ne $item.PSPackageFactoryGuid) {
+                    throw 'The Intune match changed during the build. Refresh the comparison and review it.'
+                }
+            }
             if ((Get-FileHash -LiteralPath $item.DefinitionPath -Algorithm SHA256 -ErrorAction Stop).Hash -ne $definitionHash -or
                 $(if (Test-Path -LiteralPath $installPath -PathType Leaf) {
                     (Get-FileHash -LiteralPath $installPath -Algorithm SHA256 -ErrorAction Stop).Hash
@@ -179,24 +216,21 @@ function Publish-EwIntuneBatch {
                 $result
                 continue
             }
-            $comparisonRows = @(Compare-EwIntuneApp -DefinitionPath $DefinitionPath |
-                Where-Object { $_.DefinitionPath -eq $item.DefinitionPath })
-            if ($comparisonRows.Count -ne 1 -or $comparisonRows[0].MatchStatus -notin @('No matching Win32 app', 'Matched (current)', 'Matched (update required)') -or
-                $comparisonRows[0].IntuneAppId -ne $item.IntuneAppId -or
-                $comparisonRows[0].IntuneVersion -ne $item.IntuneVersion -or
-                $comparisonRows[0].PSPackageFactoryGuid -ne $item.PSPackageFactoryGuid) {
-                throw 'The Intune match changed during the build. Refresh the comparison and review it.'
-            }
             $published = Publish-EwIntuneApp -DefinitionPath $item.DefinitionPath -PackagePath $package.PackagePath `
                 -Version $package.Version -SetupFile $package.SetupFile -ImportAsUpdate:([bool]$item.ImportAsUpdate) -Confirm:$false
             $result.IntuneAppId = [string]$published.IntuneAppId
+            $result.DisplayName = [string](Get-EwObjectPropertyValue -Object $published -Name 'DisplayName' -Default "$($item.DefinitionName) $($package.Version)")
+            $result.CreationStatus = if ($result.IntuneAppId) { 'Created' } else { 'Failed' }
+            $result.AssignmentStatus = [string](Get-EwObjectPropertyValue -Object $published -Name 'AssignmentStatus' -Default $(if ($published.Succeeded) { 'Applied' } else { 'Incomplete' }))
             if (-not $published.Succeeded) { throw "Publish failed: $($published.Error)" }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.IntuneAppId)) {
                 $link = Set-EwIntuneSupersedence -NewAppId $published.IntuneAppId -PreviousAppId $item.IntuneAppId -Confirm:$false
                 if (-not $link.Succeeded) {
                     $result.Status = 'Supersedence failed'
+                    $result.SupersedenceStatus = 'Failed'
                     throw "App published, but supersedence failed: $($link.Error)"
                 }
+                $result.SupersedenceStatus = 'Linked'
             }
             $result.Succeeded = $true
             $result.Status = 'Published'

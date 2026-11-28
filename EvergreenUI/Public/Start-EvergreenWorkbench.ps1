@@ -69,7 +69,7 @@ function Start-EvergreenWorkbench {
         'Dark' { [System.Windows.ThemeMode]::Dark }
         default { [System.Windows.ThemeMode]::System }
     }
-    $state = Get-EwWorkbenchState -Window $window -Settings $settings
+    $state = Get-EwWorkbenchState -Window $window -Settings $settings -DeferPackageDefinitionsStartup
     Restore-EwWorkbenchWindowSize -Window $window -Settings $settings
     $timer = [System.Windows.Threading.DispatcherTimer]::new()
     $timer.Interval = [TimeSpan]::FromMilliseconds(250)
@@ -91,6 +91,9 @@ function Start-EvergreenWorkbench {
                 Message = $_.Exception.Message
                 Level = 'Error'
             }
+        }
+        finally {
+            $state.PackageDefinitionsStartupDeferred = $false
         }
         $timer.Start()
     }.GetNewClosure())

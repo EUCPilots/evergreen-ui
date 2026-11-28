@@ -70,6 +70,7 @@ function Invoke-EwWorkbenchInstallAction {
                             NoCache = $true
                             AllowMissingArchitectureRequirement = [bool]$item.AllowMissingArchitectureRequirement
                             AllowX64OnArm64 = [bool]$item.AllowX64OnArm64
+                            AllowUnknownArchitectureOnArm64 = ($null -ne $item.PSObject.Properties['AllowUnknownArchitectureOnArm64'] -and [bool]$item.AllowUnknownArchitectureOnArm64)
                             ExpectedReviewFingerprint = [string]$item.Fingerprint
                             RequireArchitectureOptIn = $true
                             Confirm = $false

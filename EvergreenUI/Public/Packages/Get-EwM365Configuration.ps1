@@ -10,8 +10,10 @@ function Get-EwM365Configuration {
         excluding Uninstall-Microsoft365Apps.xml, and returns their products,
         architecture, and configuration identifier. Display names combine
         products, Outlook exclusions, Desktop or VDI licensing, channel and
-        architecture. Files that cannot be read are returned with an Invalid
-        XML status.
+        architecture. Summary contains a readable translation of the products,
+        included and excluded apps, languages, licensing, and install
+        behaviour. Files that cannot be read are returned with an Invalid
+        XML status and no Summary.
     .PARAMETER Path
         Folder containing the configuration files.
     .EXAMPLE
@@ -63,6 +65,7 @@ function Get-EwM365Configuration {
                 Description = $configuration.Description
                 ConfigId = $configuration.ConfigId
                 Status = $status
+                Summary = $configuration.Summary
             }
         }
         catch {
@@ -79,6 +82,7 @@ function Get-EwM365Configuration {
                 Description = ''
                 ConfigId = ''
                 Status = 'Invalid XML'
+                Summary = $null
             }
         }
     }

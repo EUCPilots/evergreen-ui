@@ -9,7 +9,9 @@ function Get-EwWorkbenchState {
         [object]$Window,
 
         [Parameter(Mandatory)]
-        [System.Collections.IDictionary]$Settings
+        [System.Collections.IDictionary]$Settings,
+
+        [switch]$DeferPackageDefinitionsStartup
     )
 
     $module = $ExecutionContext.SessionState.Module
@@ -34,6 +36,7 @@ function Get-EwWorkbenchState {
             Queue = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
             ActiveJobId = $null
             ActiveJobKind = ''
+            PackageDefinitionsStartupDeferred = $DeferPackageDefinitionsStartup.IsPresent
             MaintenancePromptActive = $false
             MaintenanceContext = $null
             AppsDisplayStale = $false
@@ -113,7 +116,20 @@ function Get-EwWorkbenchState {
             IntuneConnectionStatusLabel = $Window.FindName('IntuneConnectionStatusLabel')
             CompareIntuneButton = $Window.FindName('CompareIntuneButton')
             IntuneComparisonListView = $Window.FindName('IntuneComparisonListView')
+            IntuneComparisonInstructionText = $Window.FindName('IntuneComparisonInstructionText')
             PublishSelectedIntuneButton = $Window.FindName('PublishSelectedIntuneButton')
+            PublishIntuneUpdateButton = $Window.FindName('PublishIntuneUpdateButton')
+            IntuneDefinitionDrawer = $Window.FindName('IntuneDefinitionDrawer')
+            CloseIntuneDefinitionDrawerButton = $Window.FindName('CloseIntuneDefinitionDrawerButton')
+            IntuneDefinitionSearchBox = $Window.FindName('IntuneDefinitionSearchBox')
+            IntuneInventoryViewCombo = $Window.FindName('IntuneInventoryViewCombo')
+            IntuneOnlyAppsListView = $Window.FindName('IntuneOnlyAppsListView')
+            IntunePredecessorCombo = $Window.FindName('IntunePredecessorCombo')
+            IntunePredecessorPanel = $Window.FindName('IntunePredecessorPanel')
+            IntuneNoMatchingAppsText = $Window.FindName('IntuneNoMatchingAppsText')
+            IntuneSelectionSummaryText = $Window.FindName('IntuneSelectionSummaryText')
+            IntuneImportBlockersText = $Window.FindName('IntuneImportBlockersText')
+            IntuneBatchResultsPanel = $Window.FindName('IntuneBatchResultsPanel')
             CancelIntuneBatchButton = $Window.FindName('CancelIntuneBatchButton')
             IntunePublishResultsListView = $Window.FindName('IntunePublishResultsListView')
             RetryIntuneSupersedenceButton = $Window.FindName('RetryIntuneSupersedenceButton')
@@ -160,7 +176,7 @@ function Get-EwWorkbenchState {
         foreach ($suffix in 'Form', 'BrowseButton', 'PathBox', 'LoadButton', 'SaveButton', 'ConfigurationCombo',
             'ChannelCombo', 'CompanyBox', 'SessionCombo', 'TargetsButton', 'TargetCombo',
             'PreviewBuildButton', 'PreviewPublishButton', 'PreviewText', 'BuildButton', 'PublishButton',
-            'CancelButton', 'ResultText') {
+            'CancelButton', 'ResultText', 'SummaryCard') {
             $name = "${provider}M365$suffix"
             $state[$name] = $Window.FindName($name)
         }

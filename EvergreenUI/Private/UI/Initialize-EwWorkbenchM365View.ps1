@@ -16,7 +16,7 @@ function Initialize-EwWorkbenchM365View {
         }
         foreach ($suffix in 'Form', 'BrowseButton', 'PathBox', 'LoadButton', 'SaveButton', 'ConfigurationCombo',
             'ChannelCombo', 'CompanyBox', 'SessionCombo', 'TargetsButton', 'TargetCombo', 'PreviewBuildButton',
-            'PreviewPublishButton', 'PreviewText', 'BuildButton', 'PublishButton', 'CancelButton', 'ResultText') {
+            'PreviewPublishButton', 'PreviewText', 'BuildButton', 'PublishButton', 'CancelButton', 'ResultText', 'SummaryCard') {
             $view[$suffix] = $State["${provider}M365$suffix"]
         }
         $State.M365Views[$provider] = $view
@@ -47,6 +47,14 @@ function Initialize-EwWorkbenchM365View {
                 & $State.ModuleInvoker -Name 'Clear-EwWorkbenchM365Preview' -Parameters @{ State = $State; Provider = $provider }
             }.GetNewClosure())
         }
+        $view.CompanyBox.Add_TextChanged({
+            & $State.ModuleInvoker -Name 'Update-EwWorkbenchM365Summary' -Parameters @{ State = $State; Provider = $provider }
+        }.GetNewClosure())
+        foreach ($suffix in 'ChannelCombo', 'SessionCombo') {
+            $view[$suffix].Add_SelectionChanged({
+                & $State.ModuleInvoker -Name 'Update-EwWorkbenchM365Summary' -Parameters @{ State = $State; Provider = $provider }
+            }.GetNewClosure())
+        }
         foreach ($suffix in 'ChannelCombo', 'SessionCombo', 'TargetCombo') {
             $view[$suffix].Add_SelectionChanged({
                 & $State.ModuleInvoker -Name 'Clear-EwWorkbenchM365Preview' -Parameters @{ State = $State; Provider = $provider }
@@ -64,6 +72,7 @@ function Initialize-EwWorkbenchM365View {
                 }
                 & $State.ModuleInvoker -Name 'Clear-EwWorkbenchM365Preview' -Parameters @{ State = $State; Provider = $provider }
             }
+            & $State.ModuleInvoker -Name 'Update-EwWorkbenchM365Summary' -Parameters @{ State = $State; Provider = $provider }
         }.GetNewClosure())
     }
     $State.NerdioM365OperationCombo.ItemsSource = [string[]]@('Create', 'Add version')
@@ -98,5 +107,6 @@ function Initialize-EwWorkbenchM365View {
         }.GetNewClosure())
     }
     $State.M365SuppressEvents = $false
+    foreach ($provider in 'Intune', 'Nerdio') { Update-EwWorkbenchM365Summary -State $State -Provider $provider }
     Invoke-EwWorkbenchM365BusyState -State $State
 }

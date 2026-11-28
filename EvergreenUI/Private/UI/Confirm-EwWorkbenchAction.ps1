@@ -8,9 +8,11 @@ function Confirm-EwWorkbenchAction {
         [Parameter(Mandatory)][object]$Window,
         [Parameter(Mandatory)][string]$Title,
         [Parameter(Mandatory)][string]$Message,
-        [Parameter(Mandatory)][bool]$DefaultYes
+        [Parameter(Mandatory)][bool]$DefaultYes,
+        [Parameter()][string]$AcceptText = 'Yes',
+        [Parameter()][string]$DeclineText = 'No'
     )
 
-    $dialog = New-EwWorkbenchConfirmationDialog -Owner $Window -Title $Title -Message $Message -DefaultYes $DefaultYes
+    $dialog = New-EwWorkbenchConfirmationDialog -Owner $Window -Title $Title -Message $Message -DefaultYes $DefaultYes -AcceptText $AcceptText -DeclineText $DeclineText
     return $dialog.ShowDialog() -eq $true
 }

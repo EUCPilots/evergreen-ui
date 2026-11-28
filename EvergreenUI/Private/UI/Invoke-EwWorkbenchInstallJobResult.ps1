@@ -150,6 +150,7 @@ function Invoke-EwWorkbenchInstallJobResult {
                 Fingerprint = [string]$review.Fingerprint
                 AllowMissingArchitectureRequirement = [bool]$review.Compatibility.RequiresMissingRequirementApproval
                 AllowX64OnArm64 = [bool]$review.Compatibility.RequiresX64OnArm64Approval
+                AllowUnknownArchitectureOnArm64 = [bool](Get-EwObjectPropertyValue -Object $review.Compatibility -Name 'RequiresUnknownArchitectureApproval' -Default $false)
             })
         }
         else {

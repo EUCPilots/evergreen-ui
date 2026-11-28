@@ -28,6 +28,7 @@ function Invoke-EwWorkbenchJob {
             'IntuneConnect',
             'IntuneDisconnect',
             'IntuneCompare',
+            'IntuneReview',
             'IntunePublish',
             'IntuneRetry',
             'NerdioAzureConnect',

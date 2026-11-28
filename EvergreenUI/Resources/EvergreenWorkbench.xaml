@@ -244,6 +244,73 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <DataTemplate x:Key="M365ConfigurationChipTemplate">
+            <Border Margin="0,0,6,6" Padding="8,3" CornerRadius="4" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                <TextBlock Text="{Binding}" />
+            </Border>
+        </DataTemplate>
+        <DataTemplate x:Key="M365ConfigurationMutedChipTemplate">
+            <Border Margin="0,0,6,6" Padding="8,3" CornerRadius="4" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
+                <TextBlock Text="{Binding}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Border>
+        </DataTemplate>
+        <ItemsPanelTemplate x:Key="M365ConfigurationChipPanel">
+            <WrapPanel />
+        </ItemsPanelTemplate>
+        <DataTemplate x:Key="M365ConfigurationRowTemplate">
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="130" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,8,0" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Note}" Visibility="{Binding NoteVisibility}" FontSize="12" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="M365ConfigurationSummaryTemplate">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <StackPanel>
+                    <TextBlock Text="Configuration summary" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,8" />
+                    <TextBlock Text="Select a configuration to see its contents." Visibility="{Binding EmptyVisibility}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <Border Visibility="{Binding WarningVisibility}" Padding="10,8" Margin="0,0,0,12" CornerRadius="4" BorderThickness="1"
+                            Background="{DynamicResource SystemFillColorCautionBackgroundBrush}" BorderBrush="{DynamicResource SystemFillColorCautionBrush}">
+                        <TextBlock Text="{Binding WarningText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    </Border>
+                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Description}" Visibility="{Binding DescriptionVisibility}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    <TextBlock Text="{Binding FileName}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
+                    <StackPanel Visibility="{Binding DetailsVisibility}" Margin="0,16,0,0">
+                        <TextBlock Text="Included apps" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <ItemsControl ItemsSource="{Binding IncludedApps}" Visibility="{Binding IncludedVisibility}" Focusable="False"
+                                      ItemsPanel="{StaticResource M365ConfigurationChipPanel}" ItemTemplate="{StaticResource M365ConfigurationChipTemplate}"
+                                      AutomationProperties.Name="Included apps" />
+                        <TextBlock Text="No apps from a Microsoft 365 Apps suite." Visibility="{Binding NoIncludedVisibility}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,6" />
+                        <StackPanel Visibility="{Binding ExcludedVisibility}" Margin="0,8,0,0">
+                            <TextBlock Text="Excluded apps" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <ItemsControl ItemsSource="{Binding ExcludedApps}" Focusable="False"
+                                          ItemsPanel="{StaticResource M365ConfigurationChipPanel}" ItemTemplate="{StaticResource M365ConfigurationMutedChipTemplate}"
+                                          AutomationProperties.Name="Excluded apps" />
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding AdditionalVisibility}" Margin="0,8,0,0">
+                            <TextBlock Text="Additional products" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <ItemsControl ItemsSource="{Binding AdditionalProducts}" Focusable="False"
+                                          ItemsPanel="{StaticResource M365ConfigurationChipPanel}" ItemTemplate="{StaticResource M365ConfigurationChipTemplate}"
+                                          AutomationProperties.Name="Additional products" />
+                        </StackPanel>
+                        <TextBlock Text="Deployment" FontWeight="SemiBold" Margin="0,12,0,8" />
+                        <ItemsControl ItemsSource="{Binding DeploymentRows}" Focusable="False" ItemTemplate="{StaticResource M365ConfigurationRowTemplate}"
+                                      AutomationProperties.Name="Deployment settings" />
+                        <TextBlock Text="Install behaviour" FontWeight="SemiBold" Margin="0,8,0,8" />
+                        <ItemsControl ItemsSource="{Binding BehaviourRows}" Focusable="False" ItemTemplate="{StaticResource M365ConfigurationRowTemplate}"
+                                      AutomationProperties.Name="Install behaviour" />
+                        <TextBlock Text="{Binding UserSettingsText}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </DataTemplate>
     </Window.Resources>
     <Grid x:Name="WorkbenchRoot" Grid.IsSharedSizeScope="True">
         <Grid.ColumnDefinitions>
@@ -880,7 +947,7 @@
                                     Padding="12,4" />
                             <Button x:Name="LoadPackageDefinitionsButton"
                                     Grid.Column="3"
-                                    Content="Load definitions"
+                                    Content="Reload definitions"
                                     Margin="8,0,0,0"
                                     Padding="12,4" />
                             <Button x:Name="UpdatePackageDefinitionsButton"
@@ -1022,9 +1089,9 @@
                             <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="2*" />
-                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid x:Name="IntuneConnectionToolbar" Grid.Row="0" Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
@@ -1058,44 +1125,144 @@
                             </StackPanel>
                         </WrapPanel>
                     </Grid>
-                    <DataGrid x:Name="IntuneComparisonListView" Grid.Row="1"
-                              AutoGenerateColumns="False" SelectionMode="Extended" SelectionUnit="FullRow"
-                              HeadersVisibility="Column" CanUserAddRows="False" EnableRowVirtualization="True"
-                              AutomationProperties.Name="Intune comparison">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Definition display name" Binding="{Binding DefinitionName}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Intune display name" Binding="{Binding IntuneDisplayName}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Definition version" Binding="{Binding DefinitionVersion}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Intune version" Binding="{Binding IntuneVersion}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridTextColumn Header="Status" Binding="{Binding MatchStatus}" Width="2*" IsReadOnly="True" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            <DataGridCheckBoxColumn Header="Update app" Binding="{Binding ImportAsUpdate, UpdateSourceTrigger=PropertyChanged}" Width="100">
-                                <DataGridCheckBoxColumn.ElementStyle>
-                                    <Style TargetType="{x:Type CheckBox}" BasedOn="{x:Static DataGridCheckBoxColumn.DefaultElementStyle}">
-                                        <Setter Property="HorizontalAlignment" Value="Center" />
-                                        <Setter Property="VerticalAlignment" Value="Center" />
+                    <Grid Grid.Row="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <DockPanel Margin="0,0,0,8">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Label x:Name="IntuneInventoryViewLabel" Content="View" Target="{Binding ElementName=IntuneInventoryViewCombo}" VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
+                                <ComboBox x:Name="IntuneInventoryViewCombo" SelectedIndex="0" Width="150" AutomationProperties.Name="Intune inventory view">
+                                    <ComboBoxItem Content="Definitions" />
+                                    <ComboBoxItem Content="Intune-only apps" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Label x:Name="IntuneDefinitionSearchLabel" Content="Search" Target="{Binding ElementName=IntuneDefinitionSearchBox}" VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
+                                <TextBox x:Name="IntuneDefinitionSearchBox" Width="190" VerticalContentAlignment="Center" AutomationProperties.Name="Search Intune definitions" />
+                            </StackPanel>
+                        </DockPanel>
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ListView x:Name="IntuneComparisonListView" SelectionMode="Single" Visibility="Collapsed"
+                                      VirtualizingPanel.IsVirtualizing="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                      AutomationProperties.Name="Intune definitions">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem" BasedOn="{StaticResource {x:Type ListViewItem}}">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Padding" Value="8" />
                                     </Style>
-                                </DataGridCheckBoxColumn.ElementStyle>
-                                <DataGridCheckBoxColumn.EditingElementStyle>
-                                    <Style TargetType="{x:Type CheckBox}" BasedOn="{x:Static DataGridCheckBoxColumn.DefaultEditingElementStyle}">
-                                        <Setter Property="HorizontalAlignment" Value="Center" />
-                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                    </Style>
-                                </DataGridCheckBoxColumn.EditingElementStyle>
-                            </DataGridCheckBoxColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <DockPanel Grid.Row="2" Margin="0,8">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button x:Name="CancelIntuneBatchButton" Content="Cancel batch" Margin="0,0,8,0"
-                                    Padding="12,4" IsEnabled="False" />
-                            <Button x:Name="PublishSelectedIntuneButton" Content="Build and publish selected"
-                                    Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold" />
-                        </StackPanel>
-                        <TextBlock Text="Update app assigns to All Devices." VerticalAlignment="Center"
-                                   TextWrapping="Wrap" />
-                    </DockPanel>
-                    <Grid Grid.Row="3">
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,12,0"
+                                                      VerticalAlignment="Center" AutomationProperties.Name="{Binding DefinitionName, StringFormat=Select {0} for import}" />
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding DefinitionName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Publisher}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <WrapPanel Margin="0,3,0,0">
+                                                    <TextBlock Text="{Binding Architecture}" Margin="0,0,10,0" />
+                                                    <TextBlock Text="{Binding AvailableVersion, StringFormat=Import version: {0}}" Margin="0,0,10,0" />
+                                                    <TextBlock Text="{Binding Readiness}" FontWeight="SemiBold" />
+                                                </WrapPanel>
+                                                <TextBlock Text="{Binding MatchingAppCount, StringFormat=Matching Intune apps: {0}}" FontSize="12" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <DataGrid x:Name="IntuneOnlyAppsListView" Visibility="Collapsed" AutoGenerateColumns="False" IsReadOnly="True"
+                                      CanUserAddRows="False" HeadersVisibility="Column" AutomationProperties.Name="Intune-only apps">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Intune display name" Binding="{Binding IntuneDisplayName}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Version" Binding="{Binding IntuneVersion}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Allowed devices" Binding="{Binding RequirementArchitecture}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Definition GUID" Binding="{Binding PSPackageFactoryGuid}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock x:Name="IntuneComparisonInstructionText" Grid.ColumnSpan="2"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="420" Margin="20"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="Connect to Intune, then select Compare definitions to see your apps." />
+                            <Border x:Name="IntuneDefinitionDrawer" Grid.Column="1" Visibility="Collapsed" Width="590" Margin="12,0,0,0" Padding="16"
+                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6">
+                                <Grid>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Button x:Name="CloseIntuneDefinitionDrawerButton" DockPanel.Dock="Right" Content="Close" Padding="10,4" AutomationProperties.Name="Close definition inspector" />
+                                        <TextBlock x:Name="IntuneInspectedDefinitionNameText" Text="{Binding DefinitionName}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    </DockPanel>
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Publisher}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock Text="{Binding DefinitionVersion, StringFormat=Definition version: {0}}" Margin="0,10,0,0" />
+                                            <TextBlock x:Name="IntuneInspectedVersionText" Text="{Binding AvailableVersion, StringFormat=Version available to import: {0}}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Architecture, StringFormat=Artifact architecture: {0}}" />
+                                            <TextBlock Text="{Binding RequirementArchitecture, StringFormat=Allowed device architectures: {0}}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Readiness}" FontWeight="SemiBold" Margin="0,12,0,0" />
+                                            <TextBlock Text="{Binding DeploymentBlocker}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                            <TextBlock Text="Matching Intune apps" FontWeight="SemiBold" Margin="0,16,0,8" />
+                                            <TextBlock x:Name="IntuneNoMatchingAppsText" Text="Not imported. No Intune name or version exists yet." TextWrapping="Wrap" Visibility="Collapsed" />
+                                            <ItemsControl x:Name="IntuneMatchingAppsControl" ItemsSource="{Binding MatchingApps}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding DisplayVersion, StringFormat=Version: {0}}" />
+                                                                <TextBlock Text="{Binding AllowedArchitectures, StringFormat=Allowed devices: {0}}" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding Role}" FontWeight="SemiBold" />
+                                                                <TextBlock Text="{Binding AppKind}" FontSize="12" />
+                                                                <TextBlock Text="{Binding Supersedes, StringFormat=Supersedes: {0}}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                                                <TextBlock Text="{Binding SupersededBy, StringFormat=Superseded by: {0}}" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding IntuneAppId, StringFormat=App ID: {0}}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <StackPanel x:Name="IntunePredecessorPanel" Visibility="Collapsed">
+                                                <Label Content="Choose the matching app to supersede" Target="{Binding ElementName=IntunePredecessorCombo}" Padding="0" FontWeight="SemiBold" />
+                                                <TextBlock Text="No single current app was verified. Other matching apps will remain unchanged." TextWrapping="Wrap" Margin="0,4,0,8" />
+                                                <ComboBox x:Name="IntunePredecessorCombo" DisplayMemberPath="SelectionLabel" SelectedValuePath="IntuneAppId" AutomationProperties.Name="Intune predecessor to supersede" />
+                                            </StackPanel>
+                                            <TextBlock Text="Definition deployment assignments" FontWeight="SemiBold" Margin="0,16,0,4" />
+                                            <TextBlock Text="{Binding AssignmentSummary}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding UpdateEligibilityText}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                    <StackPanel Grid.Row="2" Margin="0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="IntuneSelectionSummaryText" Text="Select definitions using their checkboxes. Click a row to inspect all matching versions." TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button x:Name="CancelIntuneBatchButton" Content="Cancel batch" Margin="0,0,8,0"
+                                        Padding="12,4" IsEnabled="False" />
+                                <Button x:Name="PublishIntuneUpdateButton" Content="Import update for existing installations..." Margin="0,0,8,0"
+                                        Padding="12,4" IsEnabled="False" />
+                                <Button x:Name="PublishSelectedIntuneButton" Content="Import for deployment..."
+                                        Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold"/>
+                            </WrapPanel>
+                        </Grid>
+                        <TextBlock x:Name="IntuneImportBlockersText" TextWrapping="Wrap" FontSize="12" />
+                    </StackPanel>
+                    <Grid x:Name="IntuneBatchResultsPanel" Grid.Row="3" Visibility="Collapsed" Height="150">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
@@ -1111,6 +1278,11 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Definition" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                                 <DataGridTextColumn Header="Result" Binding="{Binding Status}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="100" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="New app" Binding="{Binding DisplayName}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Creation" Binding="{Binding CreationStatus}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Assignments" Binding="{Binding AssignmentStatus}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                <DataGridTextColumn Header="Supersedence" Binding="{Binding SupersedenceStatus}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                                 <DataGridTextColumn Header="New app ID" Binding="{Binding IntuneAppId}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                                 <DataGridTextColumn Header="Previous app ID" Binding="{Binding PreviousAppId}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
                                 <DataGridTextColumn Header="Details" Binding="{Binding Error}" Width="3*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
@@ -1120,6 +1292,13 @@
                             </Grid>
                         </TabItem>
                         <TabItem Header="Microsoft 365 Apps" Tag="&#xE71D;">
+                            <DockPanel>
+                            <Border DockPanel.Dock="Right" Width="580" Margin="0,16,16,16" Padding="16"
+                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6"
+                                    AutomationProperties.Name="Intune Microsoft 365 configuration summary">
+                                <ContentControl x:Name="IntuneM365SummaryCard" Focusable="False" ContentTemplate="{StaticResource M365ConfigurationSummaryTemplate}" />
+                            </Border>
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1181,6 +1360,7 @@
                                     </StackPanel>
                                 </Grid>
                             </ScrollViewer>
+                            </DockPanel>
                         </TabItem>
                     </TabControl>
                 </Grid>
@@ -1261,6 +1441,13 @@
                             </Grid>
                         </TabItem>
                         <TabItem Header="Microsoft 365 Apps" Tag="&#xE71D;">
+                            <DockPanel>
+                            <Border DockPanel.Dock="Right" Width="580" Margin="0,16,16,16" Padding="16"
+                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6"
+                                    AutomationProperties.Name="Nerdio Microsoft 365 configuration summary">
+                                <ContentControl x:Name="NerdioM365SummaryCard" Focusable="False" ContentTemplate="{StaticResource M365ConfigurationSummaryTemplate}" />
+                            </Border>
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1331,6 +1518,7 @@
                                     </StackPanel>
                                 </Grid>
                             </ScrollViewer>
+                            </DockPanel>
                         </TabItem>
                         <TabItem Header="Settings" Tag="&#xE713;">
                             <DockPanel>

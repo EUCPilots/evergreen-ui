@@ -27,6 +27,7 @@ Describe 'Packages tabs and local detection freshness' {
                     Name = $_; DefinitionPath = "C:\Definitions\$_\App.json"; DefinitionValid = 'Yes'
                     LatestVersion = ''; ArtifactArchitecture = 'Not checked'; ArchitectureAssessment = 'Allowed'
                 }
+
             })
             $script:jobOutput = @()
             $script:jobState = 'Completed'
@@ -49,6 +50,203 @@ Describe 'Packages tabs and local detection freshness' {
 
     AfterEach {
         InModuleScope EvergreenUI { $script:packagesWindow.Close() }
+    }
+
+    It 'loads the configured Definitions folder on first entry and reloads only when requested' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $state.LoadPackageDefinitionsButton.Content | Should -Be 'Reload definitions'
+            Show-EwWorkbenchView -State $state -View 'Packages'
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter {
+                $Kind -eq 'PackageDefinitions' -and $ArgumentList[0] -eq 'C:\Definitions'
+            }
+            $script:jobOutput = @([PSCustomObject]@{ Items = @() })
+            Invoke-EwWorkbenchJobMonitor -State $state
+            Show-EwWorkbenchView -State $state -View 'Apps'
+            Show-EwWorkbenchView -State $state -View 'Packages'
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter { $Kind -eq 'PackageDefinitions' }
+            $state.LoadPackageDefinitionsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 2 -ParameterFilter { $Kind -eq 'PackageDefinitions' }
+        }
+    }
+
+    It 'loads the configured folder when Packages is restored at startup' {
+        InModuleScope EvergreenUI {
+            $settings = Get-EwSetting
+            $settings.StartupView = 'Packages'
+            $settings.IntuneDefinitionsPath = 'C:\StartupDefinitions'
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter {
+                    $Kind -eq 'PackageDefinitions' -and $ArgumentList[0] -eq 'C:\StartupDefinitions'
+                }
+                $state.DefinitionsTab.IsSelected | Should -BeTrue
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'waits for the initial application catalog job before loading Definitions' {
+        InModuleScope EvergreenUI {
+            $settings = Get-EwSetting
+            $settings.StartupView = 'Packages'
+            $settings.IntuneDefinitionsPath = 'C:\StartupDefinitions'
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings -DeferPackageDefinitionsStartup
+                $state.PackageDefinitionsLoadPending | Should -BeTrue
+                Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
+                Invoke-EwWorkbenchJob -State $state -Kind 'Apps' -Name 'Load application catalog' -ScriptBlock {}
+                $state.PackageDefinitionsStartupDeferred = $false
+                Mock Invoke-EwWorkbenchAppList {}
+                $script:jobOutput = @()
+                Invoke-EwWorkbenchJobMonitor -State $state
+                Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter { $Kind -eq 'Apps' }
+                Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter {
+                    $Kind -eq 'PackageDefinitions' -and $ArgumentList[0] -eq 'C:\StartupDefinitions'
+                }
+            }
+            finally {
+                $window.Close()
+            }
+        }
+    }
+
+    It 'defers the first Definitions load until the active job finishes' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $state.ActiveJobId = [guid]::NewGuid()
+            $state.ActiveJobKind = 'DefinitionUpdate'
+            Show-EwWorkbenchView -State $state -View 'Packages'
+            $state.PackageDefinitionsLoadPending | Should -BeTrue
+            $state.StatusLabel.Text | Should -Match 'pending.*current operation'
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
+            $script:jobOutput = @([PSCustomObject]@{ Items = @(); Results = @() })
+            Invoke-EwWorkbenchJobMonitor -State $state
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter { $Kind -eq 'PackageDefinitions' }
+            $state.ActiveJobKind | Should -Be 'PackageDefinitions'
+        }
+    }
+
+    It 'keeps waiting when the active job status cannot be read' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $state.ActiveJobId = [guid]::NewGuid()
+            $state.ActiveJobKind = 'Apps'
+            $activeId = $state.ActiveJobId
+            Show-EwWorkbenchView -State $state -View 'Packages'
+            Mock Get-EwJob { throw 'Job status unavailable' }
+            Invoke-EwWorkbenchJobMonitor -State $state
+            $state.ActiveJobId | Should -Be $activeId
+            $state.PackageDefinitionsLoadPending | Should -BeTrue
+            $state.StatusLabel.Text | Should -Match 'Definitions load pending.*waiting'
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
+        }
+    }
+
+    It 'discards a Definitions result when the folder changes while loading' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            Show-EwWorkbenchView -State $state -View 'Packages'
+            $state.IntuneDefinitionsPathBox.Text = 'C:\Replacement'
+            $script:jobOutput = @([PSCustomObject]@{
+                Items = @([PSCustomObject]@{ Name = 'Old'; Status = 'Valid' })
+            })
+            Invoke-EwWorkbenchJobMonitor -State $state
+            $state.PackageDefinitions.Count | Should -Be 0
+            $state.UpdatePackageDefinitionsButton.IsEnabled | Should -BeFalse
+            $state.StatusLabel.Text | Should -Match 'folder changed.*Reload definitions'
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1
+        }
+    }
+
+    It 'loads on first selection of Definitions after starting on Install' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $state.Settings.StartupView = 'Install'
+            Restore-EwWorkbenchStartupView -State $state
+            $script:jobOutput = @()
+            Invoke-EwWorkbenchJobMonitor -State $state
+            $state.DefinitionsTab.IsSelected = $true
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter { $Kind -eq 'PackageDefinitions' }
+        }
+    }
+
+    It 'waits for a folder, then loads after editing is complete; later changes require reload' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $state.IntuneDefinitionsPathBox.Text = ''
+            Show-EwWorkbenchView -State $state -View 'Packages'
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
+            $state.IntuneDefinitionsPathBox.Text = 'C:\First'
+            $focusArgs = [System.Windows.Input.KeyboardFocusChangedEventArgs]::new(
+                [System.Windows.Input.Keyboard]::PrimaryDevice, 0, $null, $null)
+            $focusArgs.RoutedEvent = [System.Windows.Input.Keyboard]::LostKeyboardFocusEvent
+            $state.IntuneDefinitionsPathBox.RaiseEvent($focusArgs)
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter {
+                $Kind -eq 'PackageDefinitions' -and $ArgumentList[0] -eq 'C:\First'
+            }
+            $script:jobOutput = @([PSCustomObject]@{
+                Items = @([PSCustomObject]@{ Name = 'Old'; Status = 'Valid' })
+            })
+            Invoke-EwWorkbenchJobMonitor -State $state
+            $state.IntuneDefinitionsPathBox.Text = 'C:\Second'
+            $state.PackageDefinitions.Count | Should -Be 0
+            $state.UpdatePackageDefinitionsButton.IsEnabled | Should -BeFalse
+            $focusArgs = [System.Windows.Input.KeyboardFocusChangedEventArgs]::new(
+                [System.Windows.Input.Keyboard]::PrimaryDevice, 0, $null, $null)
+            $focusArgs.RoutedEvent = [System.Windows.Input.Keyboard]::LostKeyboardFocusEvent
+            $state.IntuneDefinitionsPathBox.RaiseEvent($focusArgs)
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1
+            $state.LoadPackageDefinitionsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter {
+                $Kind -eq 'PackageDefinitions' -and $ArgumentList[0] -eq 'C:\Second'
+            }
+        }
+    }
+
+    It 'saves a newly entered folder before starting its initial load' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $state.IntuneDefinitionsPathBox.Text = ''
+            Show-EwWorkbenchView -State $state -View 'Packages'
+            $state.IntuneDefinitionsPathBox.Text = 'C:\Saved'
+            $focusArgs = [System.Windows.Input.KeyboardFocusChangedEventArgs]::new(
+                [System.Windows.Input.Keyboard]::PrimaryDevice, 0,
+                $state.IntuneDefinitionsPathBox, $state.SaveIntuneDefinitionsPathButton)
+            $focusArgs.RoutedEvent = [System.Windows.Input.Keyboard]::LostKeyboardFocusEvent
+            $state.IntuneDefinitionsPathBox.RaiseEvent($focusArgs)
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 0
+            $state.SaveIntuneDefinitionsPathButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+            $state.Settings.IntuneDefinitionsPath | Should -Be 'C:\Saved'
+            Should -Invoke Set-EwSetting -Exactly 1 -ParameterFilter {
+                $Name -eq 'IntuneDefinitionsPath' -and $Value -eq 'C:\Saved'
+            }
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter {
+                $Kind -eq 'PackageDefinitions' -and $ArgumentList[0] -eq 'C:\Saved'
+            }
+        }
+    }
+
+    It 'does not automatically retry a failed Definitions load' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            Show-EwWorkbenchView -State $state -View 'Packages'
+            $script:jobState = 'Failed'
+            Invoke-EwWorkbenchJobMonitor -State $state
+            Invoke-EwWorkbenchJobMonitor -State $state
+            $state.StatusLabel.Text | Should -Match 'Reload definitions to retry'
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 1
+            $state.LoadPackageDefinitionsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+            Should -Invoke Invoke-EwWorkbenchJob -Exactly 2
+        }
     }
 
     It 'contains Definitions and Install under one sidebar destination and restores legacy startup' {
@@ -150,6 +348,7 @@ Describe 'Packages tabs and local detection freshness' {
     It 'keeps tab selections independent and refreshes matching paths without stale Artifact assessments' {
         InModuleScope EvergreenUI {
             $state = $script:packagesState
+            $state.PackageDefinitionsLoadAttempted = $true
             $definition = [PSCustomObject]@{ Name = 'Other'; DefinitionPath = 'C:\Definitions\Other\App.json'; Status = 'Valid' }
             $state.PackageDefinitions.Add($definition)
             $state.PackageDefinitionsListView.SelectedItem = $definition
@@ -163,6 +362,7 @@ Describe 'Packages tabs and local detection freshness' {
             Invoke-EwWorkbenchJobMonitor -State $state
             $state.DefinitionsTab.IsSelected = $true
             $state.InstallDefinitionsListView.SelectedItems.Count | Should -Be 2
+            $state.PackageDefinitionsListView.SelectedItem | Should -Be $definition
             Should -Invoke Invoke-EwWorkbenchJob -Exactly 1
 
             $state.IntuneDefinitionsPathBox.Text = 'C:\NewDefinitions'
@@ -176,7 +376,7 @@ Describe 'Packages tabs and local detection freshness' {
             $state.InstallDefinitionsStale | Should -BeFalse
             @($state.InstallDefinitionsListView.SelectedItems | ForEach-Object DefinitionPath) |
                 Should -Be @($script:rows[0].DefinitionPath)
-            $state.PackageDefinitionsListView.SelectedItem | Should -Be $definition
+            $state.PackageDefinitionsListView.SelectedItem | Should -BeNullOrEmpty
             $state.InstallDefinitions[0].LatestVersion | Should -BeNullOrEmpty
             $state.InstallDefinitions[0].ArtifactArchitecture | Should -Be 'Not checked'
             $state.ResolveInstallVersionsButton.IsEnabled | Should -BeTrue
@@ -336,6 +536,53 @@ Describe 'Packages tabs and local detection freshness' {
             Invoke-EwWorkbenchInstallStale -State $state
             $state.StatusLabel.Text | Should -Be 'Another operation finished.'
             $state.InstallDefinitionsStale | Should -BeTrue
+        }
+    }
+}
+
+Describe 'Definitions loading with a real background job' {
+    It 'loads the configured folder automatically and reads changes on reload' {
+        $root = Join-Path -Path $TestDrive -ChildPath 'Definitions'
+        $null = New-Item -Path $root -ItemType Directory -Force
+        $first = Join-Path -Path $root -ChildPath 'First'
+        $null = New-Item -Path $first -ItemType Directory -Force
+        Set-Content -LiteralPath (Join-Path -Path $first -ChildPath 'App.json') -Value '{invalid json'
+        InModuleScope EvergreenUI -Parameters @{ Root = $root } {
+            $settings = Get-EwSetting
+            $settings.StartupView = 'Packages'
+            $settings.IntuneDefinitionsPath = $Root
+            $window = Get-EwWorkbenchWindow
+            $state = $null
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings $settings
+                $deadline = [datetime]::UtcNow.AddSeconds(30)
+                while ($null -ne $state.ActiveJobId -and [datetime]::UtcNow -lt $deadline) {
+                    Start-Sleep -Milliseconds 100
+                    Invoke-EwWorkbenchJobMonitor -State $state
+                }
+                $state.ActiveJobId | Should -BeNullOrEmpty
+                @($state.PackageDefinitions | ForEach-Object Name) | Should -Be @('First')
+
+                $second = Join-Path -Path $Root -ChildPath 'Second'
+                $null = New-Item -Path $second -ItemType Directory -Force
+                Set-Content -LiteralPath (Join-Path -Path $second -ChildPath 'App.json') -Value '{invalid json'
+                $state.LoadPackageDefinitionsButton.RaiseEvent([System.Windows.RoutedEventArgs]::new(
+                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                $deadline = [datetime]::UtcNow.AddSeconds(30)
+                while ($null -ne $state.ActiveJobId -and [datetime]::UtcNow -lt $deadline) {
+                    Start-Sleep -Milliseconds 100
+                    Invoke-EwWorkbenchJobMonitor -State $state
+                }
+                $state.ActiveJobId | Should -BeNullOrEmpty
+                @($state.PackageDefinitions | ForEach-Object Name | Sort-Object) | Should -Be @('First', 'Second')
+            }
+            finally {
+                if ($null -ne $state -and $null -ne $state.ActiveJobId) {
+                    Stop-EwJob -Id $state.ActiveJobId -Confirm:$false
+                    Remove-EwJob -Id $state.ActiveJobId -Confirm:$false
+                }
+                $window.Close()
+            }
         }
     }
 }

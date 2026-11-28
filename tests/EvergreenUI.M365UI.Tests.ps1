@@ -309,3 +309,128 @@ Describe 'Microsoft 365 provider views' {
         }
     }
 }
+
+Describe 'Microsoft 365 configuration summary' {
+    BeforeAll {
+        $script:summaryXml = @'
+<Configuration ID="9fddd581-f505-4760-9bb3-2365db204b38">
+  <Info Description="Enterprise apps for virtual desktops" />
+  <Add OfficeClientEdition="64" Channel="#Channel" MigrateArch="TRUE">
+    <Product ID="O365ProPlusRetail">
+      <Language ID="MatchOS" />
+      <Language ID="en-GB" />
+      <ExcludeApp ID="Groove" />
+      <ExcludeApp ID="Lync" />
+      <ExcludeApp ID="Teams" />
+    </Product>
+    <Product ID="VisioProRetail">
+      <Language ID="MatchOS" />
+    </Product>
+  </Add>
+  <Property Name="SharedComputerLicensing" Value="1" />
+  <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />
+  <RemoveMSI />
+  <Updates Enabled="FALSE" />
+  <Display Level="None" AcceptEULA="TRUE" />
+  <AppSettings>
+    <Setup Name="Company" Value="#Company" />
+    <User Key="software\microsoft\office\16.0\common" Name="a" Value="1" Type="REG_DWORD" App="office16" Id="L_A" />
+    <User Key="software\microsoft\office\16.0\common" Name="b" Value="1" Type="REG_DWORD" App="office16" Id="L_B" />
+  </AppSettings>
+</Configuration>
+'@
+    }
+
+    It 'translates products, apps, and deployment settings' {
+        InModuleScope EvergreenUI -Parameters @{ Xml = $script:summaryXml } {
+            $summary = ConvertTo-EwM365ConfigurationSummary -Configuration ([xml]$Xml)
+            $summary.PrimaryProduct | Should -Be 'Microsoft 365 Apps for enterprise'
+            $summary.Description | Should -Be 'Enterprise apps for virtual desktops'
+            $summary.IncludedApps | Should -Contain 'Word'
+            $summary.IncludedApps | Should -Contain 'OneDrive'
+            $summary.IncludedApps | Should -Not -Contain 'Teams'
+            $summary.IncludedApps | Should -Not -Contain 'Skype for Business'
+            $summary.ExcludedApps | Should -Be @('OneDrive for Business (Groove)', 'Skype for Business', 'Teams')
+            $summary.AdditionalProducts | Should -Be @('Visio Professional')
+            $summary.Languages | Should -Be @('Match the Windows display language', 'English (United Kingdom) (en-GB)')
+            $summary.Licensing | Should -Be 'Shared computer activation'
+            $summary.MigrateArchitecture | Should -BeTrue
+            $summary.RemoveMsi | Should -BeTrue
+            $summary.UpdatesEnabled | Should -BeFalse
+            $summary.ForceAppShutdown | Should -BeTrue
+            $summary.DisplayLevel | Should -Be 'None'
+            $summary.UserSettingCount | Should -Be 2
+            ConvertTo-EwM365ChannelName -Channel $summary.Channel | Should -Be 'Set at build time'
+        }
+    }
+
+    It 'returns a summary from Get-EwM365Configuration' {
+        $folder = Join-Path -Path $TestDrive -ChildPath 'summary'
+        $null = New-Item -Path $folder -ItemType Directory -Force
+        Set-Content -LiteralPath (Join-Path -Path $folder -ChildPath 'install.xml') -Value $script:summaryXml
+        Set-Content -LiteralPath (Join-Path -Path $folder -ChildPath 'broken.xml') -Value '<Configuration>'
+        $results = @(Get-EwM365Configuration -Path $folder)
+        ($results | Where-Object -Property FileName -EQ -Value 'install.xml').Summary.PrimaryProduct | Should -Be 'Microsoft 365 Apps for enterprise'
+        ($results | Where-Object -Property FileName -EQ -Value 'broken.xml').Summary | Should -BeNullOrEmpty
+    }
+
+    It 'shows effective form values on the <Provider> card' -ForEach @(
+        @{ Provider = 'Intune' }
+        @{ Provider = 'Nerdio' }
+    ) {
+        $folder = Join-Path -Path $TestDrive -ChildPath "card-$Provider"
+        $null = New-Item -Path $folder -ItemType Directory -Force
+        Set-Content -LiteralPath (Join-Path -Path $folder -ChildPath 'install.xml') -Value $script:summaryXml
+        InModuleScope EvergreenUI -Parameters @{ Provider = $Provider; Folder = $folder } {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $view = $state.M365Views[$Provider]
+                $card = $state["${Provider}M365SummaryCard"]
+                $card.Content.EmptyVisibility | Should -Be 'Visible'
+                $configuration = Get-EwM365Configuration -Path $Folder
+                $view.ConfigurationCombo.ItemsSource = @($configuration)
+                $view.ConfigurationCombo.SelectedItem = $configuration
+                $card.Content.Title | Should -Be 'Microsoft 365 Apps for enterprise'
+                $card.Content.DetailsVisibility | Should -Be 'Visible'
+                $card.Content.WarningVisibility | Should -Be 'Collapsed'
+                $card.Content.AdditionalProducts | Should -Be @('Visio Professional')
+                $view.SessionCombo.SelectedItem | Should -Be 'Multi-session'
+                ($card.Content.DeploymentRows | Where-Object -Property Label -EQ -Value 'Licensing').Value | Should -Be 'Shared computer activation'
+
+                $view.ChannelCombo.SelectedItem = 'MonthlyEnterprise'
+                $channel = $card.Content.DeploymentRows | Where-Object -Property Label -EQ -Value 'Channel'
+                $channel.Value | Should -Be 'Monthly Enterprise Channel'
+                $channel.Note | Should -Be 'From form'
+                $view.SessionCombo.SelectedItem = 'Single session'
+                $licensing = $card.Content.DeploymentRows | Where-Object -Property Label -EQ -Value 'Licensing'
+                $licensing.Value | Should -Be 'User-based licensing'
+                $licensing.NoteVisibility | Should -Be 'Visible'
+                $view.CompanyBox.Text = 'Contoso'
+                ($card.Content.DeploymentRows | Where-Object -Property Label -EQ -Value 'Company').Value | Should -Be 'Contoso'
+                $card.Content.UserSettingsText | Should -Be '2 user settings applied.'
+            }
+            finally { $window.Close() }
+        }
+    }
+
+    It 'shows only a warning for an unreadable configuration' {
+        InModuleScope EvergreenUI {
+            $window = Get-EwWorkbenchWindow
+            try {
+                $state = Get-EwWorkbenchState -Window $window -Settings (Get-EwSetting)
+                $view = $state.M365Views.Intune
+                $configuration = [PSCustomObject]@{
+                    FileName = 'broken.xml'; DisplayName = 'broken'; Channel = ''; IsVdi = $false; Status = 'Invalid XML'; Summary = $null
+                }
+                $view.ConfigurationCombo.ItemsSource = @($configuration)
+                $view.ConfigurationCombo.SelectedItem = $configuration
+                $card = $state.IntuneM365SummaryCard.Content
+                $card.WarningVisibility | Should -Be 'Visible'
+                $card.WarningText | Should -Match 'could not be read'
+                $card.DetailsVisibility | Should -Be 'Collapsed'
+            }
+            finally { $window.Close() }
+        }
+    }
+}

@@ -5,6 +5,7 @@ function Get-EwObjectPropertyValue {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
+        [AllowNull()]
         [psobject]$Object,
 
         [Parameter(Mandatory)]
@@ -14,6 +15,7 @@ function Get-EwObjectPropertyValue {
         [object]$Default = $null
     )
 
+    if ($null -eq $Object) { return $Default }
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property) {
         return $Default
