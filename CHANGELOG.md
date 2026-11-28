@@ -1,8 +1,165 @@
 # Changelog
 
-## [Unreleased]
+## [2.0.10]
 
-- Show selected definition details and validation errors in a resizable panel on the Packages Definitions tab.
+
+
+### High-level feature set
+
+#### 1. Application discovery and downloads
+
+- Unified Evergreen application discovery and download queue.
+- Metadata filters, favourites, CSV export, configurable columns and cached catalog data.
+
+#### 2. Library management
+
+- Persistent Library paths, selected application and artifact details, and safe removal workflows.
+- Recent path history and direct folder access.
+
+#### 3. Package definitions
+
+- App.json discovery, validation, filtering, artifact resolution and updates.
+- Shared Definitions and Install tabs with architecture-aware local installation.
+
+#### 4. Microsoft 365 packaging
+
+- ODT configuration discovery and readable configuration summaries.
+- Office and deployment-tool package metadata, channel handling and architecture support.
+
+#### 5. Intune publishing
+
+- Graph-based app discovery, comparison, package building and publishing.
+- Deployment import and update handling, supersedence, assignments and uncertain-outcome recovery.
+
+#### 6. Nerdio publishing
+
+- Azure and API setup, Shell App discovery, publishing and version pruning.
+- Persistent, reviewable outcomes for interrupted or ambiguous provider operations.
+
+#### 7. Local and provider authentication
+
+- Independent Azure, Nerdio and Microsoft 365 provider authentication.
+- Optional integration modules loaded only for their respective workflows.
+
+#### 8. Background jobs and recovery
+
+- Bounded worker pool with job progress, cancellation and explicit unresolved-operation handling.
+- Rechecks and manual confirmation before uncertain or repeated provider writes.
+
+#### 9. Workbench settings and maintenance
+
+- Persistent UI state, folder setup, cache controls and Evergreen maintenance.
+- Dependency status, window layout, defaults and folder-opening actions.
+
+#### 10. WPF experience
+
+- Native Fluent and Windows theme support, adaptive navigation and resizable panels.
+- Stable grids, dialogs, tab indicators, status messages and window layout.
+
+### Rationalised change list
+
+#### Foundation and APIs
+
+- Reworked EvergreenUI as a PowerShell 7.6 v2 module with separate headless and WPF layers.
+- Added settings, bounded background jobs, caching, Apps, Library, Definitions and provider APIs.
+- Added headless parity commands for favourites, dependencies, M365, Intune, Azure and Nerdio.
+- Kept integration modules optional and loaded only for matching workflows.
+
+#### Application catalog
+
+- Combined discovery and downloads into one Apps view.
+- Added favourites, filters, queue management, navigation counts and saved download destinations.
+- Added optional artifact columns, persistent column preferences and filtered CSV export.
+- Added selected-app reload and 24-hour, application-specific catalog caching.
+- Added cache invalidation for maintenance, force refreshes and Evergreen updates.
+
+#### Downloads
+
+- Added resizable queue tray, inline queue actions and queue scrolling.
+- Added Clear all and Clear completed behavior with download protection.
+- Added destination browsing and the **Change destination** action.
+- Added architecture and URI details for queued artifacts.
+- Added fix for URI browsing and queue resizing failures.
+
+#### Library
+
+- Added persistent Library paths and a 10-item Library path history.
+- Added selected application and artifact removal with stale-selection and unsafe-path protection.
+- Added file preservation, partial-outcome handling and inventory refresh after removal.
+- Added version details, installer paths and **Open folder** actions.
+
+#### Definitions and local installation
+
+- Added App.json discovery, filter evaluation, validation and artifact resolution.
+- Added a Packages Definitions tab with details, errors, architectures and reload controls.
+- Combined Packages and Install into one sidebar destination with Definitions and Install tabs.
+- Added architecture detection, approved emulation and unattended opt-in handling.
+- Added refresh deferral during active operations and preserved installation safeguards.
+- Fixed definition update handling for literal PowerShell action parameters.
+
+#### Microsoft 365
+
+- Added M365 configuration discovery and configuration summaries.
+- Added separate Office and deployment-tool versions, channel metadata and detection handling.
+- Added M365 builds and publishing for Intune and Nerdio.
+- Added native light/dark form styling and Fluent confirmation dialogs.
+- Validated configuration IDs and rejected incompatible pinned/rolling configurations.
+- Fixed M365 application naming and the default uninstall template value.
+
+#### Intune publishing
+
+- Added connection, comparison, package building and confirmed sequential publishing.
+- Separated new deployment imports from updates and assignment effects.
+- Added version, match and duplicate validation before publishing.
+- Added supersedence, dependency preservation and relationship-chain recovery.
+- Added batched Graph reads, indexed supersedence and cached artifact resolution.
+- Added partial-outcome preservation and explicit uncertain-write review.
+- Fixed nested subfolder package builds and the single-match inspector exception.
+
+#### Nerdio publishing
+
+- Added independent Azure and Nerdio API setup and storage discovery.
+- Added Shell App plans, publishing, partial outcomes and version pruning.
+- Added API-only authentication and session reuse across background jobs.
+- Added persistent unresolved publish/delete outcomes and reconnection safeguards.
+- Added automatic destination rechecks and manual review for uncertain operations.
+- Added standalone and post-publish pruning with exact-version previews.
+
+#### Jobs and recovery
+
+- Fixed background completion results appearing before they were available.
+- Added active-operation protection, duplicate-write warnings and explicit acknowledgements.
+- Added safe recovery details and blocked automatic retries for uncertain writes.
+- Added persistent provider operation identifiers and partial-outcome reporting.
+
+#### Settings and maintenance
+
+- Added saved folder management and confirmed defaults reset.
+- Added Evergreen updates and confirmed cache clearing.
+- Added cache maintenance with process/runspace invalidation and stale-write protection.
+- Added window-layout reset and cache folder access.
+- Added About metadata and refreshed local dependency status.
+
+#### Workbench UI
+
+- Added adaptive icon navigation, themed actions and a resizable activity log.
+- Added fluent light, dark and system-theme dialogs and form controls.
+- Added tab, navigation and accent-colour indicators with animation settings respected.
+- Added keyboard-only sidebar focus outlines.
+- Added persistent window state, page selection and application selection.
+- Added standard Windows 11 chrome, Mica support and taskbar-safe maximisation.
+- Added Evergreen bulb window icon and consistent grid styling.
+- Added fixed, content-sized dialogs with scrolling and visible actions.
+- Added wrapped status messages with tooltips and two-line limits.
+
+#### Bug fixes and consistency
+
+- Corrected architecture views for local detection and ARM64.
+- Corrected application-name and package-metadata generation.
+- Corrected Nerdio private-helper resolution in background workers.
+- Corrected package, review and pruning failures caused by output subfolders or missing helpers.
+- Corrected Apps, Settings and Library resize and browsing failures.
+- Added consistent spacing, alignment and header widths across the Workbench.
 
 ## [2.0.8-preview]
 

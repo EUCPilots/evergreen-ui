@@ -84,7 +84,7 @@ Describe 'EvergreenUI v2 foundation' {
 
     It 'imports the implemented public commands from a valid preview manifest' {
         $manifest = Test-ModuleManifest -Path $modulePath -ErrorAction Stop
-        $manifest.Version.ToString() | Should -Be '2.0.8'
+        $manifest.Version.ToString() | Should -Be '2.0.10'
         $manifest.PrivateData.PSData.Prerelease | Should -Be 'preview'
         $manifest.PrivateData.PSData.ExternalModuleDependencies | Should -Contain 'IntuneWin32App'
         Get-Command -Name Get-EwSetting -Module EvergreenUI | Should -Not -BeNullOrEmpty

@@ -1,7 +1,7 @@
 #Requires -Version 7.6
 @{
     # Module identity
-    ModuleVersion     = '2.0.8'
+    ModuleVersion     = '2.0.10'
     GUID              = 'e63b3f34-4e6c-433d-8544-fe497c21ad98'
     Author            = 'Aaron Parker (stealthpuppy)'
     CompanyName       = 'EUC Pilots'
@@ -57,8 +57,8 @@
             Tags         = @('Evergreen', 'GUI', 'MSI', 'MSIX', 'Windows', 'Intune', 'Nerdio', 'M365')
             LicenseUri   = 'https://github.com/EUCPilots/evergreen-ui/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/EUCPilots/evergreen-ui'
-            ReleaseNotes = ''
-            Prerelease   = 'preview'
+            ReleaseNotes = 'Re-written and refactored workbench.'
+            Prerelease   = ''
             ExternalModuleDependencies = @('IntuneWin32App', 'Microsoft.Graph.Authentication', 'Az.Accounts', 'Az.Resources', 'Az.Storage')
         }
     }
