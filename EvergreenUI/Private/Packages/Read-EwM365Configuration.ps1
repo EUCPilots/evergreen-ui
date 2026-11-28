@@ -54,7 +54,7 @@ function Read-EwM365Configuration {
         "$productText`: $($deploymentProperties -join ', ')"
     }
     Write-Verbose -Message "EvergreenUI: Microsoft 365 configuration resolved to '$displayName'"
-    $descriptionNode = $xml.SelectSingleNode('/Configuration/Info/Description')
+    $summary = ConvertTo-EwM365ConfigurationSummary -Configuration $xml
 
     [PSCustomObject]@{
         ConfigId = $xml.Configuration.GetAttribute('ID')
@@ -64,6 +64,7 @@ function Read-EwM365Configuration {
         Products = $productIds -join ', '
         ExcludedProducts = @($excluded) -join ', '
         IsVdi = $isVdi
-        Description = if ($null -ne $descriptionNode) { $descriptionNode.InnerText } else { '' }
+        Description = $summary.Description
+        Summary = $summary
     }
 }

@@ -176,7 +176,7 @@ function Get-EwWorkbenchState {
         foreach ($suffix in 'Form', 'BrowseButton', 'PathBox', 'LoadButton', 'SaveButton', 'ConfigurationCombo',
             'ChannelCombo', 'CompanyBox', 'SessionCombo', 'TargetsButton', 'TargetCombo',
             'PreviewBuildButton', 'PreviewPublishButton', 'PreviewText', 'BuildButton', 'PublishButton',
-            'CancelButton', 'ResultText') {
+            'CancelButton', 'ResultText', 'SummaryCard') {
             $name = "${provider}M365$suffix"
             $state[$name] = $Window.FindName($name)
         }

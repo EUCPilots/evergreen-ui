@@ -244,6 +244,73 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <DataTemplate x:Key="M365ConfigurationChipTemplate">
+            <Border Margin="0,0,6,6" Padding="8,3" CornerRadius="4" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                <TextBlock Text="{Binding}" />
+            </Border>
+        </DataTemplate>
+        <DataTemplate x:Key="M365ConfigurationMutedChipTemplate">
+            <Border Margin="0,0,6,6" Padding="8,3" CornerRadius="4" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
+                <TextBlock Text="{Binding}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Border>
+        </DataTemplate>
+        <ItemsPanelTemplate x:Key="M365ConfigurationChipPanel">
+            <WrapPanel />
+        </ItemsPanelTemplate>
+        <DataTemplate x:Key="M365ConfigurationRowTemplate">
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="130" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,8,0" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Note}" Visibility="{Binding NoteVisibility}" FontSize="12" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="M365ConfigurationSummaryTemplate">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <StackPanel>
+                    <TextBlock Text="Configuration summary" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,8" />
+                    <TextBlock Text="Select a configuration to see its contents." Visibility="{Binding EmptyVisibility}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <Border Visibility="{Binding WarningVisibility}" Padding="10,8" Margin="0,0,0,12" CornerRadius="4" BorderThickness="1"
+                            Background="{DynamicResource SystemFillColorCautionBackgroundBrush}" BorderBrush="{DynamicResource SystemFillColorCautionBrush}">
+                        <TextBlock Text="{Binding WarningText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    </Border>
+                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Description}" Visibility="{Binding DescriptionVisibility}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    <TextBlock Text="{Binding FileName}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
+                    <StackPanel Visibility="{Binding DetailsVisibility}" Margin="0,16,0,0">
+                        <TextBlock Text="Included apps" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <ItemsControl ItemsSource="{Binding IncludedApps}" Visibility="{Binding IncludedVisibility}" Focusable="False"
+                                      ItemsPanel="{StaticResource M365ConfigurationChipPanel}" ItemTemplate="{StaticResource M365ConfigurationChipTemplate}"
+                                      AutomationProperties.Name="Included apps" />
+                        <TextBlock Text="No apps from a Microsoft 365 Apps suite." Visibility="{Binding NoIncludedVisibility}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,6" />
+                        <StackPanel Visibility="{Binding ExcludedVisibility}" Margin="0,8,0,0">
+                            <TextBlock Text="Excluded apps" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <ItemsControl ItemsSource="{Binding ExcludedApps}" Focusable="False"
+                                          ItemsPanel="{StaticResource M365ConfigurationChipPanel}" ItemTemplate="{StaticResource M365ConfigurationMutedChipTemplate}"
+                                          AutomationProperties.Name="Excluded apps" />
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding AdditionalVisibility}" Margin="0,8,0,0">
+                            <TextBlock Text="Additional products" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <ItemsControl ItemsSource="{Binding AdditionalProducts}" Focusable="False"
+                                          ItemsPanel="{StaticResource M365ConfigurationChipPanel}" ItemTemplate="{StaticResource M365ConfigurationChipTemplate}"
+                                          AutomationProperties.Name="Additional products" />
+                        </StackPanel>
+                        <TextBlock Text="Deployment" FontWeight="SemiBold" Margin="0,12,0,8" />
+                        <ItemsControl ItemsSource="{Binding DeploymentRows}" Focusable="False" ItemTemplate="{StaticResource M365ConfigurationRowTemplate}"
+                                      AutomationProperties.Name="Deployment settings" />
+                        <TextBlock Text="Install behaviour" FontWeight="SemiBold" Margin="0,8,0,8" />
+                        <ItemsControl ItemsSource="{Binding BehaviourRows}" Focusable="False" ItemTemplate="{StaticResource M365ConfigurationRowTemplate}"
+                                      AutomationProperties.Name="Install behaviour" />
+                        <TextBlock Text="{Binding UserSettingsText}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </DataTemplate>
     </Window.Resources>
     <Grid x:Name="WorkbenchRoot" Grid.IsSharedSizeScope="True">
         <Grid.ColumnDefinitions>
@@ -1187,10 +1254,10 @@
                             <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
                                 <Button x:Name="CancelIntuneBatchButton" Content="Cancel batch" Margin="0,0,8,0"
                                         Padding="12,4" IsEnabled="False" />
-                                <Button x:Name="PublishSelectedIntuneButton" Content="Import for deployment..." Margin="0,0,8,0"
+                                <Button x:Name="PublishIntuneUpdateButton" Content="Import update for existing installations..." Margin="0,0,8,0"
                                         Padding="12,4" IsEnabled="False" />
-                                <Button x:Name="PublishIntuneUpdateButton" Content="Import update for existing installations..."
-                                        Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold" />
+                                <Button x:Name="PublishSelectedIntuneButton" Content="Import for deployment..."
+                                        Style="{DynamicResource AccentButtonStyle}" Padding="12,4" IsEnabled="False" FontWeight="SemiBold"/>
                             </WrapPanel>
                         </Grid>
                         <TextBlock x:Name="IntuneImportBlockersText" TextWrapping="Wrap" FontSize="12" />
@@ -1225,6 +1292,13 @@
                             </Grid>
                         </TabItem>
                         <TabItem Header="Microsoft 365 Apps" Tag="&#xE71D;">
+                            <DockPanel>
+                            <Border DockPanel.Dock="Right" Width="580" Margin="0,16,16,16" Padding="16"
+                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6"
+                                    AutomationProperties.Name="Intune Microsoft 365 configuration summary">
+                                <ContentControl x:Name="IntuneM365SummaryCard" Focusable="False" ContentTemplate="{StaticResource M365ConfigurationSummaryTemplate}" />
+                            </Border>
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1286,6 +1360,7 @@
                                     </StackPanel>
                                 </Grid>
                             </ScrollViewer>
+                            </DockPanel>
                         </TabItem>
                     </TabControl>
                 </Grid>
@@ -1366,6 +1441,13 @@
                             </Grid>
                         </TabItem>
                         <TabItem Header="Microsoft 365 Apps" Tag="&#xE71D;">
+                            <DockPanel>
+                            <Border DockPanel.Dock="Right" Width="580" Margin="0,16,16,16" Padding="16"
+                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6"
+                                    AutomationProperties.Name="Nerdio Microsoft 365 configuration summary">
+                                <ContentControl x:Name="NerdioM365SummaryCard" Focusable="False" ContentTemplate="{StaticResource M365ConfigurationSummaryTemplate}" />
+                            </Border>
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1436,6 +1518,7 @@
                                     </StackPanel>
                                 </Grid>
                             </ScrollViewer>
+                            </DockPanel>
                         </TabItem>
                         <TabItem Header="Settings" Tag="&#xE713;">
                             <DockPanel>

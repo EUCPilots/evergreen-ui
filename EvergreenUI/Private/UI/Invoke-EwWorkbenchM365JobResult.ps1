@@ -22,6 +22,7 @@ function Invoke-EwWorkbenchM365JobResult {
                 $view.ConfigurationCombo.ItemsSource = [object[]]$output
                 $view.TargetCombo.ItemsSource = @()
                 Clear-EwWorkbenchM365Preview -State $State -Provider $provider
+                Update-EwWorkbenchM365Summary -State $State -Provider $provider
                 $view.ResultText.Text = "Loaded $($output.Count) configurations."
             }
             'Targets' {

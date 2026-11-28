@@ -355,7 +355,7 @@ Describe 'Evergreen Workbench WPF shell' {
                     else {
                         $page.Children[0].SelectedIndex = 1
                         $form = $window.FindName($pageName.Replace('Panel', 'M365Form'))
-                        $scrollViewer = $page.Children[0].SelectedContent
+                        $scrollViewer = $page.Children[0].SelectedContent.Children | Where-Object -FilterScript { $_ -is [System.Windows.Controls.ScrollViewer] }
                     }
                     $window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
                     $window.UpdateLayout()
