@@ -34,6 +34,7 @@ Public commands are grouped by feature and cover settings, jobs, Apps and
 downloads, Library, definitions, local installation, package builds,
 authentication, publishing, dependencies, and cache maintenance. The required
 Evergreen module supplies catalog, artifact, download, and library operations.
+At import, Workbench selects the highest installed Evergreen version for its own commands without replacing a version already loaded in the caller's session.
 
 Long-running commands use `Start-EwJob` and a shared in-process runspace pool
 of up to four workers. `Get-EwJob` reports state, progress, information,

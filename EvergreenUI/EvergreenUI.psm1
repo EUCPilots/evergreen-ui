@@ -12,6 +12,14 @@
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$evergreenModule = Get-Module -ListAvailable -Name Evergreen -ErrorAction Stop |
+    Sort-Object -Property Version -Descending |
+    Select-Object -First 1
+if ($null -eq $evergreenModule) {
+    throw 'Evergreen is required but no installed module was found.'
+}
+Write-Verbose -Message "EvergreenUI: Loading Evergreen version $($evergreenModule.Version) from '$($evergreenModule.Path)'"
+Import-Module -Name $evergreenModule.Path -ErrorAction Stop
 $script:ewNerdioSession = [hashtable]::Synchronized(@{ Context = $null; ApiOnly = $false })
 $script:ewOwnsNerdioSession = $true
 

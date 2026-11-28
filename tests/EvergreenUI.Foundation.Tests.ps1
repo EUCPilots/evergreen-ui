@@ -9,6 +9,68 @@ AfterAll {
     Remove-Module -Name EvergreenUI -ErrorAction SilentlyContinue
 }
 
+Describe 'Evergreen module selection' {
+    It 'uses the newest installed Evergreen in the module and its workers with <Scenario>' -ForEach @(
+        @{ Scenario = 'no preloaded module'; Preload = $false }
+        @{ Scenario = 'an older preloaded module'; Preload = $true }
+    ) {
+        $olderRoot = Join-Path -Path $TestDrive -ChildPath 'older'
+        $newerRoot = Join-Path -Path $TestDrive -ChildPath 'newer'
+        foreach ($fixture in @(
+                @{ Root = $olderRoot; Version = '2603.2832.0' }
+                @{ Root = $newerRoot; Version = '2604.2833.0' }
+            )) {
+            $directory = Join-Path -Path $fixture.Root -ChildPath "Evergreen\$($fixture.Version)"
+            New-Item -Path $directory -ItemType Directory -Force | Out-Null
+            Set-Content -Path (Join-Path -Path $directory -ChildPath 'Evergreen.psm1') -Value 'function Find-EvergreenApp { $ExecutionContext.SessionState.Module.Version.ToString() }'
+            New-ModuleManifest -Path (Join-Path -Path $directory -ChildPath 'Evergreen.psd1') -RootModule 'Evergreen.psm1' -ModuleVersion $fixture.Version -FunctionsToExport 'Find-EvergreenApp'
+        }
+
+        $originalModulePath = $env:PSModulePath
+        $originalWorkbenchPath = $env:EW_TEST_MODULE_PATH
+        $originalPreload = $env:EW_TEST_PRELOAD
+        try {
+            $env:PSModulePath = "$olderRoot;$newerRoot;$PSHOME\Modules"
+            $env:EW_TEST_MODULE_PATH = $modulePath
+            $env:EW_TEST_PRELOAD = [string]$Preload
+            $result = & (Join-Path -Path $PSHOME -ChildPath 'pwsh.exe') -NoLogo -NoProfile -Command {
+                $ErrorActionPreference = 'Stop'
+                if ($env:EW_TEST_PRELOAD -eq 'True') {
+                    Import-Module -FullyQualifiedName @{ ModuleName = 'Evergreen'; RequiredVersion = '2603.2832.0' }
+                }
+                Import-Module -Name $env:EW_TEST_MODULE_PATH
+                & (Get-Module -Name EvergreenUI) { "Main:$(Find-EvergreenApp)" }
+                if ($env:EW_TEST_PRELOAD -eq 'True') {
+                    "Caller:$(Find-EvergreenApp)"
+                }
+                $job = Start-EwJob -ScriptBlock {
+                    & (Get-Module -Name EvergreenUI) { "Worker:$(Find-EvergreenApp)" }
+                }
+                $deadline = [datetime]::UtcNow.AddSeconds(15)
+                do {
+                    Start-Sleep -Milliseconds 50
+                    $snapshot = Get-EwJob -Id $job.Id
+                } while ($snapshot.State -eq 'Running' -and [datetime]::UtcNow -lt $deadline)
+                if ($snapshot.State -ne 'Completed') {
+                    throw "Worker failed: $($snapshot.TerminatingError)"
+                }
+                $snapshot.Output
+            }
+            $LASTEXITCODE | Should -Be 0
+            $result | Should -Contain 'Main:2604.2833.0'
+            $result | Should -Contain 'Worker:2604.2833.0'
+            if ($Preload) {
+                $result | Should -Contain 'Caller:2603.2832.0'
+            }
+        }
+        finally {
+            $env:PSModulePath = $originalModulePath
+            $env:EW_TEST_MODULE_PATH = $originalWorkbenchPath
+            $env:EW_TEST_PRELOAD = $originalPreload
+        }
+    }
+}
+
 Describe 'EvergreenUI v2 foundation' {
     BeforeEach {
         $originalAppData = $env:APPDATA
