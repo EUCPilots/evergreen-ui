@@ -316,7 +316,7 @@
     </Window.Resources>
     <Grid x:Name="WorkbenchRoot" Grid.IsSharedSizeScope="True">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="NavigationColumn" Width="208" />
+            <ColumnDefinition x:Name="NavigationColumn" Width="196" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -1183,7 +1183,7 @@
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <Label x:Name="IntuneDefinitionSearchLabel" Content="Search" Target="{Binding ElementName=IntuneDefinitionSearchBox}" VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
-                                <TextBox x:Name="IntuneDefinitionSearchBox" Width="190" VerticalContentAlignment="Center" AutomationProperties.Name="Search Intune definitions" />
+                                <TextBox x:Name="IntuneDefinitionSearchBox" Width="196" VerticalContentAlignment="Center" AutomationProperties.Name="Search Intune definitions" />
                             </StackPanel>
                         </DockPanel>
                         <Grid Grid.Row="1">

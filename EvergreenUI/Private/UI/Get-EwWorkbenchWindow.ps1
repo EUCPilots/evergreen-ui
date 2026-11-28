@@ -80,7 +80,7 @@ function Get-EwWorkbenchWindow {
     }
     $window.Add_SizeChanged({
         $compact = $args[0].ActualWidth -lt 1100
-        $navigationColumn.Width = [System.Windows.GridLength]::new($(if ($compact) { 64 } else { 208 }))
+        $navigationColumn.Width = [System.Windows.GridLength]::new($(if ($compact) { 64 } else { 196 }))
         $navigationPane.Padding = [System.Windows.Thickness]::new($(if ($compact) { 4 } else { 16 }))
         $navigationBrand.Visibility = if ($compact) { 'Collapsed' } else { 'Visible' }
         $navigationScroll.Tag = $compact
