@@ -26,15 +26,16 @@ Describe 'Evergreen module selection' {
             New-ModuleManifest -Path (Join-Path -Path $directory -ChildPath 'Evergreen.psd1') -RootModule 'Evergreen.psm1' -ModuleVersion $fixture.Version -FunctionsToExport 'Find-EvergreenApp'
         }
 
-        $originalModulePath = $env:PSModulePath
+        $originalFixtureModulePath = $env:EW_TEST_FIXTURE_MODULE_PATH
         $originalWorkbenchPath = $env:EW_TEST_MODULE_PATH
         $originalPreload = $env:EW_TEST_PRELOAD
         try {
-            $env:PSModulePath = "$olderRoot;$newerRoot;$PSHOME\Modules"
+            $env:EW_TEST_FIXTURE_MODULE_PATH = "$olderRoot;$newerRoot;$PSHOME\Modules"
             $env:EW_TEST_MODULE_PATH = $modulePath
             $env:EW_TEST_PRELOAD = [string]$Preload
             $result = & (Join-Path -Path $PSHOME -ChildPath 'pwsh.exe') -NoLogo -NoProfile -Command {
                 $ErrorActionPreference = 'Stop'
+                $env:PSModulePath = $env:EW_TEST_FIXTURE_MODULE_PATH
                 if ($env:EW_TEST_PRELOAD -eq 'True') {
                     Import-Module -FullyQualifiedName @{ ModuleName = 'Evergreen'; RequiredVersion = '2603.2832.0' }
                 }
@@ -64,7 +65,7 @@ Describe 'Evergreen module selection' {
             }
         }
         finally {
-            $env:PSModulePath = $originalModulePath
+            $env:EW_TEST_FIXTURE_MODULE_PATH = $originalFixtureModulePath
             $env:EW_TEST_MODULE_PATH = $originalWorkbenchPath
             $env:EW_TEST_PRELOAD = $originalPreload
         }
@@ -82,10 +83,10 @@ Describe 'EvergreenUI v2 foundation' {
         $env:APPDATA = $originalAppData
     }
 
-    It 'imports the implemented public commands from a valid preview manifest' {
+    It 'imports the implemented public commands from a valid release manifest' {
         $manifest = Test-ModuleManifest -Path $modulePath -ErrorAction Stop
         $manifest.Version.ToString() | Should -Be '2.0.10'
-        $manifest.PrivateData.PSData.Prerelease | Should -Be 'preview'
+        $manifest.PrivateData.PSData.Prerelease | Should -BeNullOrEmpty
         $manifest.PrivateData.PSData.ExternalModuleDependencies | Should -Contain 'IntuneWin32App'
         Get-Command -Name Get-EwSetting -Module EvergreenUI | Should -Not -BeNullOrEmpty
         Get-Command -Name Set-EwSetting -Module EvergreenUI | Should -Not -BeNullOrEmpty

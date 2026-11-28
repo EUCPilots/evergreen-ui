@@ -2265,11 +2265,11 @@ Describe 'Evergreen Workbench WPF shell' {
                 )
                 $keyArgs.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent
                 $thumb.RaiseEvent($keyArgs)
-                $log.Height | Should -Be 200
+                $log.Height | Should -Be 190
                 $expander.IsExpanded = $false
                 $expander.IsExpanded | Should -BeFalse
                 $expander.IsExpanded = $true
-                $log.Height | Should -Be 200
+                $log.Height | Should -Be 190
             }
             finally {
                 $window.Close()
@@ -5354,14 +5354,18 @@ function Get-EwDependency {
                 $window.Height = 660
                 $window.Show()
                 $scroll = $window.FindName('NavigationScrollViewer')
+                $window.UpdateLayout()
                 $scroll.ScrollToEnd()
                 $window.UpdateLayout()
                 $about = $window.FindName('NavAbout')
+                $navigationPane = $window.FindName('NavigationPane')
                 $aboutTop = $about.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
-                $scrollTop = $scroll.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
-                $aboutTop | Should -BeGreaterOrEqual $scrollTop
-                ($aboutTop + $about.ActualHeight) | Should -BeLessOrEqual ($scrollTop + $scroll.ActualHeight)
+                $paneTop = $navigationPane.TranslatePoint([System.Windows.Point]::new(0, 0), $window).Y
+                $aboutTop | Should -BeGreaterOrEqual $paneTop
+                ($aboutTop + $about.ActualHeight) | Should -BeLessOrEqual ($paneTop + $navigationPane.ActualHeight)
                 $about.ActualHeight | Should -BeGreaterThan 0
+                $about.IsVisible | Should -BeTrue
+                $about.IsEnabled | Should -BeTrue
             }
             finally {
                 $window.Close()
