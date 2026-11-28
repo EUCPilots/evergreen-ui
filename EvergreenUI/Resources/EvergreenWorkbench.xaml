@@ -203,6 +203,7 @@
                                            FontSize="16"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
+                                           Margin="8,0,0,0"
                                            Opacity="0.8" />
                                 <ContentPresenter x:Name="NavigationLabel"
                                                   Grid.Column="2"
@@ -236,6 +237,7 @@
                                 <Setter TargetName="NavigationLabel" Property="Visibility" Value="Collapsed" />
                                 <Setter TargetName="NavigationIcon" Property="Grid.Column" Value="0" />
                                 <Setter TargetName="NavigationIcon" Property="Grid.ColumnSpan" Value="2" />
+                                <Setter TargetName="NavigationIcon" Property="Margin" Value="0" />
                                 <Setter TargetName="NavigationIconColumn" Property="Width" Value="*" />
                                 <Setter TargetName="NavigationLabelColumn" Property="Width" Value="Auto" />
                             </DataTrigger>
@@ -314,7 +316,7 @@
     </Window.Resources>
     <Grid x:Name="WorkbenchRoot" Grid.IsSharedSizeScope="True">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="NavigationColumn" Width="208" />
+            <ColumnDefinition x:Name="NavigationColumn" Width="200" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -337,10 +339,15 @@
                                FontSize="14"
                                Opacity="0.75" />
                 </StackPanel>
-                <ScrollViewer x:Name="NavigationScrollViewer"
-                              VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled">
-                    <Grid x:Name="NavigationItems">
+                <Grid x:Name="NavigationItems">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ScrollViewer x:Name="NavigationScrollViewer"
+                                  Grid.Row="0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
                         <StackPanel x:Name="NavigationItemsStack">
                             <RadioButton x:Name="NavApps"
                                          Style="{StaticResource NavigationButtonStyle}"
@@ -387,6 +394,10 @@
                                          Content="Nerdio Manager"
                                          Tag="&#xE968;"
                                          AutomationProperties.Name="Nerdio Manager view" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <StackPanel x:Name="NavigationFooter"
+                                Grid.Row="1">
                             <Border Height="1" Margin="8,12" Background="{DynamicResource SubtleFillColorSecondaryBrush}" />
                             <RadioButton x:Name="NavSettings"
                                          Style="{StaticResource NavigationButtonStyle}"
@@ -398,32 +409,32 @@
                                          Content="About"
                                          Tag="&#xE946;"
                                          AutomationProperties.Name="About view" />
-                        </StackPanel>
-                        <Border x:Name="NavigationSelectionIndicator"
-                                Width="3"
-                                Height="16"
-                                Margin="1,0,0,0"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Top"
-                                CornerRadius="2"
-                                IsHitTestVisible="False"
-                                Visibility="Collapsed">
-                            <Border.RenderTransform>
-                                <TranslateTransform />
-                            </Border.RenderTransform>
-                            <Border.Style>
-                                <Style TargetType="{x:Type Border}">
-                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                        </Border>
-                    </Grid>
-                </ScrollViewer>
+                    </StackPanel>
+                    <Border x:Name="NavigationSelectionIndicator"
+                            Grid.RowSpan="2"
+                            Width="3"
+                            Height="16"
+                            Margin="1,0,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            CornerRadius="2"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed">
+                        <Border.RenderTransform>
+                            <TranslateTransform />
+                        </Border.RenderTransform>
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Path=(SystemParameters.HighContrast)}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </Grid>
             </DockPanel>
         </Border>
 
@@ -962,24 +973,56 @@
                                    Text="0 definitions"
                                    Margin="0,0,0,12"
                                    VerticalAlignment="Center" />
-                        <DataGrid x:Name="PackageDefinitionsListView"
-                                  Grid.Row="5"
-                                  MinHeight="160"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  SelectionMode="Single"
-                                  HeadersVisibility="Column"
-                                  CanUserAddRows="False"
-                                  EnableRowVirtualization="True"
-                                  AutomationProperties.Name="Intune package definitions">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                <DataGridTextColumn Header="Architecture" Binding="{Binding DefinitionObject.Application.Architecture}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <Grid Grid.Row="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" MinWidth="200" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" MinWidth="200" />
+                            </Grid.ColumnDefinitions>
+                            <DataGrid x:Name="PackageDefinitionsListView"
+                                      MinHeight="160"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single"
+                                      HeadersVisibility="Column"
+                                      CanUserAddRows="False"
+                                      EnableRowVirtualization="True"
+                                      AutomationProperties.Name="Intune package definitions">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Application" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Architecture" Binding="{Binding DefinitionObject.Application.Architecture}" Width="110" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" ElementStyle="{StaticResource WorkbenchGridTextStyle}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <GridSplitter Grid.Column="1"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"
+                                          ResizeDirection="Columns"
+                                          ResizeBehavior="PreviousAndNext"
+                                          Background="Transparent"
+                                          ToolTip="Resize definition details"
+                                          AutomationProperties.Name="Resize definition details" />
+                            <DockPanel Grid.Column="2" Margin="4,0,0,0">
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="Definition details"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,12" />
+                                <RichTextBox x:Name="PackageDefinitionDetailsText"
+                                             IsReadOnly="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             HorizontalScrollBarVisibility="Disabled"
+                                             AutomationProperties.Name="Selected definition details">
+                                    <FlowDocument PagePadding="0"
+                                                  FontFamily="{Binding FontFamily, ElementName=PackageDefinitionDetailsText}"
+                                                  FontSize="{Binding FontSize, ElementName=PackageDefinitionDetailsText}">
+                                        <Paragraph Margin="0">Select a definition to view its details.</Paragraph>
+                                    </FlowDocument>
+                                </RichTextBox>
+                            </DockPanel>
+                        </Grid>
                         <Label Grid.Row="6" Content="Package output folder" Target="{Binding ElementName=PackageOutputPathBox}"
                                Padding="0" Margin="0,16,0,4" />
                         <Grid Grid.Row="7">
@@ -1140,7 +1183,7 @@
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <Label x:Name="IntuneDefinitionSearchLabel" Content="Search" Target="{Binding ElementName=IntuneDefinitionSearchBox}" VerticalAlignment="Center" Padding="0" Margin="0,0,8,0" />
-                                <TextBox x:Name="IntuneDefinitionSearchBox" Width="190" VerticalContentAlignment="Center" AutomationProperties.Name="Search Intune definitions" />
+                                <TextBox x:Name="IntuneDefinitionSearchBox" Width="200" VerticalContentAlignment="Center" AutomationProperties.Name="Search Intune definitions" />
                             </StackPanel>
                         </DockPanel>
                         <Grid Grid.Row="1">

@@ -9,6 +9,71 @@ AfterAll {
     Remove-Module -Name EvergreenUI -ErrorAction SilentlyContinue
 }
 
+Describe 'Evergreen module selection' {
+    It 'uses the newest installed Evergreen in the module and its workers with <Scenario>' -ForEach @(
+        @{ Scenario = 'no preloaded module'; Preload = $false }
+        @{ Scenario = 'an older preloaded module'; Preload = $true }
+    ) {
+        $olderRoot = Join-Path -Path $TestDrive -ChildPath 'older'
+        $newerRoot = Join-Path -Path $TestDrive -ChildPath 'newer'
+        # New runspaces add standard module directories, so fixtures must outrank installed versions.
+        foreach ($fixture in @(
+                @{ Root = $olderRoot; Version = '12.13.14.156' }
+                @{ Root = $newerRoot; Version = '12.13.14.157' }
+            )) {
+            $directory = Join-Path -Path $fixture.Root -ChildPath "Evergreen\$($fixture.Version)"
+            New-Item -Path $directory -ItemType Directory -Force | Out-Null
+            Set-Content -Path (Join-Path -Path $directory -ChildPath 'Evergreen.psm1') -Value 'function Find-EvergreenApp { $ExecutionContext.SessionState.Module.Version.ToString() }'
+            New-ModuleManifest -Path (Join-Path -Path $directory -ChildPath 'Evergreen.psd1') -RootModule 'Evergreen.psm1' -ModuleVersion $fixture.Version -FunctionsToExport 'Find-EvergreenApp'
+        }
+
+        $originalFixtureModulePath = $env:EW_TEST_FIXTURE_MODULE_PATH
+        $originalWorkbenchPath = $env:EW_TEST_MODULE_PATH
+        $originalPreload = $env:EW_TEST_PRELOAD
+        try {
+            $env:EW_TEST_FIXTURE_MODULE_PATH = @($olderRoot, $newerRoot, (Join-Path -Path $PSHOME -ChildPath 'Modules')) -join [IO.Path]::PathSeparator
+            $env:EW_TEST_MODULE_PATH = $modulePath
+            $env:EW_TEST_PRELOAD = [string]$Preload
+            $executable = if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' }
+            $result = & (Join-Path -Path $PSHOME -ChildPath $executable) -NoLogo -NoProfile -Command {
+                $ErrorActionPreference = 'Stop'
+                $env:PSModulePath = $env:EW_TEST_FIXTURE_MODULE_PATH
+                if ($env:EW_TEST_PRELOAD -eq 'True') {
+                    Import-Module -FullyQualifiedName @{ ModuleName = 'Evergreen'; RequiredVersion = '12.13.14.156' }
+                }
+                Import-Module -Name $env:EW_TEST_MODULE_PATH
+                & (Get-Module -Name EvergreenUI) { "Main:$(Find-EvergreenApp)" }
+                if ($env:EW_TEST_PRELOAD -eq 'True') {
+                    "Caller:$(Find-EvergreenApp)"
+                }
+                $job = Start-EwJob -ScriptBlock {
+                    & (Get-Module -Name EvergreenUI) { "Worker:$(Find-EvergreenApp)" }
+                }
+                $deadline = [datetime]::UtcNow.AddSeconds(15)
+                do {
+                    Start-Sleep -Milliseconds 50
+                    $snapshot = Get-EwJob -Id $job.Id
+                } while ($snapshot.State -eq 'Running' -and [datetime]::UtcNow -lt $deadline)
+                if ($snapshot.State -ne 'Completed') {
+                    throw "Worker failed: $($snapshot.TerminatingError)"
+                }
+                $snapshot.Output
+            }
+            $LASTEXITCODE | Should -Be 0
+            $result | Should -Contain 'Main:12.13.14.157'
+            $result | Should -Contain 'Worker:12.13.14.157'
+            if ($Preload) {
+                $result | Should -Contain 'Caller:12.13.14.156'
+            }
+        }
+        finally {
+            $env:EW_TEST_FIXTURE_MODULE_PATH = $originalFixtureModulePath
+            $env:EW_TEST_MODULE_PATH = $originalWorkbenchPath
+            $env:EW_TEST_PRELOAD = $originalPreload
+        }
+    }
+}
+
 Describe 'EvergreenUI v2 foundation' {
     BeforeEach {
         $originalAppData = $env:APPDATA
@@ -20,10 +85,10 @@ Describe 'EvergreenUI v2 foundation' {
         $env:APPDATA = $originalAppData
     }
 
-    It 'imports the implemented public commands from a valid preview manifest' {
+    It 'imports the implemented public commands from a valid release manifest' {
         $manifest = Test-ModuleManifest -Path $modulePath -ErrorAction Stop
-        $manifest.Version.ToString() | Should -Be '2.0.8'
-        $manifest.PrivateData.PSData.Prerelease | Should -Be 'preview'
+        $manifest.Version.ToString() | Should -Be '2.0.10'
+        $manifest.PrivateData.PSData.Prerelease | Should -BeNullOrEmpty
         $manifest.PrivateData.PSData.ExternalModuleDependencies | Should -Contain 'IntuneWin32App'
         Get-Command -Name Get-EwSetting -Module EvergreenUI | Should -Not -BeNullOrEmpty
         Get-Command -Name Set-EwSetting -Module EvergreenUI | Should -Not -BeNullOrEmpty

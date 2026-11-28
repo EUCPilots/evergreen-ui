@@ -255,7 +255,7 @@ Describe 'Packages tabs and local detection freshness' {
             $script:packagesWindow.FindName('NavInstall') | Should -BeNullOrEmpty
             @($state.PackagesTabControl.Items | ForEach-Object Header) | Should -Be @('Definitions', 'Install')
             $state.PackagesTabControl.SelectedIndex | Should -Be 0
-            $state.DefinitionsTab.Content | Should -Be $state.PackageDefinitionsListView.Parent
+            $state.DefinitionsTab.Content | Should -Be $state.PackageDefinitionsListView.Parent.Parent
             $state.InstallTab.Content | Should -Be $state.InstallDefinitionsListView.Parent
             $definitionsPathRow = $state.IntuneDefinitionsPathBox.Parent
             $state.BrowseIntuneDefinitionsButton.Parent | Should -Be $definitionsPathRow
@@ -284,6 +284,53 @@ Describe 'Packages tabs and local detection freshness' {
             $state.Settings.StartupView | Should -Be 'Packages'
             Should -Invoke Set-EwSetting -Exactly 0
             Should -Invoke Invoke-EwWorkbenchJob -Exactly 1 -ParameterFilter { $Kind -eq 'InstallDefinitions' }
+        }
+    }
+
+    It 'updates read-only definition details for selections and clears them when the list is cleared' {
+        InModuleScope EvergreenUI {
+            $state = $script:packagesState
+            $details = $state.PackageDefinitionDetailsText
+            $details.IsReadOnly | Should -BeTrue
+            $getText = { [System.Windows.Documents.TextRange]::new($details.Document.ContentStart, $details.Document.ContentEnd).Text }
+            (& $getText).Trim() | Should -Be 'Select a definition to view its details.'
+            $details.Document.Blocks.FirstBlock.Inlines.FirstInline.FontFamily.Source | Should -Be $state.IntuneDefinitionsPathBox.FontFamily.Source
+            $definition = [PSCustomObject]@{
+                Name = 'Example'; Publisher = 'Publisher'; Version = '1.0'; Status = 'Valid'
+                DefinitionPath = 'C:\Definitions\Example\App.json'; Error = ''
+                DefinitionObject = [PSCustomObject]@{
+                    Application = [PSCustomObject]@{ Architecture = 'arm64'; Filter = 'Get-EvergreenApp -Name Example' }
+                    Information = [PSCustomObject]@{ Description = 'Example description' }
+                    PackageInformation = [PSCustomObject]@{ SetupType = 'EXE'; SetupFile = 'setup.exe' }
+                }
+            }
+            $state.PackageDefinitions.Add($definition)
+            $state.PackageDefinitionsListView.SelectedItem = $definition
+            foreach ($value in @('Example', 'Publisher', '1.0', 'arm64', 'Example description', 'Get-EvergreenApp -Name Example', 'EXE', 'setup.exe', 'Valid', 'C:\Definitions\Example\App.json')) {
+                (& $getText) | Should -Match ([regex]::Escape($value))
+            }
+            (& $getText) | Should -Not -Match 'Error:'
+            $runs = @($details.Document.Blocks.FirstBlock.Inlines)
+            $filterRun = $runs | Where-Object Text -eq 'Get-EvergreenApp -Name Example'
+            $filterRun.FontFamily.Source | Should -Be 'Consolas'
+            $descriptionRun = $runs | Where-Object Text -eq 'Example description'
+            $descriptionRun.FontFamily.Source | Should -Be $state.IntuneDefinitionsPathBox.FontFamily.Source
+            $descriptionRun.FontSize | Should -Be $state.IntuneDefinitionsPathBox.FontSize
+            $details.FontSize = 15
+            $descriptionRun.FontSize | Should -Be 15
+            $filterRun.FontFamily.Source | Should -Be 'Consolas'
+
+            $invalid = [PSCustomObject]@{
+                Name = 'Broken'; DefinitionPath = 'C:\Definitions\Broken\App.json'
+                Status = 'Invalid JSON'; Error = 'Unexpected token'; DefinitionObject = $null
+            }
+            $state.PackageDefinitions.Add($invalid)
+            $state.PackageDefinitionsListView.SelectedItem = $invalid
+            (& $getText) | Should -Match 'Invalid JSON'
+            (& $getText) | Should -Match 'Unexpected token'
+            (& $getText) | Should -Not -Match 'Example description|Architecture:'
+            $state.PackageDefinitions.Clear()
+            (& $getText).Trim() | Should -Be 'Select a definition to view its details.'
         }
     }
 

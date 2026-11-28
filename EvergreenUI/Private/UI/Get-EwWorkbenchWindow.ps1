@@ -50,6 +50,7 @@ function Get-EwWorkbenchWindow {
     $navigationScroll = $window.FindName('NavigationScrollViewer')
     $navigationItems = $window.FindName('NavigationItems')
     $navigationStack = $window.FindName('NavigationItemsStack')
+    $navigationFooter = $window.FindName('NavigationFooter')
     $navigationIndicator = $window.FindName('NavigationSelectionIndicator')
     $navigationButtons = @('NavApps', 'NavLibrary', 'NavPackages', 'NavIntune', 'NavNerdio', 'NavSettings', 'NavAbout') |
         ForEach-Object { $window.FindName($_) }
@@ -72,13 +73,14 @@ function Get-EwWorkbenchWindow {
         $button.Add_SizeChanged({ & $updateIndicator -animate $false }.GetNewClosure())
     }
     $navigationStack.Add_SizeChanged({ & $updateIndicator -animate $false }.GetNewClosure())
+    $navigationFooter.Add_SizeChanged({ & $updateIndicator -animate $false }.GetNewClosure())
     $window.Add_Loaded({ & $updateIndicator -animate $false }.GetNewClosure())
     foreach ($name in @('PackagesTabControl', 'IntuneTabControl', 'NerdioTabControl')) {
         Initialize-EwWorkbenchProviderTab -Tabs $window.FindName($name)
     }
     $window.Add_SizeChanged({
         $compact = $args[0].ActualWidth -lt 1100
-        $navigationColumn.Width = [System.Windows.GridLength]::new($(if ($compact) { 64 } else { 208 }))
+        $navigationColumn.Width = [System.Windows.GridLength]::new($(if ($compact) { 64 } else { 200 }))
         $navigationPane.Padding = [System.Windows.Thickness]::new($(if ($compact) { 4 } else { 16 }))
         $navigationBrand.Visibility = if ($compact) { 'Collapsed' } else { 'Visible' }
         $navigationScroll.Tag = $compact

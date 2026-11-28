@@ -34,6 +34,7 @@ Public commands are grouped by feature and cover settings, jobs, Apps and
 downloads, Library, definitions, local installation, package builds,
 authentication, publishing, dependencies, and cache maintenance. The required
 Evergreen module supplies catalog, artifact, download, and library operations.
+At import, Workbench selects the highest installed Evergreen version for its own commands without replacing a version already loaded in the caller's session.
 
 Long-running commands use `Start-EwJob` and a shared in-process runspace pool
 of up to four workers. `Get-EwJob` reports state, progress, information,
@@ -202,7 +203,7 @@ is optional and is not a publishing gate.
 
 Definitions is the default tab. A saved `StartupView=Install` opens Packages
 with Install selected; tab selection is not saved separately. Each tab keeps
-its own selection, with no automatic transfer. Definitions loads the configured folder on first entry, waiting for any active operation to finish. Use **Reload definitions** after changing the folder or to retry a failed load. Folder edits and completed
+its own selection, with no automatic transfer. Select a definition to see its details and any validation error in the resizable panel beside the list. Definitions loads the configured folder on first entry, waiting for any active operation to finish. Use **Reload definitions** after changing the folder or to retry a failed load. Folder edits and completed
 definition loads or updates invalidate Install rows. Entering Install refreshes
 definitions and local detection, discarding old latest-version and architecture
 assessments while retaining selections for definition paths still present.
